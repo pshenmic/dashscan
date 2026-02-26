@@ -1,5 +1,6 @@
 use deadpool_postgres::{Client, Pool};
 use serde_json::Value;
+use tokio_postgres::Error;
 use tracing::{debug, info};
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
@@ -115,6 +116,9 @@ impl Database {
         tx_count: i32,
     ) -> Result<(), String> {
         let client = self.client().await?;
+
+        let chrono_timestamp = chrono::DateTime::from_timestamp_secs(timestamp).expect("Could not decode timestamp");
+
         client
             .execute(
                 "INSERT INTO blocks (hash, height, timestamp, prev_hash, merkle_root, size, nonce, difficulty, chainwork, tx_count)
@@ -123,7 +127,7 @@ impl Database {
                 &[
                     &hash,
                     &(height as i32),
-                    &timestamp,
+                    &chrono_timestamp,
                     &prev_hash,
                     &merkle_root,
                     &(size as i32),
