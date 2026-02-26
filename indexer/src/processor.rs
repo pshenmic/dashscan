@@ -149,10 +149,21 @@ impl BlockProcessor {
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-            // Track address first seen
+
             if let Some(ref addr) = address {
-                self.db.upsert_address(addr, &tx.txid, block_height).await
-                    .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+                let existing = self.db.get_address(addr)
+                    .await.map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+                match existing {
+                    None => {
+                        self.db.insert_address(addr, &tx.txid, block_height).await
+                            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+                    }
+                    Some(_) => {
+                        self.db.update_address(addr, &tx.txid, block_height).await
+                            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+                    }
+                }
             }
         }
 

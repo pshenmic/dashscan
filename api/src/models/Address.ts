@@ -1,27 +1,27 @@
 interface AddressRow {
   address: string;
-  creation_height: number;
-}
-
-interface AddressObject {
-  address?: string;
-  creationHeight?: number;
+  first_seen_block: number;
+  first_seen_tx: string;
+  last_seen_block: number;
+  last_seen_tx: string;
 }
 
 export default class Address {
-  address: string | null;
-  creationHeight: number | null;
+  address?: string;
+  firstSeenBlock?: number;
+  firstSeenTx?: string;
+  lastSeenBlock?: number;
+  lastSeenTx?: string;
 
-  constructor(address?: string, creationHeight?: number) {
+  constructor(address?: string, firstSeenBlock?: number, firstSeenTx?: string, lastSeenBlock?: number, lastSeenTx?: string) {
     this.address = address ?? null;
-    this.creationHeight = creationHeight ?? null;
+    this.firstSeenBlock = firstSeenBlock ?? null;
+    this.firstSeenTx = firstSeenTx ?? null;
+    this.lastSeenBlock = lastSeenBlock ?? null;
+    this.lastSeenTx = lastSeenTx ?? null;
   }
 
-  static fromRow({ address, creation_height }: AddressRow): Address {
-    return new Address(address, creation_height);
-  }
-
-  static fromObject({ address, creationHeight }: AddressObject): Address {
-    return new Address(address, creationHeight);
+  static fromRow({ address, first_seen_block, first_seen_tx, last_seen_block, last_seen_tx }: AddressRow): Address {
+    return new Address(address, Number(first_seen_block), first_seen_tx, Number(last_seen_block), last_seen_tx);
   }
 }

@@ -73,6 +73,22 @@ impl Database {
         }))
     }
 
+    pub async fn get_address(&self, address: &str) -> Result<Option<String>, PoolError> {
+        let client = self.client().await?;
+
+        let rows = client
+            .query(
+                "SELECT address, first_seen_tx, first_seen_block, last_seen_tx, last_seen_block  FROM addresses WHERE address = $1",
+                &[&address],
+            )
+            .await?;
+
+        Ok(rows.first().map(|r| {
+            let h: String = r.get(0);
+            h.trim().to_string()
+        }))
+    }
+
     pub async fn delete_block_at_height(&self, height: i64) -> Result<(), PoolError> {
         let client = self.client().await?;
         let h = height as i32;
@@ -232,20 +248,39 @@ impl Database {
         Ok(())
     }
 
-    pub async fn upsert_address(
+    pub async fn insert_address(
         &self,
         address: &str,
         first_seen_tx: &str,
-        first_seen_block: i64,
+        first_seen_block: i64
     ) -> Result<(), PoolError> {
         let client = self.client().await?;
 
         client
             .execute(
                 "INSERT INTO addresses (address, first_seen_tx, first_seen_block)
-                 VALUES ($1, $2, $3)
-                 ON CONFLICT (address) DO NOTHING",
+                 VALUES ($1, $2, $3)",
                 &[&address, &first_seen_tx, &(first_seen_block as i32)],
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn update_address(
+        &self,
+        address: &str,
+        last_seen_tx: &str,
+        last_seen_block: i64,
+    ) -> Result<(), PoolError> {
+        let client = self.client().await?;
+
+        client
+            .execute(
+                "UPDATE addresses
+                          SET last_seen_tx = $2, last_seen_block = $3
+                          WHERE address = $1;",
+                &[&address, &last_seen_tx, &(last_seen_block as i32)],
             )
             .await?;
 
