@@ -1,0 +1,28 @@
+{
+  "name": "dashscan-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/owl352/dash-core-explorer",
+  "author": "owl352",
+  "license": "MIT",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@dashevo/dashd-rpc": "github:owl352/dashd-rpc",
+    "dash-core-sdk": "github:pshenmic/dash-core-sdk#08e3530df2a0353fcd94c4d8e95f873d179750cd",
+    "@fastify/cors": "^11.2.0",
+    "dotenv": "^17.2.3",
+    "fastify": "^5.6.2",
+    "fastify-metrics": "^12.1.0",
+    "knex": "^3.1.0",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  }
+}
