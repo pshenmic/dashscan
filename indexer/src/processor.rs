@@ -1,7 +1,13 @@
 use crate::db::Database;
-use crate::rpc::{Block, Transaction, DashRpcClient};
+use crate::errors::database_error::DatabaseError;
+use crate::rpc::{Block, DashRpcClient, Transaction};
+use chrono::{DateTime, Utc};
 use serde_json::Value;
+use tokio_postgres::fallible_iterator::FallibleIterator;
 use tracing::{debug, info, warn};
+use tracing_subscriber::fmt::time;
+use crate::errors::block_index_error::BlockIndexError;
+use crate::errors::block_index_error::BlockIndexError::RpcError;
 
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
@@ -13,14 +19,22 @@ impl BlockProcessor {
         Self { rpc, db }
     }
 
-    pub async fn index_block(&self, height: i64) -> Result<(), String> {
+     pub async fn index_block(&self, height: i64) -> Result<Option<String>, BlockIndexError> {
+        let mut block: Block;
+
         // Check for reorg: if we have a block at this height, verify it matches
-        if let Some(existing_hash) = self.db.get_block_hash_at_height(height).await? {
-            let block = self.rpc.get_block_by_height(height).await?;
+        if let Some(existing_hash) = self.db.get_block_hash_at_height(height).await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))? {
+
+            block = self.rpc.get_block_by_height(height)
+                .await
+                .map_err(|e| BlockIndexError::from(e))?;
+
             if existing_hash == block.hash {
                 debug!(height, "Block already indexed, skipping");
-                return Ok(());
+                return Ok(None);
             }
+
             // Reorg detected — delete old block and re-index
             warn!(
                 height,
@@ -28,22 +42,33 @@ impl BlockProcessor {
                 new_hash = %block.hash,
                 "Reorg detected, re-indexing block"
             );
-            self.db.delete_block_at_height(height).await?;
-            return self.process_block(block).await;
+
+            self.db.delete_block_at_height(height).await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
         }
 
-        let block = self.rpc.get_block_by_height(height).await?;
-        self.process_block(block).await
+        block = self.rpc.get_block_by_height(height).await
+            .map_err(|e| BlockIndexError::from(e))?;
+
+        let hash = block.hash.clone();
+
+        self.process_block(block).await?;
+
+        Ok(Some(hash))
     }
 
-    async fn process_block(&self, block: Block) -> Result<(), String> {
+    async fn process_block(&self, block: Block) -> Result<(), BlockIndexError> {
         let tx_count = block.tx.len() as i32;
+
+        let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
+            .ok_or_else(|| BlockIndexError::UnexpectedError("Invalid block timestamp".to_string()))?;
 
         self.db
             .insert_block(
                 &block.hash,
                 block.height,
-                block.time,
+                block.version,
+                timestamp,
                 block.previous_block_hash.as_deref(),
                 &block.merkle_root,
                 block.size,
@@ -52,10 +77,12 @@ impl BlockProcessor {
                 &block.chainwork,
                 tx_count,
             )
-            .await?;
+            .await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
         for tx in &block.tx {
-            self.process_transaction(tx, &block.hash, block.height).await?;
+            self.process_transaction(tx, &block.hash, block.height)
+                .await?;
         }
 
         info!(
@@ -72,11 +99,12 @@ impl BlockProcessor {
         tx: &Transaction,
         block_hash: &str,
         block_height: i64,
-    ) -> Result<(), String> {
+    ) -> Result<(), BlockIndexError> {
         let tx_type = tx.tx_type.unwrap_or(0);
         let is_coinbase = tx.vin.first().map_or(false, |v| v.coinbase.is_some());
 
-        self.db
+        let a = self
+            .db
             .insert_transaction(
                 &tx.txid,
                 block_hash,
@@ -86,7 +114,8 @@ impl BlockProcessor {
                 tx.locktime,
                 is_coinbase,
             )
-            .await?;
+            .await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)));
 
         // Process inputs
         for (i, vin) in tx.vin.iter().enumerate() {
@@ -96,7 +125,8 @@ impl BlockProcessor {
 
             self.db
                 .insert_tx_input(&tx.txid, i as i32, prev_txid, prev_vout, coinbase_data)
-                .await?;
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
         }
 
         // Process outputs
@@ -115,13 +145,13 @@ impl BlockProcessor {
                     script_type,
                     address.as_deref(),
                 )
-                .await?;
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
             // Track address first seen
             if let Some(ref addr) = address {
-                self.db
-                    .upsert_address(addr, &tx.txid, block_height)
-                    .await?;
+                self.db.upsert_address(addr, &tx.txid, block_height).await
+                    .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
             }
         }
 
@@ -130,7 +160,9 @@ impl BlockProcessor {
             let payload = self.build_special_tx_payload(tx);
             self.db
                 .insert_special_transaction(&tx.txid, tx_type, &payload)
-                .await?;
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
             debug!(txid = %tx.txid, tx_type, "Stored special transaction");
         }
 
@@ -168,8 +200,8 @@ impl BlockProcessor {
 
     /// Catch up from last indexed block to current chain tip
     pub async fn catch_up(&self) -> Result<i64, String> {
-        let chain_height = self.rpc.get_block_count().await?;
-        let db_height: i64 = self.db.get_max_block_height().await?.unwrap_or(-1);
+        let chain_height = self.rpc.get_block_count().await.expect("Failed to get chain height");
+        let db_height: i64 = self.db.get_max_block_height().await.expect("Failed to get db height");
 
         if db_height >= chain_height {
             info!(chain_height, db_height, "Already up to date");
@@ -186,7 +218,8 @@ impl BlockProcessor {
         );
 
         for height in start..=chain_height {
-            self.index_block(height).await?;
+            self.index_block(height).await
+                .map_err(|e| e.to_string())?;
 
             if (height - start) % 100 == 0 && height != start {
                 info!(

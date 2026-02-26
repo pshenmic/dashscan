@@ -1,21 +1,22 @@
+mod config;
 mod db;
+mod errors;
 mod processor;
 mod rpc;
 mod zmq;
-mod config;
 
-use std::{env, process};
-use std::ops::DerefMut;
 use db::Database;
 use processor::BlockProcessor;
 use rpc::DashRpcClient;
+use std::ops::DerefMut;
+use std::{env, process};
 use zmq::zmq_listener;
 
-use std::sync::Arc;
+use crate::config::Config;
 use dotenv::dotenv;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
-use crate::config::Config;
 
 #[tokio::main]
 async fn main() {
@@ -38,17 +39,14 @@ async fn main() {
                     )
                     .expect("Failed to create database pool");
 
-                let migrations =
-                    refinery::load_sql_migrations("./migrations").expect("Failed to load migrations");
+                let migrations = refinery::load_sql_migrations("./migrations")
+                    .expect("Failed to load migrations");
 
                 let mut conn = pool.get().await.unwrap();
                 let client = conn.deref_mut().deref_mut();
                 let runner = refinery::Runner::new(&migrations);
 
-                let report = runner
-                    .run_async(client)
-                    .await
-                    .expect("Migration failed");
+                let report = runner.run_async(client).await.expect("Migration failed");
 
                 println!("{:?}", report);
 
@@ -83,7 +81,12 @@ async fn main() {
     let db = Database::new(pool);
 
     // Connect to Dash Core RPC
-    let rpc = DashRpcClient::new(&config.rpc_host,&config.rpc_port, &config.rpc_user, &config.rpc_password);
+    let rpc = DashRpcClient::new(
+        &config.rpc_host,
+        &config.rpc_port,
+        &config.rpc_user,
+        &config.rpc_password,
+    );
 
     // Test RPC connectivity
     if let Err(e) = rpc.ping().await {
@@ -140,14 +143,10 @@ async fn polling_loop(processor: Arc<BlockProcessor>, interval_secs: u64, tx: mp
                     .db
                     .get_max_block_height()
                     .await
-                    .unwrap_or(Some(-1))
-                    .unwrap_or(-1);
+                    .expect("Failed to get max block height from database");
 
                 if chain_height > db_height {
-                    info!(
-                        chain_height,
-                        db_height, "Polling: new blocks detected"
-                    );
+                    info!(chain_height, db_height, "Polling: new blocks detected");
                     let _ = tx.send(()).await;
                 }
             }
@@ -165,37 +164,42 @@ async fn continuous_indexing(
 ) {
     loop {
         tokio::select! {
-            Some(_hash) = zmq_rx.recv() => {
+            Some(hash) = zmq_rx.recv() => {
                 // ZMQ notified us of a new block
-                if let Err(e) = index_new_blocks(&processor).await {
-                    error!("Failed to index new block (ZMQ): {e}");
-                    backoff_sleep(1).await;
-                }
+                info!("ZMQ: new block detected: {}", hash);
+                index_new_blocks(&processor).await;
+
+                backoff_sleep(1).await;
             }
             Some(()) = poll_rx.recv() => {
                 // Polling detected new blocks
-                if let Err(e) = index_new_blocks(&processor).await {
-                    error!("Failed to index new block (poll): {e}");
-                    backoff_sleep(1).await;
-                }
+                info!("Polling: new blocks detected");
+                index_new_blocks(&processor).await;
+                backoff_sleep(1).await;
             }
         }
     }
 }
 
-async fn index_new_blocks(processor: &BlockProcessor) -> Result<(), String> {
-    let chain_height = processor.rpc.get_block_count().await?;
-    let db_height: i64 = processor
-        .db
-        .get_max_block_height()
-        .await?
-        .unwrap_or(-1);
+async fn index_new_blocks(processor: &BlockProcessor) -> () {
+    // check block already indexed
+    let chain_height: i64 = processor.rpc.get_block_count().await
+        .expect("Could not get block count from RPC");
+
+    let db_height: i64 = processor.db.get_max_block_height().await
+        .expect("Could not read max block height from database");
 
     for height in (db_height + 1)..=chain_height {
-        processor.index_block(height).await?;
+        match processor.index_block(height).await {
+            Ok((hash)) => match hash {
+                None => info!("Block {} already indexed, skipping", height),
+                Some(hash) => info!("Block {} with hash {} already indexed, skipping", height, hash)
+            },
+            Err(e) => {
+                error!("Failed to index block with height {}: {}", height, e);
+            }
+        }
     }
-
-    Ok(())
 }
 
 async fn backoff_sleep(seconds: u64) {
