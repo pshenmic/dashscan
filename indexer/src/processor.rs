@@ -69,7 +69,7 @@ impl BlockProcessor {
                 block.height,
                 block.version,
                 timestamp,
-                block.previous_block_hash.as_deref(),
+                block.previous_block_hash,
                 &block.merkle_root,
                 block.size,
                 block.nonce,

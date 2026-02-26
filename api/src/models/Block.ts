@@ -3,7 +3,12 @@ interface BlockRow {
   hash: string;
   version: number;
   timestamp: Date;
-  txs_count: number;
+  size: number;
+  difficulty: number;
+  merkle_root: string;
+  previous_block_hash: string;
+  nonce: bigint;
+  tx_count: number;
   block_size: number;
   credit_pool_balance: number;
 }
@@ -20,7 +25,7 @@ interface BlockObject {
   difficulty?: number;
   merkleRoot?: string;
   previousBlockHash?: string;
-  nonce?: number;
+  nonce?: bigint;
   confirmations?: number;
 }
 
@@ -32,12 +37,10 @@ export default class Block {
   txCount: number | null;
   size: number | null;
   creditPoolBalance: number | null;
-  txs: string[] | null;
   difficulty: number | null;
   merkleRoot: string | undefined;
   previousBlockHash: string | null;
-  nonce: number | null;
-  confirmations: number | null;
+  nonce: bigint;
 
   constructor(
     height?: number,
@@ -47,12 +50,10 @@ export default class Block {
     txCount?: number,
     size?: number,
     creditPoolBalance?: number,
-    txs?: string[],
     difficulty?: number,
     merkleRoot?: string,
     previousBlockHash?: string,
-    nonce?: number,
-    confirmations?: number,
+    nonce?: bigint,
   ) {
     this.height = height ?? null;
     this.hash = hash ?? null;
@@ -61,19 +62,17 @@ export default class Block {
     this.txCount = txCount ?? null;
     this.size = size ?? null;
     this.creditPoolBalance = creditPoolBalance ?? null;
-    this.txs = txs ?? null;
     this.difficulty = difficulty ?? null;
     this.merkleRoot = merkleRoot;
     this.previousBlockHash = previousBlockHash ?? null;
     this.nonce = nonce ?? null;
-    this.confirmations = confirmations ?? null;
   }
 
-  static fromRow({ height, hash, version, timestamp, txs_count, block_size, credit_pool_balance }: BlockRow): Block {
-    return new Block(height, hash, version, timestamp, txs_count, block_size, credit_pool_balance);
+  static fromRow({ height, hash, version, timestamp, tx_count, size, credit_pool_balance, difficulty, merkle_root, previous_block_hash, nonce }: BlockRow): Block {
+    return new Block(height, hash, version, timestamp, tx_count, size, credit_pool_balance, difficulty, merkle_root, previous_block_hash, nonce);
   }
 
-  static fromObject({ height, hash, version, timestamp, txCount, size, creditPoolBalance, txs, difficulty, merkleRoot, previousBlockHash, nonce, confirmations }: BlockObject): Block {
-    return new Block(height, hash, version, timestamp, txCount, size, creditPoolBalance, txs, difficulty, merkleRoot, previousBlockHash, nonce, confirmations);
+  static fromObject({ height, hash, version, timestamp, txCount, size, creditPoolBalance, difficulty, merkleRoot, previousBlockHash, nonce }: BlockObject): Block {
+    return new Block(height, hash, version, timestamp, txCount, size, creditPoolBalance, difficulty, merkleRoot, previousBlockHash, nonce);
   }
 }

@@ -14,7 +14,7 @@ export default class BlocksDAO {
     const fromRank = (page - 1) * limit;
 
     const rows = await this.knex('blocks')
-      .select('height', 'hash', 'version', 'timestamp', 'txs_count', 'block_size', 'fee')
+      .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce', 'blocks.previous_block_hash')
       .select(this.knex('blocks').count('height').as('total_count'))
       .orderBy('height', order)
       .limit(limit)
@@ -22,39 +22,21 @@ export default class BlocksDAO {
 
     const [row] = rows;
 
-    return new PaginatedResultSet(rows.map(Block.fromRow), page, limit, row?.total_count);
+    return new PaginatedResultSet(rows.map(row => Block.fromRow(row)), page, limit, row?.total_count);
   };
 
   getBlockByHash = async (hash: string): Promise<Block | null> => {
-    let block: any;
+    const rows = await this.knex('blocks')
+        .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce', 'blocks.previous_block_hash')
+        .where('blocks.hash', hash)
+        .limit(1)
 
-    try {
-      block = await DashCoreRPC.getBlock(hash, 1);
-    } catch (e: any) {
-      if (e.code === -5) {
-        return null;
-      } else {
-        throw e;
-      }
-    }
+    const [row] = rows;
 
-    if (!block) {
+    if (row == null)  {
       return null;
     }
 
-    return Block.fromObject({
-      height: block.height,
-      hash: block.hash,
-      version: block.version,
-      size: block.size,
-      timestamp: new Date(block.time * 1000),
-      txCount: block.nTx,
-      txs: block.tx,
-      difficulty: block.difficulty,
-      merkleRoot: block.merkleroot,
-      previousBlockHash: block.previousblockhash,
-      nonce: block.nonce,
-      confirmations: block.confirmations,
-    });
+    return Block.fromRow(row)
   };
 }

@@ -120,7 +120,7 @@ impl Database {
         height: i64,
         version: i32,
         timestamp: chrono::DateTime<chrono::Utc>,
-        prev_hash: Option<&str>,
+        prev_hash: Option<String>,
         merkle_root: &str,
         size: i64,
         nonce: i64,
@@ -135,7 +135,7 @@ impl Database {
 
         client
             .execute(
-                "INSERT INTO blocks (hash, height, version, timestamp, prev_hash, merkle_root, size, nonce, difficulty, chainwork, tx_count, credit_pool_balance)
+                "INSERT INTO blocks (hash, height, version, timestamp, previous_block_hash, merkle_root, size, nonce, difficulty, chainwork, tx_count, credit_pool_balance)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                  ON CONFLICT (hash) DO NOTHING",
                 &[

@@ -39,6 +39,8 @@ export const start = async (): Promise<FastifyInstance> => {
 
   knex = getKnex();
 
+  await knex.raw('select 1')
+
   const blocksController = new BlocksController(knex);
   const transactionsController = new TransactionsController(knex);
   const addressesController = new AddressesController(knex);
