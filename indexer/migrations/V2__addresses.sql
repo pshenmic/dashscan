@@ -1,6 +1,6 @@
 CREATE TABLE addresses (
     address varchar(35) PRIMARY KEY ,
-    creation_height int not null references blocks(height),
+    creation_height int references blocks(height),
     first_seen_tx   CHAR(64) references transactions(txid),
     first_seen_block INT references blocks(height),
     CONSTRAINT address_unique UNIQUE(address)

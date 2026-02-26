@@ -3,11 +3,10 @@ CREATE TABLE transactions (
     type SMALLINT not null,
     version  INT,
     size INT,
-    block_height int not null references blocks(height),
-    amount bigint not null,
+    block_hash char(64) not null references blocks(hash),
     locktime BIGINT,
     is_coinbase BOOLEAN DEFAULT FALSE
 );
 
 CREATE UNIQUE INDEX transaction_hash ON transactions(txid);
-CREATE INDEX transaction_height ON transactions(block_height);
+CREATE INDEX transaction_block_hash ON transactions(block_hash);

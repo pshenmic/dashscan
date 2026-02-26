@@ -34,10 +34,29 @@ struct DashRpcError {
     code: i64,
     message: String,
 }
+#[derive(Deserialize, Debug)]
+pub struct CbTx {
+    pub version: i32,
+
+    #[serde(rename = "merkleRootMNList")]
+    pub merkle_root_mn_list: String,
+
+    #[serde(rename = "merkleRootQuorums")]
+    pub merkle_root_quorums: String,
+
+    #[serde(rename = "bestCLHeightDiff")]
+    pub best_cl_height_diff: i64,
+
+    #[serde(rename = "bestCLSignature")]
+    pub best_cl_signature: String,
+
+    #[serde(rename = "creditPoolBalance")]
+    pub credit_pool_balance: f64
+}
 
 // --- Block types ---
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug)]
 pub struct Block {
     pub hash: String,
     pub height: i64,
@@ -52,6 +71,8 @@ pub struct Block {
     pub difficulty: f64,
     pub chainwork: String,
     pub tx: Vec<Transaction>,
+    #[serde(rename = "cbTx")]
+    pub cb_tx: Option<CbTx>
 }
 
 #[derive(Deserialize, Debug, Clone)]

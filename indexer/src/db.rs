@@ -127,6 +127,7 @@ impl Database {
         difficulty: f64,
         chainwork: &str,
         tx_count: i32,
+        credit_pool_balance: Option<f64>,
     ) -> Result<(), PoolError> {
         let client = self.client().await?;
 
@@ -134,8 +135,8 @@ impl Database {
 
         client
             .execute(
-                "INSERT INTO blocks (hash, height, version, timestamp, prev_hash, merkle_root, size, nonce, difficulty, chainwork, tx_count)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                "INSERT INTO blocks (hash, height, version, timestamp, prev_hash, merkle_root, size, nonce, difficulty, chainwork, tx_count, credit_pool_balance)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                  ON CONFLICT (hash) DO NOTHING",
                 &[
                     &hash,
@@ -149,6 +150,7 @@ impl Database {
                     &difficulty,
                     &chainwork,
                     &tx_count,
+                    &credit_pool_balance,
                 ],
             )
             .await?;
@@ -170,9 +172,8 @@ impl Database {
 
         client
             .execute(
-                "INSERT INTO transactions (txid, block_hash, version, tx_type, size, locktime, is_coinbase)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)
-                 ON CONFLICT (txid) DO NOTHING",
+                "INSERT INTO transactions (txid, block_hash, version, type, size, locktime, is_coinbase)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)",
                 &[
                     &txid,
                     &block_hash,
@@ -262,8 +263,7 @@ impl Database {
         client
             .execute(
                 "INSERT INTO special_transactions (txid, tx_type, payload)
-                 VALUES ($1, $2, $3)
-                 ON CONFLICT (txid) DO NOTHING",
+                 VALUES ($1, $2, $3)",
                 &[&txid, &tx_type, &payload],
             )
             .await?;

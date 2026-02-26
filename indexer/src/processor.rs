@@ -76,6 +76,7 @@ impl BlockProcessor {
                 block.difficulty,
                 &block.chainwork,
                 tx_count,
+                block.cb_tx.map(|cb_tx| cb_tx.credit_pool_balance)
             )
             .await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
@@ -103,7 +104,7 @@ impl BlockProcessor {
         let tx_type = tx.tx_type.unwrap_or(0);
         let is_coinbase = tx.vin.first().map_or(false, |v| v.coinbase.is_some());
 
-        let a = self
+        self
             .db
             .insert_transaction(
                 &tx.txid,
@@ -115,7 +116,7 @@ impl BlockProcessor {
                 is_coinbase,
             )
             .await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)));
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
         // Process inputs
         for (i, vin) in tx.vin.iter().enumerate() {
