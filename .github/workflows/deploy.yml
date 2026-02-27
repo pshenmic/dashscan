@@ -41,8 +41,8 @@ jobs:
             docker stop dashscan-mainnet-api || true
             docker stop dashscan-testnet-api || true
             
-            docker stop dashscan-mainnet-indexer || true
-            docker stop dashscan-testnet-indexer || true
+            docker rm dashscan-mainnet-indexer || true
+            docker rm dashscan-testnet-indexer || true
                         
             # clean up database
             docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer drop_db
