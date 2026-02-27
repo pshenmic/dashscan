@@ -8,6 +8,7 @@ COPY src /app/src
 
 # RUN apk add git
 RUN yarn
+RUN yarn build
 
 FROM node:20-alpine as api
 WORKDIR /app
