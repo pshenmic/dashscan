@@ -45,6 +45,9 @@ jobs:
             docker rm dashscan-testnet-indexer dashscan-testnet-api || true
                         
             # clean up database
+            docker run --rm --env-file mainnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer drop_db
+            docker run --rm --env-file mainnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer migrate
+            
             docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer drop_db
             docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer migrate
             
