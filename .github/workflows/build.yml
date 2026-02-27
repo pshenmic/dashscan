@@ -126,7 +126,7 @@ jobs:
       - name: Build and push API package Docker image
         uses: docker/build-push-action@v4
         with:
-          context: ./
+          context: ./api
           file: ./api/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
