@@ -38,11 +38,11 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer
             
             # stop running containers
-            docker stop dashscan-mainnet-api || true
-            docker stop dashscan-testnet-api || true
+            docker stop dashscan-mainnet-indexer dashscan-mainnet-api || true
+            docker stop dashscan-testnet-indexer dashscan-testnet-api || true
             
-            docker rm dashscan-mainnet-indexer || true
-            docker rm dashscan-testnet-indexer || true
+            docker rm dashscan-mainnet-indexer dashscan-mainnet-api || true
+            docker rm dashscan-testnet-indexer dashscan-testnet-api || true
                         
             # clean up database
             docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer drop_db
