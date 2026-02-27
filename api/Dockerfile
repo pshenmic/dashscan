@@ -12,5 +12,6 @@ RUN yarn build
 
 FROM node:20-alpine AS api
 WORKDIR /app
+COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/dist /app
 CMD ["node", "index.js"]
