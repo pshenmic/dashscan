@@ -29,6 +29,38 @@ async fn main() {
         let arg = args.get(2).unwrap();
 
         match arg.as_str() {
+            "drop_db" => {
+                let config = Config::from_env();
+                let pg_config = config.pg_config();
+                let pool = pg_config
+                    .create_pool(
+                        Some(deadpool_postgres::Runtime::Tokio1),
+                        tokio_postgres::NoTls,
+                    )
+                    .expect("Failed to create database pool");
+
+                let mut conn = pool.get().await.unwrap();
+                let client = conn.deref_mut().deref_mut();
+
+                client
+                    .batch_execute(
+                        "BEGIN; \
+                         DROP TABLE IF EXISTS special_transactions; \
+                         DROP TABLE IF EXISTS tx_inputs; \
+                         DROP TABLE IF EXISTS tx_outputs; \
+                         DROP TABLE IF EXISTS addresses; \
+                         DROP TABLE IF EXISTS transactions; \
+                         DROP TABLE IF EXISTS blocks; \
+                         DROP TABLE IF EXISTS refinery_schema_history; \
+                         COMMIT;",
+                    )
+                    .await
+                    .expect("Failed to drop tables");
+
+                println!("All tables dropped successfully");
+
+                process::exit(0);
+            }
             "migrate" => {
                 let config = Config::from_env();
                 let pg_config = config.pg_config();
