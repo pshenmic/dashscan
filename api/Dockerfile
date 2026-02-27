@@ -1,0 +1,15 @@
+FROM node:24-alpine as build
+WORKDIR /app
+COPY yarn.lock /app/yarn.lock
+COPY package.json /app/package.json
+COPY index.ts /app/index.ts
+COPY tsconfig.json /app/tsconfig.json
+COPY src /app/src
+
+# RUN apk add git
+RUN yarn
+
+FROM node:20-alpine as api
+WORKDIR /app
+COPY --from=build /app/dist /app
+CMD ["node", "index.js"]
