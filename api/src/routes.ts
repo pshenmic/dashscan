@@ -13,6 +13,11 @@ interface RoutesOptions {
 export default function Routes({ fastify, blocksController, transactionsController, addressesController }: RoutesOptions): void {
   const routes = [
     {
+      path: '/status',
+      method: 'GET',
+      handler: (request, reply) => reply.status(200).send({status: 'ok'}),
+    },
+    {
       path: '/blocks',
       method: 'get',
       handler: blocksController.getBlocks,
