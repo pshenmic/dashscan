@@ -5,6 +5,7 @@ on:
     workflows: ["Build and push packages"]
     branches:
       - "master"
+      - "*.*.*"
       - "develop"
     types:
       - completed
