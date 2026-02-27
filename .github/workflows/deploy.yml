@@ -78,6 +78,13 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer
             
+            # stop running containers
+            docker stop dashscan-mainnet-api || true
+            docker stop dashscan-testnet-api || true
+            
+            docker stop dashscan-mainnet-indexer || true
+            docker stop dashscan-testnet-indexer || true
+            
             # clean up database
             docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer db_drop
             docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer migrate
