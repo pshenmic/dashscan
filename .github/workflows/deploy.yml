@@ -19,32 +19,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  stop:
+  deploy:
     runs-on: ubuntu-latest
 
     if: github.event.workflow_run.conclusion == 'success'
 
     steps:
-      - name: Stop
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            docker stop $(docker ps -f name=pe-testnet-api -q) || true
-            docker stop $(docker ps -f name=pe-testnet-indexer -q) || true
-            docker rm pe-testnet-api pe-testnet-indexer || true
-
-  start:
-    runs-on: ubuntu-latest
-
-    steps:
-
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
       - name: Deploy to the server
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -63,14 +43,14 @@ jobs:
             
             docker stop dashscan-mainnet-indexer || true
             docker stop dashscan-testnet-indexer || true
-            
+                        
             # clean up database
-            docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer db_drop
+            docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer drop_db
             docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer migrate
             
             # start containers
             docker run -d -p 3005:3005 --restart always --env-file testnet.env --name dashscan-mainnet-api ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
             docker run -d -p 3006:3005 --restart always --env-file testnet.env --name dashscan-testnet-api ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
             
-            docker run -d --rm --env-file testnet.env --restart always --name dashscan-mainnet-indexer ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer ./indexer
-            docker run -d --rm --env-file testnet.env --restart always --name dashscan-testnet-indexer ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer ./indexer
+            docker run -d --env-file mainnet.env --restart always --name dashscan-mainnet-indexer ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer
+            docker run -d --env-file testnet.env --restart always --name dashscan-testnet-indexer ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer
