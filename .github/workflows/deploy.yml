@@ -86,5 +86,5 @@ jobs:
             docker run -d -p 8080:3005 --restart always --env-file testnet.env --name dashscan-mainnet-api ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:api
             docker run -d -p 8080:3005 --restart always --env-file testnet.env --name dashscan-testnet-api ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:api
             
-            docker run -d --env-file testnet.env --restart always --name dashscan-mainnet-indexer ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:indexer ./indexer
-            docker run -d --env-file testnet.env --restart always --name dashscan-testnet-indexer ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:indexer ./indexer
+            docker run -d --rm --env-file testnet.env --restart always --name dashscan-mainnet-indexer ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:indexer ./indexer
+            docker run -d --rm --env-file testnet.env --restart always --name dashscan-testnet-indexer ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:indexer ./indexer

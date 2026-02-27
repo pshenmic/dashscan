@@ -25,8 +25,8 @@ async fn main() {
 
     let args: Vec<String> = env::args().collect();
 
-    if args.len() > 2 {
-        let arg = args.get(2).unwrap();
+    if args.len() > 1 {
+        let arg = args.get(1).unwrap();
 
         match arg.as_str() {
             "drop_db" => {
