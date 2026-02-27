@@ -12,4 +12,5 @@ RUN cargo build --release
 FROM alpine:3.20 AS indexer
 WORKDIR /app
 COPY --from=build /app/target/release/indexer /app
+COPY --from=build /app/migrations /app/migrations
 ENTRYPOINT ["/app/indexer"]
