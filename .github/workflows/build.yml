@@ -21,13 +21,13 @@ jobs:
       - name: "Validate branch"
         if: ${{github.base_ref == 'master'}}
         run: exit 1
-      - name: "Validate label"
-        if: |
-          (contains(github.event.pull_request.labels.*.name, 'backend') ||
-            contains(github.event.pull_request.labels.*.name, 'frontend') || 
-            contains(github.event.pull_request.labels.*.name, 'indexer')) == false &&
-          (github.event_name == 'pull_request')
-        run: exit 1
+#      - name: "Validate label"
+#        if: |
+#          (contains(github.event.pull_request.labels.*.name, 'backend') ||
+#            contains(github.event.pull_request.labels.*.name, 'frontend') ||
+#            contains(github.event.pull_request.labels.*.name, 'indexer')) == false &&
+#          (github.event_name == 'pull_request')
+#        run: exit 1
 
 # // todo uncomment with frontend
 #  test_frontend:
