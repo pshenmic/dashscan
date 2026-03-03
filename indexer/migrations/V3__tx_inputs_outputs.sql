@@ -1,7 +1,7 @@
 CREATE TABLE tx_inputs
 (
     id              BIGSERIAL PRIMARY KEY,
-    txid            CHAR(64) NOT NULL REFERENCES transactions (txid),
+    txid            CHAR(64) NOT NULL REFERENCES transactions (txid) DEFERRABLE INITIALLY DEFERRED,
     vin_index       INT      NOT NULL,
     prev_txid       CHAR(64),
     prev_vout_index INT,
@@ -11,7 +11,7 @@ CREATE TABLE tx_inputs
 CREATE TABLE tx_outputs
 (
     id             BIGSERIAL PRIMARY KEY,
-    txid           CHAR(64) NOT NULL REFERENCES transactions (txid),
+    txid           CHAR(64) NOT NULL REFERENCES transactions (txid) DEFERRABLE INITIALLY DEFERRED,
     vout_index     INT      NOT NULL,
     value          BIGINT   NOT NULL,
     script_pub_key TEXT,
