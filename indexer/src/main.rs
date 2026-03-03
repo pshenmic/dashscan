@@ -171,9 +171,11 @@ async fn polling_loop(processor: Arc<BlockProcessor>, interval_secs: u64, tx: mp
 
         match processor.rpc.get_block_count().await {
             Ok(chain_height) => {
+                let client = processor.db.begin().await
+                    .expect("Failed to acquire DB connection");
                 let db_height: i64 = processor
                     .db
-                    .get_max_block_height()
+                    .get_max_block_height(&**client)
                     .await
                     .expect("Failed to get max block height from database");
 
@@ -197,9 +199,13 @@ async fn continuous_indexing(
     loop {
         tokio::select! {
             Some(hash) = zmq_rx.recv() => {
-                // ZMQ notified us of a new block
+                // ZMQ notified us of a new block — use the hash directly, no extra RPC call
                 info!("ZMQ: new block detected: {}", hash);
-                index_new_blocks(&processor).await;
+                match processor.index_block_by_hash(&hash).await {
+                    Ok(None) => info!("Block {} already indexed, skipping", hash),
+                    Ok(Some(_)) => {},
+                    Err(e) => error!("Failed to index block {}: {}", hash, e),
+                }
 
                 backoff_sleep(1).await;
             }
@@ -218,12 +224,15 @@ async fn index_new_blocks(processor: &BlockProcessor) -> () {
     let chain_height: i64 = processor.rpc.get_block_count().await
         .expect("Could not get block count from RPC");
 
-    let db_height: i64 = processor.db.get_max_block_height().await
+    let client = processor.db.begin().await
+        .expect("Could not acquire DB connection");
+    let db_height: i64 = processor.db.get_max_block_height(&**client).await
         .expect("Could not read max block height from database");
+    drop(client);
 
     for height in (db_height + 1)..=chain_height {
-        match processor.index_block(height).await {
-            Ok((hash)) => match hash {
+        match processor.index_block_by_height(height).await {
+            Ok(hash) => match hash {
                 None => info!("Block {} already indexed, skipping", height),
                 Some(hash) => info!("Block {} with hash {} already indexed, skipping", height, hash)
             },

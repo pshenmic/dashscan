@@ -4,6 +4,14 @@ pub struct DatabaseError {
     reason: String
 }
 
+impl From<tokio_postgres::Error> for DatabaseError {
+    fn from(e: tokio_postgres::Error) -> Self {
+        DatabaseError {
+            reason: e.to_string(),
+        }
+    }
+}
+
 impl From<PoolError> for DatabaseError {
     fn from(pool_error: PoolError) -> Self {
         match pool_error {
