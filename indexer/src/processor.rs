@@ -2,6 +2,7 @@ use crate::db::Database;
 use crate::errors::database_error::DatabaseError;
 use crate::rpc::{Block, DashRpcClient, Transaction};
 use chrono::{DateTime, Utc};
+use deadpool_postgres::Client;
 use serde_json::Value;
 use tracing::{debug, info};
 use crate::errors::block_index_error::BlockIndexError;
@@ -20,7 +21,11 @@ impl BlockProcessor {
         let hash = self.rpc.get_block_hash(height).await
             .map_err(|e| BlockIndexError::from(e))?;
 
-        if self.db.get_block_by_hash(&hash).await
+        // Acquire one connection reused for both the existence check and the transaction.
+        let mut client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        if self.db.get_block_by_hash(&**client, &hash).await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?
             .is_some()
         {
@@ -31,21 +36,20 @@ impl BlockProcessor {
         let block = self.rpc.get_block(&hash).await
             .map_err(|e| BlockIndexError::from(e))?;
 
-        self.process_block(block).await?;
+        self.process_block(client, block).await?;
 
         Ok(Some(hash))
     }
 
-    async fn process_block(&self, block: Block) -> Result<(), BlockIndexError> {
+    /// Indexes a block using an already-acquired pool connection.
+    /// Opens a transaction on that connection, writes everything, and commits.
+    async fn process_block(&self, mut client: Client, block: Block) -> Result<(), BlockIndexError> {
         let tx_count = block.tx.len() as i32;
 
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
             .ok_or_else(|| BlockIndexError::UnexpectedError("Invalid block timestamp".to_string()))?;
 
-        let mut db_client = self.db.begin().await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-        let db_tx = db_client.transaction().await
+        let db_tx = client.transaction().await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
         // Insert block header
@@ -153,10 +157,13 @@ impl BlockProcessor {
         Value::Object(payload)
     }
 
-    /// Catch up from last indexed block to current chain tip
+    /// Catch up from last indexed block to current chain tip.
     pub async fn catch_up(&self) -> Result<i64, String> {
         let chain_height = self.rpc.get_block_count().await.expect("Failed to get chain height");
-        let db_height: i64 = self.db.get_max_block_height().await.expect("Failed to get db height");
+
+        let client = self.db.begin().await.expect("Failed to acquire DB connection");
+        let db_height: i64 = self.db.get_max_block_height(&**client).await.expect("Failed to get db height");
+        drop(client);
 
         if db_height >= chain_height {
             info!(chain_height, db_height, "Already up to date");

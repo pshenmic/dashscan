@@ -59,8 +59,7 @@ impl Database {
         Ok(())
     }
 
-    pub async fn get_max_block_height(&self) -> Result<i64, PoolError> {
-        let client = self.client().await?;
+    pub async fn get_max_block_height(&self, client: &impl GenericClient) -> Result<i64, PoolError> {
         let row = client
             .query_one("SELECT MAX(height) FROM blocks", &[])
             .await?;
@@ -86,9 +85,7 @@ impl Database {
         }))
     }
 
-    pub async fn get_block_by_hash(&self, hash: &str) -> Result<Option<String>, PoolError> {
-        let client = self.client().await?;
-
+    pub async fn get_block_by_hash(&self, client: &impl GenericClient, hash: &str) -> Result<Option<String>, PoolError> {
         let rows = client
             .query(
                 "SELECT hash FROM blocks WHERE hash = $1",
