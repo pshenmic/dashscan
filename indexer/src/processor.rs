@@ -3,11 +3,8 @@ use crate::errors::database_error::DatabaseError;
 use crate::rpc::{Block, DashRpcClient, Transaction};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use tokio_postgres::fallible_iterator::FallibleIterator;
-use tokio_postgres::GenericClient;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 use crate::errors::block_index_error::BlockIndexError;
-use crate::errors::block_index_error::BlockIndexError::RpcError;
 
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
@@ -51,6 +48,7 @@ impl BlockProcessor {
         let db_tx = db_client.transaction().await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
+        // Insert block header
         self.db
             .insert_block(
                 &*db_tx,
@@ -65,14 +63,53 @@ impl BlockProcessor {
                 block.difficulty,
                 &block.chainwork,
                 tx_count,
-                block.cb_tx.map(|cb_tx| cb_tx.credit_pool_balance)
+                block.cb_tx.map(|cb_tx| cb_tx.credit_pool_balance),
             )
             .await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-        for tx in &block.tx {
-            self.process_transaction(&*db_tx, tx, &block.hash, block.height)
-                .await?;
+        if !block.tx.is_empty() {
+            // One INSERT for all transactions
+            self.db
+                .insert_transactions_batch(&*db_tx, &block.tx, &block.hash)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            // One INSERT for all inputs
+            self.db
+                .insert_tx_inputs_batch(&*db_tx, &block.tx)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            // One INSERT for all outputs
+            self.db
+                .insert_tx_outputs_batch(&*db_tx, &block.tx)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            // Upsert all addresses (one query per address — no SELECT needed)
+            for tx in &block.tx {
+                for vout in &tx.vout {
+                    if let Some(ref addr) = vout.script_pub_key.first_address() {
+                        self.db
+                            .upsert_address(&*db_tx, addr, &tx.txid, block.height)
+                            .await
+                            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+                    }
+                }
+            }
+
+            // One INSERT for all special transactions (type > 0)
+            let special_records: Vec<(&str, i16, Value)> = block.tx
+                .iter()
+                .filter(|tx| tx.tx_type.unwrap_or(0) > 0)
+                .map(|tx| (tx.txid.as_str(), tx.tx_type.unwrap(), self.build_special_tx_payload(tx)))
+                .collect();
+
+            self.db
+                .insert_special_transactions_batch(&*db_tx, &special_records)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
         }
 
         db_tx.commit().await
@@ -84,94 +121,6 @@ impl BlockProcessor {
             txs = tx_count,
             "Indexed block"
         );
-        Ok(())
-    }
-
-    async fn process_transaction(
-        &self,
-        client: &impl GenericClient,
-        tx: &Transaction,
-        block_hash: &str,
-        block_height: i64,
-    ) -> Result<(), BlockIndexError> {
-        let tx_type = tx.tx_type.unwrap_or(0);
-        let is_coinbase = tx.vin.first().map_or(false, |v| v.coinbase.is_some());
-
-        self
-            .db
-            .insert_transaction(
-                client,
-                &tx.txid,
-                block_hash,
-                tx.version,
-                tx_type,
-                tx.size,
-                tx.locktime,
-                is_coinbase,
-            )
-            .await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-        // Process inputs
-        for (i, vin) in tx.vin.iter().enumerate() {
-            let prev_txid = vin.txid.as_deref();
-            let prev_vout = vin.vout;
-            let coinbase_data = vin.coinbase.as_deref();
-
-            self.db
-                .insert_tx_input(client, &tx.txid, i as i32, prev_txid, prev_vout, coinbase_data)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-        }
-
-        // Process outputs
-        for vout in &tx.vout {
-            let value_duffs = (vout.value * 100_000_000.0).round() as i64;
-            let script_hex = vout.script_pub_key.hex.as_deref();
-            let script_type = vout.script_pub_key.script_type.as_deref();
-            let address = vout.script_pub_key.first_address();
-
-            self.db
-                .insert_tx_output(
-                    client,
-                    &tx.txid,
-                    vout.n,
-                    value_duffs,
-                    script_hex,
-                    script_type,
-                    address.as_deref(),
-                )
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-            if let Some(ref addr) = address {
-                let existing = self.db.get_address(client, addr)
-                    .await.map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-                match existing {
-                    None => {
-                        self.db.insert_address(client, addr, &tx.txid, block_height).await
-                            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-                    }
-                    Some(_) => {
-                        self.db.update_address(client, addr, &tx.txid, block_height).await
-                            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-                    }
-                }
-            }
-        }
-
-        // Store special transaction payload if type > 0
-        if tx_type > 0 {
-            let payload = self.build_special_tx_payload(tx);
-            self.db
-                .insert_special_transaction(client, &tx.txid, tx_type, &payload)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-            debug!(txid = %tx.txid, tx_type, "Stored special transaction");
-        }
-
         Ok(())
     }
 
