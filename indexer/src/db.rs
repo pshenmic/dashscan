@@ -1,6 +1,6 @@
 use deadpool_postgres::{Client, Pool, PoolError};
 use serde_json::Value;
-use tokio_postgres::Error;
+use tokio_postgres::GenericClient;
 use tracing::{debug, info};
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
@@ -15,9 +15,12 @@ impl Database {
     }
 
     async fn client(&self) -> Result<Client, PoolError> {
-        self.pool
-            .get()
-            .await
+        self.pool.get().await
+    }
+
+    /// Acquire a pool connection so the caller can open a transaction.
+    pub async fn begin(&self) -> Result<Client, PoolError> {
+        self.pool.get().await
     }
 
     pub async fn run_migrations(&self) -> Result<(), PoolError> {
@@ -57,7 +60,8 @@ impl Database {
             h.trim().to_string()
         }))
     }
-    pub async fn get_block_by_hash(&self, hash: i64) -> Result<Option<String>, PoolError> {
+
+    pub async fn get_block_by_hash(&self, hash: &str) -> Result<Option<String>, PoolError> {
         let client = self.client().await?;
 
         let rows = client
@@ -73,12 +77,14 @@ impl Database {
         }))
     }
 
-    pub async fn get_address(&self, address: &str) -> Result<Option<String>, PoolError> {
-        let client = self.client().await?;
-
+    pub async fn get_address(
+        &self,
+        client: &impl GenericClient,
+        address: &str,
+    ) -> Result<Option<String>, PoolError> {
         let rows = client
             .query(
-                "SELECT address, first_seen_tx, first_seen_block, last_seen_tx, last_seen_block  FROM addresses WHERE address = $1",
+                "SELECT address, first_seen_tx, first_seen_block, last_seen_tx, last_seen_block FROM addresses WHERE address = $1",
                 &[&address],
             )
             .await?;
@@ -132,6 +138,7 @@ impl Database {
 
     pub async fn insert_block(
         &self,
+        client: &impl GenericClient,
         hash: &str,
         height: i64,
         version: i32,
@@ -145,8 +152,6 @@ impl Database {
         tx_count: i32,
         credit_pool_balance: Option<f64>,
     ) -> Result<(), PoolError> {
-        let client = self.client().await?;
-
         let naive_timestamp = timestamp.naive_utc();
 
         client
@@ -176,6 +181,7 @@ impl Database {
 
     pub async fn insert_transaction(
         &self,
+        client: &impl GenericClient,
         txid: &str,
         block_hash: &str,
         version: i32,
@@ -184,8 +190,6 @@ impl Database {
         locktime: i64,
         is_coinbase: bool,
     ) -> Result<(), PoolError> {
-        let client = self.client().await?;
-
         client
             .execute(
                 "INSERT INTO transactions (txid, block_hash, version, type, size, locktime, is_coinbase)
@@ -207,14 +211,13 @@ impl Database {
 
     pub async fn insert_tx_input(
         &self,
+        client: &impl GenericClient,
         txid: &str,
         vin_index: i32,
         prev_txid: Option<&str>,
         prev_vout_index: Option<i32>,
         coinbase_data: Option<&str>,
     ) -> Result<(), PoolError> {
-        let client = self.client().await?;
-
         client
             .execute(
                 "INSERT INTO tx_inputs (txid, vin_index, prev_txid, prev_vout_index, coinbase_data)
@@ -228,6 +231,7 @@ impl Database {
 
     pub async fn insert_tx_output(
         &self,
+        client: &impl GenericClient,
         txid: &str,
         vout_index: i32,
         value: i64,
@@ -235,8 +239,6 @@ impl Database {
         script_type: Option<&str>,
         address: Option<&str>,
     ) -> Result<(), PoolError> {
-        let client = self.client().await?;
-
         client
             .execute(
                 "INSERT INTO tx_outputs (txid, vout_index, value, script_pub_key, script_type, address)
@@ -250,12 +252,11 @@ impl Database {
 
     pub async fn insert_address(
         &self,
+        client: &impl GenericClient,
         address: &str,
         first_seen_tx: &str,
-        first_seen_block: i64
+        first_seen_block: i64,
     ) -> Result<(), PoolError> {
-        let client = self.client().await?;
-
         client
             .execute(
                 "INSERT INTO addresses (address, first_seen_tx, first_seen_block)
@@ -269,12 +270,11 @@ impl Database {
 
     pub async fn update_address(
         &self,
+        client: &impl GenericClient,
         address: &str,
         last_seen_tx: &str,
         last_seen_block: i64,
     ) -> Result<(), PoolError> {
-        let client = self.client().await?;
-
         client
             .execute(
                 "UPDATE addresses
@@ -289,12 +289,11 @@ impl Database {
 
     pub async fn insert_special_transaction(
         &self,
+        client: &impl GenericClient,
         txid: &str,
         tx_type: i16,
         payload: &Value,
     ) -> Result<(), PoolError> {
-        let client = self.client().await?;
-
         client
             .execute(
                 "INSERT INTO special_transactions (txid, tx_type, payload)

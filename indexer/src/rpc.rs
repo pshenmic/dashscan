@@ -184,7 +184,7 @@ impl DashRpcClient {
 
     pub async fn get_block_count(&self) -> Result<i64, RpcError> {
         let result = self.call("getblockcount", vec![]).await?;
-        
+
         result
             .as_i64()
             .ok_or_else(|| RpcError { code: 0, message: "getblockcount: expected integer".to_string()})
@@ -194,7 +194,7 @@ impl DashRpcClient {
         let result = self
             .call("getblockhash", vec![Value::from(height)])
             .await?;
-        
+
         result
             .as_str()
             .map(|s| s.to_string())
@@ -217,7 +217,7 @@ impl DashRpcClient {
 
     pub async fn get_block_by_height(&self, height: i64) -> Result<Block, RpcError> {
         let hash = self.get_block_hash(height).await?;
-        
+
         self.get_block(&hash)
             .await
             .map_err(|e| RpcError { code: 0, message: e.to_string() })

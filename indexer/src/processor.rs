@@ -4,8 +4,8 @@ use crate::rpc::{Block, DashRpcClient, Transaction};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use tokio_postgres::fallible_iterator::FallibleIterator;
+use tokio_postgres::GenericClient;
 use tracing::{debug, info, warn};
-use tracing_subscriber::fmt::time;
 use crate::errors::block_index_error::BlockIndexError;
 use crate::errors::block_index_error::BlockIndexError::RpcError;
 
@@ -19,38 +19,20 @@ impl BlockProcessor {
         Self { rpc, db }
     }
 
-     pub async fn index_block(&self, height: i64) -> Result<Option<String>, BlockIndexError> {
-        let mut block: Block;
-
-        // Check for reorg: if we have a block at this height, verify it matches
-        if let Some(existing_hash) = self.db.get_block_hash_at_height(height).await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))? {
-
-            block = self.rpc.get_block_by_height(height)
-                .await
-                .map_err(|e| BlockIndexError::from(e))?;
-
-            if existing_hash == block.hash {
-                debug!(height, "Block already indexed, skipping");
-                return Ok(None);
-            }
-
-            // Reorg detected — delete old block and re-index
-            warn!(
-                height,
-                old_hash = %existing_hash,
-                new_hash = %block.hash,
-                "Reorg detected, re-indexing block"
-            );
-
-            self.db.delete_block_at_height(height).await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-        }
-
-        block = self.rpc.get_block_by_height(height).await
+    pub async fn index_block(&self, height: i64) -> Result<Option<String>, BlockIndexError> {
+        let hash = self.rpc.get_block_hash(height).await
             .map_err(|e| BlockIndexError::from(e))?;
 
-        let hash = block.hash.clone();
+        if self.db.get_block_by_hash(&hash).await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?
+            .is_some()
+        {
+            debug!(height, hash = %hash, "Block already indexed, skipping");
+            return Ok(None);
+        }
+
+        let block = self.rpc.get_block(&hash).await
+            .map_err(|e| BlockIndexError::from(e))?;
 
         self.process_block(block).await?;
 
@@ -63,8 +45,15 @@ impl BlockProcessor {
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
             .ok_or_else(|| BlockIndexError::UnexpectedError("Invalid block timestamp".to_string()))?;
 
+        let mut db_client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        let db_tx = db_client.transaction().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
         self.db
             .insert_block(
+                &*db_tx,
                 &block.hash,
                 block.height,
                 block.version,
@@ -82,9 +71,12 @@ impl BlockProcessor {
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
         for tx in &block.tx {
-            self.process_transaction(tx, &block.hash, block.height)
+            self.process_transaction(&*db_tx, tx, &block.hash, block.height)
                 .await?;
         }
+
+        db_tx.commit().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
         info!(
             height = block.height,
@@ -97,6 +89,7 @@ impl BlockProcessor {
 
     async fn process_transaction(
         &self,
+        client: &impl GenericClient,
         tx: &Transaction,
         block_hash: &str,
         block_height: i64,
@@ -107,6 +100,7 @@ impl BlockProcessor {
         self
             .db
             .insert_transaction(
+                client,
                 &tx.txid,
                 block_hash,
                 tx.version,
@@ -125,7 +119,7 @@ impl BlockProcessor {
             let coinbase_data = vin.coinbase.as_deref();
 
             self.db
-                .insert_tx_input(&tx.txid, i as i32, prev_txid, prev_vout, coinbase_data)
+                .insert_tx_input(client, &tx.txid, i as i32, prev_txid, prev_vout, coinbase_data)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
         }
@@ -139,6 +133,7 @@ impl BlockProcessor {
 
             self.db
                 .insert_tx_output(
+                    client,
                     &tx.txid,
                     vout.n,
                     value_duffs,
@@ -149,18 +144,17 @@ impl BlockProcessor {
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-
             if let Some(ref addr) = address {
-                let existing = self.db.get_address(addr)
+                let existing = self.db.get_address(client, addr)
                     .await.map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
                 match existing {
                     None => {
-                        self.db.insert_address(addr, &tx.txid, block_height).await
+                        self.db.insert_address(client, addr, &tx.txid, block_height).await
                             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
                     }
                     Some(_) => {
-                        self.db.update_address(addr, &tx.txid, block_height).await
+                        self.db.update_address(client, addr, &tx.txid, block_height).await
                             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
                     }
                 }
@@ -171,7 +165,7 @@ impl BlockProcessor {
         if tx_type > 0 {
             let payload = self.build_special_tx_payload(tx);
             self.db
-                .insert_special_transaction(&tx.txid, tx_type, &payload)
+                .insert_special_transaction(client, &tx.txid, tx_type, &payload)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
