@@ -54,6 +54,16 @@ pub struct CbTx {
     pub credit_pool_balance: f64
 }
 
+// --- Block header (lightweight, returned by getblockheaders) ---
+
+#[derive(Deserialize, Debug)]
+pub struct BlockHeader {
+    pub hash: String,
+    pub height: i64,
+    #[serde(rename = "nextblockhash")]
+    pub next_block_hash: Option<String>,
+}
+
 // --- Block types ---
 
 #[derive(Deserialize, Debug)]
@@ -213,6 +223,20 @@ impl DashRpcClient {
         debug!("Fetched block {hash}");
         serde_json::from_value(result)
             .map_err(|e| RpcError { code: 0, message: format!("Failed to parse JSON respose with serde: {e}") })
+    }
+
+    /// Returns up to `count` block headers starting from `start_hash` (inclusive).
+    /// Uses a single RPC call — much cheaper than N × getblockhash for batch hash discovery.
+    pub async fn get_block_headers(&self, start_hash: &str, count: usize) -> Result<Vec<BlockHeader>, RpcError> {
+        let result = self
+            .call(
+                "getblockheaders",
+                vec![Value::from(start_hash), Value::from(count as u64), Value::from(true)],
+            )
+            .await?;
+
+        serde_json::from_value(result)
+            .map_err(|e| RpcError { code: 0, message: format!("Failed to parse block headers: {e}") })
     }
 
     pub async fn get_block_by_height(&self, height: i64) -> Result<Block, RpcError> {

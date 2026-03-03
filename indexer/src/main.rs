@@ -199,9 +199,13 @@ async fn continuous_indexing(
     loop {
         tokio::select! {
             Some(hash) = zmq_rx.recv() => {
-                // ZMQ notified us of a new block
+                // ZMQ notified us of a new block — use the hash directly, no extra RPC call
                 info!("ZMQ: new block detected: {}", hash);
-                index_new_blocks(&processor).await;
+                match processor.index_block_by_hash(&hash).await {
+                    Ok(None) => info!("Block {} already indexed, skipping", hash),
+                    Ok(Some(_)) => {},
+                    Err(e) => error!("Failed to index block {}: {}", hash, e),
+                }
 
                 backoff_sleep(1).await;
             }
@@ -227,8 +231,8 @@ async fn index_new_blocks(processor: &BlockProcessor) -> () {
     drop(client);
 
     for height in (db_height + 1)..=chain_height {
-        match processor.index_block(height).await {
-            Ok((hash)) => match hash {
+        match processor.index_block_by_height(height).await {
+            Ok(hash) => match hash {
                 None => info!("Block {} already indexed, skipping", height),
                 Some(hash) => info!("Block {} with hash {} already indexed, skipping", height, hash)
             },

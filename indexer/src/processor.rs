@@ -1,6 +1,7 @@
 use crate::db::Database;
 use crate::errors::database_error::DatabaseError;
 use crate::rpc::{Block, DashRpcClient, Transaction};
+use futures::future::join_all;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client;
 use serde_json::Value;
@@ -17,28 +18,32 @@ impl BlockProcessor {
         Self { rpc, db }
     }
 
-    pub async fn index_block(&self, height: i64) -> Result<Option<String>, BlockIndexError> {
-        let hash = self.rpc.get_block_hash(height).await
-            .map_err(|e| BlockIndexError::from(e))?;
-
+    pub async fn index_block_by_hash(&self, hash: &str) -> Result<Option<String>, BlockIndexError> {
         // Acquire one connection reused for both the existence check and the transaction.
-        let mut client = self.db.begin().await
+        let client = self.db.begin().await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-        if self.db.get_block_by_hash(&**client, &hash).await
+        if self.db.get_block_by_hash(&**client, hash).await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?
             .is_some()
         {
-            debug!(height, hash = %hash, "Block already indexed, skipping");
+            debug!(hash = %hash, "Block already indexed, skipping");
             return Ok(None);
         }
 
-        let block = self.rpc.get_block(&hash).await
+        let block = self.rpc.get_block(hash).await
             .map_err(|e| BlockIndexError::from(e))?;
 
         self.process_block(client, block).await?;
 
-        Ok(Some(hash))
+        Ok(Some(hash.to_string()))
+    }
+
+    pub async fn index_block_by_height(&self, height: i64) -> Result<Option<String>, BlockIndexError> {
+        let hash = self.rpc.get_block_hash(height).await
+            .map_err(|e| BlockIndexError::from(e))?;
+
+        self.index_block_by_hash(&hash).await
     }
 
     /// Indexes a block using an already-acquired pool connection.
@@ -158,7 +163,14 @@ impl BlockProcessor {
     }
 
     /// Catch up from last indexed block to current chain tip.
+    ///
+    /// Pipeline per chunk:
+    ///   1. One `getblockheaders` call  → N block hashes
+    ///   2. N parallel `getblock` calls → N full blocks fetched concurrently
+    ///   3. Sequential processing        → blocks written to DB in order
     pub async fn catch_up(&self) -> Result<i64, String> {
+        const CHUNK: usize = 50;
+
         let chain_height = self.rpc.get_block_count().await.expect("Failed to get chain height");
 
         let client = self.db.begin().await.expect("Failed to acquire DB connection");
@@ -171,24 +183,64 @@ impl BlockProcessor {
         }
 
         let start = db_height + 1;
-        let count = chain_height - db_height;
-        info!(
-            from = start,
-            to = chain_height,
-            blocks = count,
-            "Catching up"
-        );
+        let total = chain_height - db_height;
+        info!(from = start, to = chain_height, blocks = total, "Catching up");
 
-        for height in start..=chain_height {
-            self.index_block(height).await
+        // Bootstrap: get the starting hash for the first getblockheaders call.
+        let start_hash = self.rpc.get_block_hash(start).await.map_err(|e| e.to_string())?;
+        let mut next_hash: Option<String> = Some(start_hash);
+        let mut indexed: i64 = 0;
+
+        while let Some(chunk_start_hash) = next_hash {
+            // ── Phase 1: one RPC call to get up to CHUNK hashes ──────────────
+            let headers = self.rpc
+                .get_block_headers(&chunk_start_hash, CHUNK)
+                .await
                 .map_err(|e| e.to_string())?;
 
-            if (height - start) % 100 == 0 && height != start {
+            if headers.is_empty() {
+                break;
+            }
+
+            // Chain to the next chunk via nextblockhash of the last header.
+            next_hash = headers.last().and_then(|h| h.next_block_hash.clone());
+
+            // ── Phase 2: fetch all full blocks in this chunk in parallel ─────
+            let block_futures = headers.iter().map(|h| self.rpc.get_block(&h.hash));
+            let block_results = join_all(block_futures).await;
+
+            // ── Phase 3: process each block sequentially in height order ─────
+            for (header, block_result) in headers.iter().zip(block_results) {
+                let block = block_result.map_err(|e| e.to_string())?;
+
+                let client = self.db.begin().await.map_err(|e| e.to_string())?;
+
+                if self.db
+                    .get_block_by_hash(&**client, &header.hash)
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .is_some()
+                {
+                    debug!(height = header.height, "Block already indexed, skipping");
+                    continue;
+                }
+
+                self.process_block(client, block).await.map_err(|e| e.to_string())?;
+            }
+
+            indexed += headers.len() as i64;
+
+            if indexed % 500 == 0 || next_hash.is_none() {
                 info!(
-                    height,
-                    remaining = chain_height - height,
+                    indexed,
+                    remaining = (chain_height - db_height - indexed).max(0),
                     "Catch-up progress"
                 );
+            }
+
+            // Stop once we've covered up to chain_height.
+            if db_height + indexed >= chain_height {
+                break;
             }
         }
 
