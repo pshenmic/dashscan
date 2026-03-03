@@ -79,10 +79,7 @@ impl Database {
             )
             .await?;
 
-        Ok(rows.first().map(|r| {
-            let h: String = r.get(0);
-            h.trim().to_string()
-        }))
+        Ok(rows.first().map(|r| r.get(0)))
     }
 
     pub async fn get_block_by_hash(&self, client: &impl GenericClient, hash: &str) -> Result<Option<String>, PoolError> {
@@ -93,10 +90,7 @@ impl Database {
             )
             .await?;
 
-        Ok(rows.first().map(|r| {
-            let h: String = r.get(0);
-            h.trim().to_string()
-        }))
+        Ok(rows.first().map(|r| r.get(0)))
     }
 
     pub async fn delete_block_at_height(&self, height: i64) -> Result<(), PoolError> {
