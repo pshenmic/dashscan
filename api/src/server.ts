@@ -8,6 +8,8 @@ import BlocksController from './controllers/BlocksController';
 import { getKnex } from './utils';
 import TransactionsController from './controllers/TransactionsController';
 import AddressesController from './controllers/AddressesController';
+import MasternodesController from './controllers/MasternodesController';
+import MasternodesDAO from './dao/MasternodesDAO';
 import { Knex } from 'knex';
 
 function errorHandler(err: FastifyError, req: FastifyRequest, reply: FastifyReply): void {
@@ -44,12 +46,15 @@ export const start = async (): Promise<FastifyInstance> => {
   const blocksController = new BlocksController(knex);
   const transactionsController = new TransactionsController(knex);
   const addressesController = new AddressesController(knex);
+  const masternodesDAO = new MasternodesDAO(knex);
+  const masternodesController = new MasternodesController(masternodesDAO);
 
   Routes({
     fastify,
     blocksController,
     transactionsController,
     addressesController,
+    masternodesController,
   });
 
   fastify.setErrorHandler(errorHandler);

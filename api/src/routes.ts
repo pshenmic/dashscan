@@ -2,15 +2,17 @@ import { FastifyInstance } from 'fastify';
 import BlocksController from './controllers/BlocksController';
 import TransactionsController from './controllers/TransactionsController';
 import AddressesController from './controllers/AddressesController';
+import MasternodesController from './controllers/MasternodesController';
 
 interface RoutesOptions {
   fastify: FastifyInstance;
   blocksController: BlocksController;
   transactionsController: TransactionsController;
   addressesController: AddressesController;
+  masternodesController: MasternodesController;
 }
 
-export default function Routes({ fastify, blocksController, transactionsController, addressesController }: RoutesOptions): void {
+export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController }: RoutesOptions): void {
   const routes = [
     {
       path: '/status',
@@ -83,6 +85,11 @@ export default function Routes({ fastify, blocksController, transactionsControll
       schema: {
         querystring: { $ref: 'paginationOptions#' },
       },
+    },
+    {
+      path: '/masternodes',
+      method: 'get',
+      handler: masternodesController.getMasternodes,
     },
   ];
 

@@ -1,6 +1,7 @@
 import { Knex } from 'knex';
 import Transaction from '../models/Transaction';
-import DashCoreRPC from '../dashcoreRPC';
+import VIn from '../models/VIn';
+import VOut from '../models/VOut';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 
 export default class TransactionsDAO {
@@ -31,29 +32,51 @@ export default class TransactionsDAO {
   };
 
   getTransactionByHash = async (hash: string): Promise<Transaction | null> => {
-    let tx: any;
+    const row = await this.knex('transactions')
+      .select(
+        'transactions.txid',
+        'transactions.type',
+        'transactions.version',
+        'transactions.size',
+        'transactions.block_hash',
+        'transactions.locktime',
+        'transactions.is_coinbase',
+        'blocks.height as height',
+      )
+      .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
+      .where('transactions.txid', hash.trim())
+      .first();
 
-    try {
-      tx = await DashCoreRPC.getTransactionByHash(hash);
-    } catch (e: any) {
-      if (e.code === -5) {
-        return null;
-      } else {
-        throw e;
-      }
-    }
+    if (!row) return null;
 
-    return Transaction.fromObject({
-      hash: tx.txid,
-      type: tx.type,
-      version: tx.version,
-      blockHash: tx.blockhash,
-      blockHeight: tx.height,
-      confirmations: tx.confirmations,
-      instantLock: tx.instantlock,
-      vIn: tx.vin,
-      vOut: tx.vout,
-    });
+    const inputRows = await this.knex('tx_inputs')
+      .where('txid', hash.trim())
+      .orderBy('vin_index');
+
+    const outputRows = await this.knex('tx_outputs')
+      .where('txid', hash.trim())
+      .orderBy('vout_index');
+
+    const vIn = inputRows.map(({ prev_txid, prev_vout_index }: { prev_txid: string; prev_vout_index: number }) =>
+      VIn.fromObject({ txId: prev_txid?.trim(), vOut: prev_vout_index }),
+    );
+
+    const vOut = outputRows.map(({ value, vout_index, script_pub_key }: { value: bigint; vout_index: number; script_pub_key: string }) =>
+      VOut.fromObject({ value: value?.toString(), number: vout_index, scriptPubKeyASM: script_pub_key }),
+    );
+
+    return new Transaction(
+      row.txid.trim(),
+      row.type,
+      row.height,
+      row.block_hash?.trim(),
+      null,
+      row.version,
+      vIn,
+      vOut,
+      null,
+      null,
+    );
   };
 
   getTransactionsByBlockHeight = async (height: number, page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {

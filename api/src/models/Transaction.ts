@@ -24,7 +24,7 @@ interface TransactionObject {
 }
 
 export default class Transaction {
-  hash: string | null;
+  txid: string | null;
   type: number | null;
   blockHeight: number | null;
   blockHash: string | null;
@@ -36,7 +36,7 @@ export default class Transaction {
   instantLock: boolean | null;
 
   constructor(
-    hash?: string,
+    txid?: string,
     type?: number,
     blockHeight?: number,
     blockHash?: string,
@@ -47,7 +47,7 @@ export default class Transaction {
     confirmations?: number,
     instantLock?: boolean,
   ) {
-    this.hash = hash ?? null;
+    this.txid = txid ?? null;
     this.type = type ?? null;
     this.blockHeight = blockHeight ?? null;
     this.blockHash = blockHash ?? null;
@@ -59,11 +59,11 @@ export default class Transaction {
     this.instantLock = instantLock ?? null;
   }
 
-  static fromRow({ hash, type, amount, block_height, block_hash }: TransactionRow): Transaction {
-    return new Transaction(hash, type, block_height, block_hash, amount);
+  static fromRow({ txid, type, amount, block_height, block_hash }: TransactionRow): Transaction {
+    return new Transaction(txid, type, block_height, block_hash, amount);
   }
 
-  static fromObject({ hash, type, blockHeight, blockHash, amount, version, vIn, vOut, confirmations, instantLock }: TransactionObject): Transaction {
+  static fromObject({ txid, type, blockHeight, blockHash, amount, version, vIn, vOut, confirmations, instantLock }: TransactionObject): Transaction {
     let normalVIn: VIn[] | undefined;
     let normalVOut: VOut[] | undefined;
 
@@ -88,6 +88,6 @@ export default class Transaction {
       });
     }
 
-    return new Transaction(hash, type, blockHeight, blockHash, amount, version, normalVIn, normalVOut, confirmations, instantLock);
+    return new Transaction(txid, type, blockHeight, blockHash, amount, version, normalVIn, normalVOut, confirmations, instantLock);
   }
 }

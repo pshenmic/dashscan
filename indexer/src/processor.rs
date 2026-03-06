@@ -54,6 +54,15 @@ impl BlockProcessor {
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
             .ok_or_else(|| BlockIndexError::UnexpectedError("Invalid block timestamp".to_string()))?;
 
+        // Extract cb_tx fields before consuming block.cb_tx
+        let mn_list_root: Option<String>             = block.cb_tx.as_ref().map(|cb| cb.merkle_root_mn_list.clone());
+        let credit_pool_balance: Option<f64>         = block.cb_tx.as_ref().and_then(|cb| cb.credit_pool_balance);
+        let cbtx_version: Option<i32>                = block.cb_tx.as_ref().map(|cb| cb.version);
+        let cbtx_height: Option<i32>                 = block.cb_tx.as_ref().map(|cb| cb.height);
+        let cbtx_merkle_root_quorums: Option<String> = block.cb_tx.as_ref().and_then(|cb| cb.merkle_root_quorums.clone());
+        let cbtx_best_cl_height_diff: Option<i64>    = block.cb_tx.as_ref().and_then(|cb| cb.best_cl_height_diff);
+        let cbtx_best_cl_signature: Option<String>   = block.cb_tx.as_ref().and_then(|cb| cb.best_cl_signature.clone());
+
         let db_tx = client.transaction().await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
@@ -72,7 +81,13 @@ impl BlockProcessor {
                 block.difficulty,
                 &block.chainwork,
                 tx_count,
-                block.cb_tx.map(|cb_tx| cb_tx.credit_pool_balance),
+                mn_list_root.as_deref(),
+                credit_pool_balance,
+                cbtx_version,
+                cbtx_height,
+                cbtx_merkle_root_quorums.as_deref(),
+                cbtx_best_cl_height_diff,
+                cbtx_best_cl_signature.as_deref(),
             )
             .await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
@@ -133,6 +148,24 @@ impl BlockProcessor {
         Ok(())
     }
 
+    pub async fn sync_masternodes(&self) -> Result<(), BlockIndexError> {
+        let entries = self.rpc.get_masternode_list().await.map_err(BlockIndexError::from)?;
+
+        let mut client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        let db_tx = client.transaction().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        self.db.upsert_masternodes_batch(&*db_tx, &entries).await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        db_tx.commit().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        info!(count = entries.len(), "Synced masternode list");
+        Ok(())
+    }
+
     fn build_special_tx_payload(&self, tx: &Transaction) -> Value {
         let special_keys: &[&str] = &[
             "proRegTx",
@@ -182,7 +215,7 @@ impl BlockProcessor {
             return Ok(chain_height);
         }
 
-        let start = db_height + 1;
+        let start = 1028160;
         let total = chain_height - db_height;
         info!(from = start, to = chain_height, blocks = total, "Catching up");
 

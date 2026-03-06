@@ -1,5 +1,3 @@
-use crate::errors::block_index_error::BlockIndexError;
-
 #[derive(Debug)]
 pub struct RpcError {
     pub message: String,
