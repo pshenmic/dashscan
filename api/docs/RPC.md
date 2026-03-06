@@ -1,0 +1,330 @@
+# Dashscan API Documentation
+
+Base URL: `http://<host>:<port>`
+
+---
+
+## Common Structures
+
+### Pagination Query Parameters
+
+All list endpoints accept the following query parameters:
+
+| Parameter | Type    | Default | Constraints          | Description            |
+|-----------|---------|---------|----------------------|------------------------|
+| `page`    | integer | `1`     | minimum: 1           | Page number            |
+| `limit`   | integer | `10`    | minimum: 0, max: 100 | Results per page       |
+| `order`   | string  | `"asc"` | `"asc"` or `"desc"`  | Sort order             |
+
+### Paginated Response
+
+All list endpoints return this wrapper:
+
+```json
+{
+  "resultSet": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 42
+  }
+}
+```
+
+> `total` is `-1` when the result set is empty.
+
+---
+
+## Endpoints
+
+### GET /status
+
+Health check endpoint.
+
+**Response `200`**
+
+```json
+{
+  "status": "ok"
+}
+```
+
+---
+
+### GET /blocks
+
+Returns a paginated list of blocks.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "height": 100000,
+      "hash": "000000000000abcd1234...",
+      "version": 536870912,
+      "timestamp": "2023-01-01T00:00:00.000Z",
+      "txCount": 5,
+      "size": 1234,
+      "creditPoolBalance": 500000,
+      "difficulty": 123456.789,
+      "merkleRoot": "abcdef1234...",
+      "previousBlockHash": "000000000000efgh5678...",
+      "nonce": 987654321
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 100000
+  }
+}
+```
+
+#### Block Object
+
+| Field               | Type    | Description                              |
+|---------------------|---------|------------------------------------------|
+| `height`            | number  | Block height                             |
+| `hash`              | string  | Block hash (64-char hex)                 |
+| `version`           | number  | Block version                            |
+| `timestamp`         | string  | ISO 8601 timestamp                       |
+| `txCount`           | number  | Number of transactions in the block      |
+| `size`              | number  | Block size in bytes                      |
+| `creditPoolBalance` | number  | Credit pool balance at this block        |
+| `difficulty`        | number  | Mining difficulty                        |
+| `merkleRoot`        | string  | Merkle root hash                         |
+| `previousBlockHash` | string  | Hash of the previous block               |
+| `nonce`             | number  | Mining nonce                             |
+
+---
+
+### GET /block/:hash
+
+Returns a single block by its hash.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                    | Description      |
+|-----------|--------|--------------------------------|------------------|
+| `hash`    | string | 64-char alphanumeric           | Block hash       |
+
+**Response `200`** — [Block Object](#block-object)
+
+```json
+{
+  "height": 100000,
+  "hash": "000000000000abcd1234...",
+  "version": 536870912,
+  "timestamp": "2023-01-01T00:00:00.000Z",
+  "txCount": 5,
+  "size": 1234,
+  "creditPoolBalance": 500000,
+  "difficulty": 123456.789,
+  "merkleRoot": "abcdef1234...",
+  "previousBlockHash": "000000000000efgh5678...",
+  "nonce": 987654321
+}
+```
+
+**Response `404`**
+
+```json
+{
+  "error": "Block not found"
+}
+```
+
+---
+
+### GET /transactions
+
+Returns a paginated list of transactions.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "hash": "abcdef1234...",
+      "type": 0,
+      "blockHeight": 100000,
+      "blockHash": "000000000000abcd1234...",
+      "amount": 100000000,
+      "version": 3,
+      "vIn": [...],
+      "vOut": [...],
+      "confirmations": 10,
+      "instantLock": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 500
+  }
+}
+```
+
+---
+
+### GET /transaction/:hash
+
+Returns a single transaction by its hash.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                    | Description          |
+|-----------|--------|--------------------------------|----------------------|
+| `hash`    | string | 64-char alphanumeric           | Transaction hash     |
+
+**Response `200`** — [Transaction Object](#transaction-object)
+
+```json
+{
+  "hash": "abcdef1234...",
+  "type": 0,
+  "blockHeight": 100000,
+  "blockHash": "000000000000abcd1234...",
+  "amount": 100000000,
+  "version": 3,
+  "vIn": [
+    {
+      "txId": "prevtxhash...",
+      "vOut": 0,
+      "sequence": 4294967295,
+      "scriptSigASM": "OP_DUP OP_HASH160 ..."
+    }
+  ],
+  "vOut": [
+    {
+      "value": "100000000",
+      "number": 0,
+      "scriptPubKeyASM": "OP_DUP OP_HASH160 ..."
+    }
+  ],
+  "confirmations": 10,
+  "instantLock": true
+}
+```
+
+**Response `404`** — `"Transaction not found"`
+
+#### Transaction Object
+
+| Field          | Type     | Description                                     |
+|----------------|----------|-------------------------------------------------|
+| `hash`         | string   | Transaction hash (64-char hex)                  |
+| `type`         | number   | Transaction type                                |
+| `blockHeight`  | number   | Height of the block containing this transaction |
+| `blockHash`    | string   | Hash of the block containing this transaction   |
+| `amount`       | number   | Transaction amount in duffs                     |
+| `version`      | number   | Transaction version                             |
+| `vIn`          | VIn[]    | Array of transaction inputs                     |
+| `vOut`         | VOut[]   | Array of transaction outputs                    |
+| `confirmations`| number   | Number of confirmations                         |
+| `instantLock`  | boolean  | Whether the transaction has an InstantSend lock  |
+
+#### VIn Object
+
+| Field          | Type   | Description                          |
+|----------------|--------|--------------------------------------|
+| `txId`         | string | Hash of the previous transaction     |
+| `vOut`         | number | Output index in the previous tx      |
+| `sequence`     | number | Sequence number                      |
+| `scriptSigASM` | string | Input script in ASM format           |
+
+#### VOut Object
+
+| Field            | Type   | Description                          |
+|------------------|--------|--------------------------------------|
+| `value`          | string | Output value in duffs                |
+| `number`         | number | Output index within the transaction  |
+| `scriptPubKeyASM`| string | Output script in ASM format          |
+
+---
+
+### GET /transactions/height/:height
+
+Returns a paginated list of transactions for a specific block height.
+
+**Path Parameters**
+
+| Parameter | Type    | Constraints  | Description   |
+|-----------|---------|--------------|---------------|
+| `height`  | integer | minimum: 1   | Block height  |
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "hash": "abcdef1234...",
+      "type": 0,
+      "blockHeight": 100000,
+      "blockHash": "000000000000abcd1234...",
+      "amount": 100000000,
+      "version": 3,
+      "vIn": [...],
+      "vOut": [...],
+      "confirmations": 10,
+      "instantLock": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 5
+  }
+}
+```
+
+**Response `400`** — `"Invalid height"`
+
+---
+
+### GET /addresses
+
+Returns a paginated list of addresses.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+      "firstSeenBlock": 1000,
+      "firstSeenTx": "abcdef1234...",
+      "lastSeenBlock": 100000,
+      "lastSeenTx": "fedcba4321..."
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 200
+  }
+}
+```
+
+#### Address Object
+
+| Field           | Type   | Description                                  |
+|-----------------|--------|----------------------------------------------|
+| `address`       | string | Dash address                                 |
+| `firstSeenBlock`| number | Block height where address was first seen    |
+| `firstSeenTx`   | string | Transaction hash where address was first seen|
+| `lastSeenBlock` | number | Block height where address was last seen     |
+| `lastSeenTx`    | string | Transaction hash where address was last seen |
