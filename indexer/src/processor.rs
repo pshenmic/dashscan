@@ -215,7 +215,7 @@ impl BlockProcessor {
             return Ok(chain_height);
         }
 
-        let start = 1;
+        let start = db_height + 1;
         let total = chain_height - db_height;
         info!(from = start, to = chain_height, blocks = total, "Catching up");
 
