@@ -14,17 +14,18 @@ export default class TransactionsDAO {
   getTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
-    const subquery = this.knex('transactions')
-      .select('hash', 'type', 'amount', 'block_height')
-      .orderBy('block_height', order)
+    const rows = await this.knex('transactions')
+      .select(
+        'transactions.txid',
+        'transactions.type',
+        'transactions.block_hash',
+        'blocks.height as block_height',
+      )
+      .select(this.knex('transactions').count('txid').as('total_count'))
+      .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
+      .orderBy('blocks.height', order)
       .limit(limit)
-      .offset(fromRank)
-      .as('subquery');
-
-    const rows = await this.knex(subquery)
-      .select('subquery.hash', 'type', 'amount', 'blocks.hash as block_hash', 'blocks.height as block_height')
-      .select(this.knex('transactions').count('id').limit(1).as('total_count'))
-      .leftJoin('blocks', 'blocks.height', 'block_height');
+      .offset(fromRank);
 
     const [row] = rows;
 
@@ -82,23 +83,18 @@ export default class TransactionsDAO {
   getTransactionsByBlockHeight = async (height: number, page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
-    const subquery = this.knex('transactions')
-      .select('hash', 'id')
-      .where('block_height', '=', height);
-
-    const rows = await this.knex
-      .with('subquery', subquery)
-      .select('hash', 'id')
-      .select(this.knex('subquery').count('id').limit(1).as('total_count'))
-      .orderBy('id', order)
-      .offset(fromRank)
+    const rows = await this.knex('transactions')
+      .select('transactions.txid')
+      .select(this.knex('transactions').where('block_hash', this.knex('blocks').select('hash').where('height', height)).count('txid').as('total_count'))
+      .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
+      .where('blocks.height', height)
+      .orderBy('transactions.txid', order)
       .limit(limit)
-      .from('subquery')
-      .as('subquery_with_count');
+      .offset(fromRank);
 
     const [row] = rows;
 
-    const transactions = await Promise.all(rows.map(({ hash }: { hash: string }) => this.getTransactionByHash(hash)));
+    const transactions = await Promise.all(rows.map(({ txid }: { txid: string }) => this.getTransactionByHash(txid)));
 
     return new PaginatedResultSet(transactions as Transaction[], page, limit, row?.total_count);
   };

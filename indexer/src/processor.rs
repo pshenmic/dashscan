@@ -215,7 +215,7 @@ impl BlockProcessor {
             return Ok(chain_height);
         }
 
-        let start = 1028160;
+        let start = 1;
         let total = chain_height - db_height;
         info!(from = start, to = chain_height, blocks = total, "Catching up");
 
@@ -254,7 +254,7 @@ impl BlockProcessor {
                     .map_err(|e| e.to_string())?
                     .is_some()
                 {
-                    debug!(height = header.height, "Block already indexed, skipping");
+                    info!(height = header.height, "Block already indexed, skipping");
                     continue;
                 }
 

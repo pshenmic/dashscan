@@ -3,15 +3,14 @@ import VOut from './VOut';
 import { Script } from 'dash-core-sdk/dist/src/types/Script';
 
 interface TransactionRow {
-  hash: string;
+  txid: string;
   type: number;
-  amount: number;
   block_height: number;
   block_hash: string;
 }
 
 interface TransactionObject {
-  hash?: string;
+  txid?: string;
   type?: number;
   blockHeight?: number;
   blockHash?: string;
@@ -59,8 +58,8 @@ export default class Transaction {
     this.instantLock = instantLock ?? null;
   }
 
-  static fromRow({ txid, type, amount, block_height, block_hash }: TransactionRow): Transaction {
-    return new Transaction(txid, type, block_height, block_hash, amount);
+  static fromRow({ txid, type, block_height, block_hash }: TransactionRow): Transaction {
+    return new Transaction(txid, type, block_height, block_hash);
   }
 
   static fromObject({ txid, type, blockHeight, blockHash, amount, version, vIn, vOut, confirmations, instantLock }: TransactionObject): Transaction {
