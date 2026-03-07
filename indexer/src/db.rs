@@ -89,21 +89,21 @@ impl Database {
         // Delete in correct order due to foreign keys
         client
             .execute(
-                "DELETE FROM special_transactions WHERE txid IN (SELECT txid FROM transactions WHERE block_hash IN (SELECT hash FROM blocks WHERE height = $1))",
+                "DELETE FROM special_transactions WHERE txid IN (SELECT hash FROM transactions WHERE block_hash IN (SELECT hash FROM blocks WHERE height = $1))",
                 &[&h],
             )
             .await?;
 
         client
             .execute(
-                "DELETE FROM tx_outputs WHERE txid IN (SELECT txid FROM transactions WHERE block_hash IN (SELECT hash FROM blocks WHERE height = $1))",
+                "DELETE FROM tx_outputs WHERE txid IN (SELECT hash FROM transactions WHERE block_hash IN (SELECT hash FROM blocks WHERE height = $1))",
                 &[&h],
             )
             .await?;
 
         client
             .execute(
-                "DELETE FROM tx_inputs WHERE txid IN (SELECT txid FROM transactions WHERE block_hash IN (SELECT hash FROM blocks WHERE height = $1))",
+                "DELETE FROM tx_inputs WHERE txid IN (SELECT hash FROM transactions WHERE block_hash IN (SELECT hash FROM blocks WHERE height = $1))",
                 &[&h],
             )
             .await?;
@@ -277,7 +277,7 @@ impl Database {
         for (chunk_idx, chunk) in transactions.chunks(BATCH_SIZE).enumerate() {
             let base = chunk_idx * BATCH_SIZE;
             let query = format!(
-                "INSERT INTO transactions (txid, block_hash, version, type, size, locktime, is_coinbase) VALUES {}",
+                "INSERT INTO transactions (hash, block_hash, version, type, size, locktime, is_coinbase) VALUES {}",
                 build_placeholders(chunk.len(), 7)
             );
 
