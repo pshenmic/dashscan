@@ -15,8 +15,8 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  pull_request_lint:
-    runs-on: ubuntu-latest
+#  pull_request_lint:
+#    runs-on: ubuntu-latest
 
 #    steps:
 #      - name: "Validate branch"
