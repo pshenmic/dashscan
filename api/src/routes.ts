@@ -3,6 +3,7 @@ import BlocksController from './controllers/BlocksController';
 import TransactionsController from './controllers/TransactionsController';
 import AddressesController from './controllers/AddressesController';
 import MasternodesController from './controllers/MasternodesController';
+import PriceController from './controllers/PriceController';
 
 interface RoutesOptions {
   fastify: FastifyInstance;
@@ -10,9 +11,10 @@ interface RoutesOptions {
   transactionsController: TransactionsController;
   addressesController: AddressesController;
   masternodesController: MasternodesController;
+  priceController: PriceController;
 }
 
-export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController }: RoutesOptions): void {
+export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController, priceController }: RoutesOptions): void {
   const routes = [
     {
       path: '/status',
@@ -93,6 +95,16 @@ export default function Routes({ fastify, blocksController, transactionsControll
       schema: {
         querystring: { $ref: 'paginationOptions#' },
       },
+    },
+    {
+      path: '/price',
+      method: 'get',
+      handler: priceController.getPrice,
+    },
+    {
+      path: '/price/historical',
+      method: 'get',
+      handler: priceController.getHistoricalPrices,
     },
   ];
 
