@@ -51,6 +51,11 @@ export default function Routes({ fastify, blocksController, transactionsControll
       },
     },
     {
+      path: '/transactions/history',
+      method: 'get',
+      handler: transactionsController.getTransactionHistory,
+    },
+    {
       path: '/transactions/height/:height',
       method: 'get',
       handler: transactionsController.getTransactionsByBlockHeight,
