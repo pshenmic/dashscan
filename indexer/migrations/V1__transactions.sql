@@ -1,5 +1,5 @@
 CREATE TABLE transactions (
-    txid char(64) PRIMARY KEY,
+    hash char(64) PRIMARY KEY,
     type SMALLINT not null,
     version  INT,
     size INT,
@@ -8,5 +8,5 @@ CREATE TABLE transactions (
     is_coinbase BOOLEAN DEFAULT FALSE
 );
 
-CREATE UNIQUE INDEX transaction_hash ON transactions(txid);
+CREATE UNIQUE INDEX transaction_hash ON transactions(hash);
 CREATE INDEX transaction_block_hash ON transactions(block_hash);

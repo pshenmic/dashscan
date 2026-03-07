@@ -16,12 +16,12 @@ export default class TransactionsDAO {
 
     const rows = await this.knex('transactions')
       .select(
-        'transactions.txid',
+        'transactions.hash',
         'transactions.type',
         'transactions.block_hash',
         'blocks.height as block_height',
       )
-      .select(this.knex('transactions').count('txid').as('total_count'))
+      .select(this.knex('transactions').count('hash').as('total_count'))
       .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
       .orderBy('blocks.height', order)
       .limit(limit)
@@ -35,7 +35,7 @@ export default class TransactionsDAO {
   getTransactionByHash = async (hash: string): Promise<Transaction | null> => {
     const row = await this.knex('transactions')
       .select(
-        'transactions.txid',
+        'transactions.hash',
         'transactions.type',
         'transactions.version',
         'transactions.size',
@@ -45,7 +45,7 @@ export default class TransactionsDAO {
         'blocks.height as height',
       )
       .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
-      .where('transactions.txid', hash.trim())
+      .where('transactions.hash', hash.trim())
       .first();
 
     if (!row) return null;
@@ -67,7 +67,7 @@ export default class TransactionsDAO {
     );
 
     return new Transaction(
-      row.txid.trim(),
+      row.hash.trim(),
       row.type,
       row.height,
       row.block_hash?.trim(),
@@ -84,17 +84,17 @@ export default class TransactionsDAO {
     const fromRank = (page - 1) * limit;
 
     const rows = await this.knex('transactions')
-      .select('transactions.txid')
-      .select(this.knex('transactions').where('block_hash', this.knex('blocks').select('hash').where('height', height)).count('txid').as('total_count'))
+      .select('transactions.hash')
+      .select(this.knex('transactions').where('block_hash', this.knex('blocks').select('hash').where('height', height)).count('hash').as('total_count'))
       .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
       .where('blocks.height', height)
-      .orderBy('transactions.txid', order)
+      .orderBy('transactions.hash', order)
       .limit(limit)
       .offset(fromRank);
 
     const [row] = rows;
 
-    const transactions = await Promise.all(rows.map(({ txid }: { txid: string }) => this.getTransactionByHash(txid)));
+    const transactions = await Promise.all(rows.map(({ hash }: { hash: string }) => this.getTransactionByHash(hash)));
 
     return new PaginatedResultSet(transactions as Transaction[], page, limit, row?.total_count);
   };
