@@ -328,3 +328,122 @@ Returns a paginated list of addresses.
 | `firstSeenTx`   | string | Transaction hash where address was first seen|
 | `lastSeenBlock` | number | Block height where address was last seen     |
 | `lastSeenTx`    | string | Transaction hash where address was last seen |
+
+---
+
+### GET /transactions/history
+
+Returns transaction counts grouped by hour for the past 24 hours.
+
+**Response `200`**
+
+```json
+[
+  { "timestamp": 1741305600, "count": 142 },
+  { "timestamp": 1741309200, "count": 98 }
+]
+```
+
+| Field       | Type   | Description                          |
+|-------------|--------|--------------------------------------|
+| `timestamp` | number | Hour start as Unix timestamp (seconds) |
+| `count`     | number | Number of transactions in that hour  |
+
+> Hours with zero transactions are omitted.
+
+---
+
+### GET /masternodes
+
+Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "proTxHash": "abcdef1234...",
+      "address": "1.2.3.4:9999",
+      "payee": "XaBC...",
+      "status": "ENABLED",
+      "type": "Regular",
+      "posPenaltyScore": 0,
+      "consecutivePayments": 0,
+      "lastPaidTime": 1741305600,
+      "lastPaidBlock": 1999000,
+      "ownerAddress": "XoBC...",
+      "votingAddress": "XvBC...",
+      "collateralAddress": "XcBC...",
+      "pubKeyOperator": "abc123...",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 3800
+  }
+}
+```
+
+#### Masternode Object
+
+| Field                 | Type    | Description                                      |
+|-----------------------|---------|--------------------------------------------------|
+| `proTxHash`           | string  | Provider transaction hash                        |
+| `address`             | string  | IP address and port                              |
+| `payee`               | string  | Payout address                                   |
+| `status`              | string  | Masternode status (e.g. `ENABLED`)               |
+| `type`                | string  | Masternode type (e.g. `Regular`, `Evo`)          |
+| `posPenaltyScore`     | number  | Proof-of-service penalty score                   |
+| `consecutivePayments` | number  | Number of consecutive payments received          |
+| `lastPaidTime`        | number  | Unix timestamp of last payment                   |
+| `lastPaidBlock`       | number  | Block height of last payment                     |
+| `ownerAddress`        | string  | Owner address                                    |
+| `votingAddress`       | string  | Voting address                                   |
+| `collateralAddress`   | string  | Collateral address                               |
+| `pubKeyOperator`      | string  | Operator public key                              |
+| `createdAt`           | string  | ISO 8601 timestamp when first indexed            |
+| `updatedAt`           | string  | ISO 8601 timestamp of last update                |
+
+---
+
+### GET /price
+
+Returns the current DASH/USD price. Cached for 60 minutes. Falls back to Kraken if CoinGecko is unavailable.
+
+**Response `200`**
+
+```json
+{ "usd": 42.5 }
+```
+
+**Response `502`**
+
+```json
+{ "error": "Failed to fetch price from CoinGecko" }
+```
+
+---
+
+### GET /price/historical
+
+Returns hourly DASH/USD prices for the past 24 hours. Cached for 60 minutes. Falls back to Kraken if CoinGecko is unavailable.
+
+**Response `200`**
+
+```json
+[
+  { "timestamp": 1741305600, "usd": 42.31 },
+  { "timestamp": 1741309200, "usd": 42.58 }
+]
+```
+
+| Field       | Type   | Description                            |
+|-------------|--------|----------------------------------------|
+| `timestamp` | number | Hour start as Unix timestamp (seconds) |
+| `usd`       | number | DASH price in USD at that hour         |
