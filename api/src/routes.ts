@@ -90,6 +90,9 @@ export default function Routes({ fastify, blocksController, transactionsControll
       path: '/masternodes',
       method: 'get',
       handler: masternodesController.getMasternodes,
+      schema: {
+        querystring: { $ref: 'paginationOptions#' },
+      },
     },
   ];
 
