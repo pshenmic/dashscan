@@ -4,10 +4,12 @@ on:
   workflow_run:
     workflows: ["Build and push packages"]
     branches:
-      - "master"
       - "develop"
     types:
       - completed
+  push:
+    tags:
+      - "*"
 
 env:
   REGISTRY: ghcr.io
@@ -22,9 +24,18 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
 
     steps:
+      - name: Set environment variables
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
+            echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+            echo "NETWORK=mainnet" >> $GITHUB_ENV
+          else
+            echo "VERSION=testnet" >> $GITHUB_ENV
+          fi
+
       - name: Deploy to the server
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -33,27 +44,4 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            # pull images
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer
-            
-            # stop running containers
-            docker stop dashscan-mainnet-indexer dashscan-mainnet-api || true
-            docker stop dashscan-testnet-indexer dashscan-testnet-api || true
-            
-            docker rm dashscan-mainnet-indexer dashscan-mainnet-api || true
-            docker rm dashscan-testnet-indexer dashscan-testnet-api || true
-                        
-            # clean up database
-            docker run --rm --env-file mainnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer drop_db
-            docker run --rm --env-file mainnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer migrate
-            
-            docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer drop_db
-            docker run --rm --env-file testnet.env ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer migrate
-            
-            # start containers
-            docker run -d -p 3005:3005 --restart always --env-file testnet.env --name dashscan-mainnet-api ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
-            docker run -d -p 3006:3005 --restart always --env-file testnet.env --name dashscan-testnet-api ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
-            
-            docker run -d --env-file mainnet.env --restart always --name dashscan-mainnet-indexer ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer
-            docker run -d --env-file testnet.env --restart always --name dashscan-testnet-indexer ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer
+            ./deploy.sh ${{ env.VERSION }} ${{ env.NETWORK }}
