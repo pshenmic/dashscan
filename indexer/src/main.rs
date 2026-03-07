@@ -132,7 +132,7 @@ async fn main() {
     let processor = Arc::new(BlockProcessor::new(rpc, db));
 
     // Catch up with the blockchain
-    let last_height = match processor.catch_up().await {
+    let last_height = match processor.catch_up(&config).await {
         Ok(h) => h,
         Err(e) => {
             error!("Catch-up failed: {e}");

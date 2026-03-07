@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Client;
 use serde_json::Value;
 use tracing::{debug, info};
+use crate::config::Config;
 use crate::errors::block_index_error::BlockIndexError;
 
 pub struct BlockProcessor {
@@ -201,19 +202,25 @@ impl BlockProcessor {
     ///   1. One `getblockheaders` call  → N block hashes
     ///   2. N parallel `getblock` calls → N full blocks fetched concurrently
     ///   3. Sequential processing        → blocks written to DB in order
-    pub async fn catch_up(&self) -> Result<i64, String> {
+    pub async fn catch_up(&self, config: &Config) -> Result<i64, String> {
         const CHUNK: usize = 50;
 
         let chain_height = self.rpc.get_block_count().await.expect("Failed to get chain height");
 
         let client = self.db.begin().await.expect("Failed to acquire DB connection");
-        let db_height: i64 = self.db.get_max_block_height(&**client).await.expect("Failed to get db height");
+        let mut db_height: i64 = self.db.get_max_block_height(&**client).await.expect("Failed to get db height");
         drop(client);
+
+        if db_height == 0 {
+            db_height = config.start_height;
+        }
 
         if db_height >= chain_height {
             info!(chain_height, db_height, "Already up to date");
+            self.sync_masternodes().await.map_err(|e| e.to_string())?;
             return Ok(chain_height);
         }
+
 
         let start = db_height + 1;
         let total = chain_height - db_height;
@@ -276,6 +283,8 @@ impl BlockProcessor {
                 break;
             }
         }
+
+        self.sync_masternodes().await.map_err(|e| e.to_string())?;
 
         info!(chain_height, "Catch-up complete");
         Ok(chain_height)

@@ -5,6 +5,7 @@ pub struct Config {
     pub rpc_port: String,
     pub rpc_user: String,
     pub rpc_password: String,
+    pub start_height: i64,
     pub zmq_url: String,
     pub database_url: String,
     pub poll_interval_secs: u64,
@@ -19,6 +20,10 @@ impl Config {
             rpc_password: env::var("CORE_RPC_PASSWORD").expect("CORE_RPC_PASSWORD must be set"),
             zmq_url: env::var("CORE_ZMQ_URL").expect("CORE_ZMQ_URL must be set (tcp://....)"),
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
+            start_height: env::var("START_HEIGHT")
+                .unwrap_or_else(|_| "0".to_string())
+                .parse()
+                .expect("START_HEIGHT must be a number"),
             poll_interval_secs: env::var("POLL_INTERVAL_SECS")
                 .unwrap_or_else(|_| "10".to_string())
                 .parse()
