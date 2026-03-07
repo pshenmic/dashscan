@@ -124,13 +124,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set VERSION
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
+            echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=nightly" >> $GITHUB_ENV
+          fi
+
       - name: Build and push API package Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./api
           file: ./api/Dockerfile
           push: ${{ github.event_name == 'push' }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:${{ github.ref_name }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:${{ env.VERSION }}
 
   build_indexer:
 #    needs: pull_request_lint
@@ -169,4 +177,4 @@ jobs:
         with:
           context: ./indexer
           push: ${{ github.event_name == 'push' }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer:${{ github.ref_name }}:${{ env.VERSION }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-indexer:${{ env.VERSION }}
