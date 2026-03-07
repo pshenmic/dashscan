@@ -156,6 +156,8 @@ jobs:
 
       - name: Set VERSION
         run: |
+          echo ${{ github.ref_type }}
+          echo ${{ github.ref_name }}
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
             echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
           else
