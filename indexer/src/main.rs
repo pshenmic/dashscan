@@ -45,6 +45,7 @@ async fn main() {
                 client
                     .batch_execute(
                         "BEGIN; \
+                         DROP TABLE IF EXISTS masternodes; \
                          DROP TABLE IF EXISTS special_transactions; \
                          DROP TABLE IF EXISTS tx_inputs; \
                          DROP TABLE IF EXISTS tx_outputs; \
@@ -203,7 +204,11 @@ async fn continuous_indexing(
                 info!("ZMQ: new block detected: {}", hash);
                 match processor.index_block_by_hash(&hash).await {
                     Ok(None) => info!("Block {} already indexed, skipping", hash),
-                    Ok(Some(_)) => {},
+                    Ok(Some(_)) => {
+                        if let Err(e) = processor.sync_masternodes().await {
+                            error!("Failed to sync masternode list: {}", e);
+                        }
+                    },
                     Err(e) => error!("Failed to index block {}: {}", hash, e),
                 }
 
@@ -232,14 +237,14 @@ async fn index_new_blocks(processor: &BlockProcessor) -> () {
 
     for height in (db_height + 1)..=chain_height {
         match processor.index_block_by_height(height).await {
-            Ok(hash) => match hash {
-                None => info!("Block {} already indexed, skipping", height),
-                Some(hash) => info!("Block {} with hash {} already indexed, skipping", height, hash)
-            },
-            Err(e) => {
-                error!("Failed to index block with height {}: {}", height, e);
-            }
+            Ok(None) => info!("Block {} already indexed, skipping", height),
+            Ok(Some(hash)) => info!("Indexed live block {} ({})", height, hash),
+            Err(e) => error!("Failed to index block with height {}: {}", height, e),
         }
+    }
+
+    if let Err(e) = processor.sync_masternodes().await {
+        error!("Failed to sync masternode list: {}", e);
     }
 }
 

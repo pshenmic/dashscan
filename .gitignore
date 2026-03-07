@@ -1,2 +1,6 @@
 .idea
 .claude
+target
+dist
+.env
+node_modules

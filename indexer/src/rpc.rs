@@ -4,7 +4,6 @@ use serde_json::Value;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tracing::{debug, warn};
 use crate::errors::rpc_error::RpcError;
-use crate::errors::unexpected_error::UnexpectedError;
 
 pub struct DashRpcClient {
     client: Client,
@@ -35,23 +34,46 @@ struct DashRpcError {
     message: String,
 }
 #[derive(Deserialize, Debug)]
+pub struct MasternodeEntry {
+    #[serde(rename = "proTxHash")]
+    pub pro_tx_hash: String,
+    pub address: String,
+    pub payee: String,
+    pub status: String,
+    #[serde(rename = "type")]
+    pub mn_type: String,
+    pub pospenaltyscore: i32,
+    #[serde(rename = "consecutivePayments")]
+    pub consecutive_payments: i32,
+    pub lastpaidtime: i64,
+    pub lastpaidblock: i32,
+    pub owneraddress: String,
+    pub votingaddress: String,
+    pub collateraladdress: String,
+    pub pubkeyoperator: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct CbTx {
     pub version: i32,
+    pub height: i32,
 
     #[serde(rename = "merkleRootMNList")]
     pub merkle_root_mn_list: String,
 
+    // v2
     #[serde(rename = "merkleRootQuorums")]
-    pub merkle_root_quorums: String,
+    pub merkle_root_quorums: Option<String>,
 
+    // v3
     #[serde(rename = "bestCLHeightDiff")]
-    pub best_cl_height_diff: i64,
+    pub best_cl_height_diff: Option<i64>,
 
     #[serde(rename = "bestCLSignature")]
-    pub best_cl_signature: String,
+    pub best_cl_signature: Option<String>,
 
     #[serde(rename = "creditPoolBalance")]
-    pub credit_pool_balance: f64
+    pub credit_pool_balance: Option<f64>,
 }
 
 // --- Block header (lightweight, returned by getblockheaders) ---
@@ -95,6 +117,7 @@ pub struct Transaction {
     pub locktime: i64,
     pub vin: Vec<Vin>,
     pub vout: Vec<Vout>,
+    #[allow(dead_code)]
     #[serde(rename = "extraPayloadSize")]
     pub extra_payload_size: Option<i32>,
     #[serde(rename = "extraPayload")]
@@ -109,10 +132,12 @@ pub struct Vin {
     pub txid: Option<String>,
     pub vout: Option<i32>,
     pub coinbase: Option<String>,
+    #[allow(dead_code)]
     #[serde(rename = "scriptSig")]
     pub script_sig: Option<ScriptSig>,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug, Clone)]
 pub struct ScriptSig {
     pub asm: String,
@@ -127,6 +152,7 @@ pub struct Vout {
     pub script_pub_key: ScriptPubKey,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug, Clone)]
 pub struct ScriptPubKey {
     pub asm: String,
@@ -222,7 +248,7 @@ impl DashRpcClient {
 
         debug!("Fetched block {hash}");
         serde_json::from_value(result)
-            .map_err(|e| RpcError { code: 0, message: format!("Failed to parse JSON respose with serde: {e}") })
+            .map_err(|e| RpcError { code: 0, message: format!("Failed to parse get_block JSON response with serde: {e}") })
     }
 
     /// Returns up to `count` block headers starting from `start_hash` (inclusive).
@@ -239,6 +265,7 @@ impl DashRpcClient {
             .map_err(|e| RpcError { code: 0, message: format!("Failed to parse block headers: {e}") })
     }
 
+    #[allow(dead_code)]
     pub async fn get_block_by_height(&self, height: i64) -> Result<Block, RpcError> {
         let hash = self.get_block_hash(height).await?;
 
@@ -249,6 +276,28 @@ impl DashRpcClient {
 
     pub async fn get_blockchain_info(&self) -> Result<Value, RpcError> {
         self.call("getblockchaininfo", vec![]).await.map_err(|e| RpcError { code: 0, message: e.to_string() })
+    }
+
+    pub async fn get_masternode_list(&self) -> Result<Vec<MasternodeEntry>, RpcError> {
+        let result = self
+            .call(
+                "masternode",
+                vec![Value::from("list"), Value::from("json"), Value::from("ENABLED")],
+            )
+            .await?;
+
+        let map = result
+            .as_object()
+            .ok_or_else(|| RpcError { code: 0, message: "masternode list: expected object".to_string() })?;
+
+        let mut entries = Vec::with_capacity(map.len());
+        for val in map.values() {
+            let entry: MasternodeEntry = serde_json::from_value(val.clone())
+                .map_err(|e| RpcError { code: 0, message: format!("Failed to parse masternode entry: {e}") })?;
+            entries.push(entry);
+        }
+
+        Ok(entries)
     }
 
     /// Test connectivity by calling getblockchaininfo

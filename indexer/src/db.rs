@@ -2,10 +2,8 @@ use deadpool_postgres::{Client, Pool, PoolError};
 use serde_json::Value;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::GenericClient;
-use tracing::{debug, info};
-use crate::rpc::Transaction as RpcTransaction;
-
-const SCHEMA_SQL: &str = include_str!("schema.sql");
+use tracing::debug;
+use crate::rpc::{MasternodeEntry, Transaction as RpcTransaction};
 
 /// Maximum rows per batched INSERT to stay under PostgreSQL's 32 767 parameter limit.
 const BATCH_SIZE: usize = 1000;
@@ -48,17 +46,6 @@ impl Database {
         self.pool.get().await
     }
 
-    pub async fn run_migrations(&self) -> Result<(), PoolError> {
-        let client = self.client().await?;
-        client
-            .batch_execute(SCHEMA_SQL)
-            .await?;
-
-        info!("Database migrations applied");
-
-        Ok(())
-    }
-
     pub async fn get_max_block_height(&self, client: &impl GenericClient) -> Result<i64, PoolError> {
         let row = client
             .query_one("SELECT MAX(height) FROM blocks", &[])
@@ -69,6 +56,7 @@ impl Database {
         Ok(height.map(|h| h as i64).unwrap_or(0))
     }
 
+    #[allow(dead_code)]
     pub async fn get_block_hash_at_height(&self, height: i64) -> Result<Option<String>, PoolError> {
         let client = self.client().await?;
 
@@ -93,6 +81,7 @@ impl Database {
         Ok(rows.first().map(|r| r.get(0)))
     }
 
+    #[allow(dead_code)]
     pub async fn delete_block_at_height(&self, height: i64) -> Result<(), PoolError> {
         let client = self.client().await?;
         let h = height as i32;
@@ -134,6 +123,18 @@ impl Database {
         Ok(())
     }
 
+    #[allow(dead_code)]
+    pub async fn get_block_mn_list_hash(&self, block_hash: &str) -> Result<Option<String>, PoolError> {
+        let client = self.client().await?;
+        let rows = client
+            .query(
+                "SELECT merkle_root_mn_list FROM blocks WHERE hash = $1",
+                &[&block_hash],
+            )
+            .await?;
+        Ok(rows.first().and_then(|r| r.get(0)))
+    }
+
     pub async fn insert_block(
         &self,
         client: &impl GenericClient,
@@ -148,14 +149,26 @@ impl Database {
         difficulty: f64,
         chainwork: &str,
         tx_count: i32,
+        merkle_root_mn_list: Option<&str>,
         credit_pool_balance: Option<f64>,
+        cbtx_version: Option<i32>,
+        cbtx_height: Option<i32>,
+        cbtx_merkle_root_quorums: Option<&str>,
+        cbtx_best_cl_height_diff: Option<i64>,
+        cbtx_best_cl_signature: Option<&str>,
     ) -> Result<(), PoolError> {
         let naive_timestamp = timestamp.naive_utc();
 
         client
             .execute(
-                "INSERT INTO blocks (hash, height, version, timestamp, previous_block_hash, merkle_root, size, nonce, difficulty, chainwork, tx_count, credit_pool_balance)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                "INSERT INTO blocks (
+                    hash, height, version, timestamp, previous_block_hash, merkle_root,
+                    size, nonce, difficulty, chainwork, tx_count,
+                    merkle_root_mn_list, credit_pool_balance,
+                    cbtx_version, cbtx_height, cbtx_merkle_root_quorums,
+                    cbtx_best_cl_height_diff, cbtx_best_cl_signature
+                 )
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
                  ON CONFLICT (hash) DO NOTHING",
                 &[
                     &hash,
@@ -169,10 +182,75 @@ impl Database {
                     &difficulty,
                     &chainwork,
                     &tx_count,
+                    &merkle_root_mn_list,
                     &credit_pool_balance,
+                    &cbtx_version,
+                    &cbtx_height,
+                    &cbtx_merkle_root_quorums,
+                    &cbtx_best_cl_height_diff,
+                    &cbtx_best_cl_signature,
                 ],
             )
             .await?;
+
+        Ok(())
+    }
+
+    pub async fn upsert_masternodes_batch(
+        &self,
+        client: &impl GenericClient,
+        masternodes: &[MasternodeEntry],
+    ) -> Result<(), PoolError> {
+        if masternodes.is_empty() {
+            return Ok(());
+        }
+
+        let last_paid_blocks: Vec<i32> = masternodes.iter().map(|m| m.lastpaidblock).collect();
+        let pos_scores: Vec<i32> = masternodes.iter().map(|m| m.pospenaltyscore).collect();
+        let consecutive: Vec<i32> = masternodes.iter().map(|m| m.consecutive_payments).collect();
+
+        for (chunk_idx, chunk) in masternodes.chunks(BATCH_SIZE).enumerate() {
+            let base = chunk_idx * BATCH_SIZE;
+            let query = format!(
+                "INSERT INTO masternodes (pro_tx_hash, address, payee, status, type, pos_penalty_score, consecutive_payments, last_paid_time, last_paid_block, owner_address, voting_address, collateral_address, pub_key_operator)
+                 VALUES {}
+                 ON CONFLICT (pro_tx_hash) DO UPDATE SET
+                   address              = EXCLUDED.address,
+                   payee                = EXCLUDED.payee,
+                   status               = EXCLUDED.status,
+                   type                 = EXCLUDED.type,
+                   pos_penalty_score    = EXCLUDED.pos_penalty_score,
+                   consecutive_payments = EXCLUDED.consecutive_payments,
+                   last_paid_time       = EXCLUDED.last_paid_time,
+                   last_paid_block      = EXCLUDED.last_paid_block,
+                   owner_address        = EXCLUDED.owner_address,
+                   voting_address       = EXCLUDED.voting_address,
+                   collateral_address   = EXCLUDED.collateral_address,
+                   pub_key_operator     = EXCLUDED.pub_key_operator,
+                   updated_at           = NOW()",
+                build_placeholders(chunk.len(), 13)
+            );
+
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 13);
+            for (i, m) in chunk.iter().enumerate() {
+                let abs = base + i;
+                params.push(&m.pro_tx_hash);
+                params.push(&m.address);
+                params.push(&m.payee);
+                params.push(&m.status);
+                params.push(&m.mn_type);
+                params.push(&pos_scores[abs]);
+                params.push(&consecutive[abs]);
+                params.push(&m.lastpaidtime);
+                params.push(&last_paid_blocks[abs]);
+                params.push(&m.owneraddress);
+                params.push(&m.votingaddress);
+                params.push(&m.collateraladdress);
+                params.push(&m.pubkeyoperator);
+            }
+
+            client.execute(query.as_str(), &params).await?;
+        }
 
         Ok(())
     }

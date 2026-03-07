@@ -1,5 +1,4 @@
 import { Knex } from 'knex';
-import DashCoreRPC from '../dashcoreRPC';
 import Block from '../models/Block';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 

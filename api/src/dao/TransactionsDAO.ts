@@ -1,6 +1,7 @@
 import { Knex } from 'knex';
 import Transaction from '../models/Transaction';
-import DashCoreRPC from '../dashcoreRPC';
+import VIn from '../models/VIn';
+import VOut from '../models/VOut';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 
 export default class TransactionsDAO {
@@ -13,17 +14,18 @@ export default class TransactionsDAO {
   getTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
-    const subquery = this.knex('transactions')
-      .select('hash', 'type', 'amount', 'block_height')
-      .orderBy('block_height', order)
+    const rows = await this.knex('transactions')
+      .select(
+        'transactions.txid',
+        'transactions.type',
+        'transactions.block_hash',
+        'blocks.height as block_height',
+      )
+      .select(this.knex('transactions').count('txid').as('total_count'))
+      .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
+      .orderBy('blocks.height', order)
       .limit(limit)
-      .offset(fromRank)
-      .as('subquery');
-
-    const rows = await this.knex(subquery)
-      .select('subquery.hash', 'type', 'amount', 'blocks.hash as block_hash', 'blocks.height as block_height')
-      .select(this.knex('transactions').count('id').limit(1).as('total_count'))
-      .leftJoin('blocks', 'blocks.height', 'block_height');
+      .offset(fromRank);
 
     const [row] = rows;
 
@@ -31,51 +33,68 @@ export default class TransactionsDAO {
   };
 
   getTransactionByHash = async (hash: string): Promise<Transaction | null> => {
-    let tx: any;
+    const row = await this.knex('transactions')
+      .select(
+        'transactions.txid',
+        'transactions.type',
+        'transactions.version',
+        'transactions.size',
+        'transactions.block_hash',
+        'transactions.locktime',
+        'transactions.is_coinbase',
+        'blocks.height as height',
+      )
+      .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
+      .where('transactions.txid', hash.trim())
+      .first();
 
-    try {
-      tx = await DashCoreRPC.getTransactionByHash(hash);
-    } catch (e: any) {
-      if (e.code === -5) {
-        return null;
-      } else {
-        throw e;
-      }
-    }
+    if (!row) return null;
 
-    return Transaction.fromObject({
-      hash: tx.txid,
-      type: tx.type,
-      version: tx.version,
-      blockHash: tx.blockhash,
-      blockHeight: tx.height,
-      confirmations: tx.confirmations,
-      instantLock: tx.instantlock,
-      vIn: tx.vin,
-      vOut: tx.vout,
-    });
+    const inputRows = await this.knex('tx_inputs')
+      .where('txid', hash.trim())
+      .orderBy('vin_index');
+
+    const outputRows = await this.knex('tx_outputs')
+      .where('txid', hash.trim())
+      .orderBy('vout_index');
+
+    const vIn = inputRows.map(({ prev_txid, prev_vout_index }: { prev_txid: string; prev_vout_index: number }) =>
+      VIn.fromObject({ txId: prev_txid?.trim(), vOut: prev_vout_index }),
+    );
+
+    const vOut = outputRows.map(({ value, vout_index, script_pub_key }: { value: bigint; vout_index: number; script_pub_key: string }) =>
+      VOut.fromObject({ value: value?.toString(), number: vout_index, scriptPubKeyASM: script_pub_key }),
+    );
+
+    return new Transaction(
+      row.txid.trim(),
+      row.type,
+      row.height,
+      row.block_hash?.trim(),
+      null,
+      row.version,
+      vIn,
+      vOut,
+      null,
+      null,
+    );
   };
 
   getTransactionsByBlockHeight = async (height: number, page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
-    const subquery = this.knex('transactions')
-      .select('hash', 'id')
-      .where('block_height', '=', height);
-
-    const rows = await this.knex
-      .with('subquery', subquery)
-      .select('hash', 'id')
-      .select(this.knex('subquery').count('id').limit(1).as('total_count'))
-      .orderBy('id', order)
-      .offset(fromRank)
+    const rows = await this.knex('transactions')
+      .select('transactions.txid')
+      .select(this.knex('transactions').where('block_hash', this.knex('blocks').select('hash').where('height', height)).count('txid').as('total_count'))
+      .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
+      .where('blocks.height', height)
+      .orderBy('transactions.txid', order)
       .limit(limit)
-      .from('subquery')
-      .as('subquery_with_count');
+      .offset(fromRank);
 
     const [row] = rows;
 
-    const transactions = await Promise.all(rows.map(({ hash }: { hash: string }) => this.getTransactionByHash(hash)));
+    const transactions = await Promise.all(rows.map(({ txid }: { txid: string }) => this.getTransactionByHash(txid)));
 
     return new PaginatedResultSet(transactions as Transaction[], page, limit, row?.total_count);
   };
