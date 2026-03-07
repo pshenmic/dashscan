@@ -55,7 +55,7 @@ jobs:
 #        run: cd frontend && yarn lint
 
   test_api:
-    needs: pull_request_lint
+#    needs: pull_request_lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
