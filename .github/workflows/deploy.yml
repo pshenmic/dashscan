@@ -33,7 +33,8 @@ jobs:
             echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
             echo "NETWORK=mainnet" >> $GITHUB_ENV
           else
-            echo "VERSION=testnet" >> $GITHUB_ENV
+            echo "VERSION=nightly" >> $GITHUB_ENV
+            echo "NETWORK=testnet" >> $GITHUB_ENV
           fi
 
       - name: Deploy to the server
