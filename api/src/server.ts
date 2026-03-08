@@ -10,8 +10,10 @@ import TransactionsController from './controllers/TransactionsController';
 import AddressesController from './controllers/AddressesController';
 import MasternodesController from './controllers/MasternodesController';
 import MasternodesDAO from './dao/MasternodesDAO';
-import PriceController from './controllers/PriceController';
-import PriceService from './services/PriceService';
+import MarketController from './controllers/MarketController';
+import MarketService from './services/MarketService';
+import SearchDAO from './dao/SearchDAO';
+import SearchController from './controllers/SearchController';
 import { Knex } from 'knex';
 
 function errorHandler(err: FastifyError, req: FastifyRequest, reply: FastifyReply): void {
@@ -50,8 +52,10 @@ export const start = async (): Promise<FastifyInstance> => {
   const addressesController = new AddressesController(knex);
   const masternodesDAO = new MasternodesDAO(knex);
   const masternodesController = new MasternodesController(masternodesDAO);
-  const priceService = new PriceService();
-  const priceController = new PriceController(priceService);
+  const marketService = new MarketService();
+  const marketController = new MarketController(marketService);
+  const searchDAO = new SearchDAO(knex);
+  const searchController = new SearchController(searchDAO);
 
   Routes({
     fastify,
@@ -59,7 +63,8 @@ export const start = async (): Promise<FastifyInstance> => {
     transactionsController,
     addressesController,
     masternodesController,
-    priceController,
+    marketController,
+    searchController,
   });
 
   fastify.setErrorHandler(errorHandler);

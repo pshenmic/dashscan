@@ -3,7 +3,8 @@ import BlocksController from './controllers/BlocksController';
 import TransactionsController from './controllers/TransactionsController';
 import AddressesController from './controllers/AddressesController';
 import MasternodesController from './controllers/MasternodesController';
-import PriceController from './controllers/PriceController';
+import MarketController from './controllers/MarketController';
+import SearchController from './controllers/SearchController';
 
 interface RoutesOptions {
   fastify: FastifyInstance;
@@ -11,15 +12,24 @@ interface RoutesOptions {
   transactionsController: TransactionsController;
   addressesController: AddressesController;
   masternodesController: MasternodesController;
-  priceController: PriceController;
+  marketController: MarketController;
+  searchController: SearchController;
 }
 
-export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController, priceController }: RoutesOptions): void {
+const currencyParam = {
+  type: 'object',
+  properties: {
+    currency: { type: 'string', enum: ['usd', 'btc'] },
+  },
+  required: ['currency'],
+};
+
+export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController }: RoutesOptions): void {
   const routes = [
     {
       path: '/status',
       method: 'GET',
-      handler: (request, reply) => reply.status(200).send({status: 'ok'}),
+      handler: (request, reply) => reply.status(200).send({ status: 'ok' }),
     },
     {
       path: '/blocks',
@@ -102,14 +112,54 @@ export default function Routes({ fastify, blocksController, transactionsControll
       },
     },
     {
-      path: '/price',
+      path: '/price/:currency',
       method: 'get',
-      handler: priceController.getPrice,
+      handler: marketController.getPrice,
+      schema: { params: currencyParam },
     },
     {
-      path: '/price/historical',
+      path: '/price/:currency/historical',
       method: 'get',
-      handler: priceController.getHistoricalPrices,
+      handler: marketController.getHistoricalPrices,
+      schema: { params: currencyParam },
+    },
+    {
+      path: '/marketcap/:currency',
+      method: 'get',
+      handler: marketController.getMarketCap,
+      schema: { params: currencyParam },
+    },
+    {
+      path: '/marketcap/:currency/historical',
+      method: 'get',
+      handler: marketController.getHistoricalMarketCaps,
+      schema: { params: currencyParam },
+    },
+    {
+      path: '/volume/:currency',
+      method: 'get',
+      handler: marketController.getVolume,
+      schema: { params: currencyParam },
+    },
+    {
+      path: '/volume/:currency/historical',
+      method: 'get',
+      handler: marketController.getHistoricalVolumes,
+      schema: { params: currencyParam },
+    },
+    {
+      path: '/search',
+      method: 'get',
+      handler: searchController.search,
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', minLength: 1 },
+          },
+          required: ['query'],
+        },
+      },
     },
   ];
 

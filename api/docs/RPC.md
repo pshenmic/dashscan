@@ -353,6 +353,40 @@ Returns transaction counts grouped by hour for the past 24 hours.
 
 ---
 
+### GET /search
+
+Searches across blocks, transactions, masternodes, and addresses. Input type is detected automatically.
+
+| Input pattern             | Queried entities                              |
+|---------------------------|-----------------------------------------------|
+| Pure integer              | Block by height                               |
+| 64-char hex string        | Block by hash, transaction by hash, masternode by proTxHash |
+| Dash address (`X`, `y`, `7`, `8` prefix) | Address by address              |
+| Anything else             | Returns all nulls                             |
+
+**Query Parameters**
+
+| Parameter | Type   | Constraints     | Description        |
+|-----------|--------|-----------------|--------------------|
+| `query`   | string | minLength: 1    | Search term        |
+
+**Response `200`**
+
+```json
+{
+  "block": { "height": 100000, "hash": "000abc...", ... } ,
+  "transaction": null,
+  "masternode": null,
+  "address": null
+}
+```
+
+Each field is either the matched object (same shape as its individual endpoint) or `null`.
+
+**Response `400`** — Missing or empty `query` parameter
+
+---
+
 ### GET /masternodes
 
 Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
