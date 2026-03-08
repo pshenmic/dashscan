@@ -7,6 +7,7 @@ interface TransactionRow {
   type: number;
   block_height: number;
   block_hash: string;
+  timestamp: Date;
 }
 
 interface TransactionObject {
@@ -27,6 +28,7 @@ export default class Transaction {
   type: number | null;
   blockHeight: number | null;
   blockHash: string | null;
+  timestamp: Date | null;
   amount: number | null;
   version: number | null;
   vIn: VIn[] | null;
@@ -45,11 +47,13 @@ export default class Transaction {
     vOut?: VOut[],
     confirmations?: number,
     instantLock?: boolean,
+    timestamp?: Date,
   ) {
     this.hash = hash ?? null;
     this.type = type ?? null;
     this.blockHeight = blockHeight ?? null;
     this.blockHash = blockHash ?? null;
+    this.timestamp = timestamp ?? null;
     this.amount = amount ?? null;
     this.version = version ?? null;
     this.vIn = vIn ?? null;
@@ -58,8 +62,8 @@ export default class Transaction {
     this.instantLock = instantLock ?? null;
   }
 
-  static fromRow({ hash, type, block_height, block_hash }: TransactionRow): Transaction {
-    return new Transaction(hash, type, block_height, block_hash);
+  static fromRow({ hash, type, block_height, block_hash, timestamp }: TransactionRow): Transaction {
+    return new Transaction(hash, type, block_height, block_hash, undefined, undefined, undefined, undefined, undefined, undefined, timestamp);
   }
 
   static fromObject({ hash, type, blockHeight, blockHash, amount, version, vIn, vOut, confirmations, instantLock }: TransactionObject): Transaction {

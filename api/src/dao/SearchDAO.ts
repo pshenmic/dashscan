@@ -53,12 +53,13 @@ export default class SearchDAO {
         'transactions.locktime',
         'transactions.is_coinbase',
         'blocks.height as height',
+        'blocks.timestamp as timestamp',
       )
       .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
       .where('transactions.hash', hash)
       .first();
     if (!row) return null;
-    return new Transaction(row.hash.trim(), row.type, row.height, row.block_hash?.trim(), null, row.version, [], [], null, null);
+    return new Transaction(row.hash.trim(), row.type, row.height, row.block_hash?.trim(), null, row.version, [], [], null, null, row.timestamp);
   };
 
   private getMasternodeByProTxHash = async (proTxHash: string): Promise<Masternode | null> => {

@@ -20,6 +20,7 @@ export default class TransactionsDAO {
         'transactions.type',
         'transactions.block_hash',
         'blocks.height as block_height',
+        'blocks.timestamp as timestamp',
       )
       .select(this.knex('transactions').count('hash').as('total_count'))
       .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
@@ -43,6 +44,7 @@ export default class TransactionsDAO {
         'transactions.locktime',
         'transactions.is_coinbase',
         'blocks.height as height',
+        'blocks.timestamp as timestamp',
       )
       .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
       .where('transactions.hash', hash.trim())
@@ -77,6 +79,7 @@ export default class TransactionsDAO {
       vOut,
       null,
       null,
+      row.timestamp,
     );
   };
 
