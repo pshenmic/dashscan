@@ -4,6 +4,7 @@ import TransactionsController from './controllers/TransactionsController';
 import AddressesController from './controllers/AddressesController';
 import MasternodesController from './controllers/MasternodesController';
 import MarketController from './controllers/MarketController';
+import SearchController from './controllers/SearchController';
 
 interface RoutesOptions {
   fastify: FastifyInstance;
@@ -12,14 +13,15 @@ interface RoutesOptions {
   addressesController: AddressesController;
   masternodesController: MasternodesController;
   marketController: MarketController;
+  searchController: SearchController;
 }
 
-export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController, marketController }: RoutesOptions): void {
+export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController }: RoutesOptions): void {
   const routes = [
     {
       path: '/status',
       method: 'GET',
-      handler: (request, reply) => reply.status(200).send({status: 'ok'}),
+      handler: (request, reply) => reply.status(200).send({ status: 'ok' }),
     },
     {
       path: '/blocks',
@@ -182,6 +184,20 @@ export default function Routes({ fastify, blocksController, transactionsControll
             currency: { type: 'string', enum: ['usd', 'btc'] },
           },
           required: ['currency'],
+        },
+      },
+    },
+    {
+      path: '/search',
+      method: 'get',
+      handler: searchController.search,
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', minLength: 1 },
+          },
+          required: ['query'],
         },
       },
     },
