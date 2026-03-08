@@ -446,9 +446,15 @@ Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
 
 ---
 
-### GET /price
+### GET /price/:currency
 
-Returns the current DASH/USD price. Cached for 60 minutes. Falls back to Kraken if CoinGecko is unavailable.
+Returns the current DASH price for the given currency. Cached for 60 minutes. Falls back to Kraken if CoinGecko is unavailable.
+
+**Path Parameters**
+
+| Parameter  | Type   | Constraints        | Description   |
+|------------|--------|--------------------|---------------|
+| `currency` | string | `"usd"` or `"btc"` | Target currency |
 
 **Response `200`**
 
@@ -456,28 +462,132 @@ Returns the current DASH/USD price. Cached for 60 minutes. Falls back to Kraken 
 { "usd": 42.5 }
 ```
 
-**Response `502`**
-
 ```json
-{ "error": "Failed to fetch price from CoinGecko" }
+{ "btc": 0.00042 }
 ```
+
+**Response `400`** — Invalid currency (not `usd` or `btc`)
 
 ---
 
-### GET /price/historical
+### GET /price/:currency/historical
 
-Returns hourly DASH/USD prices for the past 24 hours. Cached for 60 minutes. Falls back to Kraken if CoinGecko is unavailable.
+Returns DASH price for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. For `usd`, falls back to Kraken if CoinGecko is unavailable. For `btc`, only CoinGecko is used.
+
+**Path Parameters**
+
+| Parameter  | Type   | Constraints        | Description   |
+|------------|--------|--------------------|---------------|
+| `currency` | string | `"usd"` or `"btc"` | Target currency |
 
 **Response `200`**
 
 ```json
 [
-  { "timestamp": 1741305600, "usd": 42.31 },
-  { "timestamp": 1741309200, "usd": 42.58 }
+  { "timestamp": 1741305600, "value": 42.31 },
+  { "timestamp": 1741309200, "value": 42.58 }
 ]
 ```
 
 | Field       | Type   | Description                            |
 |-------------|--------|----------------------------------------|
 | `timestamp` | number | Hour start as Unix timestamp (seconds) |
-| `usd`       | number | DASH price in USD at that hour         |
+| `value`     | number | DASH price in the requested currency   |
+
+**Response `400`** — Invalid currency (not `usd` or `btc`)
+
+---
+
+### GET /marketcap/:currency
+
+Returns the current DASH market cap for the given currency. Cached for 60 minutes. Provided by CoinGecko; no fallback available.
+
+**Path Parameters**
+
+| Parameter  | Type   | Constraints        | Description     |
+|------------|--------|--------------------|-----------------|
+| `currency` | string | `"usd"` or `"btc"` | Target currency |
+
+**Response `200`**
+
+```json
+{ "usd": 1234567890 }
+```
+
+**Response `400`** — Invalid currency (not `usd` or `btc`)
+
+---
+
+### GET /marketcap/:currency/historical
+
+Returns DASH market cap for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. Provided by CoinGecko only.
+
+**Path Parameters**
+
+| Parameter  | Type   | Constraints        | Description     |
+|------------|--------|--------------------|-----------------|
+| `currency` | string | `"usd"` or `"btc"` | Target currency |
+
+**Response `200`**
+
+```json
+[
+  { "timestamp": 1741305600, "value": 1234567890 },
+  { "timestamp": 1741309200, "value": 1235000000 }
+]
+```
+
+| Field       | Type   | Description                            |
+|-------------|--------|----------------------------------------|
+| `timestamp` | number | Hour start as Unix timestamp (seconds) |
+| `value`     | number | Market cap in the requested currency   |
+
+**Response `400`** — Invalid currency (not `usd` or `btc`)
+
+---
+
+### GET /volume/:currency
+
+Returns the current DASH 24h trading volume for the given currency. Cached for 60 minutes. Provided by CoinGecko; no fallback available.
+
+**Path Parameters**
+
+| Parameter  | Type   | Constraints        | Description     |
+|------------|--------|--------------------|-----------------|
+| `currency` | string | `"usd"` or `"btc"` | Target currency |
+
+**Response `200`**
+
+```json
+{ "usd": 98765432 }
+```
+
+**Response `400`** — Invalid currency (not `usd` or `btc`)
+
+---
+
+### GET /volume/:currency/historical
+
+Returns DASH trading volume for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. For `usd`, falls back to Kraken if CoinGecko is unavailable. For `btc`, only CoinGecko is used.
+
+**Path Parameters**
+
+| Parameter  | Type   | Constraints        | Description     |
+|------------|--------|--------------------|-----------------|
+| `currency` | string | `"usd"` or `"btc"` | Target currency |
+
+**Response `200`**
+
+```json
+[
+  { "timestamp": 1741305600, "value": 98765432 },
+  { "timestamp": 1741309200, "value": 97000000 }
+]
+```
+
+| Field       | Type   | Description                              |
+|-------------|--------|------------------------------------------|
+| `timestamp` | number | Hour start as Unix timestamp (seconds)   |
+| `value`     | number | Trading volume in the requested currency |
+
+**Response `400`** — Invalid currency (not `usd` or `btc`)

@@ -115,6 +115,49 @@ export default function Routes({ fastify, blocksController, transactionsControll
       path: '/price/:currency',
       method: 'get',
       handler: marketController.getPrice,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            currency: { type: 'string', enum: ['usd', 'btc'] },
+          },
+          required: ['currency'],
+        },
+      },
+    },
+    {
+      path: '/price/:currency/historical',
+      method: 'get',
+      handler: marketController.getHistoricalPrices,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            currency: { type: 'string', enum: ['usd', 'btc'] },
+          },
+          required: ['currency'],
+        },
+      },
+    },
+    {
+      path: '/marketcap/:currency',
+      method: 'get',
+      handler: marketController.getMarketCap,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            currency: { type: 'string', enum: ['usd', 'btc'] },
+          },
+          required: ['currency'],
+        },
+      },
+    },
+    {
+      path: '/marketcap/:currency/historical',
+      path: '/price/:currency',
+      method: 'get',
+      handler: marketController.getPrice,
       schema: { params: currencyParam },
     },
     {
@@ -138,14 +181,44 @@ export default function Routes({ fastify, blocksController, transactionsControll
     {
       path: '/volume/:currency',
       method: 'get',
+      handler: marketController.getHistoricalMarketCaps,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            currency: { type: 'string', enum: ['usd', 'btc'] },
+          },
+          required: ['currency'],
+        },
+      },
+    },
+    {
+      path: '/volume/:currency',
+      method: 'get',
       handler: marketController.getVolume,
-      schema: { params: currencyParam },
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            currency: { type: 'string', enum: ['usd', 'btc'] },
+          },
+          required: ['currency'],
+        },
+      },
     },
     {
       path: '/volume/:currency/historical',
       method: 'get',
       handler: marketController.getHistoricalVolumes,
-      schema: { params: currencyParam },
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            currency: { type: 'string', enum: ['usd', 'btc'] },
+          },
+          required: ['currency'],
+        },
+      },
     },
     {
       path: '/search',
