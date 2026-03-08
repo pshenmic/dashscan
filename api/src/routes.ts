@@ -16,14 +16,6 @@ interface RoutesOptions {
   searchController: SearchController;
 }
 
-const currencyParam = {
-  type: 'object',
-  properties: {
-    currency: { type: 'string', enum: ['usd', 'btc'] },
-  },
-  required: ['currency'],
-};
-
 export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController }: RoutesOptions): void {
   const routes = [
     {
@@ -155,31 +147,6 @@ export default function Routes({ fastify, blocksController, transactionsControll
     },
     {
       path: '/marketcap/:currency/historical',
-      path: '/price/:currency',
-      method: 'get',
-      handler: marketController.getPrice,
-      schema: { params: currencyParam },
-    },
-    {
-      path: '/price/:currency/historical',
-      method: 'get',
-      handler: marketController.getHistoricalPrices,
-      schema: { params: currencyParam },
-    },
-    {
-      path: '/marketcap/:currency',
-      method: 'get',
-      handler: marketController.getMarketCap,
-      schema: { params: currencyParam },
-    },
-    {
-      path: '/marketcap/:currency/historical',
-      method: 'get',
-      handler: marketController.getHistoricalMarketCaps,
-      schema: { params: currencyParam },
-    },
-    {
-      path: '/volume/:currency',
       method: 'get',
       handler: marketController.getHistoricalMarketCaps,
       schema: {
