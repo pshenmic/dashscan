@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+
 import { Avatar } from "dash-ui-kit/react";
 import { ArrowLeftRight, Box, MoveDown, MoveUp } from "lucide-react";
 import { useState } from "react";
@@ -22,6 +23,7 @@ import {
   marketCapQueryOptions,
 } from "@/lib/api/marketcap";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
+
 import {
   priceHistoricalQueryOptions,
   priceQueryOptions,
@@ -157,8 +159,7 @@ function Dashboard() {
         : priceHistory;
   const chartChange =
     chartHistory && chartHistory.length >= 2
-      ? ((chartHistory[chartHistory.length - 1].value -
-          chartHistory[0].value) /
+      ? ((chartHistory[chartHistory.length - 1].value - chartHistory[0].value) /
           chartHistory[0].value) *
         100
       : null;
@@ -335,24 +336,12 @@ function Dashboard() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Masternodes
             </CardTitle>
-            <CardAction>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-auto rounded-full px-[18px] py-3"
-                asChild
-              >
-                <Link to="/masternodes">See All</Link>
-              </Button>
-            </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {mnData?.resultSet.map((mn) => (
-              <Link
+              <div
                 key={mn.proTxHash}
-                to="/masternodes/$hash"
-                params={{ hash: mn.proTxHash }}
-                className="-mx-3 flex items-center justify-between rounded-xl px-3 py-2 transition-colors duration-100 hover:bg-accent/10"
+                className="-mx-3 flex items-center justify-between rounded-xl px-3 py-2"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex size-8 items-center justify-center rounded-full border border-accent/12">
@@ -375,7 +364,7 @@ function Dashboard() {
                   </p>
                   <p className="text-xs text-muted-foreground">{mn.type}</p>
                 </div>
-              </Link>
+              </div>
             ))}
           </CardContent>
         </Card>
@@ -503,7 +492,9 @@ function Dashboard() {
                       className={`rounded-full ${m === chartMetric ? "bg-accent text-accent-foreground" : ""}`}
                       onClick={() => setChartMetric(m)}
                     >
-                      {m === "mcap" ? "MCap" : m.charAt(0).toUpperCase() + m.slice(1)}
+                      {m === "mcap"
+                        ? "MCap"
+                        : m.charAt(0).toUpperCase() + m.slice(1)}
                     </Button>
                   ))}
                 </div>

@@ -1,5 +1,5 @@
 import { skipToken, useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
 import {
@@ -63,6 +63,7 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
 function BlockDetailPage() {
   const { hashOrHeight } = Route.useParams();
   const network = useStore(appStore, (state) => state.network);
+  const navigate = useNavigate();
   const [txFilter, setTxFilter] = useState("");
   const [txPage, setTxPage] = useState(1);
   const [txLimit, setTxLimit] = useState(10);
@@ -329,16 +330,26 @@ function BlockDetailPage() {
                   <tr
                     key={tx.hash}
                     className="group cursor-pointer transition-colors"
+                    onClick={() =>
+                      navigate({
+                        to: "/transactions/$hash",
+                        params: { hash: tx.hash },
+                      })
+                    }
                   >
                     <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
                       <span className="whitespace-nowrap text-muted-foreground">
-                        {tx.timestamp
-                          ? formatRelativeTime(tx.timestamp)
-                          : "—"}
+                        {tx.timestamp ? formatRelativeTime(tx.timestamp) : "—"}
                       </span>
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                      <TwoLineHash hash={tx.hash} uppercase />
+                      <Link
+                        to="/transactions/$hash"
+                        params={{ hash: tx.hash }}
+                        className="no-underline"
+                      >
+                        <TwoLineHash hash={tx.hash} uppercase />
+                      </Link>
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
                       <Badge
