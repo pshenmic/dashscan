@@ -301,7 +301,7 @@ function BlocksPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   Latest Superblock
                 </p>
-                <p className="text-2xl font-extrabold">#52151</p>
+                <p className="text-2xl font-extrabold">—</p>
               </div>
             </div>
           </Card>
@@ -369,7 +369,7 @@ function BlocksPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   Blockchain Size
                 </p>
-                <p className="text-2xl font-extrabold">41.2 Gb</p>
+                <p className="text-2xl font-extrabold">—</p>
               </div>
             </div>
           </Card>

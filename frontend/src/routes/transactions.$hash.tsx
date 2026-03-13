@@ -168,7 +168,7 @@ function TransactionDetailPage() {
                 {tx.vIn.length > 0 ? (
                   tx.vIn.map((input, idx) => (
                     <tr
-                      key={`${input.txId}-${input.vOut}`}
+                      key={`${input.txId ?? "coinbase"}-${input.vOut}`}
                       className="group transition-colors"
                     >
                       <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
@@ -178,13 +178,19 @@ function TransactionDetailPage() {
                         </div>
                       </td>
                       <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                        <Link
-                          to="/transactions/$hash"
-                          params={{ hash: input.txId }}
-                          className="font-mono text-accent hover:underline"
-                        >
-                          {input.txId.slice(0, 16)}...:{input.vOut}
-                        </Link>
+                        {input.txId ? (
+                          <Link
+                            to="/transactions/$hash"
+                            params={{ hash: input.txId }}
+                            className="font-mono text-accent hover:underline"
+                          >
+                            {input.txId.slice(0, 16)}...:{input.vOut}
+                          </Link>
+                        ) : (
+                          <span className="font-mono text-muted-foreground">
+                            Coinbase
+                          </span>
+                        )}
                       </td>
                       <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-muted-foreground transition-colors group-hover:bg-accent/10">
                         {input.sequence}

@@ -26,11 +26,12 @@ export interface ApiBlock {
   difficulty: number;
   merkleRoot: string;
   previousBlockHash: string;
+  confirmations: number;
   nonce: number;
 }
 
 export interface ApiVIn {
-  txId: string;
+  txId: string | null;
   vOut: number;
   sequence: number;
   scriptSigASM: string;
