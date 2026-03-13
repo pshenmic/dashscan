@@ -61,7 +61,6 @@ export default class Transaction {
     this.vOut = vOut ?? null;
     this.confirmations = confirmations ?? null;
     this.instantLock = instantLock ?? null;
-    this.fee = fee ?? null;
   }
 
   static fromRow({ hash, type, block_height, block_hash, timestamp, confirmations }: TransactionRow): Transaction {
