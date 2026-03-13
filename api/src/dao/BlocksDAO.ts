@@ -13,7 +13,7 @@ export default class BlocksDAO {
     const fromRank = (page - 1) * limit;
 
     const rows = await this.knex('blocks')
-      .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce', 'blocks.previous_block_hash')
+      .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce', 'blocks.previous_block_hash', 'blocks.merkle_root', 'blocks.credit_pool_balance')
       .select(this.knex('blocks').count('height').as('total_count'))
       .orderBy('height', order)
       .limit(limit)
@@ -26,7 +26,7 @@ export default class BlocksDAO {
 
   getBlockByHash = async (hash: string): Promise<Block | null> => {
     const rows = await this.knex('blocks')
-        .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce', 'blocks.previous_block_hash')
+        .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce', 'blocks.previous_block_hash', 'blocks.merkle_root', 'blocks.credit_pool_balance')
         .where('blocks.hash', hash)
         .limit(1)
 
