@@ -1,8 +1,12 @@
-export function TwoLineHash({ hash }: { hash: string }) {
+export function TwoLineHash({
+  hash,
+  uppercase,
+}: { hash: string; uppercase?: boolean }) {
   if (!hash) return <span className="text-muted-foreground">—</span>;
-  const mid = Math.ceil(hash.length / 2);
-  const line1 = hash.slice(0, mid);
-  const line2 = hash.slice(mid);
+  const display = uppercase ? hash.toUpperCase() : hash;
+  const mid = Math.ceil(display.length / 2);
+  const line1 = display.slice(0, mid);
+  const line2 = display.slice(mid);
 
   function renderLine(line: string, isFirst: boolean) {
     if (isFirst) {

@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
-import { ArrowLeftRight, Box, MoveUp } from "lucide-react";
+import { ArrowLeftRight, Box, MoveDown, MoveUp } from "lucide-react";
+import { useState } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
-import { CandlestickChart } from "@/components/candlestick-chart";
 import { FadeInSection } from "@/components/fade-in-section";
+import { PriceChart } from "@/components/price-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { blocksQueryOptions } from "@/lib/api/blocks";
+import {
+  marketCapHistoricalQueryOptions,
+  marketCapQueryOptions,
+} from "@/lib/api/marketcap";
+import { masternodesQueryOptions } from "@/lib/api/masternodes";
+import {
+  priceHistoricalQueryOptions,
+  priceQueryOptions,
+} from "@/lib/api/price";
+import { transactionHistoryQueryOptions } from "@/lib/api/transaction-history";
+import { transactionsQueryOptions } from "@/lib/api/transactions";
+import { volumeHistoricalQueryOptions } from "@/lib/api/volume";
 import { formatRelativeTime } from "@/lib/format";
 import { appStore } from "@/lib/store";
 
@@ -26,116 +39,132 @@ export const Route = createFileRoute("/")({
   }),
   loader: ({ context }) => {
     if (typeof window !== "undefined") return;
-    return context.queryClient.prefetchQuery(
-      blocksQueryOptions({
-        network: "mainnet",
-        page: 1,
-        limit: 5,
-        order: "desc",
-      }),
-    );
+    const network = "testnet" as const;
+    return Promise.all([
+      context.queryClient.prefetchQuery(
+        blocksQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
+      ),
+      context.queryClient.prefetchQuery(
+        transactionsQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
+      ),
+      context.queryClient.prefetchQuery(
+        masternodesQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
+      ),
+      context.queryClient.prefetchQuery(
+        transactionHistoryQueryOptions({ network }),
+      ),
+      context.queryClient.prefetchQuery(
+        priceQueryOptions({ network, currency: "usd" }),
+      ),
+      context.queryClient.prefetchQuery(
+        priceQueryOptions({ network, currency: "btc" }),
+      ),
+      context.queryClient.prefetchQuery(
+        priceHistoricalQueryOptions({ network, currency: "usd" }),
+      ),
+      context.queryClient.prefetchQuery(
+        marketCapQueryOptions({ network, currency: "usd" }),
+      ),
+    ]);
   },
 });
 
-const TRANSACTIONS = [
-  {
-    hash: "9692b2f...aedf656",
-    from: "XquGg...U4kYd",
-    amount: "1.25 DASH",
-    time: "12 secs ago",
-  },
-  {
-    hash: "40cb50d...fd3a6fc",
-    from: "Xpydx...BsCFW",
-    amount: "0.187 DASH",
-    time: "6 mins ago",
-  },
-  {
-    hash: "9692b2f...aedf656",
-    from: "Xd9c7...oMa2A",
-    amount: "23 DASH",
-    time: "5 hours ago",
-  },
-  {
-    hash: "9692b2f...aedf656",
-    from: "B917BB...08F234",
-    amount: "2.08 DASH",
-    time: "12 days ago",
-  },
-  {
-    hash: "9692b2f...aedf656",
-    from: "B917BB...08F234-2",
-    amount: "0.25 DASH",
-    time: "3 weeks ago",
-  },
-];
+function formatCompactUsd(value: number): string {
+  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)} B`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)} M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(2)} K`;
+  return `$${value.toFixed(2)}`;
+}
 
-const MASTERNODES = [
-  { hash: "0003ac...f0b1c", ip: "72.62.58.108", status: "Enabled", size: "4k" },
-  { hash: "XygRg...TcCRJ", ip: "45.76.234.147", status: "Enabled", size: "1k" },
-  {
-    hash: "XygRg...TcCRJ-2",
-    ip: "47.110.146.65",
-    status: "Enabled",
-    size: "1k",
-  },
-  { hash: "XygRg...TcCRJ-3", ip: "0", status: "Paused", size: "1k" },
-];
-
-const BAR_HEIGHTS = [
-  40, 30, 50, 65, 80, 90, 70, 55, 45, 60, 75, 35, 58, 42, 72, 85, 38, 62,
-];
-const BAR_LABELS = [
-  "01",
-  "02",
-  "03",
-  "04",
-  "05",
-  "06",
-  "07",
-  "08",
-  "09",
-  "10",
-  "11",
-  "12",
-  "13",
-  "14",
-  "15",
-  "16",
-  "17",
-  "18",
-];
-
-const CANDLES = [
-  { label: "01", low: 30, high: 70, open: 40, close: 60 },
-  { label: "02", low: 20, high: 80, open: 60, close: 35 },
-  { label: "03", low: 35, high: 75, open: 45, close: 65 },
-  { label: "04", low: 25, high: 85, open: 70, close: 40 },
-  { label: "05", low: 30, high: 90, open: 50, close: 80 },
-  { label: "06", low: 40, high: 80, open: 55, close: 70 },
-  { label: "07", low: 20, high: 70, open: 60, close: 30 },
-  { label: "08", low: 15, high: 65, open: 25, close: 55 },
-  { label: "09", low: 35, high: 85, open: 75, close: 45 },
-  { label: "10", low: 28, high: 72, open: 38, close: 62 },
-  { label: "11", low: 18, high: 78, open: 65, close: 28 },
-  { label: "12", low: 32, high: 88, open: 42, close: 78 },
-  { label: "13", low: 22, high: 68, open: 58, close: 32 },
-  { label: "14", low: 38, high: 82, open: 48, close: 72 },
-  { label: "15", low: 25, high: 75, open: 65, close: 35 },
-  { label: "16", low: 30, high: 85, open: 40, close: 75 },
-  { label: "17", low: 20, high: 70, open: 55, close: 30 },
-  { label: "18", low: 35, high: 90, open: 45, close: 80 },
-];
+function formatDash(duffs: number): string {
+  const dash = duffs / 1e8;
+  if (dash >= 1) return `${dash.toFixed(2)} DASH`;
+  return `${dash.toFixed(4)} DASH`;
+}
 
 function Dashboard() {
   const network = useStore(appStore, (state) => state.network);
+  const [chartMetric, setChartMetric] = useState<"price" | "volume" | "mcap">(
+    "price",
+  );
+  const [priceCurrency, setPriceCurrency] = useState<"usd" | "btc">("usd");
+
   const { data: blocksData } = useQuery(
     blocksQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
   );
+  const { data: txData } = useQuery(
+    transactionsQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
+  );
+  const { data: mnData } = useQuery(
+    masternodesQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
+  );
+  const { data: txHistory } = useQuery(
+    transactionHistoryQueryOptions({ network }),
+  );
+  const { data: usdPrice } = useQuery(
+    priceQueryOptions({ network, currency: "usd" }),
+  );
+  const { data: btcPrice } = useQuery(
+    priceQueryOptions({ network, currency: "btc" }),
+  );
+  const { data: priceHistory } = useQuery(
+    priceHistoricalQueryOptions({ network, currency: priceCurrency }),
+  );
+  const { data: volumeHistory } = useQuery(
+    volumeHistoricalQueryOptions({ network, currency: priceCurrency }),
+  );
+  const { data: mcapHistory } = useQuery(
+    marketCapHistoricalQueryOptions({ network, currency: priceCurrency }),
+  );
+  const { data: marketCap } = useQuery(
+    marketCapQueryOptions({ network, currency: "usd" }),
+  );
+
+  const fullTxHistory = (() => {
+    if (!txHistory) return undefined;
+    const now = new Date();
+    const hourMap = new Map(
+      txHistory.map((e) => {
+        const d = new Date(e.timestamp * 1000);
+        return [d.getHours(), e];
+      }),
+    );
+    return Array.from({ length: 20 }, (_, i) => {
+      const d = new Date(now);
+      d.setHours(now.getHours() - 19 + i, 0, 0, 0);
+      const hour = d.getHours();
+      return (
+        hourMap.get(hour) ?? {
+          timestamp: Math.floor(d.getTime() / 1000),
+          count: 0,
+        }
+      );
+    });
+  })();
+
+  const totalTxs =
+    fullTxHistory?.reduce((sum, entry) => sum + entry.count, 0) ?? 0;
+  const maxCount = fullTxHistory
+    ? Math.max(...fullTxHistory.map((e) => e.count), 1)
+    : 1;
+
+  const currentPrice = priceCurrency === "usd" ? usdPrice?.usd : btcPrice?.btc;
+  const chartHistory =
+    chartMetric === "volume"
+      ? volumeHistory
+      : chartMetric === "mcap"
+        ? mcapHistory
+        : priceHistory;
+  const chartChange =
+    chartHistory && chartHistory.length >= 2
+      ? ((chartHistory[chartHistory.length - 1].value -
+          chartHistory[0].value) /
+          chartHistory[0].value) *
+        100
+      : null;
 
   return (
-    <main className="mx-auto max-w-[1440px] px-6 py-10">
-      {/* Hero */}
+    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
       <div className="mb-8">
         <p className="text-sm text-muted-foreground">Welcome to #1</p>
         <h1 className="text-4xl font-extrabold tracking-tight">
@@ -143,12 +172,10 @@ function Dashboard() {
         </h1>
       </div>
 
-      {/* Row 1 — Transactions History | Transactions | Blocks */}
       <div
-        className="mb-6 grid gap-6 lg:grid-cols-3 animate-fade-in-up"
+        className="mb-6 grid gap-6 lg:grid-cols-3 animate-fade-in-up [&>*]:min-w-0"
         style={{ animationDelay: "100ms" }}
       >
-        {/* Transactions History */}
         <Card
           style={{
             background:
@@ -160,45 +187,46 @@ function Dashboard() {
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-4">
             <div className="flex items-baseline gap-3">
-              <AnimatedNumber value={128} className="text-4xl font-extrabold" />
+              <AnimatedNumber
+                value={totalTxs}
+                className="text-4xl font-extrabold"
+              />
               <span className="text-sm font-medium text-muted-foreground">
-                TXS
+                TXS (20h)
               </span>
-              <Badge className="bg-accent/12 font-bold text-accent animate-subtle-pulse">
-                <MoveUp className="size-3" />
-                2.5%
-              </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Compared to <span className="font-semibold">78</span> last month
-            </p>
-            {/* Placeholder bar chart */}
             <div className="mt-auto flex items-end justify-center gap-2">
-              {BAR_HEIGHTS.map((h, i) => (
-                <div
-                  key={BAR_LABELS[i]}
-                  className="flex flex-col items-center gap-2"
-                >
-                  <div className="relative flex justify-center">
-                    <div
-                      className="group h-[60px] w-[10px] cursor-pointer rounded-full bg-accent/32 transition-all hover:bg-accent hover:shadow-[0_0_12px_4px_oklch(from_var(--accent)_l_c_h/0.25)]"
-                      style={{ marginBottom: `${h * 1.5}px` }}
-                    >
-                      <div className="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs text-background group-hover:block">
-                        {h} txs
+              {fullTxHistory?.map((entry) => {
+                const normalizedHeight = (entry.count / maxCount) * 100;
+                const hour = new Date(entry.timestamp * 1000).getHours();
+                const label = String(hour).padStart(2, "0");
+                return (
+                  <div
+                    key={entry.timestamp}
+                    className="flex min-w-0 flex-col items-center gap-2"
+                  >
+                    <div className="relative flex justify-center">
+                      <div
+                        className="group h-[60px] w-[10px] min-w-[6px] cursor-pointer rounded-full bg-accent/32 transition-all hover:bg-accent hover:shadow-[0_0_12px_4px_oklch(from_var(--accent)_l_c_h/0.25)]"
+                        style={{
+                          marginBottom: `${normalizedHeight * 1.5}px`,
+                        }}
+                      >
+                        <div className="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs text-background group-hover:block">
+                          {entry.count} txs
+                        </div>
                       </div>
                     </div>
+                    <span className="text-xs text-muted-foreground">
+                      {label}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {BAR_LABELS[i]}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
-        {/* Transactions */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -218,33 +246,37 @@ function Dashboard() {
             </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            {TRANSACTIONS.map((tx) => (
-              <div
-                key={tx.from}
-                className="-mx-3 flex cursor-pointer items-center justify-between rounded-xl px-3 py-2 transition-colors duration-100 hover:bg-accent/10"
+            {txData?.resultSet.map((tx) => (
+              <Link
+                key={tx.hash}
+                to="/transactions/$hash"
+                params={{ hash: tx.hash }}
+                className="-mx-3 flex items-center justify-between rounded-xl px-3 py-2 transition-colors duration-100 hover:bg-accent/10"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex size-8 items-center justify-center rounded-full border border-accent/12 text-accent">
                     <ArrowLeftRight className="size-4" />
                   </div>
                   <div>
-                    <p className="font-mono text-sm font-medium">{tx.hash}</p>
-                    <p className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
-                      from: <Avatar username={tx.from} className="size-3.5" />{" "}
-                      {tx.from}
+                    <p className="font-mono text-sm font-medium">
+                      {tx.hash.slice(0, 7)}...{tx.hash.slice(-7)}
+                    </p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      Block #{tx.blockHeight}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold">{tx.amount}</p>
-                  <p className="text-xs text-muted-foreground">{tx.time}</p>
+                  <p className="text-sm font-bold">{formatDash(tx.amount)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {tx.timestamp ? formatRelativeTime(tx.timestamp) : ""}
+                  </p>
                 </div>
-              </div>
+              </Link>
             ))}
           </CardContent>
         </Card>
 
-        {/* Blocks */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -294,12 +326,10 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* Row 2 — Masternodes | Stats | USD Price */}
       <FadeInSection
-        className="grid gap-6 lg:grid-cols-[1fr_auto_2fr]"
+        className="grid gap-6 lg:grid-cols-[1fr_auto_2fr] [&>*]:min-w-0"
         delay={200}
       >
-        {/* Masternodes */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -317,43 +347,39 @@ function Dashboard() {
             </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            {MASTERNODES.map((mn) => (
-              <div
-                key={mn.ip}
-                className="-mx-3 flex cursor-pointer items-center justify-between rounded-xl px-3 py-2 transition-colors duration-100 hover:bg-accent/10"
+            {mnData?.resultSet.map((mn) => (
+              <Link
+                key={mn.proTxHash}
+                to="/masternodes/$hash"
+                params={{ hash: mn.proTxHash }}
+                className="-mx-3 flex items-center justify-between rounded-xl px-3 py-2 transition-colors duration-100 hover:bg-accent/10"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex size-8 items-center justify-center rounded-full border border-accent/12">
-                    <Avatar
-                      username={mn.hash.replace(/-\d+$/, "")}
-                      className="size-5"
-                    />
+                    <Avatar username={mn.proTxHash} className="size-5" />
                   </div>
                   <div>
                     <p className="font-mono text-sm font-medium">
-                      {mn.hash.replace(/-\d+$/, "")}
+                      {mn.proTxHash.slice(0, 6)}...{mn.proTxHash.slice(-5)}
                     </p>
                     <p className="font-mono text-xs text-muted-foreground">
-                      IP: {mn.ip}
+                      {mn.address}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p
-                    className={`text-sm font-bold ${mn.status === "Paused" ? "text-muted-foreground" : ""}`}
+                    className={`text-sm font-bold ${mn.status !== "ENABLED" ? "text-muted-foreground" : ""}`}
                   >
                     {mn.status}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Size: {mn.size}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{mn.type}</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </CardContent>
         </Card>
 
-        {/* Stats Column */}
         <div className="flex flex-col gap-6">
           <Card className="flex-1">
             <CardHeader>
@@ -363,7 +389,7 @@ function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-extrabold">
-                $482.52 <span className="text-base font-medium">M</span>
+                {marketCap?.usd ? formatCompactUsd(marketCap.usd) : "—"}
               </p>
             </CardContent>
           </Card>
@@ -375,61 +401,143 @@ function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-extrabold">
-                0.43768 <span className="text-base font-medium">mBTC</span>
+                {btcPrice?.btc != null ? (
+                  <>
+                    {(btcPrice.btc * 1000).toFixed(3)}{" "}
+                    <span className="text-base font-medium">mBTC</span>
+                  </>
+                ) : (
+                  "—"
+                )}
               </p>
             </CardContent>
           </Card>
           <Card className="flex-1">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Master Nodes
+                Masternodes
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-extrabold">
-                2,864 <span className="text-base font-medium">Nodes</span>
+                {mnData?.pagination.total != null &&
+                mnData.pagination.total > 0 ? (
+                  <>
+                    {mnData.pagination.total.toLocaleString()}{" "}
+                    <span className="text-base font-medium">Nodes</span>
+                  </>
+                ) : (
+                  "—"
+                )}
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* USD Price */}
-        <Card>
+        <Card className="relative">
           <CardHeader>
             <div>
-              <CardTitle>USD price</CardTitle>
+              <CardTitle>
+                {chartMetric === "price"
+                  ? `${priceCurrency === "usd" ? "USD" : "BTC"} price`
+                  : chartMetric === "volume"
+                    ? "Volume (24h)"
+                    : "Market Cap"}
+              </CardTitle>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-4xl font-extrabold">$38</span>
-                <span className="text-xl font-extrabold">.550</span>
-                <Badge className="bg-accent/12 font-bold text-accent animate-subtle-pulse">
-                  <MoveUp className="size-3" />
-                  3.6%
-                </Badge>
+                {chartMetric === "price" && currentPrice != null ? (
+                  <>
+                    <span className="text-4xl font-extrabold">
+                      {priceCurrency === "usd"
+                        ? `$${Math.floor(currentPrice)}`
+                        : currentPrice.toFixed(5)}
+                    </span>
+                    {priceCurrency === "usd" && (
+                      <span className="text-xl font-extrabold">
+                        .{(currentPrice % 1).toFixed(3).slice(2)}
+                      </span>
+                    )}
+                    {priceCurrency === "btc" && (
+                      <span className="text-base font-medium">BTC</span>
+                    )}
+                  </>
+                ) : chartMetric !== "price" &&
+                  chartHistory &&
+                  chartHistory.length > 0 ? (
+                  <span className="text-4xl font-extrabold">
+                    {priceCurrency === "usd"
+                      ? formatCompactUsd(
+                          chartHistory[chartHistory.length - 1].value,
+                        )
+                      : `${chartHistory[chartHistory.length - 1].value.toFixed(2)} BTC`}
+                  </span>
+                ) : (
+                  <span className="text-4xl font-extrabold">—</span>
+                )}
+                {chartChange != null && (
+                  <Badge className="bg-accent/12 font-bold text-accent animate-subtle-pulse">
+                    {chartChange >= 0 ? (
+                      <MoveUp className="size-3" />
+                    ) : (
+                      <MoveDown className="size-3" />
+                    )}
+                    {Math.abs(chartChange).toFixed(1)}%
+                  </Badge>
+                )}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Compared to <span className="font-semibold">yesterday</span>
-              </p>
+              {chartChange != null && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Compared to{" "}
+                  <span className="font-semibold">24 hours ago</span>
+                </p>
+              )}
             </div>
-            <CardAction>
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Timeframe
-                </span>
-                {["1H", "24H", "3D", "1W"].map((tf) => (
-                  <Button
-                    key={tf}
-                    variant={tf === "1W" ? "default" : "ghost"}
-                    size="xs"
-                    className={`rounded-full ${tf === "1W" ? "bg-accent text-accent-foreground" : ""}`}
-                  >
-                    {tf}
-                  </Button>
-                ))}
+            <CardAction className="absolute right-4 top-4 lg:relative lg:right-auto lg:top-auto">
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-1">
+                  {(["price", "volume", "mcap"] as const).map((m) => (
+                    <Button
+                      key={m}
+                      variant={m === chartMetric ? "default" : "ghost"}
+                      size="xs"
+                      className={`rounded-full ${m === chartMetric ? "bg-accent text-accent-foreground" : ""}`}
+                      onClick={() => setChartMetric(m)}
+                    >
+                      {m === "mcap" ? "MCap" : m.charAt(0).toUpperCase() + m.slice(1)}
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  {(["usd", "btc"] as const).map((c) => (
+                    <Button
+                      key={c}
+                      variant={c === priceCurrency ? "default" : "ghost"}
+                      size="xs"
+                      className={`rounded-full ${c === priceCurrency ? "bg-accent text-accent-foreground" : ""}`}
+                      onClick={() => setPriceCurrency(c)}
+                    >
+                      {c.toUpperCase()}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </CardAction>
           </CardHeader>
           <CardContent>
-            <CandlestickChart candles={CANDLES} />
+            {chartHistory && chartHistory.length > 0 ? (
+              <PriceChart
+                data={chartHistory}
+                formatValue={(v) =>
+                  priceCurrency === "usd"
+                    ? chartMetric === "price"
+                      ? `$${v.toFixed(2)}`
+                      : formatCompactUsd(v)
+                    : chartMetric === "price"
+                      ? `${v.toFixed(6)} BTC`
+                      : `${v.toFixed(2)} BTC`
+                }
+              />
+            ) : null}
           </CardContent>
         </Card>
       </FadeInSection>

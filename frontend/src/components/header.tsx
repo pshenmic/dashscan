@@ -74,7 +74,7 @@ export default function Header() {
           <SheetContent side="right" className="w-72 p-0">
             <SheetTitle className="sr-only">Navigation menu</SheetTitle>
             <div className="flex flex-col gap-6 p-6">
-              <SearchBar />
+              <SearchBar onNavigate={() => setOpen(false)} />
 
               <nav className="flex flex-col gap-1">
                 {NAV_ITEMS.map((item) => (

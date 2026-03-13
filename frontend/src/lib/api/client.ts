@@ -6,5 +6,5 @@ const BASE_URLS: Record<Network, string> = {
 };
 
 export function getBaseUrl(network: Network): string {
-  return BASE_URLS[network];
+  return process.env.DASHSCAN_API_URL ?? BASE_URLS[network];
 }
