@@ -85,7 +85,7 @@ function TransactionDetailPage() {
                 {tx.blockHeight}
               </Link>
               <span className="text-muted-foreground">
-                :{tx.type} ({tx.confirmations} confirmations)
+                ({tx.confirmations} confirmations)
               </span>
             </div>
           </DetailRow>
