@@ -26,11 +26,12 @@ export interface ApiBlock {
   difficulty: number;
   merkleRoot: string;
   previousBlockHash: string;
+  confirmations: number;
   nonce: number;
 }
 
 export interface ApiVIn {
-  txId: string;
+  txId: string | null;
   vOut: number;
   sequence: number;
   scriptSigASM: string;
@@ -53,6 +54,7 @@ export interface ApiTransaction {
   vOut: ApiVOut[];
   confirmations: number;
   instantLock: boolean;
+  timestamp: string;
 }
 
 export interface ApiAddress {
@@ -61,4 +63,39 @@ export interface ApiAddress {
   firstSeenTx: string;
   lastSeenBlock: number;
   lastSeenTx: string;
+}
+
+export interface ApiMasternode {
+  proTxHash: string;
+  address: string;
+  payee: string;
+  status: string;
+  type: string;
+  posPenaltyScore: number;
+  consecutivePayments: number;
+  lastPaidTime: number;
+  lastPaidBlock: number;
+  ownerAddress: string;
+  votingAddress: string;
+  collateralAddress: string;
+  pubKeyOperator: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiTransactionHistoryEntry {
+  timestamp: number;
+  count: number;
+}
+
+export interface ApiHistoricalEntry {
+  timestamp: number;
+  value: number;
+}
+
+export interface SearchResponse {
+  block: ApiBlock | null;
+  transaction: ApiTransaction | null;
+  masternode: ApiMasternode | null;
+  address: ApiAddress | null;
 }

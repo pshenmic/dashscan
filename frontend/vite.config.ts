@@ -7,6 +7,12 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 const config = defineConfig({
+  define: {
+    "process.env.DASHSCAN_API_URL": JSON.stringify(
+      process.env.DASHSCAN_API_URL,
+    ),
+    "process.env.NETWORK": JSON.stringify(process.env.NETWORK),
+  },
   plugins: [
     devtools(),
     nitro({

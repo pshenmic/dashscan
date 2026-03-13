@@ -1,5 +1,5 @@
 import { skipToken, useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
 import {
@@ -8,7 +8,6 @@ import {
   Box,
   ChevronLeft,
   ChevronRight,
-  Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
@@ -26,9 +25,13 @@ import {
 } from "@/components/ui/card";
 import { blockQueryOptions } from "@/lib/api/blocks";
 import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
-import { formatRelativeTime } from "@/lib/format";
+import {
+  formatRelativeTime,
+  getTxTypeBadgeStyle,
+  getTxTypeLabel,
+} from "@/lib/format";
 import { getPageCount } from "@/lib/pagination";
-import { appStore } from "@/lib/store";
+import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/blocks/$hashOrHeight")({
   component: BlockDetailPage,
@@ -38,7 +41,7 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
   loader: async ({ context, params: { hashOrHeight } }) => {
     if (typeof window !== "undefined") return;
     const blockOpts = blockQueryOptions({
-      network: "mainnet",
+      network: defaultNetwork,
       hash: hashOrHeight,
     });
     await context.queryClient.prefetchQuery(blockOpts);
@@ -46,7 +49,7 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
     if (block) {
       await context.queryClient.prefetchQuery(
         transactionsByHeightQueryOptions({
-          network: "mainnet",
+          network: defaultNetwork,
           height: block.height,
           page: 1,
           limit: 10,
@@ -60,8 +63,10 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
 function BlockDetailPage() {
   const { hashOrHeight } = Route.useParams();
   const network = useStore(appStore, (state) => state.network);
+  const navigate = useNavigate();
   const [txFilter, setTxFilter] = useState("");
   const [txPage, setTxPage] = useState(1);
+  const [txLimit, setTxLimit] = useState(10);
 
   const { data: block, isFetching: isBlockFetching } = useQuery(
     blockQueryOptions({ network, hash: hashOrHeight }),
@@ -73,7 +78,7 @@ function BlockDetailPage() {
           network,
           height: block.height,
           page: txPage,
-          limit: 10,
+          limit: txLimit,
           order: "desc",
         })
       : { queryKey: ["transactionsByHeight"], queryFn: skipToken },
@@ -107,8 +112,8 @@ function BlockDetailPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[1440px] px-6 py-10">
-      <div className="mb-8 flex items-center justify-between animate-fade-in-up">
+    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-fade-in-up">
         <h1 className="text-4xl tracking-tight">
           <span className="mr-3 text-muted-foreground">Block</span>{" "}
           <span className="font-mono">
@@ -133,7 +138,7 @@ function BlockDetailPage() {
       </div>
 
       <div
-        className="mb-6 grid gap-6 lg:grid-cols-[1fr_1fr] animate-fade-in-up"
+        className="mb-6 grid gap-6 lg:grid-cols-[1fr_1fr] [&>*]:min-w-0 animate-fade-in-up"
         style={{ animationDelay: "100ms" }}
       >
         <div className="flex flex-col gap-6">
@@ -145,14 +150,14 @@ function BlockDetailPage() {
                   "linear-gradient(to bottom right, oklch(from var(--accent) l c h / 0.25) 0%, transparent 60%)",
               }}
             />
-            <div className="relative flex items-center justify-between gap-4">
+            <div className="relative flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="flex size-14 items-center justify-center rounded-full border border-accent/12 text-accent">
+                <div className="flex size-14 shrink-0 items-center justify-center rounded-full border border-accent/12 text-accent">
                   <Box className="size-7" />
                 </div>
                 <p className="text-sm text-muted-foreground">Block Hash:</p>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex min-w-0 items-center gap-1.5">
                 <TwoLineHash hash={block.hash} />
                 <CopyButton value={block.hash} />
               </div>
@@ -171,7 +176,7 @@ function BlockDetailPage() {
                 </Badge>
               </DetailRow>
               <DetailRow label="Confirmations:">
-                <span className="font-medium text-muted-foreground">—</span>
+                <span className="font-medium text-muted-foreground">{block.confirmations.toLocaleString()}</span>
               </DetailRow>
               <DetailRow label="Merkle Root:">
                 <div className="flex items-center gap-1.5">
@@ -179,9 +184,9 @@ function BlockDetailPage() {
                   <CopyButton value={block.merkleRoot} />
                 </div>
               </DetailRow>
-              <DetailRow label="Bits:">
-                <span className="font-mono font-medium text-muted-foreground">
-                  —
+              <DetailRow label="Size:">
+                <span className="font-medium">
+                  {(block.size / 1000).toFixed(2)} KB
                 </span>
               </DetailRow>
               <DetailRow label="Nonce:">
@@ -197,8 +202,8 @@ function BlockDetailPage() {
         </div>
 
         <Card className="flex flex-col justify-between p-5">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-4 rounded-2xl border border-border px-6 py-[22px]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex items-center gap-4 rounded-2xl border border-border px-4 py-4 sm:px-6 sm:py-[22px]">
               <div className="flex size-14 items-center justify-center rounded-full border border-accent/12 text-accent">
                 <BookKey className="size-7" />
               </div>
@@ -211,7 +216,7 @@ function BlockDetailPage() {
                 </Badge>
               </div>
             </div>
-            <div className="flex items-center gap-4 rounded-2xl border border-border px-6 py-[22px]">
+            <div className="flex items-center gap-4 rounded-2xl border border-border px-4 py-4 sm:px-6 sm:py-[22px]">
               <div className="flex size-14 items-center justify-center rounded-full border border-accent/12 text-accent">
                 <ArrowLeftRight className="size-7" />
               </div>
@@ -222,7 +227,7 @@ function BlockDetailPage() {
                 <p className="text-3xl font-extrabold">{block.txCount}</p>
               </div>
             </div>
-            <div className="flex items-center gap-4 rounded-2xl border border-border px-6 py-[22px]">
+            <div className="flex items-center gap-4 rounded-2xl border border-border px-4 py-4 sm:px-6 sm:py-[22px]">
               <div className="flex size-14 items-center justify-center rounded-full border border-accent/12">
                 <Avatar username={block.hash} className="size-9" />
               </div>
@@ -235,7 +240,7 @@ function BlockDetailPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4 rounded-2xl border border-border px-6 py-[22px]">
+            <div className="flex items-center gap-4 rounded-2xl border border-border px-4 py-4 sm:px-6 sm:py-[22px]">
               <div className="flex size-14 items-center justify-center rounded-full border border-accent/12 text-accent">
                 <img src="/images/dash-logo.svg" alt="" className="size-7" />
               </div>
@@ -281,7 +286,7 @@ function BlockDetailPage() {
             />
           </CardAction>
         </CardHeader>
-        <CardContent className="px-3">
+        <CardContent className="overflow-x-auto px-3">
           <table
             className="w-full text-xs"
             style={{ borderCollapse: "separate", borderSpacing: "0 6px" }}
@@ -289,10 +294,11 @@ function BlockDetailPage() {
             <thead>
               <tr>
                 {[
+                  { label: "Time" },
                   { label: "Transaction Hash" },
                   { label: "Type" },
-                  { label: "Output", align: "right" },
-                  { label: "InstantSend", align: "right" },
+                  { label: "Amount (Fee)", align: "right" },
+                  { label: "Confirmations", align: "right" },
                 ].map((col) => (
                   <th
                     key={col.label}
@@ -308,11 +314,11 @@ function BlockDetailPage() {
                 Array.from({ length: 5 }, (_, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
                   <tr key={i}>
-                    {["w-44", "w-16", "w-20", "w-20"].map((w, j) => (
+                    {["w-20", "w-44", "w-20", "w-28", "w-12"].map((w, j) => (
                       <td
                         // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton cells
                         key={j}
-                        className={`border-y border-border bg-secondary/50 px-3 py-2 ${j === 0 ? "rounded-l-xl border-l" : ""} ${j === 3 ? "rounded-r-xl border-r" : ""}`}
+                        className={`border-y border-border bg-secondary/50 px-3 py-2 ${j === 0 ? "rounded-l-xl border-l" : ""} ${j === 4 ? "rounded-r-xl border-r" : ""}`}
                       >
                         <SkeletonBar className={w} />
                       </td>
@@ -324,34 +330,52 @@ function BlockDetailPage() {
                   <tr
                     key={tx.hash}
                     className="group cursor-pointer transition-colors"
+                    onClick={() =>
+                      navigate({
+                        to: "/transactions/$hash",
+                        params: { hash: tx.hash },
+                      })
+                    }
                   >
                     <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                      <TwoLineHash hash={tx.hash} />
+                      <span className="whitespace-nowrap text-muted-foreground">
+                        {tx.timestamp ? formatRelativeTime(tx.timestamp) : "—"}
+                      </span>
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                      <Badge className="h-6 bg-accent/12 font-bold text-accent">
-                        {tx.type}
+                      <Link
+                        to="/transactions/$hash"
+                        params={{ hash: tx.hash }}
+                        className="no-underline"
+                      >
+                        <TwoLineHash hash={tx.hash} uppercase />
+                      </Link>
+                    </td>
+                    <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                      <Badge
+                        className={`h-6 whitespace-nowrap border font-medium ${getTxTypeBadgeStyle(tx.type)}`}
+                      >
+                        {getTxTypeLabel(tx.type)}
                       </Badge>
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
-                      <span>{(tx.amount / 100_000_000).toFixed(8)} DASH</span>
+                      <span>
+                        {tx.amount != null
+                          ? `${(tx.amount / 100_000_000).toFixed(8)} DASH`
+                          : "—"}
+                      </span>
                     </td>
                     <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
-                      {tx.instantLock && (
-                        <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-white/30 bg-accent pr-3 pl-0.5 text-xs font-medium text-white">
-                          <span className="flex size-5 items-center justify-center rounded-full bg-white/12">
-                            <Zap className="size-2.5 text-white" />
-                          </span>
-                          InstantSend
-                        </span>
-                      )}
+                      <span className="inline-flex size-8 items-center justify-center rounded-full border border-accent/20 font-medium text-accent">
+                        {tx.confirmations ?? "—"}
+                      </span>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-6 py-10 text-center text-muted-foreground"
                   >
                     No transactions found.
@@ -365,6 +389,11 @@ function BlockDetailPage() {
           page={txPage}
           pageCount={txPageCount}
           onPageChange={setTxPage}
+          pageSize={txLimit}
+          onPageSizeChange={(size) => {
+            setTxLimit(size);
+            setTxPage(1);
+          }}
         />
       </Card>
     </main>

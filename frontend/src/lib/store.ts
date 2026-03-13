@@ -2,4 +2,7 @@ import { Store } from "@tanstack/store";
 
 export type Network = "mainnet" | "testnet";
 
-export const appStore = new Store({ network: "mainnet" as Network });
+export const defaultNetwork: Network =
+  (process.env.NETWORK as Network) || "testnet";
+
+export const appStore = new Store({ network: defaultNetwork });

@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
@@ -7,8 +7,8 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowLeftRight, Box } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowLeftRight, Box, Lock, Unlock } from "lucide-react";
+import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { DataTable } from "@/components/data-table";
 import { HashCell } from "@/components/hash-cell";
@@ -24,23 +24,28 @@ import {
 } from "@/components/ui/card";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
+import {
+  formatRelativeTime,
+  getTxTypeBadgeStyle,
+  getTxTypeLabel,
+} from "@/lib/format";
 import { getPageCount, paginationSearchSchema } from "@/lib/pagination";
-import { appStore } from "@/lib/store";
+import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/transactions/")({
   validateSearch: paginationSearchSchema,
-  loaderDeps: ({ search: { page } }) => ({ page }),
+  loaderDeps: ({ search: { page, limit } }) => ({ page, limit }),
   component: TransactionsPage,
   head: () => ({
     meta: [{ title: "Transactions | DashScan" }],
   }),
-  loader: ({ context, deps: { page } }) => {
+  loader: ({ context, deps: { page, limit } }) => {
     if (typeof window !== "undefined") return;
     return context.queryClient.prefetchQuery(
       transactionsQueryOptions({
-        network: "mainnet",
+        network: defaultNetwork,
         page,
-        limit: 10,
+        limit,
         order: "desc",
       }),
     );
@@ -49,9 +54,13 @@ export const Route = createFileRoute("/transactions/")({
 
 const columns: ColumnDef<ApiTransaction>[] = [
   {
-    id: "age",
-    header: "Age",
-    cell: () => <span className="text-muted-foreground">—</span>,
+    accessorKey: "timestamp",
+    header: "Time",
+    cell: ({ getValue }) => (
+      <span className="whitespace-nowrap text-muted-foreground">
+        {formatRelativeTime(getValue<string>())}
+      </span>
+    ),
   },
   {
     accessorKey: "hash",
@@ -74,6 +83,17 @@ const columns: ColumnDef<ApiTransaction>[] = [
     ),
   },
   {
+    accessorKey: "type",
+    header: "Type",
+    cell: ({ getValue }) => (
+      <Badge
+        className={`h-6 whitespace-nowrap border font-medium ${getTxTypeBadgeStyle(getValue<number>())}`}
+      >
+        {getTxTypeLabel(getValue<number>())}
+      </Badge>
+    ),
+  },
+  {
     accessorKey: "blockHeight",
     header: "Block",
     cell: ({ row }) => (
@@ -93,46 +113,55 @@ const columns: ColumnDef<ApiTransaction>[] = [
     ),
   },
   {
-    id: "from",
-    header: "From",
-    cell: () => <span className="text-muted-foreground">—</span>,
-  },
-  {
-    id: "to",
-    header: "To",
-    cell: () => <span className="text-muted-foreground">—</span>,
-  },
-  {
     accessorKey: "amount",
-    header: "Value",
+    header: () => <span className="text-right block">Amount</span>,
     cell: ({ getValue }) => (
-      <Badge className="h-6 bg-accent/12 font-bold text-accent">
-        {getValue<number>()} DASH
-      </Badge>
+      <div className="text-right">
+        {(getValue<number>() / 100_000_000).toFixed(8)} DASH
+      </div>
     ),
+  },
+  {
+    accessorKey: "confirmations",
+    header: () => <span className="text-right block">Confirmations</span>,
+    cell: ({ getValue }) => (
+      <div className="text-right">
+        <span className="inline-flex size-8 items-center justify-center rounded-full border border-accent/20 font-medium text-accent">
+          {getValue<number>() ?? "—"}
+        </span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "instantLock",
+    header: "InstantSend",
+    cell: ({ getValue }) => {
+      const locked = getValue<boolean>();
+      return locked ? (
+        <Badge className="h-6 gap-1 border border-emerald-500 bg-emerald-500/12 font-medium text-emerald-500">
+          <Lock className="size-3" />
+          Locked
+        </Badge>
+      ) : (
+        <Badge className="h-6 gap-1 border border-border bg-muted font-medium text-muted-foreground">
+          <Unlock className="size-3" />
+          Pending
+        </Badge>
+      );
+    },
   },
 ];
 
-const skeletonWidths = ["w-16", "w-44", "w-20", "w-28", "w-28", "w-20"];
+const skeletonWidths = ["w-16", "w-44", "w-20", "w-20", "w-24", "w-12", "w-20"];
 
 function TransactionsPage() {
   const network = useStore(appStore, (state) => state.network);
-  const { page } = Route.useSearch();
+  const { page, limit } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const queryClient = useQueryClient();
   const [globalFilter, setGlobalFilter] = useState("");
 
-  const prevNetworkRef = useRef(network);
-  useEffect(() => {
-    if (prevNetworkRef.current !== network) {
-      prevNetworkRef.current = network;
-      queryClient.removeQueries({ queryKey: ["transactions"] });
-      navigate({ search: { page: 1 } });
-    }
-  }, [network, queryClient, navigate]);
-
   const { data, isFetching } = useQuery(
-    transactionsQueryOptions({ network, page, limit: 10, order: "desc" }),
+    transactionsQueryOptions({ network, page, limit, order: "desc" }),
   );
 
   const transactions = data?.resultSet ?? [];
@@ -169,12 +198,13 @@ function TransactionsPage() {
             />
           </CardAction>
         </CardHeader>
-        <CardContent className="px-3">
+        <CardContent className="overflow-x-auto px-3">
           <DataTable
             table={table}
             isFetching={isFetching}
             isEmpty={transactions.length === 0}
             skeletonWidths={skeletonWidths}
+            skeletonRows={limit}
             emptyMessage="No transactions found."
             onRowClick={(tx) =>
               navigate({
@@ -187,7 +217,11 @@ function TransactionsPage() {
         <Pagination
           page={page}
           pageCount={pageCount}
-          onPageChange={(p) => navigate({ search: { page: p } })}
+          onPageChange={(p) => navigate({ search: { page: p, limit } })}
+          pageSize={limit}
+          onPageSizeChange={(size) =>
+            navigate({ search: { page: 1, limit: size } })
+          }
         />
       </Card>
     </main>

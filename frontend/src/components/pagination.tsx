@@ -1,12 +1,21 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { PageSizeSelect } from "@/components/page-size-select";
 
 interface PaginationProps {
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
+  pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
 }
 
-export function Pagination({ page, pageCount, onPageChange }: PaginationProps) {
+export function Pagination({
+  page,
+  pageCount,
+  onPageChange,
+  pageSize,
+  onPageSizeChange,
+}: PaginationProps) {
   const pageIndex = page - 1;
 
   const pages: (number | string)[] = [];
@@ -26,8 +35,11 @@ export function Pagination({ page, pageCount, onPageChange }: PaginationProps) {
     "flex h-9 items-center justify-center rounded-lg border border-border px-[18px] text-xs font-medium transition-colors";
 
   return (
-    <div className="flex justify-center px-6 pb-4 pt-2">
-      <div className="flex items-center gap-1">
+    <div className="flex items-center justify-center px-6 pb-4 pt-2">
+      {pageSize != null && onPageSizeChange && (
+        <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+      )}
+      <div className="flex flex-1 items-center justify-center gap-1">
         <button
           type="button"
           onClick={() => onPageChange(page - 1)}

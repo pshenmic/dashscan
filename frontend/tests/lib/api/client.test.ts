@@ -7,8 +7,6 @@ describe("getBaseUrl", () => {
   });
 
   it("returns testnet URL", () => {
-    expect(getBaseUrl("testnet")).toBe(
-      "https://testnet.dashscan.pshenmic.dev",
-    );
+    expect(getBaseUrl("testnet")).toBe("https://testnet.dashscan.pshenmic.dev");
   });
 });
