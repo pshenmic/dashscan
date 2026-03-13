@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import { getTxTypeBadgeStyle, getTxTypeLabel } from "@/lib/format";
-import { appStore } from "@/lib/store";
+import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/transactions/$hash")({
   component: TransactionDetailPage,
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/transactions/$hash")({
   loader: async ({ context, params: { hash } }) => {
     if (typeof window !== "undefined") return;
     await context.queryClient.prefetchQuery(
-      transactionQueryOptions({ network: "mainnet", hash }),
+      transactionQueryOptions({ network: defaultNetwork, hash }),
     );
   },
 });
@@ -284,8 +284,7 @@ function highlightJson(obj: unknown): string {
   return escaped.replace(
     /("(?:\\.|[^"\\])*")\s*(:)?|(\b(?:true|false|null)\b)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
     (match, str, colon, bool, num) => {
-      if (str && colon)
-        return `<span class="text-foreground">${str}</span>:`;
+      if (str && colon) return `<span class="text-foreground">${str}</span>:`;
       if (str) return `<span class="text-emerald-600">${str}</span>`;
       if (bool) return `<span class="text-accent">${match}</span>`;
       if (num) return `<span class="text-accent">${match}</span>`;

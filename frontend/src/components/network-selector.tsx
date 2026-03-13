@@ -1,5 +1,5 @@
 import { useStore } from "@tanstack/react-store";
-import { ChevronDown, Circle } from "lucide-react";
+import { ChevronDown, Circle, ExternalLink } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,9 +8,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { appStore, type Network } from "@/lib/store";
 
-const NETWORKS: { value: Network; label: string }[] = [
-  { value: "mainnet", label: "Mainnet" },
-  { value: "testnet", label: "Testnet" },
+const NETWORKS: { value: Network; label: string; url: string }[] = [
+  { value: "mainnet", label: "Mainnet", url: "https://dashscan.io/" },
+  {
+    value: "testnet",
+    label: "Testnet",
+    url: "https://testnet.dashscan.io/",
+  },
 ];
 
 export default function NetworkSelector() {
@@ -37,24 +41,23 @@ export default function NetworkSelector() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {NETWORKS.map((net) => (
-          <DropdownMenuItem
-            key={net.value}
-            onClick={() =>
-              appStore.setState((state) => ({
-                ...state,
-                network: net.value,
-              }))
-            }
-            className={network === net.value ? "font-medium" : ""}
-          >
-            <Circle
-              className={
-                net.value === "mainnet"
-                  ? "size-2.5 fill-green-500 text-green-500"
-                  : "size-2.5 fill-amber-500 text-amber-500"
-              }
-            />
-            {net.label}
+          <DropdownMenuItem key={net.value} asChild>
+            <a
+              href={net.url}
+              className={network === net.value ? "font-medium" : ""}
+            >
+              <Circle
+                className={
+                  net.value === "mainnet"
+                    ? "size-2.5 fill-green-500 text-green-500"
+                    : "size-2.5 fill-amber-500 text-amber-500"
+                }
+              />
+              {net.label}
+              {net.value !== network && (
+                <ExternalLink className="ml-auto size-3 text-muted-foreground" />
+              )}
+            </a>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

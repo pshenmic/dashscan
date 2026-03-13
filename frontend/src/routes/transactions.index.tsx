@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
@@ -8,7 +8,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ArrowLeftRight, Box, Lock, Unlock } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { DataTable } from "@/components/data-table";
 import { HashCell } from "@/components/hash-cell";
@@ -30,7 +30,7 @@ import {
   getTxTypeLabel,
 } from "@/lib/format";
 import { getPageCount, paginationSearchSchema } from "@/lib/pagination";
-import { appStore } from "@/lib/store";
+import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/transactions/")({
   validateSearch: paginationSearchSchema,
@@ -43,7 +43,7 @@ export const Route = createFileRoute("/transactions/")({
     if (typeof window !== "undefined") return;
     return context.queryClient.prefetchQuery(
       transactionsQueryOptions({
-        network: "mainnet",
+        network: defaultNetwork,
         page,
         limit,
         order: "desc",
@@ -158,17 +158,7 @@ function TransactionsPage() {
   const network = useStore(appStore, (state) => state.network);
   const { page, limit } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const queryClient = useQueryClient();
   const [globalFilter, setGlobalFilter] = useState("");
-
-  const prevNetworkRef = useRef(network);
-  useEffect(() => {
-    if (prevNetworkRef.current !== network) {
-      prevNetworkRef.current = network;
-      queryClient.removeQueries({ queryKey: ["transactions"] });
-      navigate({ search: { page: 1, limit } });
-    }
-  }, [network, queryClient, navigate, limit]);
 
   const { data, isFetching } = useQuery(
     transactionsQueryOptions({ network, page, limit, order: "desc" }),

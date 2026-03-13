@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
@@ -16,7 +16,7 @@ import {
   MoveUp,
   Square,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { BlockTransactionsChart } from "@/components/block-transactions-chart";
 import { CopyButton } from "@/components/copy-button";
 import { DataTable } from "@/components/data-table";
@@ -36,7 +36,7 @@ import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiBlock } from "@/lib/api/types";
 import { formatRelativeTime } from "@/lib/format";
 import { getPageCount, paginationSearchSchema } from "@/lib/pagination";
-import { appStore } from "@/lib/store";
+import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/blocks/")({
   validateSearch: paginationSearchSchema,
@@ -47,7 +47,7 @@ export const Route = createFileRoute("/blocks/")({
   }),
   loader: ({ context, deps: { page, limit } }) => {
     if (typeof window !== "undefined") return;
-    const network = "mainnet" as const;
+    const network = defaultNetwork;
     return Promise.all([
       context.queryClient.prefetchQuery(
         blocksQueryOptions({ network, page, limit, order: "desc" }),
@@ -191,17 +191,7 @@ function BlocksPage() {
   const network = useStore(appStore, (state) => state.network);
   const { page, limit } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const queryClient = useQueryClient();
   const [globalFilter, setGlobalFilter] = useState("");
-
-  const prevNetworkRef = useRef(network);
-  useEffect(() => {
-    if (prevNetworkRef.current !== network) {
-      prevNetworkRef.current = network;
-      queryClient.removeQueries({ queryKey: ["blocks"] });
-      navigate({ search: { page: 1, limit } });
-    }
-  }, [network, queryClient, navigate, limit]);
 
   const { data, isFetching } = useQuery(
     blocksQueryOptions({ network, page, limit, order: "desc" }),

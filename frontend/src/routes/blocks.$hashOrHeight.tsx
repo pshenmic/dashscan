@@ -31,7 +31,7 @@ import {
   getTxTypeLabel,
 } from "@/lib/format";
 import { getPageCount } from "@/lib/pagination";
-import { appStore } from "@/lib/store";
+import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/blocks/$hashOrHeight")({
   component: BlockDetailPage,
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
   loader: async ({ context, params: { hashOrHeight } }) => {
     if (typeof window !== "undefined") return;
     const blockOpts = blockQueryOptions({
-      network: "mainnet",
+      network: defaultNetwork,
       hash: hashOrHeight,
     });
     await context.queryClient.prefetchQuery(blockOpts);
@@ -49,7 +49,7 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
     if (block) {
       await context.queryClient.prefetchQuery(
         transactionsByHeightQueryOptions({
-          network: "mainnet",
+          network: defaultNetwork,
           height: block.height,
           page: 1,
           limit: 10,

@@ -32,7 +32,7 @@ import { transactionHistoryQueryOptions } from "@/lib/api/transaction-history";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import { volumeHistoricalQueryOptions } from "@/lib/api/volume";
 import { formatRelativeTime } from "@/lib/format";
-import { appStore } from "@/lib/store";
+import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/")({
   }),
   loader: ({ context }) => {
     if (typeof window !== "undefined") return;
-    const network = "testnet" as const;
+    const network = defaultNetwork;
     return Promise.all([
       context.queryClient.prefetchQuery(
         blocksQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
