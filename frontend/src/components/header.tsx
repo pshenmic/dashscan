@@ -8,7 +8,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import NetworkSelector from "./network-selector";
+// import NetworkSelector from "./network-selector";
 import SearchBar from "./search-bar";
 
 const NAV_ITEMS = [
@@ -48,7 +48,7 @@ export default function Header() {
         </div>
 
         <div className="hidden md:flex md:items-center md:gap-3">
-          <NetworkSelector />
+          {/*<NetworkSelector />*/}
           <SearchBar />
         </div>
 
@@ -96,7 +96,7 @@ export default function Header() {
               </nav>
 
               <div className="flex flex-col gap-3 border-t border-border pt-4">
-                <NetworkSelector />
+                {/*<NetworkSelector />*/}
               </div>
             </div>
           </SheetContent>
