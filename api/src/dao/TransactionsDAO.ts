@@ -23,6 +23,7 @@ export default class TransactionsDAO {
         'blocks.timestamp as timestamp',
       )
       .select(this.knex('transactions').count('hash').as('total_count'))
+      .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
       .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
       .orderBy('blocks.height', order)
       .limit(limit)
@@ -46,6 +47,7 @@ export default class TransactionsDAO {
         'blocks.height as height',
         'blocks.timestamp as timestamp',
       )
+      .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
       .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
       .where('transactions.hash', hash.trim())
       .first();
@@ -77,7 +79,7 @@ export default class TransactionsDAO {
       row.version,
       vIn,
       vOut,
-      null,
+      row.confirmations,
       null,
       row.timestamp,
     );

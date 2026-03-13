@@ -11,6 +11,7 @@ interface BlockRow {
   tx_count: number;
   block_size: number;
   credit_pool_balance: number;
+  confirmations: number;
 }
 
 interface BlockObject {
@@ -41,6 +42,7 @@ export default class Block {
   merkleRoot: string | undefined;
   previousBlockHash: string | null;
   nonce: bigint;
+  confirmations: number | null;
 
   constructor(
     height?: number,
@@ -54,6 +56,7 @@ export default class Block {
     merkleRoot?: string,
     previousBlockHash?: string,
     nonce?: bigint,
+    confirmations?: number,
   ) {
     this.height = height ?? null;
     this.hash = hash ?? null;
@@ -66,13 +69,14 @@ export default class Block {
     this.merkleRoot = merkleRoot;
     this.previousBlockHash = previousBlockHash ?? null;
     this.nonce = nonce ?? null;
+    this.confirmations = confirmations ?? null;
   }
 
-  static fromRow({ height, hash, version, timestamp, tx_count, size, credit_pool_balance, difficulty, merkle_root, previous_block_hash, nonce }: BlockRow): Block {
-    return new Block(height, hash, version, timestamp, tx_count, size, credit_pool_balance, difficulty, merkle_root, previous_block_hash, nonce);
+  static fromRow({ height, hash, version, timestamp, tx_count, size, credit_pool_balance, difficulty, merkle_root, previous_block_hash, nonce, confirmations }: BlockRow): Block {
+    return new Block(height, hash, version, timestamp, tx_count, size, credit_pool_balance, difficulty, merkle_root, previous_block_hash, nonce, confirmations);
   }
 
-  static fromObject({ height, hash, version, timestamp, txCount, size, creditPoolBalance, difficulty, merkleRoot, previousBlockHash, nonce }: BlockObject): Block {
-    return new Block(height, hash, version, timestamp, txCount, size, creditPoolBalance, difficulty, merkleRoot, previousBlockHash, nonce);
+  static fromObject({ height, hash, version, timestamp, txCount, size, creditPoolBalance, difficulty, merkleRoot, previousBlockHash, nonce, confirmations }: BlockObject): Block {
+    return new Block(height, hash, version, timestamp, txCount, size, creditPoolBalance, difficulty, merkleRoot, previousBlockHash, nonce, confirmations);
   }
 }
