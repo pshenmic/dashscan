@@ -14,7 +14,7 @@ export default class BlocksDAO {
 
     const rows = await this.knex('blocks')
       .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce', 'blocks.previous_block_hash', 'blocks.merkle_root', 'blocks.credit_pool_balance')
-      .select(this.knex('blocks').count('height').as('total_count'))
+      .select(this.knex.raw(`(SELECT reltuples::bigint FROM pg_class WHERE relname = 'blocks') AS total_count`))
       .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
       .orderBy('height', order)
       .limit(limit)

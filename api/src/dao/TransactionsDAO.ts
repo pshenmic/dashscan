@@ -19,13 +19,13 @@ export default class TransactionsDAO {
         'transactions.hash',
         'transactions.type',
         'transactions.block_hash',
-        'blocks.height as block_height',
+        'transactions.block_height',
         'blocks.timestamp as timestamp',
       )
-      .select(this.knex('transactions').count('hash').as('total_count'))
-      .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
+      .select(this.knex.raw(`(SELECT reltuples::bigint FROM pg_class WHERE relname = 'transactions') AS total_count`))
+      .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - transactions.block_height + 1 AS confirmations'))
       .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
-      .orderBy('blocks.height', order)
+      .orderBy('transactions.block_height', order)
       .limit(limit)
       .offset(fromRank);
 
