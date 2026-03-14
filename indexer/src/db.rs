@@ -261,6 +261,7 @@ impl Database {
         client: &impl GenericClient,
         transactions: &[RpcTransaction],
         block_hash: &str,
+        block_height: i64,
     ) -> Result<(), PoolError> {
         if transactions.is_empty() {
             return Ok(());
@@ -273,19 +274,21 @@ impl Database {
             .iter()
             .map(|tx| tx.vin.first().map_or(false, |v| v.coinbase.is_some()))
             .collect();
+        let height = block_height as i32;
 
         for (chunk_idx, chunk) in transactions.chunks(BATCH_SIZE).enumerate() {
             let base = chunk_idx * BATCH_SIZE;
             let query = format!(
-                "INSERT INTO transactions (hash, block_hash, version, type, size, locktime, is_coinbase) VALUES {}",
-                build_placeholders(chunk.len(), 7)
+                "INSERT INTO transactions (hash, block_hash, block_height, version, type, size, locktime, is_coinbase) VALUES {}",
+                build_placeholders(chunk.len(), 8)
             );
 
-            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 7);
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 8);
             for (i, tx) in chunk.iter().enumerate() {
                 let abs = base + i;
                 params.push(&tx.txid);
                 params.push(&block_hash);
+                params.push(&height);
                 params.push(&tx.version);
                 params.push(&tx_types[abs]);
                 params.push(&sizes[abs]);

@@ -96,7 +96,7 @@ impl BlockProcessor {
         if !block.tx.is_empty() {
             // One INSERT for all transactions
             self.db
-                .insert_transactions_batch(&*db_tx, &block.tx, &block.hash)
+                .insert_transactions_batch(&*db_tx, &block.tx, &block.hash, block.height)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
