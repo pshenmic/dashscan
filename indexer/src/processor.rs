@@ -1,7 +1,8 @@
 use crate::db::Database;
 use crate::errors::database_error::DatabaseError;
 use crate::rpc::{Block, DashRpcClient, Transaction};
-use futures::future::join_all;
+use futures::StreamExt;
+use futures::stream;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client;
 use serde_json::Value;
@@ -245,26 +246,13 @@ impl BlockProcessor {
             // Chain to the next chunk via nextblockhash of the last header.
             next_hash = headers.last().and_then(|h| h.next_block_hash.clone());
 
-            // ── Phase 2: fetch all full blocks in this chunk in parallel ─────
-            let block_futures = headers.iter().map(|h| self.rpc.get_block(&h.hash));
-            let block_results = join_all(block_futures).await;
+            // ── Phase 2+3: fetch and process blocks in order, pre-fetching ahead ──
+            let mut block_stream = stream::iter(headers.iter().map(|h| self.rpc.get_block(&h.hash)))
+                .buffered(CHUNK);
 
-            // ── Phase 3: process each block sequentially in height order ─────
-            for (header, block_result) in headers.iter().zip(block_results) {
+            while let Some(block_result) = block_stream.next().await {
                 let block = block_result.map_err(|e| e.to_string())?;
-
                 let client = self.db.begin().await.map_err(|e| e.to_string())?;
-
-                if self.db
-                    .get_block_by_hash(&**client, &header.hash)
-                    .await
-                    .map_err(|e| e.to_string())?
-                    .is_some()
-                {
-                    info!(height = header.height, "Block already indexed, skipping");
-                    continue;
-                }
-
                 self.process_block(client, block).await.map_err(|e| e.to_string())?;
             }
 
