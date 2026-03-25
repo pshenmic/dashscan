@@ -1,6 +1,6 @@
 CREATE TABLE blocks (
-    hash char(64) PRIMARY KEY,
-    height int NOT NULL check(height >= 0),
+    height int check(height >= 0) PRIMARY KEY,
+    hash char(64),
     version int not null,
     previous_block_hash CHAR(64),
     "timestamp" timestamp not null ,
