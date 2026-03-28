@@ -14,20 +14,40 @@ export default class TransactionsDAO {
   getTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
-    const rows = await this.knex('transactions')
+
+    // TODO: Slow on pages like 10000000, maybe we need to add cursor
+    //  or something what can improve performance
+    const countSubquery = this.knex('pg_class')
+      .select(this.knex.raw('reltuples::bigint'))
+      .whereRaw(`relname='transactions'`)
+      .limit(1)
+
+    const blockMaxHeightSubquery = this.knex('blocks')
+      .select(this.knex.raw('MAX(height) as max_height'))
+      .as('height_subquery')
+
+    const subquery = this.knex('transactions')
       .select(
         'transactions.hash',
         'transactions.type',
-        'transactions.block_hash',
         'transactions.block_height',
-        'blocks.timestamp as timestamp',
       )
-      .select(this.knex.raw(`(SELECT reltuples::bigint FROM pg_class WHERE relname = 'transactions') AS total_count`))
-      .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - transactions.block_height + 1 AS confirmations'))
-      .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
       .orderBy('transactions.block_height', order)
       .limit(limit)
-      .offset(fromRank);
+      .offset(fromRank)
+      .as('subquery');
+
+    const rows = await this.knex(subquery)
+      .with('total_count', countSubquery)
+      .select(this.knex.raw('max_height - block_height + 1 AS confirmations'))
+      .select(this.knex('total_count').as('total_count'))
+      .select(
+        'subquery.hash', 'type', 'block_height',
+        'blocks.timestamp as timestamp',
+        'blocks.hash as block_hash',
+      )
+      .join(blockMaxHeightSubquery, this.knex.raw('true'))
+      .leftJoin('blocks', 'blocks.height', 'block_height')
 
     const [row] = rows;
 
@@ -35,35 +55,41 @@ export default class TransactionsDAO {
   };
 
   getTransactionByHash = async (hash: string): Promise<Transaction | null> => {
+    const blockMaxHeightSubquery = this.knex('blocks')
+      .select(this.knex.raw('MAX(height) as max_height'))
+      .as('height_subquery')
+
     const row = await this.knex('transactions')
       .select(
+        'transactions.id',
         'transactions.hash',
         'transactions.type',
         'transactions.version',
         'transactions.size',
-        'transactions.block_hash',
+        'blocks.hash as block_hash',
         'transactions.locktime',
         'transactions.is_coinbase',
         'blocks.height as height',
         'blocks.timestamp as timestamp',
       )
-      .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
-      .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
+      .select(this.knex.raw('max_height - block_height + 1 AS confirmations'))
+      .join(blockMaxHeightSubquery, this.knex.raw('true'))
+      .leftJoin('blocks', 'blocks.height', 'transactions.block_height')
       .where('transactions.hash', hash.trim())
       .first();
 
     if (!row) return null;
 
     const inputRows = await this.knex('tx_inputs')
-      .where('txid', hash.trim())
+      .where('tx_id', row.id)
       .orderBy('vin_index');
 
     const outputRows = await this.knex('tx_outputs')
-      .where('txid', hash.trim())
+      .where('tx_id', row.id)
       .orderBy('vout_index');
 
-    const vIn = inputRows.map(({ prev_txid, prev_vout_index }: { prev_txid: string; prev_vout_index: number }) =>
-      VIn.fromObject({ txId: prev_txid?.trim(), vOut: prev_vout_index }),
+    const vIn = inputRows.map(({ prev_tx_hash, prev_vout_index }: { prev_tx_hash: string; prev_vout_index: number }) =>
+      VIn.fromObject({ txId: prev_tx_hash?.trim(), vOut: prev_vout_index }),
     );
 
     const vOut = outputRows.map(({ value, vout_index, script_pub_key }: { value: bigint; vout_index: number; script_pub_key: string }) =>
@@ -87,7 +113,7 @@ export default class TransactionsDAO {
 
   getTransactionHistory = async (): Promise<{ timestamp: number; count: number }[]> => {
     const rows = await this.knex('transactions')
-      .join('blocks', 'blocks.hash', 'transactions.block_hash')
+      .join('blocks', 'blocks.height', 'transactions.block_height')
       .where('blocks.timestamp', '>=', this.knex.raw("NOW() - INTERVAL '24 hours'"))
       .groupByRaw("date_trunc('hour', blocks.timestamp)")
       .orderByRaw("date_trunc('hour', blocks.timestamp) ASC")
@@ -105,10 +131,15 @@ export default class TransactionsDAO {
 
     const rows = await this.knex('transactions')
       .select('transactions.hash')
-      .select(this.knex('transactions').where('block_hash', this.knex('blocks').select('hash').where('height', height)).count('hash').as('total_count'))
-      .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
+      .select(
+        this.knex('transactions')
+          .where('block_height', height)
+          .count()
+          .as('total_count')
+      )
+      .leftJoin('blocks', 'blocks.height', 'transactions.block_height')
       .where('blocks.height', height)
-      .orderBy('transactions.hash', order)
+      .orderBy('transactions.id', order)
       .limit(limit)
       .offset(fromRank);
 
