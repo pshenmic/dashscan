@@ -49,13 +49,13 @@ export default class SearchDAO {
         'transactions.type',
         'transactions.version',
         'transactions.size',
-        'transactions.block_hash',
+        'blocks.hash as block_hash',
         'transactions.locktime',
         'transactions.is_coinbase',
         'blocks.height as height',
         'blocks.timestamp as timestamp',
       )
-      .leftJoin('blocks', 'blocks.hash', 'transactions.block_hash')
+      .leftJoin('blocks', 'blocks.height', 'transactions.block_height')
       .where('transactions.hash', hash)
       .first();
     if (!row) return null;
@@ -77,7 +77,11 @@ export default class SearchDAO {
 
   private getAddressByAddress = async (address: string): Promise<Address | null> => {
     const row = await this.knex('addresses')
-      .select('address', 'first_seen_block', 'first_seen_tx', 'last_seen_block', 'last_seen_tx')
+      .select('address')
+      .select(this.knex('transactions').select('hash').whereRaw('id=first_seen_tx_id').as('first_seen_tx'))
+      .select(this.knex('transactions').select('hash').whereRaw('id=last_seen_tx_id').as('last_seen_tx'))
+      .select(this.knex('blocks').select('hash').whereRaw('height=first_seen_block').as('first_seen_block'))
+      .select(this.knex('blocks').select('hash').whereRaw('height=last_seen_block').as('last_seen_block'))
       .where('address', address)
       .first();
     return row ? Address.fromRow(row) : null;
