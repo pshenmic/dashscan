@@ -132,9 +132,9 @@ export default class TransactionsDAO {
     const rows = await this.knex('transactions')
       .select('transactions.hash')
       .select(
-        this.knex('transactions')
-          .where('block_height', height)
-          .count()
+        this.knex('blocks')
+          .select('tx_count')
+          .where('height', height)
           .as('total_count')
       )
       .leftJoin('blocks', 'blocks.height', 'transactions.block_height')
