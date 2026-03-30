@@ -1,9 +1,12 @@
+use futures::StreamExt;
+use std::collections::HashMap;
 use crate::db::Database;
 use crate::errors::database_error::DatabaseError;
 use crate::rpc::{Block, DashRpcClient, Transaction};
 use futures::future::join_all;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client;
+use futures::stream;
 use serde_json::Value;
 use tracing::{debug, info};
 use crate::config::Config;
@@ -95,40 +98,76 @@ impl BlockProcessor {
 
         if !block.tx.is_empty() {
             // One INSERT for all transactions
-            self.db
-                .insert_transactions_batch(&*db_tx, &block.tx, &block.hash, block.height)
+            let tx_map = self.db
+                .insert_transactions_batch(&*db_tx, &block.tx, block.height)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
             // One INSERT for all inputs
             self.db
-                .insert_tx_inputs_batch(&*db_tx, &block.tx)
+                .insert_tx_inputs_batch(&*db_tx, &block.tx, &tx_map)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-            // One INSERT for all outputs
-            self.db
-                .insert_tx_outputs_batch(&*db_tx, &block.tx)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+            // (vout_index, tx_hash), address_id
+            let mut addresses_map: HashMap<(i32, String), i32> = HashMap::new();
 
-            // Upsert all addresses (one query per address — no SELECT needed)
+            let mut tasks = Vec::new();
+
+            // 1. Do all your lookups synchronously here so we don't move `tx_map`
             for tx in &block.tx {
-                for vout in &tx.vout {
+                for (vout_index, vout) in tx.vout.iter().enumerate() {
                     if let Some(ref addr) = vout.script_pub_key.first_address() {
-                        self.db
-                            .upsert_address(&*db_tx, addr, &tx.txid, block.height)
-                            .await
-                            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+                        // Grab the exact tx_data you need from the map right now.
+                        // Assuming the value inside tx_map implements Clone.
+                        let tx_data = tx_map[&tx.txid].clone();
+
+                        tasks.push((
+                            tx.txid.clone(),
+                            vout_index,
+                            addr.clone(),
+                            tx_data
+                        ));
                     }
                 }
             }
 
+            let db_tx_ref = &*db_tx;
+
+            let mut stream = stream::iter(tasks)
+                .map(|(txid, vout_index, addr, tx_data)| async move {
+
+                    // Because db and db_tx_ref are shared references (&T), they are Copy,
+                    // so moving them into this closure repeatedly is allowed.
+                    let address_id = self.db
+                        .upsert_address(db_tx_ref, &addr, &tx_data, block.height)
+                        .await
+                        .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+                    let id = address_id.ok_or_else(|| {
+                        BlockIndexError::UnexpectedError("Cannot get address id after upsert".to_string())
+                    })?;
+
+                    Ok::<_, BlockIndexError>(((vout_index as i32, txid), id))
+                })
+                .buffer_unordered(500);
+
+            while let Some(result) = stream.next().await {
+                let (key, id) = result?;
+                addresses_map.insert(key, id);
+            }
+
+            // One INSERT for all outputs
+            self.db
+                .insert_tx_outputs_batch(&*db_tx, &block.tx, &addresses_map, &tx_map)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
             // One INSERT for all special transactions (type > 0)
-            let special_records: Vec<(&str, i16, Value)> = block.tx
+            let special_records: Vec<(i32, i16, Value)> = block.tx
                 .iter()
                 .filter(|tx| tx.tx_type.unwrap_or(0) > 0)
-                .map(|tx| (tx.txid.as_str(), tx.tx_type.unwrap(), self.build_special_tx_payload(tx)))
+                .map(|tx| (tx_map[&tx.txid], tx.tx_type.unwrap(), self.build_special_tx_payload(tx)))
                 .collect();
 
             self.db
