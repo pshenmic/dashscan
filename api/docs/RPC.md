@@ -620,12 +620,12 @@ Returns a list of governance proposals from Dash Core RPC.
     "yesCount": 200,
     "noCount": 50,
     "abstainCount": 10,
-    "fLocalValidity": true,
+    "localValidity": true,
     "isValidReason": "",
-    "fCachedValid": true,
-    "fCachedFunding": true,
-    "fCachedDelete": false,
-    "fCachedEndorsed": false
+    "cachedValid": true,
+    "cachedFunding": true,
+    "cachedDelete": false,
+    "cachedEndorsed": false
   }
 ]
 ```
@@ -645,9 +645,9 @@ Returns a list of governance proposals from Dash Core RPC.
 | `yesCount`          | number  | Number of Yes votes                                                        |
 | `noCount`           | number  | Number of No votes                                                         |
 | `abstainCount`      | number  | Number of Abstain votes                                                    |
-| `fLocalValidity`    | boolean | Valid by the blockchain                                                    |
+| `localValidity`     | boolean | Valid by the blockchain                                                    |
 | `isValidReason`     | string  | Validation error reason. Empty if no error                                 |
-| `fCachedValid`      | boolean | Minimum network support reached flagging this as a valid governance object |
-| `fCachedFunding`    | boolean | Minimum network support reached for this object to be funded               |
-| `fCachedDelete`     | boolean | Minimum network support reached saying this object should be deleted       |
-| `fCachedEndorsed`   | boolean | Minimum network support reached flagging this object as endorsed           |
+| `cachedValid`       | boolean | Minimum network support reached flagging this as a valid governance object |
+| `cachedFunding`     | boolean | Minimum network support reached for this object to be funded               |
+| `cachedDelete`      | boolean | Minimum network support reached saying this object should be deleted       |
+| `cachedEndorsed`    | boolean | Minimum network support reached flagging this object as endorsed           |

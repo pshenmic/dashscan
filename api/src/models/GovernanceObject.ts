@@ -13,12 +13,12 @@ export class GovernanceObject {
   yesCount: number;
   noCount: number;
   abstainCount: number;
-  fLocalValidity: boolean;
+  localValidity: boolean;
   isValidReason: string;
-  fCachedValid: boolean;
-  fCachedFunding: boolean;
-  fCachedDelete: boolean;
-  fCachedEndorsed: boolean;
+  cachedValid: boolean;
+  cachedFunding: boolean;
+  cachedDelete: boolean;
+  cachedEndorsed: boolean;
 
   constructor(
     dataHex: string,
@@ -31,12 +31,12 @@ export class GovernanceObject {
     yesCount: number,
     noCount: number,
     abstainCount: number,
-    fLocalValidity: boolean,
+    localValidity: boolean,
     isValidReason: string,
-    fCachedValid: boolean,
-    fCachedFunding: boolean,
-    fCachedDelete: boolean,
-    fCachedEndorsed: boolean,
+    cachedValid: boolean,
+    cachedFunding: boolean,
+    cachedDelete: boolean,
+    cachedEndorsed: boolean,
     signingMasternode?: string,
   ) {
     this.dataHex = dataHex;
@@ -49,12 +49,12 @@ export class GovernanceObject {
     this.yesCount = yesCount;
     this.noCount = noCount;
     this.abstainCount = abstainCount;
-    this.fLocalValidity = fLocalValidity;
+    this.localValidity = localValidity;
     this.isValidReason = isValidReason;
-    this.fCachedValid = fCachedValid;
-    this.fCachedFunding = fCachedFunding;
-    this.fCachedDelete = fCachedDelete;
-    this.fCachedEndorsed = fCachedEndorsed;
+    this.cachedValid = cachedValid;
+    this.cachedFunding = cachedFunding;
+    this.cachedDelete = cachedDelete;
+    this.cachedEndorsed = cachedEndorsed;
     this.signingMasternode = signingMasternode;
   }
 
