@@ -638,7 +638,7 @@ Returns a list of governance proposals from Dash Core RPC.
 | `dataString`        | string  | Governance object info as string                                           |
 | `hash`              | string  | Hash of this governance object (64-char hex)                               |
 | `collateralHash`    | string  | Hash of the collateral payment transaction (64-char hex)                   |
-| `objectType`        | string  | Object type name: `"Unknown"`, `"Proposal"`, or `"Trigger"`               |
+| `objectType`        | string  | Object type name: `"Unknown"`, `"Proposal"`, or `"Trigger"`                |
 | `creationTime`      | string  | ISO 8601 timestamp of object creation                                      |
 | `signingMasternode` | string  | Signing masternode's vin (only present in triggers)                        |
 | `absoluteYesCount`  | number  | Number of Yes votes minus number of No votes                               |
