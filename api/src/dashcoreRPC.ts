@@ -1,6 +1,30 @@
 import RpcClient from '@dashevo/dashd-rpc/promise';
 import ServiceNotAvailableError from './errors/ServiceNotAvailableError';
 
+export type GovernanceObjectSignal = "valid" | "funding" | "delete" | "endorsed" | "all";
+type GovernanceObjectType = "proposals" | "triggers" | "all";
+
+export interface GovernanceObjectDetails {
+  DataHex: string;
+  DataString: string;
+  Hash: string;
+  CollateralHash: string;
+  ObjectType: 1 | 2 | 3;
+  CreationTime: number;
+  SigningMasternode?: string;
+  AbsoluteYesCount: number;
+  YesCount: number;
+  NoCount: number;
+  AbstainCount: number;
+  fLocalValidity: boolean;
+  IsValidReason: string;
+  fCachedValid: boolean;
+  fCachedFunding: boolean;
+  fCachedDelete: boolean;
+  fCachedEndorsed: boolean;
+}
+
+type GovernanceObjectsResult = Record<string, GovernanceObjectDetails>;
 
 export class DashCoreRPC {
   rpc: RpcClient
@@ -43,5 +67,9 @@ export class DashCoreRPC {
 
   async getMasternodes(): Promise<any> {
     return this.callMethod('masternode', ['list', 'json', 'ENABLED']);
+  }
+
+  async getGovernanceObjects(signal: GovernanceObjectSignal = "all", type: GovernanceObjectType = "all"): Promise<GovernanceObjectsResult> {
+    return this.callMethod('gobject', ['list', signal, type]);
   }
 }
