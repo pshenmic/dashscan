@@ -609,19 +609,19 @@ Returns a list of governance proposals from Dash Core RPC.
 ```json
 [
   {
-    "DataHex": "5b5b2270726f706f73616c222c...",
-    "DataString": "[[\"proposal\",{\"end_epoch\":1741305600,...}]]",
-    "Hash": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-    "CollateralHash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-    "ObjectType": "Proposal",
-    "CreationTime": "2024-01-01T00:00:00.000Z",
-    "SigningMasternode": "abcdef1234...",
-    "AbsoluteYesCount": 150,
-    "YesCount": 200,
-    "NoCount": 50,
-    "AbstainCount": 10,
+    "dataHex": "5b5b2270726f706f73616c222c...",
+    "dataString": "[[\"proposal\",{\"end_epoch\":1741305600,...}]]",
+    "hash": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+    "collateralHash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "objectType": "Proposal",
+    "creationTime": "2024-01-01T00:00:00.000Z",
+    "signingMasternode": "abcdef1234...",
+    "absoluteYesCount": 150,
+    "yesCount": 200,
+    "noCount": 50,
+    "abstainCount": 10,
     "fLocalValidity": true,
-    "IsValidReason": "",
+    "isValidReason": "",
     "fCachedValid": true,
     "fCachedFunding": true,
     "fCachedDelete": false,
@@ -634,19 +634,19 @@ Returns a list of governance proposals from Dash Core RPC.
 
 | Field               | Type    | Description                                                                |
 |---------------------|---------|----------------------------------------------------------------------------|
-| `DataHex`           | string  | Governance object info as hex string                                       |
-| `DataString`        | string  | Governance object info as string                                           |
-| `Hash`              | string  | Hash of this governance object (64-char hex)                               |
-| `CollateralHash`    | string  | Hash of the collateral payment transaction (64-char hex)                   |
-| `ObjectType`        | string  | Object type name: `"Unknown"`, `"Proposal"`, or `"Trigger"`                |
-| `CreationTime`      | string  | ISO 8601 timestamp of object creation                                      |
-| `SigningMasternode` | string  | Signing masternode's vin (only present in triggers)                        |
-| `AbsoluteYesCount`  | number  | Number of Yes votes minus number of No votes                               |
-| `YesCount`          | number  | Number of Yes votes                                                        |
-| `NoCount`           | number  | Number of No votes                                                         |
-| `AbstainCount`      | number  | Number of Abstain votes                                                    |
+| `dataHex`           | string  | Governance object info as hex string                                       |
+| `dataString`        | string  | Governance object info as string                                           |
+| `hash`              | string  | Hash of this governance object (64-char hex)                               |
+| `collateralHash`    | string  | Hash of the collateral payment transaction (64-char hex)                   |
+| `objectType`        | string  | Object type name: `"Unknown"`, `"Proposal"`, or `"Trigger"`               |
+| `creationTime`      | string  | ISO 8601 timestamp of object creation                                      |
+| `signingMasternode` | string  | Signing masternode's vin (only present in triggers)                        |
+| `absoluteYesCount`  | number  | Number of Yes votes minus number of No votes                               |
+| `yesCount`          | number  | Number of Yes votes                                                        |
+| `noCount`           | number  | Number of No votes                                                         |
+| `abstainCount`      | number  | Number of Abstain votes                                                    |
 | `fLocalValidity`    | boolean | Valid by the blockchain                                                    |
-| `IsValidReason`     | string  | Validation error reason. Empty if no error                                 |
+| `isValidReason`     | string  | Validation error reason. Empty if no error                                 |
 | `fCachedValid`      | boolean | Minimum network support reached flagging this as a valid governance object |
 | `fCachedFunding`    | boolean | Minimum network support reached for this object to be funded               |
 | `fCachedDelete`     | boolean | Minimum network support reached saying this object should be deleted       |

@@ -2,19 +2,19 @@ import {GovernanceObjectType} from "../enums/GovernanceObjectType";
 import {GovernanceObjectDetails} from "../dashcoreRPC";
 
 export class GovernanceObject {
-  DataHex: string;
-  DataString: string;
-  Hash: string;
-  CollateralHash: string;
-  ObjectType: keyof typeof GovernanceObjectType;
-  CreationTime: Date;
-  SigningMasternode?: string;
-  AbsoluteYesCount: number;
-  YesCount: number;
-  NoCount: number;
-  AbstainCount: number;
+  dataHex: string;
+  dataString: string;
+  hash: string;
+  collateralHash: string;
+  objectType: keyof typeof GovernanceObjectType;
+  creationTime: Date;
+  signingMasternode?: string;
+  absoluteYesCount: number;
+  yesCount: number;
+  noCount: number;
+  abstainCount: number;
   fLocalValidity: boolean;
-  IsValidReason: string;
+  isValidReason: string;
   fCachedValid: boolean;
   fCachedFunding: boolean;
   fCachedDelete: boolean;
@@ -39,23 +39,23 @@ export class GovernanceObject {
     fCachedEndorsed: boolean,
     signingMasternode?: string,
   ) {
-    this.DataHex = dataHex;
-    this.DataString = dataString;
-    this.Hash = hash;
-    this.CollateralHash = collateralHash;
-    this.ObjectType = objectType;
-    this.CreationTime = creationTime;
-    this.AbsoluteYesCount = absoluteYesCount;
-    this.YesCount = yesCount;
-    this.NoCount = noCount;
-    this.AbstainCount = abstainCount;
+    this.dataHex = dataHex;
+    this.dataString = dataString;
+    this.hash = hash;
+    this.collateralHash = collateralHash;
+    this.objectType = objectType;
+    this.creationTime = creationTime;
+    this.absoluteYesCount = absoluteYesCount;
+    this.yesCount = yesCount;
+    this.noCount = noCount;
+    this.abstainCount = abstainCount;
     this.fLocalValidity = fLocalValidity;
-    this.IsValidReason = isValidReason;
+    this.isValidReason = isValidReason;
     this.fCachedValid = fCachedValid;
     this.fCachedFunding = fCachedFunding;
     this.fCachedDelete = fCachedDelete;
     this.fCachedEndorsed = fCachedEndorsed;
-    this.SigningMasternode = signingMasternode;
+    this.signingMasternode = signingMasternode;
   }
 
   static fromObject(obj: GovernanceObjectDetails): GovernanceObject {
