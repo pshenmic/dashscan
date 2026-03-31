@@ -1,7 +1,8 @@
 ALTER TABLE blocks ADD COLUMN merkle_root_mn_list TEXT;
 
 CREATE TABLE masternodes (
-    pro_tx_hash          CHAR(64)     PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    pro_tx_hash          CHAR(64),
     address              VARCHAR(64),
     payee                VARCHAR(64),
     status               VARCHAR(32),
@@ -17,3 +18,5 @@ CREATE TABLE masternodes (
     created_at           TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at           TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX masternodes_pro_tx_hash ON masternodes(pro_tx_hash);

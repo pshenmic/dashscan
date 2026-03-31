@@ -1,8 +1,9 @@
 CREATE TABLE addresses (
-    address varchar(35) PRIMARY KEY ,
-    first_seen_tx   CHAR(64) references transactions(hash),
+    id SERIAL PRIMARY KEY,
+    address varchar(35),
+    first_seen_tx_id INT references transactions(id) DEFERRABLE INITIALLY DEFERRED,
     first_seen_block INT references blocks(height),
-    last_seen_tx CHAR(64) references transactions(hash),
+    last_seen_tx_id INT references transactions(id) DEFERRABLE INITIALLY DEFERRED,
     last_seen_block INT references blocks(height),
     CONSTRAINT address_unique UNIQUE(address)
 );

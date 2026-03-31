@@ -74,8 +74,8 @@ export default class Transaction {
     if (vIn) {
       normalVIn = vIn.map((input) => {
         return VIn.fromObject({
-          txId: input.txid,
-          vOut: input.vout,
+          txId: input.prev_tx_hash,
+          vOut: input.prev_vout,
           scriptSigASM: Script.fromHex(input.scriptSig?.hex ?? '').ASMString(),
           sequence: input.sequence,
         });

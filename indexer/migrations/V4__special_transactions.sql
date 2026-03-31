@@ -1,6 +1,6 @@
 CREATE TABLE special_transactions
 (
-    txid CHAR(64) NOT NULL REFERENCES transactions (hash) DEFERRABLE INITIALLY DEFERRED,
+    tx_id INT NOT NULL REFERENCES transactions (id) DEFERRABLE INITIALLY DEFERRED,
     tx_type SMALLINT NOT NULL,
     payload JSONB NOT NULL
 );
