@@ -142,11 +142,19 @@
 }
 
 @layer base {
+  html {
+    background:
+      radial-gradient(circle at top right, rgba(76, 126, 255, 0.1), transparent 32%),
+      linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    background: linear-gradient(to top right, #fff 0%, rgba(76, 126, 255, 0.12) 100%);
+    min-height: 100vh;
+    background: transparent;
     background-attachment: fixed;
     color: var(--foreground);
     -webkit-font-smoothing: antialiased;

@@ -10,12 +10,14 @@ import {
 import {
   Box,
   Calendar,
-  HardDrive,
+  ChartPie,
   Hourglass,
   MoveDown,
   MoveUp,
-  Square,
+  Percent,
+  Trophy,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { BlockTransactionsChart } from "@/components/block-transactions-chart";
 import { CopyButton } from "@/components/copy-button";
@@ -69,15 +71,6 @@ export const Route = createFileRoute("/blocks/")({
 
 const columns: ColumnDef<ApiBlock>[] = [
   {
-    accessorKey: "timestamp",
-    header: "Time",
-    cell: ({ getValue }) => (
-      <span className="text-muted-foreground">
-        {formatRelativeTime(getValue<string>())}
-      </span>
-    ),
-  },
-  {
     accessorKey: "height",
     header: "Height",
     cell: ({ row }) => (
@@ -116,9 +109,16 @@ const columns: ColumnDef<ApiBlock>[] = [
     cell: () => <span className="text-muted-foreground">—</span>,
   },
   {
+    accessorKey: "txCount",
+    header: "Txs",
+    cell: ({ getValue }) => (
+      <span className="text-muted-foreground">{getValue<number>()}</span>
+    ),
+  },
+  {
     id: "fees",
     header: "Fees",
-    cell: () => <span className="text-muted-foreground">—</span>,
+    cell: () => <span className="text-muted-foreground">0</span>,
   },
   {
     accessorKey: "size",
@@ -152,21 +152,52 @@ const columns: ColumnDef<ApiBlock>[] = [
     },
   },
   {
-    accessorKey: "txCount",
-    header: "TX count",
+    accessorKey: "timestamp",
+    header: "Time",
     cell: ({ getValue }) => (
-      <Badge className="h-6 border border-[#0C1C331F] bg-[#4C7EFF1F] font-medium text-foreground">
-        {getValue<number>()}
-      </Badge>
+      <span className="text-muted-foreground">
+        {formatRelativeTime(getValue<string>())}
+      </span>
     ),
   },
 ];
 
-function StatIcon({ children }: { children: React.ReactNode }) {
+function StatIcon({ children }: { children: ReactNode }) {
   return (
-    <div className="hidden size-12 items-center justify-center rounded-full border border-accent/12 text-accent sm:flex">
+    <div className="-ml-px flex h-[96px] w-[96px] shrink-0 items-center justify-center rounded-[22px] border border-accent/12 bg-white text-accent">
       {children}
     </div>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  adornment,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+  adornment?: ReactNode;
+}) {
+  return (
+    <Card className="h-[96px] flex-row items-center gap-0 overflow-visible rounded-[26px] border bg-white p-0">
+      <StatIcon>{icon}</StatIcon>
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4">
+        <div className="min-w-0">
+          <p className="text-[15px] font-medium text-muted-foreground">
+            {label}
+          </p>
+          <div className="mt-1 flex min-w-0 items-center gap-2">
+            <p className="truncate text-[20px] font-extrabold tracking-[-0.02em] text-[#10213f] sm:text-[22px]">
+              {value}
+            </p>
+            {adornment}
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -177,10 +208,10 @@ function formatCompact(value: number): string {
 }
 
 const skeletonWidths = [
-  "w-16",
   "w-20",
   "w-44",
   "w-28",
+  "w-14",
   "w-14",
   "w-16",
   "w-20",
@@ -226,13 +257,6 @@ function BlocksPage() {
       );
     }
 
-    let avgBlockSize: number | null = null;
-    if (blocks.length > 0) {
-      avgBlockSize = Math.round(
-        blocks.reduce((s, b) => s + b.size, 0) / blocks.length / 1024,
-      );
-    }
-
     let txChange: number | null = null;
     if (chartBlocks.length >= 2) {
       const sorted = [...chartBlocks].sort((a, b) => a.height - b.height);
@@ -253,7 +277,6 @@ function BlocksPage() {
       totalBlocks,
       totalTxs,
       avgBlockTime,
-      avgBlockSize,
       txChange,
     };
   }, [blocks, data?.pagination, txData?.pagination, chartBlocks]);
@@ -273,106 +296,55 @@ function BlocksPage() {
   return (
     <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
       <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_2fr] [&>*]:min-w-0 animate-fade-in-up">
-        <div className="grid grid-cols-2 gap-4 [&>*]:min-w-0">
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4 min-w-0">
-              <StatIcon>
-                <Box className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Latest Block
-                </p>
-                <p className="truncate text-2xl font-extrabold">
-                  {stats.latestHeight != null
-                    ? `#${stats.latestHeight.toLocaleString()}`
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          </Card>
+        <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
+          <StatCard
+            icon={<ChartPie className="size-7 stroke-[1.8]" />}
+            label="Latest Block"
+            value={
+              stats.latestHeight != null
+                ? stats.latestHeight.toLocaleString()
+                : "—"
+            }
+          />
 
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4">
-              <StatIcon>
-                <Box className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Latest Superblock
-                </p>
-                <p className="text-2xl font-extrabold">—</p>
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            icon={<Box className="size-7 stroke-[1.8]" />}
+            label="Latest Superblock"
+            value="—"
+            adornment={
+              <span className="inline-flex shrink-0 items-center rounded-full bg-[#edf3ff] px-2.5 py-1 text-[12px] font-semibold text-accent">
+                7,336
+              </span>
+            }
+          />
 
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4">
-              <StatIcon>
-                <Hourglass className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Block Time
-                </p>
-                <p className="text-2xl font-extrabold">
-                  {stats.avgBlockTime != null
-                    ? `${stats.avgBlockTime} Min`
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            icon={<Hourglass className="size-7 stroke-[1.8]" />}
+            label="Block Time"
+            value={
+              stats.avgBlockTime != null ? `${stats.avgBlockTime} Min` : "—"
+            }
+          />
 
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4">
-              <StatIcon>
-                <Box className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Blocks
-                </p>
-                <p className="text-2xl font-extrabold">
-                  {stats.totalBlocks != null
-                    ? formatCompact(stats.totalBlocks)
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            icon={<Box className="size-7 stroke-[1.8]" />}
+            label="Blocks"
+            value={
+              stats.totalBlocks != null ? formatCompact(stats.totalBlocks) : "—"
+            }
+          />
 
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4">
-              <StatIcon>
-                <Square className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Block Size
-                </p>
-                <p className="text-2xl font-extrabold">
-                  {stats.avgBlockSize != null
-                    ? `${stats.avgBlockSize} Kb`
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            icon={<Trophy className="size-7 stroke-[1.8]" />}
+            label="Block Reward"
+            value="—"
+          />
 
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4">
-              <StatIcon>
-                <HardDrive className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Blockchain Size
-                </p>
-                <p className="text-2xl font-extrabold">—</p>
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            icon={<Percent className="size-7 stroke-[1.8]" />}
+            label="Block Fees"
+            value="—"
+          />
         </div>
 
         <Card
@@ -412,8 +384,7 @@ function BlocksPage() {
                 variant="outline"
                 className="gap-1.5 whitespace-nowrap rounded-full border-accent/20 px-3 py-1.5 text-sm"
               >
-                <Calendar className="size-3.5 shrink-0" />
-                Last 40 blocks
+                <Calendar className="size-3.5 shrink-0" />1 Month
               </Badge>
             </CardAction>
           </CardHeader>
