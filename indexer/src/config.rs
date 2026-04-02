@@ -5,6 +5,9 @@ pub struct Config {
     pub rpc_port: String,
     pub rpc_user: String,
     pub rpc_password: String,
+    pub p2p_host: String,
+    pub p2p_port: u16,
+    pub network: String,
     pub start_height: i64,
     pub zmq_url: String,
     pub database_url: String,
@@ -18,6 +21,12 @@ impl Config {
             rpc_port: env::var("CORE_RPC_PORT").expect("CORE_RPC_PORT must be set"),
             rpc_user: env::var("CORE_RPC_USER").expect("CORE_RPC_USER must be set"),
             rpc_password: env::var("CORE_RPC_PASSWORD").expect("CORE_RPC_PASSWORD must be set"),
+            p2p_host: env::var("CORE_P2P_HOST").expect("CORE_P2P_HOST must be set"),
+            p2p_port: env::var("CORE_P2P_PORT")
+                .expect("CORE_P2P_PORT must be set")
+                .parse()
+                .expect("CORE_P2P_PORT must be a number"),
+            network: env::var("NETWORK").unwrap_or_else(|_| "mainnet".to_string()),
             zmq_url: env::var("CORE_ZMQ_URL").expect("CORE_ZMQ_URL must be set (tcp://....)"),
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
             start_height: env::var("START_HEIGHT")
