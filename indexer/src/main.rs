@@ -1,6 +1,8 @@
 mod config;
 mod db;
 mod errors;
+mod p2p;
+mod p2p_converter;
 mod processor;
 mod rpc;
 mod zmq;
