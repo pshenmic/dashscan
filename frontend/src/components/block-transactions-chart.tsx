@@ -26,7 +26,9 @@ export function BlockTransactionsChart({
   const chartWidth = width - paddingLeft - paddingRight;
   const chartHeight = height - paddingTop - paddingBottom;
 
-  const niceMax = Math.ceil(maxCount / 50) * 50 || 50;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(maxCount || 1)));
+  const step = magnitude < 1 ? 1 : magnitude <= 5 ? magnitude : magnitude / 2;
+  const niceMax = Math.ceil(maxCount / step) * step || 1;
   const yTicks = [
     0,
     Math.round(niceMax / 3),
@@ -42,7 +44,12 @@ export function BlockTransactionsChart({
   });
 
   const linePath = points
-    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`)
+    .map((p, i) => {
+      if (i === 0) return `M${p.x},${p.y}`;
+      const prev = points[i - 1];
+      const cp = (p.x - prev.x) * 0.4;
+      return `C${prev.x + cp},${prev.y} ${p.x - cp},${p.y} ${p.x},${p.y}`;
+    })
     .join(" ");
   const areaPath = `${linePath} L${points[points.length - 1].x},${paddingTop + chartHeight} L${points[0].x},${paddingTop + chartHeight} Z`;
 
@@ -60,12 +67,12 @@ export function BlockTransactionsChart({
             <stop
               offset="0%"
               stopColor="oklch(from var(--accent) l c h)"
-              stopOpacity="0.12"
+              stopOpacity="0.35"
             />
             <stop
               offset="100%"
               stopColor="oklch(from var(--accent) l c h)"
-              stopOpacity="0.02"
+              stopOpacity="0.05"
             />
           </linearGradient>
         </defs>
