@@ -164,7 +164,7 @@ const columns: ColumnDef<ApiBlock>[] = [
 
 function StatIcon({ children }: { children: ReactNode }) {
   return (
-    <div className="-ml-px flex h-[96px] w-[96px] shrink-0 items-center justify-center rounded-[22px] border border-accent/12 bg-white text-accent">
+    <div className="-ml-px flex h-[96px] w-[96px] shrink-0 items-center justify-center rounded-[24px] border border-accent/12 bg-white text-accent">
       {children}
     </div>
   );
@@ -182,7 +182,7 @@ function StatCard({
   adornment?: ReactNode;
 }) {
   return (
-    <Card className="h-[96px] flex-row items-center gap-0 overflow-visible rounded-[26px] border bg-white p-0">
+    <Card className="h-[96px] flex-row items-center gap-0 overflow-visible rounded-[24px] border bg-white p-0">
       <StatIcon>{icon}</StatIcon>
       <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4">
         <div className="min-w-0">
@@ -347,32 +347,32 @@ function BlocksPage() {
           />
         </div>
 
-        <Card
-          className="overflow-hidden"
-          style={{
-            background:
-              "radial-gradient(circle at top right, oklch(from var(--accent) l c h / 0.08), var(--color-card) 70%)",
-          }}
-        >
-          <CardHeader>
+        <Card className="relative overflow-hidden rounded-[24px] border bg-white">
+          <div
+            className="pointer-events-none absolute inset-0 bg-no-repeat"
+            style={{
+              backgroundImage: "url('/images/blocks/blocks-hero-bg.png')",
+              backgroundPosition: "top right",
+              backgroundSize: "100% auto",
+            }}
+          />
+          <CardHeader className="relative px-5 pb-2 sm:px-6 ">
             <div>
-              <CardTitle>
+              <CardTitle className="text-[34px] font-medium tracking-[-0.03em] text-muted-foreground">
                 Block{" "}
-                <span className="text-muted-foreground">Transactions</span>
+                <span className="font-normal text-[#21314d]">Transactions</span>
               </CardTitle>
-              <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                <span className="text-base text-muted-foreground">
-                  Total TXs:
-                </span>
-                <span className="text-[32px] font-extrabold leading-tight">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="font-medium text-[#9aa7bd]">Total TXs:</span>
+                <span className="text-[24px] font-extrabold leading-none tracking-[-0.03em] text-[#1d2c47]">
                   {stats.totalTxs != null ? formatCompact(stats.totalTxs) : "—"}
                 </span>
                 {stats.txChange != null && (
-                  <Badge className="bg-accent/12 font-bold text-accent">
+                  <Badge className="h-5 rounded-full border-0 bg-accent/10 px-1.5 text-[10px] font-bold text-accent">
                     {stats.txChange >= 0 ? (
-                      <MoveUp className="size-3" />
+                      <MoveUp className="size-2.5" />
                     ) : (
-                      <MoveDown className="size-3" />
+                      <MoveDown className="size-2.5" />
                     )}
                     {Math.abs(stats.txChange).toFixed(1)}%
                   </Badge>
@@ -382,14 +382,15 @@ function BlocksPage() {
             <CardAction>
               <Badge
                 variant="outline"
-                className="gap-1.5 whitespace-nowrap rounded-full border-accent/20 px-3 py-1.5 text-sm"
+                className="h-7 gap-1.5 whitespace-nowrap rounded-full border-white/80 bg-white/8 px-2.5 text-[11px] font-medium text-white backdrop-blur-[2px]"
               >
-                <Calendar className="size-3.5 shrink-0" />1 Month
+                <Calendar className="size-3 shrink-0" />1 Month
               </Badge>
             </CardAction>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative px-3 pb-3 sm:px-4 sm:pb-4">
             <BlockTransactionsChart
+              className="rounded-[20px]"
               data={chartBlocks.map((b) => ({
                 height: b.height,
                 txCount: b.txCount,
