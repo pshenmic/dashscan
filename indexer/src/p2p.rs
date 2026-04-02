@@ -8,8 +8,8 @@ use dashcore::consensus::{Decodable, encode};
 use dashcore::hashes::Hash;
 use dashcore::network::{address, constants, message, message_blockdata, message_network};
 use dashcore::{BlockHash, Network, block};
-use rand::Rng;
-use tokio::sync::mpsc::Sender;
+use dashcore::secp256k1::rand::Rng;
+use dashcore::secp256k1::rand;
 use tracing::{debug, info};
 
 pub struct P2PClient {
@@ -42,63 +42,6 @@ impl P2PClient {
 
         client.handshake()?;
         Ok(client)
-    }
-
-    /// Fetch multiple sequential blocks given a known start hash/height.
-    ///
-    /// Syncs headers from `start_hash` forward, then fetches blocks via `getdata`.
-    /// Returns blocks in height order.
-    pub fn get_blocks(
-        &mut self,
-        start_height: u64,
-        start_hash: BlockHash,
-        count: u64,
-    ) -> Result<Vec<block::Block>, P2PError> {
-        let end_height = start_height + count - 1;
-        let hashes = self.sync_headers_from(start_height, start_hash, end_height)?;
-
-        // Request blocks in batches (peers typically limit to ~16 concurrent blocks)
-        let mut result: HashMap<BlockHash, block::Block> = HashMap::new();
-
-        for chunk in hashes.chunks(16) {
-            let inventory: Vec<_> = chunk
-                .iter()
-                .map(|h| message_blockdata::Inventory::Block(*h))
-                .collect();
-
-            self.send(message::NetworkMessage::GetData(inventory))?;
-            debug!("Sent getdata for {} blocks", chunk.len());
-
-            while result.len() < hashes.len() {
-                let msg = self.recv()?;
-                match msg {
-                    message::NetworkMessage::Block(block) => {
-                        let hash = block.block_hash();
-                        result.insert(hash, block);
-
-                        if result.len() % 16 == 0 || result.len() == hashes.len() {
-                            break;
-                        }
-                    }
-                    message::NetworkMessage::NotFound(inv) => {
-                        for item in inv {
-                            if let message_blockdata::Inventory::Block(hash) = item {
-                                return Err(P2PError::BlockNotFound(hash));
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        // Return blocks in height order
-        let blocks: Vec<block::Block> = hashes
-            .iter()
-            .filter_map(|h| result.remove(h))
-            .collect();
-
-        Ok(blocks)
     }
 
     /// Fetch a single block by its hash.
