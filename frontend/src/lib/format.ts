@@ -29,7 +29,9 @@ const TX_TYPE_STYLES: Record<number, string> = {
 };
 
 export function getTxTypeBadgeStyle(type: number): string {
-  return TX_TYPE_STYLES[type] ?? "border-slate-500 bg-slate-500/12 text-slate-500";
+  return (
+    TX_TYPE_STYLES[type] ?? "border-slate-500 bg-slate-500/12 text-slate-500"
+  );
 }
 
 export function formatRelativeTime(isoTimestamp: string): string {

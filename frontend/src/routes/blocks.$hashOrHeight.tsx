@@ -176,7 +176,9 @@ function BlockDetailPage() {
                 </Badge>
               </DetailRow>
               <DetailRow label="Confirmations:">
-                <span className="font-medium text-muted-foreground">{block.confirmations.toLocaleString()}</span>
+                <span className="font-medium text-muted-foreground">
+                  {block.confirmations.toLocaleString()}
+                </span>
               </DetailRow>
               <DetailRow label="Merkle Root:">
                 <div className="flex items-center gap-1.5">

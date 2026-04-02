@@ -289,7 +289,9 @@ function BlocksPage() {
       <div className="mb-6 grid gap-6 lg:grid-cols-[2fr_3fr] [&>*]:min-w-0 animate-fade-in-up">
         <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
           <StatCard
-            icon={<img src="/icons/chart-pie.svg" alt="" className="size-[34px]" />}
+            icon={
+              <img src="/icons/chart-pie.svg" alt="" className="size-[34px]" />
+            }
             label="Latest Block"
             value={
               stats.latestHeight != null
@@ -299,7 +301,9 @@ function BlocksPage() {
           />
 
           <StatCard
-            icon={<img src="/icons/superblock.svg" alt="" className="size-[34px]" />}
+            icon={
+              <img src="/icons/superblock.svg" alt="" className="size-[34px]" />
+            }
             label="Latest Superblock"
             value="—"
             adornment={
@@ -311,7 +315,9 @@ function BlocksPage() {
           />
 
           <StatCard
-            icon={<img src="/icons/sandglass.svg" alt="" className="size-[34px]" />}
+            icon={
+              <img src="/icons/sandglass.svg" alt="" className="size-[34px]" />
+            }
             label="Block Time"
             value={
               stats.avgBlockTime != null ? `${stats.avgBlockTime} Min` : "—"
@@ -327,7 +333,13 @@ function BlocksPage() {
           />
 
           <StatCard
-            icon={<img src="/icons/block-reward.svg" alt="" className="size-[34px]" />}
+            icon={
+              <img
+                src="/icons/block-reward.svg"
+                alt=""
+                className="size-[34px]"
+              />
+            }
             label="Block Reward"
             value="—"
           />

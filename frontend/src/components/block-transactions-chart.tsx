@@ -1,5 +1,5 @@
+import { useId, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 type BlockTransactionsChartProps = {
   data: { height: number; txCount: number }[];
@@ -11,6 +11,7 @@ export function BlockTransactionsChart({
   className,
 }: BlockTransactionsChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const gradientId = useId();
 
   if (data.length === 0) return null;
 
@@ -26,7 +27,7 @@ export function BlockTransactionsChart({
   const chartWidth = width - paddingLeft - paddingRight;
   const chartHeight = height - paddingTop - paddingBottom;
 
-  const magnitude = Math.pow(10, Math.floor(Math.log10(maxCount || 1)));
+  const magnitude = 10 ** Math.floor(Math.log10(maxCount || 1));
   const step = magnitude < 1 ? 1 : magnitude <= 5 ? magnitude : magnitude / 2;
   const niceMax = Math.ceil(maxCount / step) * step || 1;
   const yTicks = [
@@ -61,9 +62,11 @@ export function BlockTransactionsChart({
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"
         preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="Block transactions chart"
       >
         <defs>
-          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop
               offset="0%"
               stopColor="oklch(from var(--accent) l c h)"
@@ -103,7 +106,7 @@ export function BlockTransactionsChart({
           );
         })}
 
-        <path d={areaPath} fill="url(#areaGradient)" />
+        <path d={areaPath} fill={`url(#${gradientId})`} />
         <path
           d={linePath}
           fill="none"
@@ -112,6 +115,7 @@ export function BlockTransactionsChart({
         />
 
         {points.map((p, i) => (
+          // biome-ignore lint/a11y/noStaticElementInteractions: SVG hover indicators
           <circle
             key={p.height}
             cx={p.x}
@@ -151,6 +155,7 @@ export function BlockTransactionsChart({
         })}
 
         {points.map((p, i) => (
+          // biome-ignore lint/a11y/noStaticElementInteractions: SVG hover zones
           <rect
             key={`hover-${p.height}`}
             x={p.x - chartWidth / sorted.length / 2}
