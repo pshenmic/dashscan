@@ -419,7 +419,6 @@ impl Database {
     }
 
     /// Batch UPSERT addresses.
-    /// On first encounter sets first_seen; on conflict updates last_seen.
     /// Returns a map from address string to its database id.
     pub async fn upsert_addresses_batch(
         &self,
