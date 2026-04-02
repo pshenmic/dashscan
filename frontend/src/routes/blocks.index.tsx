@@ -7,16 +7,7 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  Box,
-  Calendar,
-  ChartPie,
-  Hourglass,
-  MoveDown,
-  MoveUp,
-  Percent,
-  Trophy,
-} from "lucide-react";
+import { Box, Calendar, MoveDown, MoveUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { BlockTransactionsChart } from "@/components/block-transactions-chart";
@@ -295,10 +286,10 @@ function BlocksPage() {
 
   return (
     <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
-      <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_2fr] [&>*]:min-w-0 animate-fade-in-up">
+      <div className="mb-6 grid gap-6 lg:grid-cols-[2fr_3fr] [&>*]:min-w-0 animate-fade-in-up">
         <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
           <StatCard
-            icon={<ChartPie className="size-7 stroke-[1.8]" />}
+            icon={<img src="/icons/chart-pie.svg" alt="" className="size-[34px]" />}
             label="Latest Block"
             value={
               stats.latestHeight != null
@@ -308,18 +299,19 @@ function BlocksPage() {
           />
 
           <StatCard
-            icon={<Box className="size-7 stroke-[1.8]" />}
+            icon={<img src="/icons/superblock.svg" alt="" className="size-[34px]" />}
             label="Latest Superblock"
             value="—"
             adornment={
-              <span className="inline-flex shrink-0 items-center rounded-full bg-[#edf3ff] px-2.5 py-1 text-[12px] font-semibold text-accent">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#edf3ff] px-2.5 py-1 text-[12px] font-semibold text-accent">
                 7,336
+                <img src="/icons/dash.svg" alt="" className="size-3.5" />
               </span>
             }
           />
 
           <StatCard
-            icon={<Hourglass className="size-7 stroke-[1.8]" />}
+            icon={<img src="/icons/sandglass.svg" alt="" className="size-[34px]" />}
             label="Block Time"
             value={
               stats.avgBlockTime != null ? `${stats.avgBlockTime} Min` : "—"
@@ -327,7 +319,7 @@ function BlocksPage() {
           />
 
           <StatCard
-            icon={<Box className="size-7 stroke-[1.8]" />}
+            icon={<img src="/icons/block.svg" alt="" className="size-[34px]" />}
             label="Blocks"
             value={
               stats.totalBlocks != null ? formatCompact(stats.totalBlocks) : "—"
@@ -335,13 +327,13 @@ function BlocksPage() {
           />
 
           <StatCard
-            icon={<Trophy className="size-7 stroke-[1.8]" />}
+            icon={<img src="/icons/block-reward.svg" alt="" className="size-[34px]" />}
             label="Block Reward"
             value="—"
           />
 
           <StatCard
-            icon={<Percent className="size-7 stroke-[1.8]" />}
+            icon={<img src="/icons/fees.svg" alt="" className="size-[34px]" />}
             label="Block Fees"
             value="—"
           />
@@ -349,11 +341,11 @@ function BlocksPage() {
 
         <Card className="relative overflow-hidden rounded-[24px] border bg-white">
           <div
-            className="pointer-events-none absolute inset-0 bg-no-repeat"
+            className="pointer-events-none absolute -inset-px bg-no-repeat"
             style={{
               backgroundImage: "url('/images/blocks/blocks-hero-bg.png')",
               backgroundPosition: "top right",
-              backgroundSize: "100% auto",
+              backgroundSize: "cover",
             }}
           />
           <CardHeader className="relative px-5 pb-2 sm:px-6 ">
