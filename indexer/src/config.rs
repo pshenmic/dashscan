@@ -1,5 +1,7 @@
+use dashcore::Network;
 use std::env;
 
+#[derive(Clone)]
 pub struct Config {
     pub rpc_host: String,
     pub rpc_port: String,
@@ -7,11 +9,13 @@ pub struct Config {
     pub rpc_password: String,
     pub p2p_host: String,
     pub p2p_port: u16,
-    pub network: String,
+    pub network: Network,
     pub start_height: i64,
     pub zmq_url: String,
     pub database_url: String,
     pub poll_interval_secs: u64,
+    pub catch_up_batch_size: usize,
+    pub p2p_batch_size: usize,
 }
 
 impl Config {
@@ -26,7 +30,10 @@ impl Config {
                 .expect("CORE_P2P_PORT must be set")
                 .parse()
                 .expect("CORE_P2P_PORT must be a number"),
-            network: env::var("NETWORK").unwrap_or_else(|_| "mainnet".to_string()),
+            network: env::var("NETWORK")
+                .unwrap_or_else(|_| "mainnet".to_string())
+                .parse()
+                .expect("Invalid network value"),
             zmq_url: env::var("CORE_ZMQ_URL").expect("CORE_ZMQ_URL must be set (tcp://....)"),
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
             start_height: env::var("START_HEIGHT")
@@ -37,13 +44,17 @@ impl Config {
                 .unwrap_or_else(|_| "10".to_string())
                 .parse()
                 .expect("POLL_INTERVAL_SECS must be a number"),
+            catch_up_batch_size: 50,
+            p2p_batch_size: 16,
         }
     }
 
     pub fn pg_config(&self) -> deadpool_postgres::Config {
         let mut cfg = deadpool_postgres::Config::new();
         // Parse postgres://user:password@host:port/dbname
-        let without_scheme = self.database_url.as_str()
+        let without_scheme = self
+            .database_url
+            .as_str()
             .trim_start_matches("postgresql://")
             .trim_start_matches("postgres://");
         if let Some((userinfo, rest)) = without_scheme.split_once('@') {
@@ -53,7 +64,8 @@ impl Config {
             } else {
                 cfg.user = Some(userinfo.to_string());
             }
-            let (hostport, dbname) = rest.split_once('/')
+            let (hostport, dbname) = rest
+                .split_once('/')
                 .map(|(h, d)| (h, Some(d.to_string())))
                 .unwrap_or((rest, None));
             cfg.dbname = dbname;

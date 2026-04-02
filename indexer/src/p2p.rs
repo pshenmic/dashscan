@@ -80,9 +80,8 @@ impl P2PClient {
         start_hash: BlockHash,
         end_height: u64,
         sender: &SyncSender<(i64, block::Block)>,
+        batch_size: usize,
     ) -> Result<(), P2PError> {
-        const BATCH: usize = 64;
-
         let hashes = self.sync_headers_from(start_height, start_hash, end_height)?;
 
         // Build a hash -> height lookup for this range
@@ -92,7 +91,7 @@ impl P2PClient {
             .map(|(i, h)| (*h, start_height as i64 + i as i64))
             .collect();
 
-        for chunk in hashes.chunks(BATCH) {
+        for chunk in hashes.chunks(batch_size) {
             let inventory: Vec<_> = chunk
                 .iter()
                 .map(|h| message_blockdata::Inventory::Block(*h))
