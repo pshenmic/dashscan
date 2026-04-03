@@ -174,11 +174,9 @@ async fn polling_loop(processor: Arc<BlockProcessor>, interval_secs: u64, tx: mp
 
         match processor.rpc.get_block_count().await {
             Ok(chain_height) => {
-                let client = processor.db.begin().await
-                    .expect("Failed to acquire DB connection");
                 let db_height: i64 = processor
                     .db
-                    .get_max_block_height(&**client)
+                    .get_max_block_height()
                     .await
                     .expect("Failed to get max block height from database");
 
@@ -231,11 +229,8 @@ async fn index_new_blocks(processor: &BlockProcessor) -> () {
     let chain_height: i64 = processor.rpc.get_block_count().await
         .expect("Could not get block count from RPC");
 
-    let client = processor.db.begin().await
-        .expect("Could not acquire DB connection");
-    let db_height: i64 = processor.db.get_max_block_height(&**client).await
+    let db_height: i64 = processor.db.get_max_block_height().await
         .expect("Could not read max block height from database");
-    drop(client);
 
     for height in (db_height + 1)..=chain_height {
         match processor.index_block_by_height(height).await {
