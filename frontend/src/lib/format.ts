@@ -34,11 +34,17 @@ export function getTxTypeBadgeStyle(type: number): string {
   );
 }
 
-export function formatRelativeTime(isoTimestamp: string): string {
-  const now = Date.now();
-  const then = new Date(isoTimestamp).getTime();
-  const diffSeconds = Math.floor((now - then) / 1000);
-
+export function formatRelativeTime(timestamp: string | number): string {
+  let then: number;
+  if (typeof timestamp === "number" || /^\d+$/.test(timestamp)) {
+    const unixSeconds = Number(timestamp);
+    if (!unixSeconds) return "Never";
+    then = unixSeconds * 1000;
+  } else {
+    then = new Date(timestamp).getTime();
+  }
+  const diffSeconds = Math.floor((Date.now() - then) / 1000);
+  if (diffSeconds < 0) return "Just now";
   if (diffSeconds < 60) return `${diffSeconds} sec. ago`;
   const diffMinutes = Math.floor(diffSeconds / 60);
   if (diffMinutes < 60) return `${diffMinutes} min. ago`;
@@ -46,4 +52,10 @@ export function formatRelativeTime(isoTimestamp: string): string {
   if (diffHours < 24) return `${diffHours} hr. ago`;
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+}
+
+export function formatCompact(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toLocaleString();
 }

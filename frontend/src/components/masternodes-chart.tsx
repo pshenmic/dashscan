@@ -2,22 +2,34 @@ import { useId, useState } from "react";
 import { buildSmoothPath } from "@/lib/chart-utils";
 import { cn } from "@/lib/utils";
 
-type BlockTransactionsChartProps = {
-  data: { height: number; txCount: number }[];
+type MasternodesChartProps = {
+  data: { date: string; count: number }[];
   className?: string;
 };
 
-export function BlockTransactionsChart({
-  data,
-  className,
-}: BlockTransactionsChartProps) {
+function formatDateLabel(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+export function MasternodesChart({ data, className }: MasternodesChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const gradientId = useId();
 
-  if (data.length === 0) return null;
+  if (data.length < 2) {
+    return (
+      <div
+        className={cn(
+          "flex h-[112px] w-full items-center justify-center rounded-[20px] text-sm text-muted-foreground",
+          className,
+        )}
+      >
+        No historical data available
+      </div>
+    );
+  }
 
-  const sorted = [...data].sort((a, b) => a.height - b.height);
-  const maxCount = Math.max(...sorted.map((d) => d.txCount), 1);
+  const maxCount = Math.max(...data.map((d) => d.count), 1);
 
   const paddingLeft = 40;
   const paddingRight = 20;
@@ -38,17 +50,16 @@ export function BlockTransactionsChart({
     niceMax,
   ];
 
-  const points = sorted.map((entry, i) => {
-    const x = paddingLeft + (i / (sorted.length - 1)) * chartWidth;
-    const y =
-      paddingTop + chartHeight - (entry.txCount / niceMax) * chartHeight;
+  const points = data.map((entry, i) => {
+    const x = paddingLeft + (i / (data.length - 1)) * chartWidth;
+    const y = paddingTop + chartHeight - (entry.count / niceMax) * chartHeight;
     return { x, y, ...entry };
   });
 
   const linePath = buildSmoothPath(points);
   const areaPath = `${linePath} L${points[points.length - 1].x},${paddingTop + chartHeight} L${points[0].x},${paddingTop + chartHeight} Z`;
 
-  const labelInterval = Math.max(1, Math.floor(sorted.length / 8));
+  const labelInterval = Math.max(1, Math.floor(data.length / 6));
 
   return (
     <div className={cn("relative w-full rounded-[20px]", className)}>
@@ -57,7 +68,7 @@ export function BlockTransactionsChart({
         className="w-full"
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label="Block transactions chart"
+        aria-label="Masternodes chart"
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -111,7 +122,7 @@ export function BlockTransactionsChart({
         {points.map((p, i) => (
           // biome-ignore lint/a11y/noStaticElementInteractions: SVG hover indicators
           <circle
-            key={p.height}
+            key={p.date}
             cx={p.x}
             cy={p.y}
             r={hoveredIndex === i ? 4 : 2}
@@ -133,17 +144,17 @@ export function BlockTransactionsChart({
         ))}
 
         {points.map((p, i) => {
-          if (i % labelInterval !== 0 && i !== sorted.length - 1) return null;
+          if (i % labelInterval !== 0 && i !== data.length - 1) return null;
           return (
             <text
-              key={p.height}
+              key={`label-${p.date}`}
               x={p.x}
               y={height - 6}
               textAnchor="middle"
               className="fill-muted-foreground"
               fontSize="9"
             >
-              #{p.height}
+              {formatDateLabel(p.date)}
             </text>
           );
         })}
@@ -151,10 +162,10 @@ export function BlockTransactionsChart({
         {points.map((p, i) => (
           // biome-ignore lint/a11y/noStaticElementInteractions: SVG hover zones
           <rect
-            key={`hover-${p.height}`}
-            x={p.x - chartWidth / sorted.length / 2}
+            key={`hover-${p.date}`}
+            x={p.x - chartWidth / data.length / 2}
             y={paddingTop}
-            width={chartWidth / sorted.length}
+            width={chartWidth / data.length}
             height={chartHeight}
             fill="transparent"
             onMouseEnter={() => setHoveredIndex(i)}
@@ -173,10 +184,10 @@ export function BlockTransactionsChart({
           }}
         >
           <div className="font-semibold text-[#21314d]">
-            {points[hoveredIndex].txCount} TXs
+            {points[hoveredIndex].count.toLocaleString()} Nodes
           </div>
           <div className="mt-0.5 text-[#7f8da8]">
-            #{points[hoveredIndex].height}
+            {formatDateLabel(points[hoveredIndex].date)}
           </div>
         </div>
       )}

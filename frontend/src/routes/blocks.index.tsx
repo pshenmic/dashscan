@@ -8,7 +8,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { Box, Calendar, MoveDown, MoveUp } from "lucide-react";
-import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { BlockTransactionsChart } from "@/components/block-transactions-chart";
 import { CopyButton } from "@/components/copy-button";
@@ -16,6 +15,7 @@ import { DataTable } from "@/components/data-table";
 import { HashCell } from "@/components/hash-cell";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -27,7 +27,7 @@ import {
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiBlock } from "@/lib/api/types";
-import { formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatRelativeTime } from "@/lib/format";
 import { getPageCount, paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
 
@@ -152,51 +152,6 @@ const columns: ColumnDef<ApiBlock>[] = [
     ),
   },
 ];
-
-function StatIcon({ children }: { children: ReactNode }) {
-  return (
-    <div className="-ml-px flex h-[96px] w-[96px] shrink-0 items-center justify-center rounded-[24px] border border-accent/12 bg-white text-accent">
-      {children}
-    </div>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  adornment,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: ReactNode;
-  adornment?: ReactNode;
-}) {
-  return (
-    <Card className="h-[96px] flex-row items-center gap-0 overflow-visible rounded-[24px] border bg-white p-0">
-      <StatIcon>{icon}</StatIcon>
-      <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4">
-        <div className="min-w-0">
-          <p className="text-[15px] font-medium text-muted-foreground">
-            {label}
-          </p>
-          <div className="mt-1 flex min-w-0 items-center gap-2">
-            <p className="truncate text-[20px] font-extrabold tracking-[-0.02em] text-[#10213f] sm:text-[22px]">
-              {value}
-            </p>
-            {adornment}
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function formatCompact(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return value.toLocaleString();
-}
 
 const skeletonWidths = [
   "w-20",
