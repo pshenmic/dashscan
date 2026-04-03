@@ -1,67 +1,57 @@
 import {GovernanceObjectType} from "../enums/GovernanceObjectType";
 import {GovernanceObjectDetails} from "../dashcoreRPC";
+import {ProposalData} from "./ProposalData";
 
 export class GovernanceObject {
-  dataHex: string;
-  dataString: string;
-  hash: string;
-  collateralHash: string;
-  objectType: keyof typeof GovernanceObjectType;
-  creationTime: Date;
-  signingMasternode?: string;
-  absoluteYesCount: number;
-  yesCount: number;
-  noCount: number;
-  abstainCount: number;
-  localValidity: boolean;
-  isValidReason: string;
-  cachedValid: boolean;
-  cachedFunding: boolean;
-  cachedDelete: boolean;
-  cachedEndorsed: boolean;
+  dataHex: string | null;
+  data: any | null;
+  hash: string | null;
+  collateralHash: string | null;
+  objectType: (keyof typeof GovernanceObjectType) | null;
+  creationTime: Date | null;
+  signingMasternode?: string | null;
+  absoluteYesCount: number | null;
+  yesCount: number | null;
+  noCount: number | null;
+  abstainCount: number | null;
+  localValidity: boolean | null;
+  isValidReason: string | null;
 
   constructor(
-    dataHex: string,
-    dataString: string,
-    hash: string,
-    collateralHash: string,
-    objectType: keyof typeof GovernanceObjectType,
-    creationTime: Date,
-    absoluteYesCount: number,
-    yesCount: number,
-    noCount: number,
-    abstainCount: number,
-    localValidity: boolean,
-    isValidReason: string,
-    cachedValid: boolean,
-    cachedFunding: boolean,
-    cachedDelete: boolean,
-    cachedEndorsed: boolean,
+    dataHex?: string,
+    data?: any,
+    hash?: string,
+    collateralHash?: string,
+    objectType?: keyof typeof GovernanceObjectType,
+    creationTime?: Date,
+    absoluteYesCount?: number,
+    yesCount?: number,
+    noCount?: number,
+    abstainCount?: number,
+    localValidity?: boolean,
+    isValidReason?: string,
     signingMasternode?: string,
   ) {
-    this.dataHex = dataHex;
-    this.dataString = dataString;
-    this.hash = hash;
-    this.collateralHash = collateralHash;
-    this.objectType = objectType;
-    this.creationTime = creationTime;
-    this.absoluteYesCount = absoluteYesCount;
-    this.yesCount = yesCount;
-    this.noCount = noCount;
-    this.abstainCount = abstainCount;
-    this.localValidity = localValidity;
-    this.isValidReason = isValidReason;
-    this.cachedValid = cachedValid;
-    this.cachedFunding = cachedFunding;
-    this.cachedDelete = cachedDelete;
-    this.cachedEndorsed = cachedEndorsed;
-    this.signingMasternode = signingMasternode;
+    this.dataHex = dataHex ?? null;
+    this.data = data ?? null;
+    this.hash = hash ?? null;
+    this.collateralHash = collateralHash ?? null;
+    this.objectType = objectType ?? null;
+    this.creationTime = creationTime ?? null;
+    this.absoluteYesCount = absoluteYesCount ?? null;
+    this.yesCount = yesCount ?? null;
+    this.noCount = noCount ?? null;
+    this.abstainCount = abstainCount ?? null;
+    this.localValidity = localValidity ?? null;
+    this.isValidReason = isValidReason ?? null;
+    this.signingMasternode = signingMasternode ?? null;
   }
 
   static fromObject(obj: GovernanceObjectDetails): GovernanceObject {
+    const data = obj.DataString != null ? JSON.parse(obj.DataString) : null
     return new GovernanceObject(
       obj.DataHex,
-      obj.DataString,
+      data != null ? ProposalData.fromObject(data) : null,
       obj.Hash,
       obj.CollateralHash,
       GovernanceObjectType[obj.ObjectType] as keyof typeof GovernanceObjectType,
@@ -72,10 +62,6 @@ export class GovernanceObject {
       obj.AbstainCount,
       obj.fLocalValidity,
       obj.IsValidReason,
-      obj.fCachedValid,
-      obj.fCachedFunding,
-      obj.fCachedDelete,
-      obj.fCachedEndorsed,
       obj.SigningMasternode,
     );
   }

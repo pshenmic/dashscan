@@ -610,7 +610,15 @@ Returns a list of governance proposals from Dash Core RPC.
 [
   {
     "dataHex": "5b5b2270726f706f73616c222c...",
-    "dataString": "[[\"proposal\",{\"end_epoch\":1741305600,...}]]",
+    "data": {
+      "endEpoch": 1776307317,
+      "startEpoch": 1773258297,
+      "name": "proposal-name",
+      "paymentAddress": "XgNfgrEB9n6uCY9Pi1hb2foimxPdtiZ4Z2",
+      "paymentAmount": 250,
+      "type": 1,
+      "url": "https://www.dashcentral.org/p/proposal-name"
+    },
     "hash": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
     "collateralHash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
     "objectType": "Proposal",
@@ -621,11 +629,7 @@ Returns a list of governance proposals from Dash Core RPC.
     "noCount": 50,
     "abstainCount": 10,
     "localValidity": true,
-    "isValidReason": "",
-    "cachedValid": true,
-    "cachedFunding": true,
-    "cachedDelete": false,
-    "cachedEndorsed": false
+    "isValidReason": ""
   }
 ]
 ```
@@ -647,7 +651,3 @@ Returns a list of governance proposals from Dash Core RPC.
 | `abstainCount`      | number  | Number of Abstain votes                                                    |
 | `localValidity`     | boolean | Valid by the blockchain                                                    |
 | `isValidReason`     | string  | Validation error reason. Empty if no error                                 |
-| `cachedValid`       | boolean | Minimum network support reached flagging this as a valid governance object |
-| `cachedFunding`     | boolean | Minimum network support reached for this object to be funded               |
-| `cachedDelete`      | boolean | Minimum network support reached saying this object should be deleted       |
-| `cachedEndorsed`    | boolean | Minimum network support reached flagging this object as endorsed           |
