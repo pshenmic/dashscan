@@ -1,13 +1,15 @@
-use futures::StreamExt;
 use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::sync::mpsc;
 use crate::db::Database;
 use crate::errors::database_error::DatabaseError;
+use crate::p2p::{P2PClient, P2PError};
+use crate::p2p_converter;
 use crate::rpc::{Block, DashRpcClient, Transaction};
-use futures::future::join_all;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client;
-use futures::stream;
 use serde_json::Value;
+use tokio_postgres::GenericClient;
 use tracing::{debug, info};
 use crate::config::Config;
 use crate::errors::block_index_error::BlockIndexError;
@@ -24,7 +26,7 @@ impl BlockProcessor {
 
     pub async fn index_block_by_hash(&self, hash: &str) -> Result<Option<String>, BlockIndexError> {
         // Acquire one connection reused for both the existence check and the transaction.
-        let client = self.db.begin().await
+        let mut client = self.db.begin().await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
         if self.db.get_block_by_hash(&**client, hash).await
@@ -38,7 +40,7 @@ impl BlockProcessor {
         let block = self.rpc.get_block(hash).await
             .map_err(|e| BlockIndexError::from(e))?;
 
-        self.process_block(client, block).await?;
+        self.process_block(&mut client, block).await?;
 
         Ok(Some(hash.to_string()))
     }
@@ -52,7 +54,22 @@ impl BlockProcessor {
 
     /// Indexes a block using an already-acquired pool connection.
     /// Opens a transaction on that connection, writes everything, and commits.
-    async fn process_block(&self, mut client: Client, block: Block) -> Result<(), BlockIndexError> {
+    /// Used by live sync (single-block commits).
+    async fn process_block(&self, client: &mut Client, block: Block) -> Result<(), BlockIndexError> {
+        let db_tx = client.transaction().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        self.write_block(&*db_tx, block).await?;
+
+        db_tx.commit().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        Ok(())
+    }
+
+    /// Writes a single block and all its data into the given client/transaction.
+    /// Does NOT commit — the caller controls transaction boundaries.
+    async fn write_block(&self, client: &impl GenericClient, block: Block) -> Result<(), BlockIndexError> {
         let tx_count = block.tx.len() as i32;
 
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
@@ -67,13 +84,10 @@ impl BlockProcessor {
         let cbtx_best_cl_height_diff: Option<i64>    = block.cb_tx.as_ref().and_then(|cb| cb.best_cl_height_diff);
         let cbtx_best_cl_signature: Option<String>   = block.cb_tx.as_ref().and_then(|cb| cb.best_cl_signature.clone());
 
-        let db_tx = client.transaction().await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
         // Insert block header
         self.db
             .insert_block(
-                &*db_tx,
+                client,
                 &block.hash,
                 block.height,
                 block.version,
@@ -99,67 +113,56 @@ impl BlockProcessor {
         if !block.tx.is_empty() {
             // One INSERT for all transactions
             let tx_map = self.db
-                .insert_transactions_batch(&*db_tx, &block.tx, block.height)
+                .insert_transactions_batch(client, &block.tx, block.height)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
             // One INSERT for all inputs
             self.db
-                .insert_tx_inputs_batch(&*db_tx, &block.tx, &tx_map)
+                .insert_tx_inputs_batch(client, &block.tx, &tx_map)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-            // (vout_index, tx_hash), address_id
-            let mut addresses_map: HashMap<(i32, String), i32> = HashMap::new();
+            // Collect unique (address -> (tx_id, height)) for batch upsert,
+            // and remember which (vout_index, txid) pairs map to which address.
+            let mut upsert_records: Vec<(String, i32, i32)> = Vec::new();
+            let mut seen_addresses: HashMap<String, usize> = HashMap::new();
+            let mut vout_to_address: Vec<((i32, String), String)> = Vec::new();
 
-            let mut tasks = Vec::new();
-
-            // 1. Do all your lookups synchronously here so we don't move `tx_map`
+            let h = block.height as i32;
             for tx in &block.tx {
                 for (vout_index, vout) in tx.vout.iter().enumerate() {
                     if let Some(ref addr) = vout.script_pub_key.first_address() {
-                        // Grab the exact tx_data you need from the map right now.
-                        // Assuming the value inside tx_map implements Clone.
-                        let tx_data = tx_map[&tx.txid].clone();
-
-                        tasks.push((
-                            tx.txid.clone(),
-                            vout_index,
-                            addr.clone(),
-                            tx_data
-                        ));
+                        let tx_id = tx_map[&tx.txid];
+                        // Keep the last-seen tx_id for each address (last wins)
+                        if let Some(&idx) = seen_addresses.get(addr.as_str()) {
+                            upsert_records[idx] = (addr.clone(), tx_id, h);
+                        } else {
+                            seen_addresses.insert(addr.clone(), upsert_records.len());
+                            upsert_records.push((addr.clone(), tx_id, h));
+                        }
+                        vout_to_address.push(((vout_index as i32, tx.txid.clone()), addr.clone()));
                     }
                 }
             }
 
-            let db_tx_ref = &*db_tx;
+            let addr_id_map = self.db
+                .upsert_addresses_batch(client, &upsert_records)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-            let mut stream = stream::iter(tasks)
-                .map(|(txid, vout_index, addr, tx_data)| async move {
-
-                    // Because db and db_tx_ref are shared references (&T), they are Copy,
-                    // so moving them into this closure repeatedly is allowed.
-                    let address_id = self.db
-                        .upsert_address(db_tx_ref, &addr, &tx_data, block.height)
-                        .await
-                        .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-                    let id = address_id.ok_or_else(|| {
-                        BlockIndexError::UnexpectedError("Cannot get address id after upsert".to_string())
-                    })?;
-
-                    Ok::<_, BlockIndexError>(((vout_index as i32, txid), id))
-                })
-                .buffer_unordered(500);
-
-            while let Some(result) = stream.next().await {
-                let (key, id) = result?;
-                addresses_map.insert(key, id);
+            // Build (vout_index, tx_hash) -> address_id map
+            let mut addresses_map: HashMap<(i32, String), i32> = HashMap::new();
+            for ((vout_idx, txid), addr) in vout_to_address {
+                let id = *addr_id_map.get(&addr).ok_or_else(|| {
+                    BlockIndexError::UnexpectedError(format!("Missing address id for {}", addr))
+                })?;
+                addresses_map.insert((vout_idx, txid), id);
             }
 
             // One INSERT for all outputs
             self.db
-                .insert_tx_outputs_batch(&*db_tx, &block.tx, &addresses_map, &tx_map)
+                .insert_tx_outputs_batch(client, &block.tx, &addresses_map, &tx_map)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
@@ -171,13 +174,10 @@ impl BlockProcessor {
                 .collect();
 
             self.db
-                .insert_special_transactions_batch(&*db_tx, &special_records)
+                .insert_special_transactions_batch(client, &special_records)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
         }
-
-        db_tx.commit().await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
         info!(
             height = block.height,
@@ -235,20 +235,16 @@ impl BlockProcessor {
         Value::Object(payload)
     }
 
-    /// Catch up from last indexed block to current chain tip.
+    /// Catch up from last indexed block to current chain tip via P2P.
     ///
-    /// Pipeline per chunk:
-    ///   1. One `getblockheaders` call  → N block hashes
-    ///   2. N parallel `getblock` calls → N full blocks fetched concurrently
-    ///   3. Sequential processing        → blocks written to DB in order
-    pub async fn catch_up(&self, config: &Config) -> Result<i64, String> {
-        const CHUNK: usize = 50;
+    /// 1. Sync headers from the peer to discover block hashes
+    /// 2. Stream blocks through a channel for concurrent fetch + processing
+    pub async fn catch_up(&self, config: &Config) -> Result<i64, BlockIndexError> {
+        let chain_height = self.rpc.get_block_count().await
+            .map_err(BlockIndexError::from)?;
 
-        let chain_height = self.rpc.get_block_count().await.expect("Failed to get chain height");
-
-        let client = self.db.begin().await.expect("Failed to acquire DB connection");
-        let mut db_height: i64 = self.db.get_max_block_height(&**client).await.expect("Failed to get db height");
-        drop(client);
+        let mut db_height: i64 = self.db.get_max_block_height().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
         if db_height == 0 {
             db_height = config.start_height;
@@ -256,76 +252,102 @@ impl BlockProcessor {
 
         if db_height >= chain_height {
             info!(chain_height, db_height, "Already up to date");
-            self.sync_masternodes().await.map_err(|e| e.to_string())?;
+            self.sync_masternodes().await?;
             return Ok(chain_height);
         }
 
-
         let start = db_height + 1;
         let total = chain_height - db_height;
-        info!(from = start, to = chain_height, blocks = total, "Catching up");
 
-        // Bootstrap: get the starting hash for the first getblockheaders call.
-        let start_hash = self.rpc.get_block_hash(start).await.map_err(|e| e.to_string())?;
-        let mut next_hash: Option<String> = Some(start_hash);
+        info!(from = start, to = chain_height, blocks = total, "Catching up via P2P");
+
+        let p2p_addr: SocketAddr = format!("{}:{}", config.p2p_host, config.p2p_port)
+            .parse()
+            .map_err(|e| BlockIndexError::UnexpectedError(format!("Invalid P2P address: {}", e)))?;
+
+        // Get the starting block hash from RPC so P2P can skip straight to it
+        let start_hash_str = self.rpc.get_block_hash(start).await
+            .map_err(BlockIndexError::from)?;
+        let start_hash: dashcore::BlockHash = start_hash_str.parse()
+            .map_err(|e| BlockIndexError::UnexpectedError(format!("Failed to parse block hash: {:?}", e)))?;
+
+        let block_batch_size = config.p2p_batch_size.clone();
+
+        let (tx, rx) = mpsc::sync_channel::<(i64, dashcore::block::Block)>(block_batch_size*2);
+
+        let start_h = u64::try_from(start)
+            .map_err(|_| BlockIndexError::UnexpectedError(format!("Invalid start height: {}", start)))?;
+        let end_h = u64::try_from(chain_height)
+            .map_err(|_| BlockIndexError::UnexpectedError(format!("Invalid chain height: {}", chain_height)))?;
+
+        let network = config.network.clone();
+
+        // P2P fetching in a blocking thread
+        let p2p_handle = tokio::task::spawn_blocking(move || -> Result<(), P2PError> {
+            let mut p2p = P2PClient::connect(p2p_addr, network)?;
+            p2p.stream_blocks(start_h, start_hash, end_h, &tx, block_batch_size)?;
+            Ok(())
+        });
+
+        // Process blocks as they arrive from P2P.
+        // Single connection reused; blocks are batched into multi-block transactions
+        // to amortize WAL flush cost (1 fsync per CATCH_UP_BATCH_SIZE blocks).
+        let mut client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
         let mut indexed: i64 = 0;
+        let mut last_height = db_height;
+        let mut batch_count: usize = 0;
+        let mut db_tx = client.transaction().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-        while let Some(chunk_start_hash) = next_hash {
-            // ── Phase 1: one RPC call to get up to CHUNK hashes ──────────────
-            let headers = self.rpc
-                .get_block_headers(&chunk_start_hash, CHUNK)
-                .await
-                .map_err(|e| e.to_string())?;
-
-            if headers.is_empty() {
-                break;
+        while let Ok((height, raw_block)) = rx.recv() {
+            // P2P streams blocks in order from start_height; skip already-indexed heights
+            if height <= last_height {
+                debug!(height, "Block already indexed, skipping");
+                continue;
             }
 
-            // Chain to the next chunk via nextblockhash of the last header.
-            next_hash = headers.last().and_then(|h| h.next_block_hash.clone());
+            let block = p2p_converter::convert_block(&raw_block, height, network);
+            self.write_block(&*db_tx, block).await?;
 
-            // ── Phase 2: fetch all full blocks in this chunk in parallel ─────
-            let block_futures = headers.iter().map(|h| self.rpc.get_block(&h.hash));
-            let block_results = join_all(block_futures).await;
+            last_height = height;
+            indexed += 1;
+            batch_count += 1;
 
-            // ── Phase 3: process each block sequentially in height order ─────
-            for (header, block_result) in headers.iter().zip(block_results) {
-                let block = block_result.map_err(|e| e.to_string())?;
+            if batch_count >= config.catch_up_batch_size {
+                db_tx.commit().await
+                    .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-                let client = self.db.begin().await.map_err(|e| e.to_string())?;
-
-                if self.db
-                    .get_block_by_hash(&**client, &header.hash)
-                    .await
-                    .map_err(|e| e.to_string())?
-                    .is_some()
-                {
-                    info!(height = header.height, "Block already indexed, skipping");
-                    continue;
-                }
-
-                self.process_block(client, block).await.map_err(|e| e.to_string())?;
-            }
-
-            indexed += headers.len() as i64;
-
-            if indexed % 500 == 0 || next_hash.is_none() {
                 info!(
                     indexed,
-                    remaining = (chain_height - db_height - indexed).max(0),
-                    "Catch-up progress"
+                    height = last_height,
+                    remaining = total - indexed,
+                    batch = config.catch_up_batch_size,
+                    "Committed batch"
                 );
-            }
 
-            // Stop once we've covered up to chain_height.
-            if db_height + indexed >= chain_height {
-                break;
+                db_tx = client.transaction().await
+                    .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+                batch_count = 0;
             }
         }
 
-        self.sync_masternodes().await.map_err(|e| e.to_string())?;
+        // Commit remaining blocks in the last partial batch
+        if batch_count > 0 {
+            db_tx.commit().await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        }
 
-        info!(chain_height, "Catch-up complete");
+        // Check P2P thread result and propagate any error
+        match p2p_handle.await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => return Err(BlockIndexError::from(e)),
+            Err(e) => return Err(BlockIndexError::UnexpectedError(format!("P2P thread panicked: {}", e))),
+        }
+
+        self.sync_masternodes().await?;
+
+        info!(chain_height, indexed, "Catch-up complete");
         Ok(chain_height)
     }
 }
