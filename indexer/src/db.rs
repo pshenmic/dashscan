@@ -51,7 +51,9 @@ impl Database {
         self.pool.get().await
     }
 
-    pub async fn get_max_block_height(&self, client: &impl GenericClient) -> Result<i64, PoolError> {
+    /// acquires its own connection internally (removes begin() + &**client + drop(client) in code)
+    pub async fn get_max_block_height(&self) -> Result<i64, PoolError> {
+        let client = self.pool.get().await?;
         let row = client
             .query_one("SELECT MAX(height) FROM blocks", &[])
             .await?;
@@ -418,35 +420,46 @@ impl Database {
         Ok(())
     }
 
-    /// UPSERT a single address.
-    /// On first encounter sets first_seen; on conflict updates last_seen.
-    pub async fn upsert_address(
+    /// Batch UPSERT addresses.
+    /// Returns a map from address string to its database id.
+    pub async fn upsert_addresses_batch(
         &self,
         client: &impl GenericClient,
-        address: &str,
-        tx_id: &i32,
-        block_height: i64,
-    ) -> Result<Option<i32>, PoolError> {
-        let h = block_height as i32;
-        let rows = client
-            .query(
-                "INSERT INTO addresses (address, first_seen_tx_id, first_seen_block)
-                 VALUES ($1, $2, $3)
-                 ON CONFLICT (address) DO UPDATE
-                 SET last_seen_tx_id = EXCLUDED.first_seen_tx_id,
-                     last_seen_block = EXCLUDED.first_seen_block
-                 RETURNING id",
-                &[&address, &tx_id, &h],
-            )
-            .await?;
+        records: &[(String, i32, i32)], // (address, tx_id, block_height)
+    ) -> Result<HashMap<String, i32>, PoolError> {
+        let mut address_map: HashMap<String, i32> = HashMap::new();
 
-        if let Some(row) = rows.first() {
-            let id: i32 = row.get("id");
-
-            return Ok(Some(id))
+        if records.is_empty() {
+            return Ok(address_map);
         }
 
-        Ok(None)
+        for chunk in records.chunks(BATCH_SIZE) {
+            let query = format!(
+                "INSERT INTO addresses (address, first_seen_tx_id, first_seen_block) VALUES {} \
+                 ON CONFLICT (address) DO UPDATE \
+                 SET last_seen_tx_id = EXCLUDED.first_seen_tx_id, \
+                     last_seen_block = EXCLUDED.first_seen_block \
+                 RETURNING id, address",
+                build_placeholders(chunk.len(), 3)
+            );
+
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 3);
+            for (addr, tx_id, height) in chunk.iter() {
+                params.push(addr);
+                params.push(tx_id);
+                params.push(height);
+            }
+
+            let rows = client.query(query.as_str(), &params).await?;
+
+            for row in rows {
+                let id: i32 = row.get("id");
+                let addr: String = row.get("address");
+                address_map.insert(addr, id);
+            }
+        }
+
+        Ok(address_map)
     }
 
     /// Batch INSERT special-transaction payloads for all type > 0 txns in the block.
