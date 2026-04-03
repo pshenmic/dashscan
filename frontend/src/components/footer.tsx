@@ -18,32 +18,45 @@ const SOCIAL_LINKS = [
   },
 ];
 
-const TIMEZONE = "Europe/Moscow";
+let cachedFmts: {
+  tz: string;
+  time: Intl.DateTimeFormat;
+  date: Intl.DateTimeFormat;
+  parts: Intl.DateTimeFormat;
+} | null = null;
 
-const timeFmt = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: true,
-  timeZone: TIMEZONE,
-});
+function getFmts() {
+  if (cachedFmts) return cachedFmts;
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  cachedFmts = {
+    tz,
+    time: new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: tz,
+    }),
+    date: new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: tz,
+    }),
+    parts: new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      timeZone: tz,
+    }),
+  };
+  return cachedFmts;
+}
 
-const dateFmt = new Intl.DateTimeFormat("en-US", {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  timeZone: TIMEZONE,
-});
-
-const partsFmt = new Intl.DateTimeFormat("en-US", {
-  hour: "numeric",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-  timeZone: TIMEZONE,
-});
-
-function getMoscowTime() {
+function getLocalTime() {
+  const { tz, time, date, parts: partsFmt } = getFmts();
   const now = new Date();
+
   const parts: Record<string, number> = {};
   for (const p of partsFmt.formatToParts(now)) {
     if (p.type !== "literal") parts[p.type] = Number(p.value);
@@ -53,7 +66,7 @@ function getMoscowTime() {
     hours: parts.hour ?? 0,
     minutes: parts.minute ?? 0,
     seconds: parts.second ?? 0,
-    display: `${timeFmt.format(now)} \u2022 ${dateFmt.format(now)} (${TIMEZONE})`,
+    display: `${time.format(now)} \u2022 ${date.format(now)} (${tz})`,
   };
 }
 
@@ -120,8 +133,8 @@ export default function Footer() {
   } | null>(null);
 
   useEffect(() => {
-    setClock(getMoscowTime());
-    const interval = setInterval(() => setClock(getMoscowTime()), 1000);
+    setClock(getLocalTime());
+    const interval = setInterval(() => setClock(getLocalTime()), 1000);
     return () => clearInterval(interval);
   }, []);
 
