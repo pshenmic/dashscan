@@ -12,7 +12,6 @@ import { useMemo, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { DataTable } from "@/components/data-table";
 import { HashCell } from "@/components/hash-cell";
-import { MasternodesChart } from "@/components/masternodes-chart";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
 import { StatCard } from "@/components/stat-card";
@@ -26,7 +25,15 @@ import {
 } from "@/components/ui/card";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiMasternode } from "@/lib/api/types";
-import { formatCompact, formatRelativeTime } from "@/lib/format";
+import {
+  formatCompact,
+  formatRelativeTime,
+  getIp,
+  getMnStatusBadgeStyle,
+  getMnStatusLabel,
+  getMnTypeBadgeStyle,
+  getMnTypeLabel,
+} from "@/lib/format";
 import { getPageCount, paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
 
@@ -55,40 +62,6 @@ export const Route = createFileRoute("/masternodes/")({
     ]);
   },
 });
-
-function getIp(address: string): string {
-  const idx = address.lastIndexOf(":");
-  return idx > 0 ? address.slice(0, idx) : address;
-}
-
-function getTypeBadgeStyle(type: string): string {
-  const t = type.toLowerCase();
-  if (t === "evo" || t === "evolution" || t === "highperformance") {
-    return "border-accent bg-[#4C7EFF1F] text-accent";
-  }
-  return "border-border bg-muted/50 text-muted-foreground";
-}
-
-function getTypeLabel(type: string): string {
-  const t = type.toLowerCase();
-  if (t === "evo" || t === "highperformance") return "Evolution";
-  if (t === "regular") return "Regular";
-  return type;
-}
-
-function getStatusBadgeStyle(status: string): string {
-  const s = status.toUpperCase();
-  if (s === "ENABLED") return "border-accent bg-[#4C7EFF1F] text-accent";
-  if (s.includes("BANNED")) return "border-red-500 bg-red-500/12 text-red-500";
-  return "border-border bg-muted/50 text-muted-foreground";
-}
-
-function getStatusLabel(status: string): string {
-  const s = status.toUpperCase();
-  if (s === "ENABLED") return "Enabled";
-  if (s.includes("BANNED")) return "Banned";
-  return status;
-}
 
 const columns: ColumnDef<ApiMasternode>[] = [
   {
@@ -128,8 +101,8 @@ const columns: ColumnDef<ApiMasternode>[] = [
     cell: ({ getValue }) => {
       const type = getValue<string>();
       return (
-        <Badge className={`h-6 font-medium ${getTypeBadgeStyle(type)}`}>
-          {getTypeLabel(type)}
+        <Badge className={`h-6 font-medium ${getMnTypeBadgeStyle(type)}`}>
+          {getMnTypeLabel(type)}
         </Badge>
       );
     },
@@ -140,8 +113,8 @@ const columns: ColumnDef<ApiMasternode>[] = [
     cell: ({ getValue }) => {
       const status = getValue<string>();
       return (
-        <Badge className={`h-6 font-medium ${getStatusBadgeStyle(status)}`}>
-          {getStatusLabel(status)}
+        <Badge className={`h-6 font-medium ${getMnStatusBadgeStyle(status)}`}>
+          {getMnStatusLabel(status)}
         </Badge>
       );
     },
@@ -175,7 +148,6 @@ const columns: ColumnDef<ApiMasternode>[] = [
 ];
 
 const skeletonWidths = ["w-28", "w-44", "w-20", "w-20", "w-14", "w-20"];
-const EMPTY_CHART_DATA: { date: string; count: number }[] = [];
 
 function MasternodesPage() {
   const network = useStore(appStore, (state) => state.network);
@@ -276,11 +248,10 @@ function MasternodesPage() {
               </Badge>
             </CardAction>
           </CardHeader>
-          <CardContent className="relative px-3 pb-3 sm:px-4 sm:pb-4">
-            <MasternodesChart
-              className="rounded-[20px]"
-              data={EMPTY_CHART_DATA}
-            />
+          <CardContent className="relative flex min-h-[200px] items-center justify-center px-3 pb-3 sm:px-4 sm:pb-4">
+            <p className="text-sm text-muted-foreground">
+              Historical data coming soon
+            </p>
           </CardContent>
         </Card>
       </div>

@@ -1,3 +1,74 @@
+export const DUFFS_PER_DASH = 100_000_000;
+
+export function formatDash(duffs: number): string {
+  const dash = duffs / DUFFS_PER_DASH;
+  if (dash >= 1) return `${dash.toFixed(2)} DASH`;
+  return `${dash.toFixed(4)} DASH`;
+}
+
+export function formatDuffs(duffs: number, decimals = 8): string {
+  return (duffs / DUFFS_PER_DASH).toFixed(decimals);
+}
+
+export function formatCompactUsd(value: number): string {
+  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)} B`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)} M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(2)} K`;
+  return `$${value.toFixed(2)}`;
+}
+
+export function getMnTypeBadgeStyle(type: string): string {
+  const t = type.toLowerCase();
+  if (t === "evo" || t === "evolution" || t === "highperformance") {
+    return "border-accent bg-[#4C7EFF1F] text-accent";
+  }
+  return "border-border bg-muted/50 text-muted-foreground";
+}
+
+export function getMnTypeLabel(type: string): string {
+  const t = type.toLowerCase();
+  if (t === "evo" || t === "highperformance") return "Evolution";
+  if (t === "regular") return "Regular";
+  return type;
+}
+
+export function getMnStatusBadgeStyle(status: string): string {
+  const s = status.toUpperCase();
+  if (s === "ENABLED") return "border-accent bg-[#4C7EFF1F] text-accent";
+  if (s.includes("BANNED")) return "border-red-500 bg-red-500/12 text-red-500";
+  return "border-border bg-muted/50 text-muted-foreground";
+}
+
+export function getMnStatusLabel(status: string): string {
+  const s = status.toUpperCase();
+  if (s === "ENABLED") return "Enabled";
+  if (s.includes("BANNED")) return "Banned";
+  return status;
+}
+
+export function getIp(address: string): string {
+  const idx = address.lastIndexOf(":");
+  return idx > 0 ? address.slice(0, idx) : address;
+}
+
+export function highlightJson(obj: unknown): string {
+  const raw = JSON.stringify(obj, null, 2);
+  const escaped = raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return escaped.replace(
+    /("(?:\\.|[^"\\])*")\s*(:)?|(\b(?:true|false|null)\b)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+    (match, str, colon, bool, num) => {
+      if (str && colon) return `<span class="text-foreground">${str}</span>:`;
+      if (str) return `<span class="text-emerald-600">${str}</span>`;
+      if (bool) return `<span class="text-accent">${match}</span>`;
+      if (num) return `<span class="text-accent">${match}</span>`;
+      return match;
+    },
+  );
+}
+
 const TX_TYPE_LABELS: Record<number, string> = {
   0: "Asset Transfer",
   1: "Provider Register",

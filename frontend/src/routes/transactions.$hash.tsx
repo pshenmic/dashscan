@@ -1,13 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { ArrowLeftRight, Info } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { DetailRow } from "@/components/detail-row";
+import { PageStatus } from "@/components/page-status";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { transactionQueryOptions } from "@/lib/api/transactions";
-import { getTxTypeBadgeStyle, getTxTypeLabel } from "@/lib/format";
+import {
+  formatDuffs,
+  getTxTypeBadgeStyle,
+  getTxTypeLabel,
+  highlightJson,
+} from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/transactions/$hash")({
@@ -35,23 +43,11 @@ function TransactionDetailPage() {
   );
 
   if (isFetching && !tx) {
-    return (
-      <main className="mx-auto max-w-[1440px] px-6 py-10">
-        <div className="flex h-64 items-center justify-center text-muted-foreground">
-          Loading transaction...
-        </div>
-      </main>
-    );
+    return <PageStatus message="Loading transaction..." />;
   }
 
   if (!tx) {
-    return (
-      <main className="mx-auto max-w-[1440px] px-6 py-10">
-        <div className="flex h-64 items-center justify-center text-muted-foreground">
-          Transaction not found.
-        </div>
-      </main>
-    );
+    return <PageStatus message="Transaction not found." />;
   }
 
   const totalOutput = tx.vOut.reduce((sum, out) => sum + Number(out.value), 0);
@@ -67,7 +63,7 @@ function TransactionDetailPage() {
         style={{ animationDelay: "100ms" }}
       >
         <div className="flex flex-col divide-y divide-border">
-          <DetailRow label="Hash">
+          <DetailRow variant="labeled" label="Hash">
             <div className="flex items-center gap-1.5">
               <span className="break-all font-mono text-xs font-semibold">
                 {tx.hash}
@@ -75,7 +71,7 @@ function TransactionDetailPage() {
               <CopyButton value={tx.hash} />
             </div>
           </DetailRow>
-          <DetailRow label="Block Height">
+          <DetailRow variant="labeled" label="Block Height">
             <div className="flex items-center gap-1.5">
               <Link
                 to="/blocks/$hashOrHeight"
@@ -89,24 +85,24 @@ function TransactionDetailPage() {
               </span>
             </div>
           </DetailRow>
-          <DetailRow label="Date/Time">
+          <DetailRow variant="labeled" label="Date/Time">
             <span className="font-semibold">
               {new Date(tx.timestamp).toLocaleString()}
             </span>
           </DetailRow>
-          <DetailRow label="Type">
+          <DetailRow variant="labeled" label="Type">
             <Badge
               className={`h-6 whitespace-nowrap border font-medium ${getTxTypeBadgeStyle(tx.type)}`}
             >
               {getTxTypeLabel(tx.type)}
             </Badge>
           </DetailRow>
-          <DetailRow label="Total Output">
+          <DetailRow variant="labeled" label="Total Output">
             <span className="font-semibold">
-              {(totalOutput / 100_000_000).toFixed(8)} DASH
+              {formatDuffs(totalOutput)} DASH
             </span>
           </DetailRow>
-          <DetailRow label="Fees">
+          <DetailRow variant="labeled" label="Fees">
             <span className="font-semibold text-muted-foreground">—</span>
           </DetailRow>
         </div>
@@ -116,28 +112,22 @@ function TransactionDetailPage() {
         className="mb-6 flex gap-3 animate-fade-in-up"
         style={{ animationDelay: "200ms" }}
       >
-        <button
-          type="button"
+        <Button
+          variant={activeTab === "io" ? "default" : "outline"}
+          size="sm"
+          className={`rounded-full px-5 ${activeTab === "io" ? "bg-accent text-accent-foreground" : ""}`}
           onClick={() => setActiveTab("io")}
-          className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-            activeTab === "io"
-              ? "bg-accent text-white"
-              : "border border-border text-foreground hover:bg-accent/10"
-          }`}
         >
           Inputs / Outputs
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant={activeTab === "raw" ? "default" : "outline"}
+          size="sm"
+          className={`rounded-full px-5 ${activeTab === "raw" ? "bg-accent text-accent-foreground" : ""}`}
           onClick={() => setActiveTab("raw")}
-          className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-            activeTab === "raw"
-              ? "bg-accent text-white"
-              : "border border-border text-foreground hover:bg-accent/10"
-          }`}
         >
           Raw Transaction
-        </button>
+        </Button>
       </div>
 
       {activeTab === "io" ? (
@@ -244,7 +234,7 @@ function TransactionDetailPage() {
                         {output.scriptPubKeyASM}
                       </td>
                       <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-right font-semibold transition-colors group-hover:bg-accent/10">
-                        {(Number(output.value) / 100_000_000).toFixed(8)}
+                        {formatDuffs(Number(output.value))}
                       </td>
                     </tr>
                   ))
@@ -278,41 +268,5 @@ function TransactionDetailPage() {
         </div>
       )}
     </main>
-  );
-}
-
-function highlightJson(obj: unknown): string {
-  const raw = JSON.stringify(obj, null, 2);
-  const escaped = raw
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  return escaped.replace(
-    /("(?:\\.|[^"\\])*")\s*(:)?|(\b(?:true|false|null)\b)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
-    (match, str, colon, bool, num) => {
-      if (str && colon) return `<span class="text-foreground">${str}</span>:`;
-      if (str) return `<span class="text-emerald-600">${str}</span>`;
-      if (bool) return `<span class="text-accent">${match}</span>`;
-      if (num) return `<span class="text-accent">${match}</span>`;
-      return match;
-    },
-  );
-}
-
-function DetailRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-4 py-3">
-      <Info className="size-4 shrink-0 text-muted-foreground" />
-      <span className="w-28 shrink-0 text-sm text-muted-foreground">
-        {label}
-      </span>
-      <div className="flex min-w-0 items-center text-sm">{children}</div>
-    </div>
   );
 }
