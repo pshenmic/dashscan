@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;800&family=Roboto+Mono&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;800&family=Press+Start+2P&family=Roboto+Mono&display=swap");
 @import "tailwindcss";
 @plugin '@tailwindcss/typography';
 
@@ -80,6 +80,7 @@
 @theme inline {
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Roboto Mono", ui-monospace, monospace;
+  --font-pixel: "Press Start 2P", cursive;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
