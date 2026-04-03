@@ -45,6 +45,7 @@ impl P2PClient {
     }
 
     /// Fetch a single block by its hash.
+    #[allow(dead_code)]
     pub fn get_block(&mut self, block_hash: BlockHash) -> Result<block::Block, P2PError> {
         info!("Requesting block {}", block_hash);
 
@@ -309,25 +310,4 @@ impl P2PClient {
     }
 }
 
-#[derive(Debug)]
-pub enum P2PError {
-    Connection(std::io::Error),
-    Io(std::io::Error),
-    Decode(dashcore::consensus::encode::Error),
-    BlockNotFound(BlockHash),
-    HeightNotFound(u64),
-}
-
-impl std::fmt::Display for P2PError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            P2PError::Connection(e) => write!(f, "Connection failed: {}", e),
-            P2PError::Io(e) => write!(f, "I/O error: {}", e),
-            P2PError::Decode(e) => write!(f, "Message decode error: {}", e),
-            P2PError::BlockNotFound(hash) => write!(f, "Block not found: {}", hash),
-            P2PError::HeightNotFound(h) => write!(f, "Height {} not found on peer", h),
-        }
-    }
-}
-
-impl std::error::Error for P2PError {}
+pub use crate::errors::p2p_error::P2PError;
