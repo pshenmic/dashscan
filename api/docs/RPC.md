@@ -636,18 +636,30 @@ Returns a list of governance proposals from Dash Core RPC.
 
 #### Governance Proposal Object
 
-| Field               | Type    | Description                                                                |
-|---------------------|---------|----------------------------------------------------------------------------|
-| `dataHex`           | string  | Governance object info as hex string                                       |
-| `dataString`        | string  | Governance object info as string                                           |
-| `hash`              | string  | Hash of this governance object (64-char hex)                               |
-| `collateralHash`    | string  | Hash of the collateral payment transaction (64-char hex)                   |
-| `objectType`        | string  | Object type name: `"Unknown"`, `"Proposal"`, or `"Trigger"`                |
-| `creationTime`      | string  | ISO 8601 timestamp of object creation                                      |
-| `signingMasternode` | string  | Signing masternode's vin (only present in triggers)                        |
-| `absoluteYesCount`  | number  | Number of Yes votes minus number of No votes                               |
-| `yesCount`          | number  | Number of Yes votes                                                        |
-| `noCount`           | number  | Number of No votes                                                         |
-| `abstainCount`      | number  | Number of Abstain votes                                                    |
-| `localValidity`     | boolean | Valid by the blockchain                                                    |
-| `isValidReason`     | string  | Validation error reason. Empty if no error                                 |
+| Field               | Type         | Description                                                 |
+|---------------------|--------------|-------------------------------------------------------------|
+| `dataHex`           | string       | Governance object info as hex string                        |
+| `data`              | ProposalData | Decoded governance object data (see ProposalData below)     |
+| `hash`              | string       | Hash of this governance object (64-char hex)                |
+| `collateralHash`    | string       | Hash of the collateral payment transaction (64-char hex)    |
+| `objectType`        | string       | Object type name: `"Unknown"`, `"Proposal"`, or `"Trigger"` |
+| `creationTime`      | string       | ISO 8601 timestamp of object creation                       |
+| `signingMasternode` | string       | Signing masternode's vin (only present in triggers)         |
+| `absoluteYesCount`  | number       | Number of Yes votes minus number of No votes                |
+| `yesCount`          | number       | Number of Yes votes                                         |
+| `noCount`           | number       | Number of No votes                                          |
+| `abstainCount`      | number       | Number of Abstain votes                                     |
+| `localValidity`     | boolean      | Valid by the blockchain                                     |
+| `isValidReason`     | string       | Validation error reason. Empty if no error                  |
+
+#### ProposalData Object
+
+| Field            | Type   | Description                                      |
+|------------------|--------|--------------------------------------------------|
+| `endEpoch`       | number | Unix timestamp of proposal end date              |
+| `startEpoch`     | number | Unix timestamp of proposal start date            |
+| `name`           | string | Proposal name                                    |
+| `paymentAddress` | string | Dash address to receive payment if funded        |
+| `paymentAmount`  | number | Requested payment amount in Dash                 |
+| `type`           | number | Proposal type identifier                         |
+| `url`            | string | URL with proposal details                        |

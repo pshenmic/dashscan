@@ -4,7 +4,7 @@ import {ProposalData} from "./ProposalData";
 
 export class GovernanceObject {
   dataHex: string | null;
-  data: any | null;
+  data: ProposalData | null;
   hash: string | null;
   collateralHash: string | null;
   objectType: (keyof typeof GovernanceObjectType) | null;
@@ -19,7 +19,7 @@ export class GovernanceObject {
 
   constructor(
     dataHex?: string,
-    data?: any,
+    data?: ProposalData,
     hash?: string,
     collateralHash?: string,
     objectType?: keyof typeof GovernanceObjectType,
