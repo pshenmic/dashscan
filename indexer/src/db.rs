@@ -51,7 +51,9 @@ impl Database {
         self.pool.get().await
     }
 
-    pub async fn get_max_block_height(&self, client: &impl GenericClient) -> Result<i64, PoolError> {
+    /// acquires its own connection internally (removes begin() + &**client + drop(client) in code)
+    pub async fn get_max_block_height(&self) -> Result<i64, PoolError> {
+        let client = self.pool.get().await?;
         let row = client
             .query_one("SELECT MAX(height) FROM blocks", &[])
             .await?;
