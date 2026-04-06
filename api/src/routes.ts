@@ -219,6 +219,11 @@ export default function Routes({ fastify, blocksController, transactionsControll
         },
       },
     },
+    {
+      path: '/transactions/pending',
+      method: 'get',
+      handler: transactionsController.getPendingTransactions
+    }
   ];
 
   routes.forEach((route) =>
