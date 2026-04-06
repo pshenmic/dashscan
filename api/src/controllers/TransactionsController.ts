@@ -1,12 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Knex } from 'knex';
 import TransactionsDAO from '../dao/TransactionsDAO';
+import {DashCoreRPC} from "../dashcoreRPC";
 
 export default class TransactionsController {
   private transactionsDAO: TransactionsDAO;
 
-  constructor(knex: Knex) {
-    this.transactionsDAO = new TransactionsDAO(knex);
+  constructor(knex: Knex, dashCoreRPC: DashCoreRPC) {
+    this.transactionsDAO = new TransactionsDAO(knex, dashCoreRPC);
   }
 
   getTransactions = async (request: FastifyRequest<{ Querystring: { page?: number; limit?: number; order?: string } }>, response: FastifyReply): Promise<void> => {
@@ -46,4 +47,10 @@ export default class TransactionsController {
 
     response.send(transactions);
   };
+
+  getPendingTransactions = async (_: unknown, response: FastifyReply): Promise<void> => {
+    const transactions = await this.transactionsDAO.getPendingTransactions();
+
+    response.send(transactions)
+  }
 }

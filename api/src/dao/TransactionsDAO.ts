@@ -3,12 +3,15 @@ import Transaction from '../models/Transaction';
 import VIn from '../models/VIn';
 import VOut from '../models/VOut';
 import PaginatedResultSet from '../models/PaginatedResultSet';
+import {DashCoreRPC} from "../dashcoreRPC";
 
 export default class TransactionsDAO {
   private knex: Knex;
+  private dashCoreRPC: DashCoreRPC;
 
-  constructor(knex: Knex) {
+  constructor(knex: Knex, dashCoreRPC: DashCoreRPC) {
     this.knex = knex;
+    this.dashCoreRPC = dashCoreRPC;
   }
 
   getTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
@@ -149,4 +152,17 @@ export default class TransactionsDAO {
 
     return new PaginatedResultSet(transactions as Transaction[], page, limit, row?.total_count);
   };
+
+  getPendingTransactions = async (): Promise<Transaction[]> => {
+    const hashes = await this.dashCoreRPC.getMemPoolTransactionHashes()
+    const rawTransactions = await Promise.all(hashes.map(async (hash) => this.dashCoreRPC.getTransactionByHash(hash)));
+
+    return rawTransactions.map(tx=> Transaction.fromObject({
+      ...tx,
+      hash: tx.txid,
+      blockHeight: tx.height,
+      blockHash: tx.blockhash,
+      instantLock: tx.instantlock_internal,
+    }));
+  }
 }
