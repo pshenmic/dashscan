@@ -663,3 +663,44 @@ Returns a list of governance proposals from Dash Core RPC.
 | `paymentAmount`  | number | Requested payment amount in Dash                 |
 | `type`           | number | Proposal type identifier                         |
 | `url`            | string | URL with proposal details                        |
+
+---
+
+### GET /transactions/pending
+
+Returns a list of pending transactions.
+
+**Response `200`**
+
+```json
+[
+  {
+    "hash": "425a2b246976cd412373163eed1f4f7b95571dd762c143b40704fa28b62d96d4",
+    "type": 0,
+    "blockHeight": null,
+    "blockHash": null,
+    "timestamp": null,
+    "amount": null,
+    "version": 2,
+    "vIn": null,
+    "vOut": null,
+    "confirmations": null,
+    "instantLock": true,
+    "chainLock": null
+  },
+  {
+    "hash": "aeddeec073ee3711bd3f351c1666c8f733d9b2b8dc458a8a0f36ac8e96a48cd3",
+    "type": 0,
+    "blockHeight": null,
+    "blockHash": null,
+    "timestamp": null,
+    "amount": null,
+    "version": 2,
+    "vIn": null,
+    "vOut": null,
+    "confirmations": null,
+    "instantLock": false,
+    "chainLock": null
+  }
+]
+```
