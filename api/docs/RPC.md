@@ -591,3 +591,75 @@ Returns DASH trading volume for the past 24 hours, compacted to one point per ho
 | `value`     | number | Trading volume in the requested currency |
 
 **Response `400`** — Invalid currency (not `usd` or `btc`)
+
+---
+
+### GET /governance/proposals
+
+Returns a list of governance proposals from Dash Core RPC.
+
+**Query Parameters**
+
+| Parameter      | Type   | Default | Constraints                                               | Description                     |
+|----------------|--------|---------|-----------------------------------------------------------|---------------------------------|
+| `proposalType` | string | `null`  | `"valid"`, `"funding"`, `"delete"`, `"endorsed"`, `"all"` | Filter proposals by signal type |
+
+**Response `200`**
+
+```json
+[
+  {
+    "dataHex": "5b5b2270726f706f73616c222c...",
+    "data": {
+      "endEpoch": 1776307317,
+      "startEpoch": 1773258297,
+      "name": "proposal-name",
+      "paymentAddress": "XgNfgrEB9n6uCY9Pi1hb2foimxPdtiZ4Z2",
+      "paymentAmount": 250,
+      "type": 1,
+      "url": "https://www.dashcentral.org/p/proposal-name"
+    },
+    "hash": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+    "collateralHash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "objectType": "Proposal",
+    "creationTime": "2024-01-01T00:00:00.000Z",
+    "signingMasternode": "abcdef1234...",
+    "absoluteYesCount": 150,
+    "yesCount": 200,
+    "noCount": 50,
+    "abstainCount": 10,
+    "localValidity": true,
+    "isValidReason": ""
+  }
+]
+```
+
+#### Governance Proposal Object
+
+| Field               | Type         | Description                                                 |
+|---------------------|--------------|-------------------------------------------------------------|
+| `dataHex`           | string       | Governance object info as hex string                        |
+| `data`              | ProposalData | Decoded governance object data (see ProposalData below)     |
+| `hash`              | string       | Hash of this governance object (64-char hex)                |
+| `collateralHash`    | string       | Hash of the collateral payment transaction (64-char hex)    |
+| `objectType`        | string       | Object type name: `"Unknown"`, `"Proposal"`, or `"Trigger"` |
+| `creationTime`      | string       | ISO 8601 timestamp of object creation                       |
+| `signingMasternode` | string       | Signing masternode's vin (only present in triggers)         |
+| `absoluteYesCount`  | number       | Number of Yes votes minus number of No votes                |
+| `yesCount`          | number       | Number of Yes votes                                         |
+| `noCount`           | number       | Number of No votes                                          |
+| `abstainCount`      | number       | Number of Abstain votes                                     |
+| `localValidity`     | boolean      | Valid by the blockchain                                     |
+| `isValidReason`     | string       | Validation error reason. Empty if no error                  |
+
+#### ProposalData Object
+
+| Field            | Type   | Description                                      |
+|------------------|--------|--------------------------------------------------|
+| `endEpoch`       | number | Unix timestamp of proposal end date              |
+| `startEpoch`     | number | Unix timestamp of proposal start date            |
+| `name`           | string | Proposal name                                    |
+| `paymentAddress` | string | Dash address to receive payment if funded        |
+| `paymentAmount`  | number | Requested payment amount in Dash                 |
+| `type`           | number | Proposal type identifier                         |
+| `url`            | string | URL with proposal details                        |

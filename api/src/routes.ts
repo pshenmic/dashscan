@@ -5,6 +5,7 @@ import AddressesController from './controllers/AddressesController';
 import MasternodesController from './controllers/MasternodesController';
 import MarketController from './controllers/MarketController';
 import SearchController from './controllers/SearchController';
+import GovernanceController from "./controllers/GovernanceController";
 
 interface RoutesOptions {
   fastify: FastifyInstance;
@@ -14,9 +15,10 @@ interface RoutesOptions {
   masternodesController: MasternodesController;
   marketController: MarketController;
   searchController: SearchController;
+  governanceController: GovernanceController;
 }
 
-export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController }: RoutesOptions): void {
+export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController }: RoutesOptions): void {
   const routes = [
     {
       path: '/status',
@@ -198,6 +200,22 @@ export default function Routes({ fastify, blocksController, transactionsControll
             query: { type: 'string', minLength: 1 },
           },
           required: ['query'],
+        },
+      },
+    },
+    {
+      path: '/governance/proposals',
+      method: 'get',
+      handler: governanceController.getProposals,
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            proposalType: {
+              type: ['string', 'null'],
+              enum: ['valid', 'funding', 'delete', 'endorsed', 'all'],
+            },
+          },
         },
       },
     },
