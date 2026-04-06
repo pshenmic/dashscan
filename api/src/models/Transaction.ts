@@ -1,6 +1,6 @@
 import VIn from './VIn';
 import VOut from './VOut';
-import { Script } from 'dash-core-sdk/dist/src/types/Script';
+import {Script} from 'dash-core-sdk/dist/src/types/Script';
 
 interface TransactionRow {
   hash: string;
@@ -22,6 +22,8 @@ interface TransactionObject {
   vOut?: any[];
   confirmations?: number;
   instantLock?: boolean;
+  timestamp?: Date;
+  chainLock?: boolean;
 }
 
 export default class Transaction {
@@ -36,6 +38,7 @@ export default class Transaction {
   vOut: VOut[] | null;
   confirmations: number | null;
   instantLock: boolean | null;
+  chainLock: boolean | null;
 
   constructor(
     hash?: string,
@@ -49,6 +52,7 @@ export default class Transaction {
     confirmations?: number,
     instantLock?: boolean,
     timestamp?: Date,
+    chainLock?: boolean,
   ) {
     this.hash = hash ?? null;
     this.type = type ?? null;
@@ -61,37 +65,59 @@ export default class Transaction {
     this.vOut = vOut ?? null;
     this.confirmations = confirmations ?? null;
     this.instantLock = instantLock ?? null;
+    this.chainLock = chainLock ?? null;
   }
 
-  static fromRow({ hash, type, block_height, block_hash, timestamp, confirmations }: TransactionRow): Transaction {
+  static fromRow({hash, type, block_height, block_hash, timestamp, confirmations}: TransactionRow): Transaction {
     return new Transaction(hash, type, block_height, block_hash, undefined, undefined, undefined, undefined, confirmations, undefined, timestamp);
   }
 
-  static fromObject({ hash, type, blockHeight, blockHash, amount, version, vIn, vOut, confirmations, instantLock }: TransactionObject): Transaction {
+  static fromObject({
+                      hash,
+                      type,
+                      blockHeight,
+                      blockHash,
+                      amount,
+                      version,
+                      vIn,
+                      vOut,
+                      confirmations,
+                      instantLock,
+                      timestamp,
+                      chainLock,
+                    }: TransactionObject): Transaction {
     let normalVIn: VIn[] | undefined;
     let normalVOut: VOut[] | undefined;
 
     if (vIn) {
       normalVIn = vIn.map((input) => {
-        return VIn.fromObject({
-          txId: input.prev_tx_hash,
-          vOut: input.prev_vout,
-          scriptSigASM: Script.fromHex(input.scriptSig?.hex ?? '').ASMString(),
-          sequence: input.sequence,
-        });
+        if(!(input instanceof VIn)) {
+          return VIn.fromObject({
+            txId: input.prev_tx_hash,
+            vOut: input.prev_vout,
+            scriptSigASM: Script.fromHex(input.scriptSig?.hex ?? '').ASMString(),
+            sequence: input.sequence,
+          });
+        } else {
+          return VIn.fromObject(input)
+        }
       });
     }
 
     if (vOut) {
       normalVOut = vOut.map((output) => {
-        return VOut.fromObject({
-          value: output.valueSat.toString(),
-          n: output.n,
-          scriptPubKeyASM: Script.fromHex(output.scriptPubKey?.hex ?? '').ASMString(),
-        });
+        if(!(output instanceof VOut)) {
+          return VOut.fromObject({
+            value: output.valueSat.toString(),
+            n: output.n,
+            scriptPubKeyASM: Script.fromHex(output.scriptPubKey?.hex ?? '').ASMString(),
+          });
+        } else {
+          return VOut.fromObject(output)
+        }
       });
     }
 
-    return new Transaction(hash, type, blockHeight, blockHash, amount, version, normalVIn, normalVOut, confirmations, instantLock);
+    return new Transaction(hash, type, blockHeight, blockHash, amount, version, normalVIn, normalVOut, confirmations, instantLock, timestamp, chainLock);
   }
 }
