@@ -1,6 +1,57 @@
 import RpcClient from '@dashevo/dashd-rpc/promise';
 import ServiceNotAvailableError from './errors/ServiceNotAvailableError';
 
+export interface TransactionRPC {
+  in_active_chain?: boolean;
+  txid: string;
+  size: number;
+  version: number;
+  type: number;
+  locktime: number;
+  vin: {
+    txid?: string;
+    vout?: number;
+    scriptSig?: {
+      asm: string;
+      hex: string;
+    };
+    coinbase?: string;
+    value?: number;
+    valueSat?: number;
+    addresses?: string[];
+    sequence: number;
+  }[];
+  vout: {
+    value: number;
+    valueSat: number;
+    n: number;
+    scriptPubKey: {
+      asm: string;
+      desc: string;
+      hex: string;
+      type?:
+        | "pubkey"
+        | "pubkeyhash"
+        | "scripthash"
+        | "multisig"
+        | "nulldata"
+        | "nonstandard";
+    };
+    address?: string;
+  }[];
+  extraPayloadSize?: number;
+  extraPayload?: string;
+  hex: string;
+  blockhash?: string;
+  height?: number;
+  confirmations?: number;
+  time?: number;
+  blocktime?: number;
+  instantlock: boolean;
+  instantlock_internal: boolean;
+  chainlock: boolean;
+}
+
 export type GovernanceObjectSignal = "valid" | "funding" | "delete" | "endorsed" | "all";
 type GovernanceObjectType = "proposals" | "triggers" | "all";
 
@@ -61,7 +112,7 @@ export class DashCoreRPC {
     return this.callMethod('getblock', [hash, format]);
   }
 
-  async getTransactionByHash(hash: string, json: number = 1): Promise<any> {
+  async getTransactionByHash(hash: string, json: number = 1): Promise<TransactionRPC> {
     return this.callMethod('getRawTransaction', [hash, json]);
   }
 
@@ -71,5 +122,9 @@ export class DashCoreRPC {
 
   async getGovernanceObjects(signal: GovernanceObjectSignal = "all", type: GovernanceObjectType = "all"): Promise<GovernanceObjectsResult> {
     return this.callMethod('gobject', ['list', signal, type]);
+  }
+
+  async getMemPoolTransactionHashes(): Promise<string[]> {
+    return this.callMethod('getrawmempool', []);
   }
 }
