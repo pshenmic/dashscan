@@ -158,19 +158,23 @@ export default class TransactionsDAO {
     const subquery = this.knex('transactions')
       .select(
         'transactions.hash',
-        'transactions.type',
-        'transactions.block_height',
       )
-      .orderBy('id', order)
       .whereNull('block_height')
+      .orderBy('id', order);
+
+    const countedSubquery = this.knex
+      .with('subquery', subquery)
+      .select('hash')
+      .select(this.knex('subquery').count('*').as('total_count'))
       .limit(limit)
-      .offset(fromRank);
+      .offset(fromRank)
+      .from('subquery');
 
     const rows = await this.knex
-      .with('subquery', subquery)
-      .select(this.knex('subquery').count('*').as('total_count'))
+      .with('subquery', countedSubquery)
+      // .select(this.knex('subquery').count('*').as('total_count'))
       .select(
-        'subquery.hash'
+        'subquery.hash', 'total_count'
       )
       .from('subquery')
 
@@ -186,6 +190,6 @@ export default class TransactionsDAO {
       instantLock: tx.instantlock_internal,
     }))
 
-    return new PaginatedResultSet(transactions, page, limit, row?.total_count ?? -1);
+    return new PaginatedResultSet(transactions, Number(page), limit, row?.total_count ?? -1);
   }
 }
