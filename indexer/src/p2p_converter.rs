@@ -43,7 +43,7 @@ pub fn convert_block(
     }
 }
 
-fn convert_transaction(
+pub fn convert_transaction(
     tx: &dashcore::blockdata::transaction::Transaction,
     network: Network,
 ) -> Transaction {

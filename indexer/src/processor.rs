@@ -11,8 +11,10 @@ use deadpool_postgres::Client;
 use serde_json::Value;
 use tokio_postgres::GenericClient;
 use tracing::{debug, info};
+use dashcore::consensus::encode::deserialize_partial;
 use crate::config::Config;
 use crate::errors::block_index_error::BlockIndexError;
+
 
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
@@ -125,11 +127,11 @@ impl BlockProcessor {
 
             // Collect unique (address -> (tx_id, height)) for batch upsert,
             // and remember which (vout_index, txid) pairs map to which address.
-            let mut upsert_records: Vec<(String, i32, i32)> = Vec::new();
+            let mut upsert_records: Vec<(String, i32, Option<i32>)> = Vec::new();
             let mut seen_addresses: HashMap<String, usize> = HashMap::new();
             let mut vout_to_address: Vec<((i32, String), String)> = Vec::new();
 
-            let h = block.height as i32;
+            let h = Some(block.height as i32);
             for tx in &block.tx {
                 for (vout_index, vout) in tx.vout.iter().enumerate() {
                     if let Some(ref addr) = vout.script_pub_key.first_address() {
@@ -186,6 +188,72 @@ impl BlockProcessor {
             "Indexed block"
         );
         Ok(())
+    }
+
+    pub async fn index_pending_transaction(
+        &self,
+        raw_bytes: Vec<u8>,
+        network: dashcore::Network,
+    ) -> Result<bool, BlockIndexError> {
+        let (raw_tx, _): (dashcore::blockdata::transaction::Transaction, usize) = deserialize_partial(&raw_bytes)
+            .map_err(|e| BlockIndexError::UnexpectedError(format!("Failed to deserialize rawtx: {e}")))?;
+
+        let tx = p2p_converter::convert_transaction(&raw_tx, network);
+
+        let mut client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        let db_tx = client.transaction().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        let inserted = if let Some(tx_id) = self.db
+            .insert_pending_transaction(&*db_tx, &tx)
+            .await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?
+        {
+            let tx_map = HashMap::from([(tx.txid.clone(), tx_id)]);
+
+            self.db
+                .insert_tx_inputs_batch(&*db_tx, &[tx.clone()], &tx_map)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            let mut upsert_records: Vec<(String, i32, Option<i32>)> = Vec::new();
+            let mut vout_to_address: Vec<((i32, String), String)> = Vec::new();
+            for (vout_index, vout) in tx.vout.iter().enumerate() {
+                if let Some(ref addr) = vout.script_pub_key.first_address() {
+                    if !upsert_records.iter().any(|(a, _, _)| a == addr) {
+                        upsert_records.push((addr.clone(), tx_id, None));
+                    }
+                    vout_to_address.push(((vout_index as i32, tx.txid.clone()), addr.clone()));
+                }
+            }
+
+            let addr_id_map = self.db
+                .upsert_addresses_batch(&*db_tx, &upsert_records)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            let mut addresses_map: HashMap<(i32, String), i32> = HashMap::new();
+            for ((vout_idx, txid), addr) in vout_to_address {
+                if let Some(&id) = addr_id_map.get(&addr) {
+                    addresses_map.insert((vout_idx, txid), id);
+                }
+            }
+
+            self.db
+                .insert_tx_outputs_batch(&*db_tx, &[tx.clone()], &addresses_map, &tx_map)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            true
+        } else {
+            false
+        };
+
+        db_tx.commit().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        Ok(inserted)
     }
 
     pub async fn sync_masternodes(&self) -> Result<(), BlockIndexError> {

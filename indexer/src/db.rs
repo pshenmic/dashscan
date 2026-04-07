@@ -262,6 +262,39 @@ impl Database {
         Ok(())
     }
 
+    /// INSERT a single pending (mempool) transaction with NULL block_height.
+    /// Returns the transaction's DB id, or None if it already exists.
+    pub async fn insert_pending_transaction(
+        &self,
+        client: &impl GenericClient,
+        tx: &RpcTransaction,
+    ) -> Result<Option<i32>, PoolError> {
+        let tx_type: i16 = tx.tx_type.unwrap_or(0);
+        let size: i32 = tx.size as i32;
+        let is_coinbase: bool = tx.vin.first().map_or(false, |v| v.coinbase.is_some());
+        let block_height: Option<i32> = None;
+
+        let rows = client
+            .query(
+                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7) \
+                 ON CONFLICT (hash) DO NOTHING \
+                 RETURNING id",
+                &[
+                    &tx.txid,
+                    &block_height,
+                    &tx.version,
+                    &tx_type,
+                    &size,
+                    &tx.locktime,
+                    &is_coinbase,
+                ],
+            )
+            .await?;
+
+        Ok(rows.first().map(|r| r.get(0)))
+    }
+
     /// Batch INSERT all transactions for a block in chunks of BATCH_SIZE.
     pub async fn insert_transactions_batch(
         &self,
@@ -284,7 +317,9 @@ impl Database {
         for (chunk_idx, chunk) in transactions.chunks(BATCH_SIZE).enumerate() {
             let base = chunk_idx * BATCH_SIZE;
             let query = format!(
-                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase) VALUES {} RETURNING id, hash",
+                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase) VALUES {} \
+                 ON CONFLICT (hash) DO UPDATE SET block_height = COALESCE(transactions.block_height, EXCLUDED.block_height) \
+                 RETURNING id, hash",
                 build_placeholders(chunk.len(), 7)
             );
 
@@ -345,7 +380,8 @@ impl Database {
             let chunk_len = end - chunk_start;
 
             let query = format!(
-                "INSERT INTO tx_inputs (tx_id, vin_index, prev_tx_hash, prev_vout_index, coinbase_data) VALUES {}",
+                "INSERT INTO tx_inputs (tx_id, vin_index, prev_tx_hash, prev_vout_index, coinbase_data) VALUES {} \
+                 ON CONFLICT DO NOTHING",
                 build_placeholders(chunk_len, 5)
             );
 
@@ -400,7 +436,8 @@ impl Database {
             let chunk_len = end - chunk_start;
 
             let query = format!(
-                "INSERT INTO tx_outputs (tx_id, vout_index, value, script_pub_key, script_type, address_id) VALUES {}",
+                "INSERT INTO tx_outputs (tx_id, vout_index, value, script_pub_key, script_type, address_id) VALUES {} \
+                 ON CONFLICT DO NOTHING",
                 build_placeholders(chunk_len, 6)
             );
 
@@ -425,7 +462,7 @@ impl Database {
     pub async fn upsert_addresses_batch(
         &self,
         client: &impl GenericClient,
-        records: &[(String, i32, i32)], // (address, tx_id, block_height)
+        records: &[(String, i32, Option<i32>)], // (address, tx_id, block_height)
     ) -> Result<HashMap<String, i32>, PoolError> {
         let mut address_map: HashMap<String, i32> = HashMap::new();
 
@@ -438,7 +475,7 @@ impl Database {
                 "INSERT INTO addresses (address, first_seen_tx_id, first_seen_block) VALUES {} \
                  ON CONFLICT (address) DO UPDATE \
                  SET last_seen_tx_id = EXCLUDED.first_seen_tx_id, \
-                     last_seen_block = EXCLUDED.first_seen_block \
+                     last_seen_block = COALESCE(EXCLUDED.first_seen_block, addresses.last_seen_block) \
                  RETURNING id, address",
                 build_placeholders(chunk.len(), 3)
             );
