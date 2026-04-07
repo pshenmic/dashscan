@@ -142,7 +142,7 @@ Returns a single block by its hash.
 
 ### GET /transactions
 
-Returns a paginated list of transactions.
+Returns a paginated list of transactions. Include pending transactions
 
 **Query Parameters:** [Pagination](#pagination-query-parameters)
 
@@ -670,37 +670,46 @@ Returns a list of governance proposals from Dash Core RPC.
 
 Returns a list of pending transactions.
 
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
 **Response `200`**
 
 ```json
-[
-  {
-    "hash": "425a2b246976cd412373163eed1f4f7b95571dd762c143b40704fa28b62d96d4",
-    "type": 0,
-    "blockHeight": null,
-    "blockHash": null,
-    "timestamp": null,
-    "amount": null,
-    "version": 2,
-    "vIn": null,
-    "vOut": null,
-    "confirmations": null,
-    "instantLock": true,
-    "chainLock": null
-  },
-  {
-    "hash": "aeddeec073ee3711bd3f351c1666c8f733d9b2b8dc458a8a0f36ac8e96a48cd3",
-    "type": 0,
-    "blockHeight": null,
-    "blockHash": null,
-    "timestamp": null,
-    "amount": null,
-    "version": 2,
-    "vIn": null,
-    "vOut": null,
-    "confirmations": null,
-    "instantLock": false,
-    "chainLock": null
+{
+  "resultSet": [
+    {
+      "hash": "4b82593225c75ad9566fe2938291edc53afc3eb9e61ced51a47bb98264dc1cb4",
+      "type": 0,
+      "blockHeight": null,
+      "blockHash": null,
+      "timestamp": null,
+      "amount": null,
+      "version": 1,
+      "vIn": null,
+      "vOut": null,
+      "confirmations": null,
+      "instantLock": true,
+      "chainLock": null
+    },
+    {
+      "hash": "f1edc4f297148814c5df0b5ee831f58132929b022dfad98542f27f5d19fbb348",
+      "type": 0,
+      "blockHeight": null,
+      "blockHash": null,
+      "timestamp": null,
+      "amount": null,
+      "version": 2,
+      "vIn": null,
+      "vOut": null,
+      "confirmations": null,
+      "instantLock": true,
+      "chainLock": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 2
   }
-]
+}
 ```
