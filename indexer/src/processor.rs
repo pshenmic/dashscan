@@ -1,20 +1,17 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::mpsc;
-use crate::db::Database;
+use crate::db::{BlockBatchWriter, BlockRow, AddressRow, Database, MasternodeRow, SpecialTransactionRow, TransactionRow, TxInputRow, TxOutputRow};
 use crate::errors::database_error::DatabaseError;
 use crate::p2p::{P2PClient, P2PError};
 use crate::p2p_converter;
 use crate::rpc::{Block, DashRpcClient, Transaction};
 use chrono::{DateTime, Utc};
-use deadpool_postgres::Client;
 use serde_json::Value;
-use tokio_postgres::GenericClient;
 use tracing::{debug, info};
-use dashcore::consensus::encode::deserialize_partial;
 use crate::config::Config;
 use crate::errors::block_index_error::BlockIndexError;
-
+use dashcore::consensus::encode::deserialize_partial;
 
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
@@ -27,11 +24,7 @@ impl BlockProcessor {
     }
 
     pub async fn index_block_by_hash(&self, hash: &str) -> Result<Option<String>, BlockIndexError> {
-        // Acquire one connection reused for both the existence check and the transaction.
-        let mut client = self.db.begin().await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-        if self.db.get_block_by_hash(&**client, hash).await
+        if self.db.get_block_by_hash(hash).await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?
             .is_some()
         {
@@ -40,153 +33,143 @@ impl BlockProcessor {
         }
 
         let block = self.rpc.get_block(hash).await
-            .map_err(|e| BlockIndexError::from(e))?;
+            .map_err(BlockIndexError::from)?;
 
-        self.process_block(&mut client, block).await?;
+        // Live sync: one writer per block, flushed immediately after
+        let mut writer = self.db.batch_writer()
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        self.write_block(&mut writer, block).await?;
+        writer.end().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
         Ok(Some(hash.to_string()))
     }
 
     pub async fn index_block_by_height(&self, height: i64) -> Result<Option<String>, BlockIndexError> {
         let hash = self.rpc.get_block_hash(height).await
-            .map_err(|e| BlockIndexError::from(e))?;
-
+            .map_err(BlockIndexError::from)?;
         self.index_block_by_hash(&hash).await
     }
 
-    /// Indexes a block using an already-acquired pool connection.
-    /// Opens a transaction on that connection, writes everything, and commits.
-    /// Used by live sync (single-block commits).
-    async fn process_block(&self, client: &mut Client, block: Block) -> Result<(), BlockIndexError> {
-        let db_tx = client.transaction().await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-        self.write_block(&*db_tx, block).await?;
-
-        db_tx.commit().await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-        Ok(())
-    }
-
-    /// Writes a single block and all its data into the given client/transaction.
-    /// Does NOT commit — the caller controls transaction boundaries.
-    async fn write_block(&self, client: &impl GenericClient, block: Block) -> Result<(), BlockIndexError> {
+    /// Write a single block into the provided BatchWriter.
+    /// Does NOT flush — caller controls when to commit/end.
+    pub async fn write_block(
+        &self,
+        writer: &mut BlockBatchWriter,
+        block: Block,
+    ) -> Result<(), BlockIndexError> {
         let tx_count = block.tx.len() as i32;
 
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
             .ok_or_else(|| BlockIndexError::UnexpectedError("Invalid block timestamp".to_string()))?;
 
-        // Extract cb_tx fields before consuming block.cb_tx
-        let mn_list_root: Option<String>             = block.cb_tx.as_ref().map(|cb| cb.merkle_root_mn_list.clone());
-        let credit_pool_balance: Option<f64>         = block.cb_tx.as_ref().and_then(|cb| cb.credit_pool_balance);
-        let cbtx_version: Option<i32>                = block.cb_tx.as_ref().map(|cb| cb.version);
-        let cbtx_height: Option<i32>                 = block.cb_tx.as_ref().map(|cb| cb.height);
-        let cbtx_merkle_root_quorums: Option<String> = block.cb_tx.as_ref().and_then(|cb| cb.merkle_root_quorums.clone());
-        let cbtx_best_cl_height_diff: Option<i64>    = block.cb_tx.as_ref().and_then(|cb| cb.best_cl_height_diff);
-        let cbtx_best_cl_signature: Option<String>   = block.cb_tx.as_ref().and_then(|cb| cb.best_cl_signature.clone());
+        let block_row = BlockRow {
+            hash: block.hash.clone(),
+            height: block.height as i32,
+            version: block.version,
+            timestamp: timestamp.timestamp() as u32,
+            previous_block_hash: block.previous_block_hash.clone(),
+            merkle_root: block.merkle_root.clone(),
+            size: block.size as i32,
+            nonce: block.nonce,
+            difficulty: block.difficulty,
+            chainwork: block.chainwork.clone(),
+            tx_count,
+            merkle_root_mn_list: block.cb_tx.as_ref().map(|cb| cb.merkle_root_mn_list.clone()),
+            credit_pool_balance: block.cb_tx.as_ref().and_then(|cb| cb.credit_pool_balance),
+            cbtx_version: block.cb_tx.as_ref().map(|cb| cb.version),
+            cbtx_height: block.cb_tx.as_ref().map(|cb| cb.height),
+            cbtx_merkle_root_quorums: block.cb_tx.as_ref().and_then(|cb| cb.merkle_root_quorums.clone()),
+            cbtx_best_cl_height_diff: block.cb_tx.as_ref().and_then(|cb| cb.best_cl_height_diff),
+            cbtx_best_cl_signature: block.cb_tx.as_ref().and_then(|cb| cb.best_cl_signature.clone()),
+        };
 
-        // Insert block header
-        self.db
-            .insert_block(
-                client,
-                &block.hash,
-                block.height,
-                block.version,
-                timestamp,
-                block.previous_block_hash,
-                &block.merkle_root,
-                block.size,
-                block.nonce,
-                block.difficulty,
-                &block.chainwork,
-                tx_count,
-                mn_list_root.as_deref(),
-                credit_pool_balance,
-                cbtx_version,
-                cbtx_height,
-                cbtx_merkle_root_quorums.as_deref(),
-                cbtx_best_cl_height_diff,
-                cbtx_best_cl_signature.as_deref(),
-            )
-            .await
+        writer.blocks.write(&block_row)
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-        if !block.tx.is_empty() {
-            // One INSERT for all transactions
-            let tx_map = self.db
-                .insert_transactions_batch(client, &block.tx, block.height)
-                .await
+        for tx in &block.tx {
+            let tx_row = TransactionRow {
+                hash: tx.txid.clone(),
+                block_height: Some(block.height as i32),
+                version: tx.version,
+                tx_type: tx.tx_type.unwrap_or(0),
+                size: tx.size as i32,
+                locktime: tx.locktime,
+                is_coinbase: tx.vin.first().map_or(false, |v| v.coinbase.is_some()),
+            };
+            writer.transactions.write(&tx_row)
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-            // One INSERT for all inputs
-            self.db
-                .insert_tx_inputs_batch(client, &block.tx, &tx_map)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+            for (i, vin) in tx.vin.iter().enumerate() {
+                let input_row = TxInputRow {
+                    tx_hash: tx.txid.clone(),
+                    vin_index: i as i32,
+                    prev_tx_hash: vin.txid.clone(),
+                    prev_vout_index: vin.vout,
+                    coinbase_data: vin.coinbase.clone(),
+                };
+                writer.tx_inputs.write(&input_row)
+                    .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+            }
+        }
 
-            // Collect unique (address -> (tx_id, height)) for batch upsert,
-            // and remember which (vout_index, txid) pairs map to which address.
-            let mut upsert_records: Vec<(String, i32, Option<i32>)> = Vec::new();
-            let mut seen_addresses: HashMap<String, usize> = HashMap::new();
-            let mut vout_to_address: Vec<((i32, String), String)> = Vec::new();
+        // Collect (vout_index, txid) -> address and deduplicated address records
+        let mut address_map: HashMap<(i32, String), String> = HashMap::new();
+        let mut seen_addresses: HashMap<String, String> = HashMap::new();
 
-            let h = Some(block.height as i32);
-            for tx in &block.tx {
-                for (vout_index, vout) in tx.vout.iter().enumerate() {
-                    if let Some(ref addr) = vout.script_pub_key.first_address() {
-                        let tx_id = tx_map[&tx.txid];
-                        // Keep the last-seen tx_id for each address (last wins)
-                        if let Some(&idx) = seen_addresses.get(addr.as_str()) {
-                            upsert_records[idx] = (addr.clone(), tx_id, h);
-                        } else {
-                            seen_addresses.insert(addr.clone(), upsert_records.len());
-                            upsert_records.push((addr.clone(), tx_id, h));
-                        }
-                        vout_to_address.push(((vout_index as i32, tx.txid.clone()), addr.clone()));
-                    }
+        for tx in &block.tx {
+            for vout in &tx.vout {
+                if let Some(addr) = vout.script_pub_key.first_address() {
+                    address_map.insert((vout.n, tx.txid.clone()), addr.clone());
+                    seen_addresses.insert(addr, tx.txid.clone());
                 }
             }
+        }
 
-            let addr_id_map = self.db
-                .upsert_addresses_batch(client, &upsert_records)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-            // Build (vout_index, tx_hash) -> address_id map
-            let mut addresses_map: HashMap<(i32, String), i32> = HashMap::new();
-            for ((vout_idx, txid), addr) in vout_to_address {
-                let id = *addr_id_map.get(&addr).ok_or_else(|| {
-                    BlockIndexError::UnexpectedError(format!("Missing address id for {}", addr))
-                })?;
-                addresses_map.insert((vout_idx, txid), id);
-            }
-
-            // One INSERT for all outputs
-            self.db
-                .insert_tx_outputs_batch(client, &block.tx, &addresses_map, &tx_map)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-            // One INSERT for all special transactions (type > 0)
-            let special_records: Vec<(i32, i16, Value)> = block.tx
-                .iter()
-                .filter(|tx| tx.tx_type.unwrap_or(0) > 0)
-                .map(|tx| (tx_map[&tx.txid], tx.tx_type.unwrap(), self.build_special_tx_payload(tx)))
-                .collect();
-
-            self.db
-                .insert_special_transactions_batch(client, &special_records)
-                .await
+        for (addr, tx_hash) in &seen_addresses {
+            let addr_row = AddressRow {
+                address: addr.clone(),
+                first_seen_tx_hash: tx_hash.clone(),
+                first_seen_block: Some(block.height as i32),
+                last_seen_tx_hash: tx_hash.clone(),
+                last_seen_block: Some(block.height as i32),
+            };
+            writer.addresses.write(&addr_row)
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
         }
 
-        info!(
-            height = block.height,
-            hash = %block.hash,
-            txs = tx_count,
-            "Indexed block"
-        );
+        for tx in &block.tx {
+            for vout in &tx.vout {
+                let address = address_map.get(&(vout.n, tx.txid.clone())).cloned();
+                let output_row = TxOutputRow {
+                    tx_hash: tx.txid.clone(),
+                    vout_index: vout.n,
+                    value: (vout.value * 100_000_000.0).round() as i64,
+                    script_pub_key: vout.script_pub_key.hex.clone(),
+                    script_type: vout.script_pub_key.script_type.clone(),
+                    address,
+                };
+                writer.tx_outputs.write(&output_row)
+                    .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+            }
+
+            if tx.tx_type.unwrap_or(0) > 0 {
+                let special_row = SpecialTransactionRow {
+                    tx_hash: tx.txid.clone(),
+                    tx_type: tx.tx_type.unwrap(),
+                    payload: serde_json::to_string(&self.build_special_tx_payload(tx))
+                        .unwrap_or_default(),
+                };
+                writer.special_transactions.write(&special_row)
+                    .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+            }
+        }
+
+        // Commit after each block: flushes to ClickHouse only if chunk_size is reached
+        writer.commit().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        info!(height = block.height, hash = %block.hash, txs = tx_count, "Indexed block");
         Ok(())
     }
 
@@ -195,79 +178,74 @@ impl BlockProcessor {
         raw_bytes: Vec<u8>,
         network: dashcore::Network,
     ) -> Result<bool, BlockIndexError> {
-        let (raw_tx, _): (dashcore::blockdata::transaction::Transaction, usize) = deserialize_partial(&raw_bytes)
-            .map_err(|e| BlockIndexError::UnexpectedError(format!("Failed to deserialize rawtx: {e}")))?;
+        let (raw_tx, _): (dashcore::blockdata::transaction::Transaction, usize) =
+            deserialize_partial(&raw_bytes)
+                .map_err(|e| BlockIndexError::UnexpectedError(format!("Failed to deserialize rawtx: {e}")))?;
 
         let tx = p2p_converter::convert_transaction(&raw_tx, network);
 
-        let mut client = self.db.begin().await
+        // Pending txs are individual — use direct inserts, not the batch writer
+        self.db.insert_pending_transaction(&tx).await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-        let db_tx = client.transaction().await
+
+        self.db.insert_pending_tx_inputs(&tx).await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-        let inserted = if let Some(tx_id) = self.db
-            .insert_pending_transaction(&*db_tx, &tx)
-            .await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?
-        {
-            let tx_map = HashMap::from([(tx.txid.clone(), tx_id)]);
-
-            self.db
-                .insert_tx_inputs_batch(&*db_tx, &[tx.clone()], &tx_map)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-            let mut upsert_records: Vec<(String, i32, Option<i32>)> = Vec::new();
-            let mut vout_to_address: Vec<((i32, String), String)> = Vec::new();
-            for (vout_index, vout) in tx.vout.iter().enumerate() {
-                if let Some(ref addr) = vout.script_pub_key.first_address() {
-                    if !upsert_records.iter().any(|(a, _, _)| a == addr) {
-                        upsert_records.push((addr.clone(), tx_id, None));
-                    }
-                    vout_to_address.push(((vout_index as i32, tx.txid.clone()), addr.clone()));
+        let mut address_map: HashMap<(i32, String), String> = HashMap::new();
+        let mut address_rows: Vec<AddressRow> = Vec::new();
+        for vout in &tx.vout {
+            if let Some(addr) = vout.script_pub_key.first_address() {
+                address_map.insert((vout.n, tx.txid.clone()), addr.clone());
+                if !address_rows.iter().any(|r| r.address == addr) {
+                    address_rows.push(AddressRow {
+                        address: addr.clone(),
+                        first_seen_tx_hash: tx.txid.clone(),
+                        first_seen_block: None,
+                        last_seen_tx_hash: tx.txid.clone(),
+                        last_seen_block: None,
+                    });
                 }
             }
+        }
 
-            let addr_id_map = self.db
-                .upsert_addresses_batch(&*db_tx, &upsert_records)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-            let mut addresses_map: HashMap<(i32, String), i32> = HashMap::new();
-            for ((vout_idx, txid), addr) in vout_to_address {
-                if let Some(&id) = addr_id_map.get(&addr) {
-                    addresses_map.insert((vout_idx, txid), id);
-                }
-            }
-
-            self.db
-                .insert_tx_outputs_batch(&*db_tx, &[tx.clone()], &addresses_map, &tx_map)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-            true
-        } else {
-            false
-        };
-
-        db_tx.commit().await
+        self.db.insert_pending_addresses(&address_rows).await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-        Ok(inserted)
+        self.db.insert_pending_tx_outputs(&tx, &address_map).await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        Ok(true)
     }
 
     pub async fn sync_masternodes(&self) -> Result<(), BlockIndexError> {
         let entries = self.rpc.get_masternode_list().await.map_err(BlockIndexError::from)?;
 
-        let mut client = self.db.begin().await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-        let db_tx = client.transaction().await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        let mut ins = self.db.client.inserter::<MasternodeRow>("masternodes")
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?
+            .with_max_rows(self.db.chunk_size);
 
-        self.db.upsert_masternodes_batch(&*db_tx, &entries).await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
-        db_tx.commit().await
+        for m in &entries {
+            let row = MasternodeRow {
+                pro_tx_hash: m.pro_tx_hash.clone(),
+                address: m.address.clone(),
+                payee: m.payee.clone(),
+                status: m.status.clone(),
+                mn_type: m.mn_type.clone(),
+                pos_penalty_score: m.pospenaltyscore,
+                consecutive_payments: m.consecutive_payments,
+                last_paid_time: m.lastpaidtime,
+                last_paid_block: m.lastpaidblock,
+                owner_address: m.owneraddress.clone(),
+                voting_address: m.votingaddress.clone(),
+                collateral_address: m.collateraladdress.clone(),
+                pub_key_operator: m.pubkeyoperator.clone(),
+            };
+            ins.write(&row)
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+            ins.commit().await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        }
+        ins.end().await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
         info!(count = entries.len(), "Synced masternode list");
@@ -276,15 +254,8 @@ impl BlockProcessor {
 
     fn build_special_tx_payload(&self, tx: &Transaction) -> Value {
         let special_keys: &[&str] = &[
-            "proRegTx",
-            "proUpServTx",
-            "proUpRegTx",
-            "proUpRevTx",
-            "cbTx",
-            "qcTx",
-            "mnHfTx",
-            "assetLockTx",
-            "assetUnlockTx",
+            "proRegTx", "proUpServTx", "proUpRegTx", "proUpRevTx",
+            "cbTx", "qcTx", "mnHfTx", "assetLockTx", "assetUnlockTx",
         ];
 
         let mut payload = serde_json::Map::new();
@@ -304,9 +275,8 @@ impl BlockProcessor {
     }
 
     /// Catch up from last indexed block to current chain tip via P2P.
-    ///
-    /// 1. Sync headers from the peer to discover block hashes
-    /// 2. Stream blocks through a channel for concurrent fetch + processing
+    /// One BlockBatchWriter is kept open across all blocks — rows flush only
+    /// when chunk_size is reached, not after every block.
     pub async fn catch_up(&self, config: &Config) -> Result<i64, BlockIndexError> {
         let chain_height = self.rpc.get_block_count().await
             .map_err(BlockIndexError::from)?;
@@ -333,80 +303,66 @@ impl BlockProcessor {
             .parse()
             .map_err(|e| BlockIndexError::UnexpectedError(format!("Invalid P2P address: {}", e)))?;
 
-        // Get the starting block hash from RPC so P2P can skip straight to it
         let start_hash_str = self.rpc.get_block_hash(start).await
             .map_err(BlockIndexError::from)?;
         let start_hash: dashcore::BlockHash = start_hash_str.parse()
             .map_err(|e| BlockIndexError::UnexpectedError(format!("Failed to parse block hash: {:?}", e)))?;
 
-        let block_batch_size = config.p2p_batch_size.clone();
-
-        let (tx, rx) = mpsc::sync_channel::<(i64, dashcore::block::Block)>(block_batch_size*2);
+        let block_batch_size = config.p2p_batch_size;
+        let (tx, rx) = mpsc::sync_channel::<(i64, dashcore::block::Block)>(block_batch_size * 2);
 
         let start_h = u64::try_from(start)
             .map_err(|_| BlockIndexError::UnexpectedError(format!("Invalid start height: {}", start)))?;
         let end_h = u64::try_from(chain_height)
             .map_err(|_| BlockIndexError::UnexpectedError(format!("Invalid chain height: {}", chain_height)))?;
 
-        let network = config.network.clone();
+        let network = config.network;
 
-        // P2P fetching in a blocking thread
         let p2p_handle = tokio::task::spawn_blocking(move || -> Result<(), P2PError> {
             let mut p2p = P2PClient::connect(p2p_addr, network)?;
             p2p.stream_blocks(start_h, start_hash, end_h, &tx, block_batch_size)?;
             Ok(())
         });
 
-        // Process blocks as they arrive from P2P.
-        // Single connection reused; blocks are batched into multi-block transactions
-        // to amortize WAL flush cost (1 fsync per CATCH_UP_BATCH_SIZE blocks).
-        let mut client = self.db.begin().await
-            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-        let mut indexed: i64 = 0;
-        let mut last_height = db_height;
-        let mut batch_count: usize = 0;
-        let mut db_tx = client.transaction().await
+        // Single writer kept open across ALL blocks — flushes only when chunk_size is reached
+        let mut writer = self.db.batch_writer()
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
+        let mut indexed: i64 = 0;
+        let mut last_height = db_height;
+
         while let Ok((height, raw_block)) = rx.recv() {
-            // P2P streams blocks in order from start_height; skip already-indexed heights
             if height <= last_height {
                 debug!(height, "Block already indexed, skipping");
                 continue;
             }
 
             let block = p2p_converter::convert_block(&raw_block, height, network);
-            self.write_block(&*db_tx, block).await?;
+            self.write_block(&mut writer, block).await?;
 
             last_height = height;
             indexed += 1;
-            batch_count += 1;
 
-            if batch_count >= config.catch_up_batch_size {
-                db_tx.commit().await
+            if indexed % config.catch_up_batch_size as i64 == 0 {
+                writer.end().await
                     .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
+                writer = self.db.batch_writer()
+                    .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+                
                 info!(
                     indexed,
                     height = last_height,
                     remaining = total - indexed,
-                    batch = config.catch_up_batch_size,
-                    "Committed batch"
+                    "Catch-up progress"
                 );
-
-                db_tx = client.transaction().await
-                    .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-                batch_count = 0;
             }
         }
 
-        // Commit remaining blocks in the last partial batch
-        if batch_count > 0 {
-            db_tx.commit().await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-        }
+        // Flush remaining rows in all inserters
+        writer.end().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-        // Check P2P thread result and propagate any error
         match p2p_handle.await {
             Ok(Ok(())) => {}
             Ok(Err(e)) => return Err(BlockIndexError::from(e)),

@@ -10,7 +10,6 @@ mod zmq;
 use db::Database;
 use processor::BlockProcessor;
 use rpc::DashRpcClient;
-use std::ops::DerefMut;
 use std::{env, process};
 use zmq::{zmq_listener, zmq_rawtx_listener};
 
@@ -22,7 +21,6 @@ use tracing::{error, info, warn};
 
 #[tokio::main]
 async fn main() {
-    // Load .env file
     dotenv().ok();
 
     let args: Vec<String> = env::args().collect();
@@ -30,68 +28,33 @@ async fn main() {
     if args.len() > 1 {
         let arg = args.get(1).unwrap();
 
+        // Initialize logging early for CLI commands
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+            )
+            .init();
+
+        let config = Config::from_env();
+        let client = config.clickhouse_client();
+        let db = Database::new(client, config.insert_chunk_size);
+
         match arg.as_str() {
             "drop_db" => {
-                let config = Config::from_env();
-                let pg_config = config.pg_config();
-                let pool = pg_config
-                    .create_pool(
-                        Some(deadpool_postgres::Runtime::Tokio1),
-                        tokio_postgres::NoTls,
-                    )
-                    .expect("Failed to create database pool");
-
-                let mut conn = pool.get().await.unwrap();
-                let client = conn.deref_mut().deref_mut();
-
-                client
-                    .batch_execute(
-                        "BEGIN; \
-                         DROP TABLE IF EXISTS masternodes; \
-                         DROP TABLE IF EXISTS special_transactions; \
-                         DROP TABLE IF EXISTS tx_inputs; \
-                         DROP TABLE IF EXISTS tx_outputs; \
-                         DROP TABLE IF EXISTS addresses; \
-                         DROP TABLE IF EXISTS transactions; \
-                         DROP TABLE IF EXISTS blocks; \
-                         DROP TABLE IF EXISTS refinery_schema_history; \
-                         COMMIT;",
-                    )
-                    .await
-                    .expect("Failed to drop tables");
-
+                db.drop_tables().await.expect("Failed to drop tables");
                 println!("All tables dropped successfully");
-
                 process::exit(0);
             }
             "migrate" => {
-                let config = Config::from_env();
-                let pg_config = config.pg_config();
-                let pool = pg_config
-                    .create_pool(
-                        Some(deadpool_postgres::Runtime::Tokio1),
-                        tokio_postgres::NoTls,
-                    )
-                    .expect("Failed to create database pool");
-
-                let migrations = refinery::load_sql_migrations("./migrations")
-                    .expect("Failed to load migrations");
-
-                let mut conn = pool.get().await.unwrap();
-                let client = conn.deref_mut().deref_mut();
-                let runner = refinery::Runner::new(&migrations);
-
-                let report = runner.run_async(client).await.expect("Migration failed");
-
-                println!("{:?}", report);
-
+                db.create_tables().await.expect("Failed to create tables");
+                println!("Tables created successfully");
                 process::exit(0);
             }
             _ => panic!("Invalid argument"),
         }
     }
 
-    // Initialize logging
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -101,21 +64,14 @@ async fn main() {
 
     info!("Dash Blockchain Indexer starting...");
 
-    // Load config
     let config = Config::from_env();
 
-    // Connect to PostgreSQL
-    let pg_config = config.pg_config();
-    let pool = pg_config
-        .create_pool(
-            Some(deadpool_postgres::Runtime::Tokio1),
-            tokio_postgres::NoTls,
-        )
-        .expect("Failed to create database pool");
+    let client = config.clickhouse_client();
+    let db = Database::new(client, config.insert_chunk_size);
 
-    let db = Database::new(pool);
+    // Ensure schema exists
+    db.create_tables().await.expect("Failed to create ClickHouse tables");
 
-    // Connect to Dash Core RPC
     let rpc = DashRpcClient::new(
         &config.rpc_host,
         &config.rpc_port,
@@ -123,17 +79,13 @@ async fn main() {
         &config.rpc_password,
     );
 
-    // Test RPC connectivity
     if let Err(e) = rpc.ping().await {
         error!("Failed to connect to Dash Core: {e}");
-        error!("Make sure Dash Core is running and RPC credentials are correct");
         std::process::exit(1);
     }
 
-    // Create block processor
     let processor = Arc::new(BlockProcessor::new(rpc, db));
 
-    // Catch up with the blockchain
     let last_height = match processor.catch_up(&config).await {
         Ok(h) => h,
         Err(e) => {
@@ -144,13 +96,9 @@ async fn main() {
 
     info!(last_height, "Starting continuous indexing...");
 
-    // Channel for ZMQ block notifications
     let (zmq_tx, zmq_rx) = mpsc::channel::<String>(32);
-
-    // Channel for ZMQ rawtx notifications
     let (rawtx_tx, rawtx_rx) = mpsc::channel::<Vec<u8>>(256);
 
-    // Spawn ZMQ listeners
     let zmq_url = config.zmq_url.clone();
     tokio::spawn(async move {
         zmq_listener(zmq_url, zmq_tx).await;
@@ -161,7 +109,6 @@ async fn main() {
         zmq_rawtx_listener(zmq_rawtx_url, rawtx_tx).await;
     });
 
-    // Spawn polling fallback
     let poll_processor = Arc::clone(&processor);
     let poll_interval = config.poll_interval_secs;
     let (poll_tx, poll_rx) = mpsc::channel::<()>(1);
@@ -170,7 +117,6 @@ async fn main() {
         polling_loop(poll_processor, poll_interval, poll_tx).await;
     });
 
-    // Main loop: process ZMQ and poll events
     continuous_indexing(processor, zmq_rx, rawtx_rx, poll_rx, config.network).await;
 }
 
@@ -182,10 +128,7 @@ async fn polling_loop(processor: Arc<BlockProcessor>, interval_secs: u64, tx: mp
 
         match processor.rpc.get_block_count().await {
             Ok(chain_height) => {
-                let db_height: i64 = processor
-                    .db
-                    .get_max_block_height()
-                    .await
+                let db_height = processor.db.get_max_block_height().await
                     .expect("Failed to get max block height from database");
 
                 if chain_height > db_height {
@@ -193,9 +136,7 @@ async fn polling_loop(processor: Arc<BlockProcessor>, interval_secs: u64, tx: mp
                     let _ = tx.send(()).await;
                 }
             }
-            Err(e) => {
-                warn!("Polling: RPC error: {e}");
-            }
+            Err(e) => warn!("Polling: RPC error: {e}"),
         }
     }
 }
@@ -210,7 +151,6 @@ async fn continuous_indexing(
     loop {
         tokio::select! {
             Some(hash) = zmq_rx.recv() => {
-                // ZMQ notified us of a new block — use the hash directly, no extra RPC call
                 info!("ZMQ: new block detected: {}", hash);
                 match processor.index_block_by_hash(&hash).await {
                     Ok(None) => info!("Block {} already indexed, skipping", hash),
@@ -218,10 +158,9 @@ async fn continuous_indexing(
                         if let Err(e) = processor.sync_masternodes().await {
                             error!("Failed to sync masternode list: {}", e);
                         }
-                    },
+                    }
                     Err(e) => error!("Failed to index block {}: {}", hash, e),
                 }
-
                 backoff_sleep(1).await;
             }
             Some(raw_bytes) = rawtx_rx.recv() => {
@@ -232,7 +171,6 @@ async fn continuous_indexing(
                 }
             }
             Some(()) = poll_rx.recv() => {
-                // Polling detected new blocks
                 info!("Polling: new blocks detected");
                 index_new_blocks(&processor).await;
                 backoff_sleep(1).await;
@@ -241,12 +179,11 @@ async fn continuous_indexing(
     }
 }
 
-async fn index_new_blocks(processor: &BlockProcessor) -> () {
-    // check block already indexed
-    let chain_height: i64 = processor.rpc.get_block_count().await
+async fn index_new_blocks(processor: &BlockProcessor) {
+    let chain_height = processor.rpc.get_block_count().await
         .expect("Could not get block count from RPC");
 
-    let db_height: i64 = processor.db.get_max_block_height().await
+    let db_height = processor.db.get_max_block_height().await
         .expect("Could not read max block height from database");
 
     for height in (db_height + 1)..=chain_height {
