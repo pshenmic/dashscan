@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Knex } from 'knex';
 import TransactionsDAO from '../dao/TransactionsDAO';
 import {DashCoreRPC} from "../dashcoreRPC";
+import {PaginatedQuery} from "./types";
 
 export default class TransactionsController {
   private transactionsDAO: TransactionsDAO;
@@ -10,7 +11,7 @@ export default class TransactionsController {
     this.transactionsDAO = new TransactionsDAO(knex, dashCoreRPC);
   }
 
-  getTransactions = async (request: FastifyRequest<{ Querystring: { page?: number; limit?: number; order?: string } }>, response: FastifyReply): Promise<void> => {
+  getTransactions = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
     const { page = 1, limit = 10, order = 'asc' } = request.query;
 
     const transactions = await this.transactionsDAO.getTransactions(page, limit, order);
@@ -35,7 +36,7 @@ export default class TransactionsController {
     response.send(history);
   };
 
-  getTransactionsByBlockHeight = async (request: FastifyRequest<{ Querystring: { page?: number; limit?: number; order?: string }; Params: { height?: number } }>, response: FastifyReply): Promise<void> => {
+  getTransactionsByBlockHeight = async (request: FastifyRequest<{ Querystring: PaginatedQuery; Params: { height?: number } }>, response: FastifyReply): Promise<void> => {
     const { page = 1, limit = 10, order = 'asc' } = request.query;
     const { height = 1 } = request.params;
 
@@ -48,8 +49,10 @@ export default class TransactionsController {
     response.send(transactions);
   };
 
-  getPendingTransactions = async (_: unknown, response: FastifyReply): Promise<void> => {
-    const transactions = await this.transactionsDAO.getPendingTransactions();
+  getPendingTransactions = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
+    const { page = 1, limit = 10, order = 'asc' } = request.query;
+    
+    const transactions = await this.transactionsDAO.getPendingTransactions(page, limit, order);
 
     response.send(transactions)
   }

@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import MasternodesDAO from '../dao/MasternodesDAO';
+import {PaginatedQuery} from "./types";
 
 export default class MasternodesController {
   private dao: MasternodesDAO;
@@ -8,7 +9,7 @@ export default class MasternodesController {
     this.dao = dao;
   }
 
-  getMasternodes = async (request: FastifyRequest<{ Querystring: { page?: number; limit?: number; order?: string } }>, response: FastifyReply): Promise<void> => {
+  getMasternodes = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
     const { page = 1, limit = 10, order = 'asc' } = request.query;
 
     const masternodes = await this.dao.getMasternodes(page, limit, order);
