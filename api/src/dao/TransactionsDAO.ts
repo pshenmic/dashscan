@@ -17,7 +17,6 @@ export default class TransactionsDAO {
   getTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
-
     // TODO: Slow on pages like 10000000, maybe we need to add cursor
     //  or something what can improve performance
     const countSubquery = this.knex('pg_class')
@@ -153,16 +152,40 @@ export default class TransactionsDAO {
     return new PaginatedResultSet(transactions as Transaction[], page, limit, row?.total_count);
   };
 
-  getPendingTransactions = async (): Promise<Transaction[]> => {
-    const hashes = await this.dashCoreRPC.getMemPoolTransactionHashes()
-    const rawTransactions = await Promise.all(hashes.map(async (hash) => this.dashCoreRPC.getTransactionByHash(hash)));
+  getPendingTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
+    const fromRank = (page - 1) * limit;
 
-    return rawTransactions.map(tx=> Transaction.fromObject({
+    const subquery = this.knex('transactions')
+      .select(
+        'transactions.hash',
+        'transactions.type',
+        'transactions.block_height',
+      )
+      .orderBy('id', order)
+      .whereNull('block_height')
+      .limit(limit)
+      .offset(fromRank);
+
+    const rows = await this.knex
+      .with('subquery', subquery)
+      .select(this.knex('subquery').count('*').as('total_count'))
+      .select(
+        'subquery.hash'
+      )
+      .from('subquery')
+
+    const [row] = rows;
+
+    const rawTransactions = await Promise.all(rows.map(async ({hash}) => this.dashCoreRPC.getTransactionByHash(hash)));
+
+    const transactions = rawTransactions.map(tx=> Transaction.fromObject({
       ...tx,
       hash: tx.txid,
       blockHeight: tx.height,
       blockHash: tx.blockhash,
       instantLock: tx.instantlock_internal,
-    }));
+    }))
+
+    return new PaginatedResultSet(transactions, page, limit, row?.total_count ?? -1);
   }
 }
