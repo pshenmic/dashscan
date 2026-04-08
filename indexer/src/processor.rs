@@ -56,12 +56,13 @@ impl BlockProcessor {
 
     /// Indexes a block using an already-acquired pool connection.
     /// Opens a transaction on that connection, writes everything, and commits.
-    /// Used by live sync (single-block commits).
+    /// Used by live sync (single-block commits) — chain_locked is false,
+    /// set later via rawchainlocksig.
     async fn process_block(&self, client: &mut Client, block: Block) -> Result<(), BlockIndexError> {
         let db_tx = client.transaction().await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-        self.write_block(&*db_tx, block).await?;
+        self.write_block(&*db_tx, block, false).await?;
 
         db_tx.commit().await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
@@ -71,7 +72,7 @@ impl BlockProcessor {
 
     /// Writes a single block and all its data into the given client/transaction.
     /// Does NOT commit — the caller controls transaction boundaries.
-    async fn write_block(&self, client: &impl GenericClient, block: Block) -> Result<(), BlockIndexError> {
+    async fn write_block(&self, client: &impl GenericClient, block: Block, chain_locked: bool) -> Result<(), BlockIndexError> {
         let tx_count = block.tx.len() as i32;
 
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
@@ -115,7 +116,7 @@ impl BlockProcessor {
         if !block.tx.is_empty() {
             // One INSERT for all transactions
             let tx_map = self.db
-                .insert_transactions_batch(client, &block.tx, block.height)
+                .insert_transactions_batch(client, &block.tx, block.height, chain_locked)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
@@ -256,6 +257,40 @@ impl BlockProcessor {
         Ok(inserted)
     }
 
+    /// Store the raw ISLOCK hex on the matching transaction.
+    pub async fn apply_instant_lock(&self, txid: String, lock_hex: String) -> Result<(), BlockIndexError> {
+        let client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        let updated = self.db
+            .update_transaction_instant_lock(&**client, &txid, &lock_hex)
+            .await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        if updated == 0 {
+            debug!(txid = %txid, "instant_lock: transaction not yet indexed, skipping");
+        } else {
+            info!(txid = %txid, "Applied instant lock");
+        }
+
+        Ok(())
+    }
+
+    /// Set chain_locked = TRUE for all transactions at the given block height.
+    pub async fn apply_chain_lock(&self, block_height: i32) -> Result<(), BlockIndexError> {
+        let client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        let updated = self.db
+            .set_chain_locked_for_block(&**client, block_height)
+            .await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        info!(height = block_height, rows = updated, "Applied chain lock");
+
+        Ok(())
+    }
+
     pub async fn sync_masternodes(&self) -> Result<(), BlockIndexError> {
         let entries = self.rpc.get_masternode_list().await.map_err(BlockIndexError::from)?;
 
@@ -376,7 +411,7 @@ impl BlockProcessor {
             }
 
             let block = p2p_converter::convert_block(&raw_block, height, network);
-            self.write_block(&*db_tx, block).await?;
+            self.write_block(&*db_tx, block, true).await?;
 
             last_height = height;
             indexed += 1;

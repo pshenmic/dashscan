@@ -301,6 +301,7 @@ impl Database {
         client: &impl GenericClient,
         transactions: &[RpcTransaction],
         block_height: i64,
+        chain_locked: bool,
     ) -> Result<HashMap<String, i32>, PoolError> {
 
         let mut tx_map: HashMap<String, i32> = HashMap::new();
@@ -317,13 +318,13 @@ impl Database {
         for (chunk_idx, chunk) in transactions.chunks(BATCH_SIZE).enumerate() {
             let base = chunk_idx * BATCH_SIZE;
             let query = format!(
-                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase) VALUES {} \
+                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, chain_locked) VALUES {} \
                  ON CONFLICT (hash) DO UPDATE SET block_height = COALESCE(transactions.block_height, EXCLUDED.block_height) \
                  RETURNING id, hash",
-                build_placeholders(chunk.len(), 7)
+                build_placeholders(chunk.len(), 8)
             );
 
-            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 7);
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 8);
             for (i, tx) in chunk.iter().enumerate() {
                 let abs = base + i;
                 params.push(&tx.txid);
@@ -333,6 +334,7 @@ impl Database {
                 params.push(&sizes[abs]);
                 params.push(&tx.locktime);
                 params.push(&is_coinbases[abs]);
+                params.push(&chain_locked);
             }
 
             let rows = client.query(query.as_str(), &params).await?;
@@ -497,6 +499,37 @@ impl Database {
         }
 
         Ok(address_map)
+    }
+
+    /// Update the `instant_lock` column for a single transaction by txid.
+    pub async fn update_transaction_instant_lock(
+        &self,
+        client: &impl GenericClient,
+        txid: &str,
+        lock_hex: &str,
+    ) -> Result<u64, PoolError> {
+        let updated = client
+            .execute(
+                "UPDATE transactions SET instant_lock = $1 WHERE hash = $2",
+                &[&lock_hex, &txid],
+            )
+            .await?;
+        Ok(updated)
+    }
+
+    /// Set `chain_locked = TRUE` for all transactions at the given block height.
+    pub async fn set_chain_locked_for_block(
+        &self,
+        client: &impl GenericClient,
+        block_height: i32,
+    ) -> Result<u64, PoolError> {
+        let updated = client
+            .execute(
+                "UPDATE transactions SET chain_locked = TRUE WHERE block_height = $1",
+                &[&block_height],
+            )
+            .await?;
+        Ok(updated)
     }
 
     /// Batch INSERT special-transaction payloads for all type > 0 txns in the block.

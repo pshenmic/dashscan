@@ -12,7 +12,7 @@ use processor::BlockProcessor;
 use rpc::DashRpcClient;
 use std::ops::DerefMut;
 use std::{env, process};
-use zmq::{zmq_listener, zmq_rawtx_listener};
+use zmq::{zmq_listener, zmq_rawtx_listener, zmq_rawchainlock_listener};
 
 use crate::config::Config;
 use dotenv::dotenv;
@@ -150,6 +150,12 @@ async fn main() {
     // Channel for ZMQ rawtx notifications
     let (rawtx_tx, rawtx_rx) = mpsc::channel::<Vec<u8>>(256);
 
+    // Channel for ZMQ rawtxlock notifications: (txid_hex, islock_hex)
+    let (rawtxlock_tx, rawtxlock_rx) = mpsc::channel::<(String, String)>(256);
+
+    // Channel for ZMQ rawchainlock notifications: locked block height
+    let (rawchainlock_tx, rawchainlock_rx) = mpsc::channel::<i32>(32);
+
     // Spawn ZMQ listeners
     let zmq_url = config.zmq_url.clone();
     tokio::spawn(async move {
@@ -158,7 +164,12 @@ async fn main() {
 
     let zmq_rawtx_url = config.zmq_url.clone();
     tokio::spawn(async move {
-        zmq_rawtx_listener(zmq_rawtx_url, rawtx_tx).await;
+        zmq_rawtx_listener(zmq_rawtx_url, rawtx_tx, rawtxlock_tx).await;
+    });
+
+    let zmq_rawchainlock_url = config.zmq_url.clone();
+    tokio::spawn(async move {
+        zmq_rawchainlock_listener(zmq_rawchainlock_url, rawchainlock_tx).await;
     });
 
     // Spawn polling fallback
@@ -171,7 +182,7 @@ async fn main() {
     });
 
     // Main loop: process ZMQ and poll events
-    continuous_indexing(processor, zmq_rx, rawtx_rx, poll_rx, config.network).await;
+    continuous_indexing(processor, zmq_rx, rawtx_rx, rawtxlock_rx, rawchainlock_rx, poll_rx, config.network).await;
 }
 
 async fn polling_loop(processor: Arc<BlockProcessor>, interval_secs: u64, tx: mpsc::Sender<()>) {
@@ -204,6 +215,8 @@ async fn continuous_indexing(
     processor: Arc<BlockProcessor>,
     mut zmq_rx: mpsc::Receiver<String>,
     mut rawtx_rx: mpsc::Receiver<Vec<u8>>,
+    mut rawtxlock_rx: mpsc::Receiver<(String, String)>,
+    mut rawchainlock_rx: mpsc::Receiver<i32>,
     mut poll_rx: mpsc::Receiver<()>,
     network: dashcore::Network,
 ) {
@@ -229,6 +242,16 @@ async fn continuous_indexing(
                     Ok(true)  => info!("Indexed pending transaction"),
                     Ok(false) => info!("Pending transaction already exists, skipping"),
                     Err(e)    => error!("Failed to index pending transaction: {e}"),
+                }
+            }
+            Some((txid, lock_hex)) = rawtxlock_rx.recv() => {
+                if let Err(e) = processor.apply_instant_lock(txid, lock_hex).await {
+                    error!("Failed to apply instant lock: {e}");
+                }
+            }
+            Some(height) = rawchainlock_rx.recv() => {
+                if let Err(e) = processor.apply_chain_lock(height).await {
+                    error!("Failed to apply chain lock: {e}");
                 }
             }
             Some(()) = poll_rx.recv() => {
