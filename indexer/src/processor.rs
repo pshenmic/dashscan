@@ -450,6 +450,18 @@ impl BlockProcessor {
 
         self.sync_masternodes().await?;
 
+        // Backfill chain_locked for any confirmed transactions that were indexed
+        // during a previous continuous sync before their chainlock arrived.
+        let backfill_client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        let backfilled = self.db
+            .backfill_chain_locks(&**backfill_client)
+            .await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        if backfilled > 0 {
+            info!(rows = backfilled, "Backfilled chain locks for previously unlocked transactions");
+        }
+
         info!(chain_height, indexed, "Catch-up complete");
         Ok(chain_height)
     }

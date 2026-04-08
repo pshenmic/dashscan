@@ -517,6 +517,22 @@ impl Database {
         Ok(updated)
     }
 
+    /// Set `chain_locked = TRUE` for all confirmed transactions that aren't already locked.
+    /// Used after catch-up to fix any blocks that were indexed during continuous sync
+    /// before their chainlock arrived, then the indexer restarted.
+    pub async fn backfill_chain_locks(
+        &self,
+        client: &impl GenericClient,
+    ) -> Result<u64, PoolError> {
+        let updated = client
+            .execute(
+                "UPDATE transactions SET chain_locked = TRUE WHERE block_height IS NOT NULL AND chain_locked = FALSE",
+                &[],
+            )
+            .await?;
+        Ok(updated)
+    }
+
     /// Set `chain_locked = TRUE` for all transactions at the given block height.
     pub async fn set_chain_locked_for_block(
         &self,
