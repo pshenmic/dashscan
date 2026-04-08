@@ -33,6 +33,8 @@ export default class TransactionsDAO {
         'transactions.hash',
         'transactions.type',
         'transactions.block_height',
+        'transactions.chain_locked',
+        'transactions.instant_lock'
       )
       .orderBy('transactions.block_height', order)
       .limit(limit)
@@ -45,8 +47,8 @@ export default class TransactionsDAO {
       .select(this.knex('total_count').as('total_count'))
       .select(
         'subquery.hash', 'type', 'block_height',
-        'blocks.timestamp as timestamp',
-        'blocks.hash as block_hash',
+        'blocks.timestamp as timestamp', 'chain_locked',
+        'blocks.hash as block_hash', 'instant_lock'
       )
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .leftJoin('blocks', 'blocks.height', 'block_height')
@@ -71,8 +73,10 @@ export default class TransactionsDAO {
         'blocks.hash as block_hash',
         'transactions.locktime',
         'transactions.is_coinbase',
-        'blocks.height as height',
         'blocks.timestamp as timestamp',
+        'block_height',
+        'instant_lock',
+        'chain_locked',
       )
       .select(this.knex.raw('max_height - block_height + 1 AS confirmations'))
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
@@ -98,19 +102,13 @@ export default class TransactionsDAO {
       VOut.fromObject({ value: value?.toString(), number: vout_index, scriptPubKeyASM: script_pub_key }),
     );
 
-    return new Transaction(
-      row.hash.trim(),
-      row.type,
-      row.height,
-      row.block_hash?.trim(),
-      null,
-      row.version,
+    const tx = Transaction.fromRow(row);
+
+    return Transaction.fromObject({
+      ...tx,
       vIn,
-      vOut,
-      row.confirmations,
-      null,
-      row.timestamp,
-    );
+      vOut
+    })
   };
 
   getTransactionHistory = async (): Promise<{ timestamp: number; count: number }[]> => {
@@ -157,14 +155,14 @@ export default class TransactionsDAO {
 
     const subquery = this.knex('transactions')
       .select(
-        'transactions.hash',
+        'transactions.hash', 'instant_lock', 'chain_locked',
       )
       .whereNull('block_height')
       .orderBy('id', order);
 
     const countedSubquery = this.knex
       .with('subquery', subquery)
-      .select('hash')
+      .select('hash', 'instant_lock', 'chain_locked')
       .select(this.knex('subquery').count('*').as('total_count'))
       .limit(limit)
       .offset(fromRank)
@@ -172,23 +170,14 @@ export default class TransactionsDAO {
 
     const rows = await this.knex
       .with('subquery', countedSubquery)
-      // .select(this.knex('subquery').count('*').as('total_count'))
       .select(
-        'subquery.hash', 'total_count'
+        'subquery.hash', 'total_count', 'instant_lock', 'chain_locked'
       )
       .from('subquery')
 
     const [row] = rows;
 
-    const rawTransactions = await Promise.all(rows.map(async ({hash}) => this.dashCoreRPC.getTransactionByHash(hash)));
-
-    const transactions = rawTransactions.map(tx=> Transaction.fromObject({
-      ...tx,
-      hash: tx.txid,
-      blockHeight: tx.height,
-      blockHash: tx.blockhash,
-      instantLock: tx.instantlock_internal,
-    }))
+    const transactions = rows.map(Transaction.fromRow)
 
     return new PaginatedResultSet(transactions, Number(page), limit, row?.total_count ?? -1);
   }
