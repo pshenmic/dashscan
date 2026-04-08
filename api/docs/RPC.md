@@ -161,7 +161,8 @@ Returns a paginated list of transactions. Include pending transactions
       "vIn": [...],
       "vOut": [...],
       "confirmations": 10,
-      "instantLock": true
+      "instantLock": "0102375e39652fee756b492762510aea4087d57b486a89f2f78f52c840f02079052f000000007652da0e18a07bcde5a2205ff041dd0b14b4b7a81b2e0ccaf5118dfe79e56aba00000000f274ca0dd6640a9236dc987e5f09db412ed2bc37806ae90bc6f34f9fd36a7a28da45b260ae37978f3a8fb973c48418a92f41e1e2b77a9d720400000000000000abc1c3d6ddaccf322f655f59979d037badc840328b0da023f70d9d1adea046f9b4486c929ff0c15f2c9036d757ca44ae168e315ba07c19269d7b44c2bf722b811aa9ab0c978198ef3637d4b20e3e316e3459ed3d75dbbafd4966a4d571d32a0a",
+      "chainLocked": true
     }
   ],
   "pagination": {
@@ -210,7 +211,8 @@ Returns a single transaction by its hash.
     }
   ],
   "confirmations": 10,
-  "instantLock": true
+  "instantLock": "0102375e39652fee756b...d571d32a0a",
+  "chainLocked": true
 }
 ```
 
@@ -218,18 +220,19 @@ Returns a single transaction by its hash.
 
 #### Transaction Object
 
-| Field          | Type     | Description                                     |
-|----------------|----------|-------------------------------------------------|
-| `hash`         | string   | Transaction hash (64-char hex)                  |
-| `type`         | number   | Transaction type                                |
-| `blockHeight`  | number   | Height of the block containing this transaction |
-| `blockHash`    | string   | Hash of the block containing this transaction   |
-| `amount`       | number   | Transaction amount in duffs                     |
-| `version`      | number   | Transaction version                             |
-| `vIn`          | VIn[]    | Array of transaction inputs                     |
-| `vOut`         | VOut[]   | Array of transaction outputs                    |
-| `confirmations`| number   | Number of confirmations                         |
-| `instantLock`  | boolean  | Whether the transaction has an InstantSend lock  |
+| Field          | Type           | Description                                                    |
+|----------------|----------------|----------------------------------------------------------------|
+| `hash`         | string         | Transaction hash (64-char hex)                                 |
+| `type`         | number         | Transaction type                                               |
+| `blockHeight`  | number \| null | Height of the block containing this transaction                |
+| `blockHash`    | string \| null | Hash of the block containing this transaction                  |
+| `amount`       | number \| null | Transaction amount in duffs                                    |
+| `version`      | number         | Transaction version                                            |
+| `vIn`          | VIn[]          | Array of transaction inputs                                    |
+| `vOut`         | VOut[]         | Array of transaction outputs                                   |
+| `confirmations`| number \| null | Number of confirmations                                        |
+| `instantLock`  | string \| null | Raw InstantSend lock hex (ISLOCK), or `null` if not IS-locked  |
+| `chainLocked`  | boolean        | Whether the transaction's block has a ChainLock                |
 
 #### VIn Object
 
@@ -277,7 +280,8 @@ Returns a paginated list of transactions for a specific block height.
       "vIn": [...],
       "vOut": [...],
       "confirmations": 10,
-      "instantLock": true
+      "instantLock": "0102375e...d571d32a0a",
+      "chainLocked": true
     }
   ],
   "pagination": {
@@ -688,8 +692,8 @@ Returns a list of pending transactions.
       "vIn": null,
       "vOut": null,
       "confirmations": null,
-      "instantLock": true,
-      "chainLock": null
+      "instantLock": "0102375e39652fee756b...d571d32a0a",
+      "chainLocked": false
     },
     {
       "hash": "f1edc4f297148814c5df0b5ee831f58132929b022dfad98542f27f5d19fbb348",
@@ -702,8 +706,8 @@ Returns a list of pending transactions.
       "vIn": null,
       "vOut": null,
       "confirmations": null,
-      "instantLock": true,
-      "chainLock": null
+      "instantLock": null,
+      "chainLocked": false
     }
   ],
   "pagination": {
