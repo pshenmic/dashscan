@@ -130,7 +130,7 @@ impl BlockProcessor {
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
             .ok_or_else(|| BlockIndexError::UnexpectedError("Invalid block timestamp".to_string()))?;
 
-        let is_super_block = (block.height % self.superblock_interval) == 0;
+        let is_superblock = (block.height % self.superblock_interval) == 0;
 
         // Identify miner pool and nickname from coinbase data
         let (miner_id, miner_name) = block.tx.first()
@@ -178,7 +178,7 @@ impl BlockProcessor {
                 cbtx_merkle_root_quorums.as_deref(),
                 cbtx_best_cl_height_diff,
                 cbtx_best_cl_signature.as_deref(),
-                Some(is_super_block),
+                Some(is_superblock),
                 miner_id,
                 miner_name_id,
             )

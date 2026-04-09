@@ -201,7 +201,7 @@ impl Database {
         cbtx_merkle_root_quorums: Option<&str>,
         cbtx_best_cl_height_diff: Option<i64>,
         cbtx_best_cl_signature: Option<&str>,
-        super_block: Option<bool>,
+        superblock: Option<bool>,
         miner_id: Option<i32>,
         miner_name_id: Option<i32>,
     ) -> Result<(), PoolError> {
@@ -215,7 +215,7 @@ impl Database {
                     merkle_root_mn_list, credit_pool_balance,
                     cbtx_version, cbtx_height, cbtx_merkle_root_quorums,
                     cbtx_best_cl_height_diff, cbtx_best_cl_signature,
-                    super_block, miner_id, miner_name_id
+                    superblock, miner_id, miner_name_id
                  )
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
                  ON CONFLICT (hash) DO NOTHING",
@@ -238,7 +238,7 @@ impl Database {
                     &cbtx_merkle_root_quorums,
                     &cbtx_best_cl_height_diff,
                     &cbtx_best_cl_signature,
-                    &super_block,
+                    &superblock,
                     &miner_id,
                     &miner_name_id,
                 ],
