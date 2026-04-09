@@ -1,12 +1,20 @@
-export function HashCell({ hash }: { hash: string }) {
+export function HashCell({
+  hash,
+  accent = false,
+}: {
+  hash: string;
+  accent?: boolean;
+}) {
   const start = hash.slice(0, 5);
   const middle = hash.slice(5, -5);
   const end = hash.slice(-5);
+  const edge = accent ? "text-accent" : "";
+  const mid = accent ? "text-accent/50" : "text-muted-foreground";
   return (
-    <span className="font-mono leading-none">
-      <span>{start}</span>
-      <span className="text-muted-foreground">{middle}</span>
-      <span>{end}</span>
+    <span className="break-all font-mono leading-none">
+      <span className={edge}>{start}</span>
+      <span className={mid}>{middle}</span>
+      <span className={edge}>{end}</span>
     </span>
   );
 }
