@@ -3,7 +3,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 
 import { Avatar } from "dash-ui-kit/react";
-import { ArrowLeftRight, Box, MoveDown, MoveUp } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeftRight,
+  ArrowUp,
+  Box,
+  MoveDown,
+  MoveUp,
+} from "lucide-react";
 import { useState } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
 import { FadeInSection } from "@/components/fade-in-section";
@@ -47,7 +54,7 @@ export const Route = createFileRoute("/")({
         blocksQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
       ),
       context.queryClient.prefetchQuery(
-        transactionsQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
+        transactionsQueryOptions({ network, page: 1, limit: 4, order: "desc" }),
       ),
       context.queryClient.prefetchQuery(
         masternodesQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
@@ -82,7 +89,7 @@ function Dashboard() {
     blocksQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
   );
   const { data: txData } = useQuery(
-    transactionsQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
+    transactionsQueryOptions({ network, page: 1, limit: 4, order: "desc" }),
   );
   const { data: mnData } = useQuery(
     masternodesQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
@@ -133,9 +140,10 @@ function Dashboard() {
 
   const totalTxs =
     fullTxHistory?.reduce((sum, entry) => sum + entry.count, 0) ?? 0;
-  const maxCount = fullTxHistory
-    ? Math.max(...fullTxHistory.map((e) => e.count), 1)
-    : 1;
+  const txHistoryChartData = fullTxHistory?.map((e) => ({
+    timestamp: e.timestamp,
+    value: e.count,
+  }));
 
   const currentPrice = priceCurrency === "usd" ? usdPrice?.usd : btcPrice?.btc;
   const chartHistory =
@@ -165,6 +173,7 @@ function Dashboard() {
         style={{ animationDelay: "100ms" }}
       >
         <Card
+          className="border-0"
           style={{
             background:
               "radial-gradient(circle at top right, oklch(from var(--accent) l c h / 0.05), var(--color-card) 70%)",
@@ -183,39 +192,18 @@ function Dashboard() {
                 TXS (20h)
               </span>
             </div>
-            <div className="mt-auto flex items-end justify-center gap-2">
-              {fullTxHistory?.map((entry) => {
-                const normalizedHeight = (entry.count / maxCount) * 100;
-                const hour = new Date(entry.timestamp * 1000).getHours();
-                const label = String(hour).padStart(2, "0");
-                return (
-                  <div
-                    key={entry.timestamp}
-                    className="flex min-w-0 flex-col items-center gap-2"
-                  >
-                    <div className="relative flex justify-center">
-                      <div
-                        className="group h-[60px] w-[10px] min-w-[6px] cursor-pointer rounded-full bg-accent/32 transition-all hover:bg-accent hover:shadow-[0_0_12px_4px_oklch(from_var(--accent)_l_c_h/0.25)]"
-                        style={{
-                          marginBottom: `${normalizedHeight * 1.5}px`,
-                        }}
-                      >
-                        <div className="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs text-background group-hover:block">
-                          {entry.count} txs
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            {txHistoryChartData && txHistoryChartData.length > 0 ? (
+              <div className="mt-auto">
+                <PriceChart
+                  data={txHistoryChartData}
+                  formatValue={(v) => `${Math.round(v)} txs`}
+                />
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-0">
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Transactions
@@ -245,13 +233,26 @@ function Dashboard() {
                   <div className="flex size-8 items-center justify-center rounded-full border border-accent/12 text-accent">
                     <ArrowLeftRight className="size-4" />
                   </div>
-                  <div>
+                  <div className="flex flex-col gap-1">
                     <p className="font-mono text-sm font-medium">
                       {tx.hash.slice(0, 7)}...{tx.hash.slice(-7)}
                     </p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      Block #{tx.blockHeight}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <Badge
+                        variant="outline"
+                        className="gap-1 rounded-full border-border/60 bg-transparent px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                      >
+                        <ArrowDown className="size-3" />
+                        {tx.vIn?.length ?? "—"} Inputs
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="gap-1 rounded-full border-border/60 bg-transparent px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                      >
+                        <ArrowUp className="size-3" />
+                        {tx.vOut?.length ?? "—"} Outputs
+                      </Badge>
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -265,7 +266,7 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-0">
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Blocks
@@ -318,7 +319,7 @@ function Dashboard() {
         className="grid gap-6 lg:grid-cols-[1fr_auto_2fr] [&>*]:min-w-0"
         delay={200}
       >
-        <Card>
+        <Card className="border-0">
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Masternodes
@@ -344,11 +345,19 @@ function Dashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p
-                    className={`text-sm font-bold ${mn.status !== "ENABLED" ? "text-muted-foreground" : ""}`}
-                  >
-                    {mn.status}
-                  </p>
+                  <div className="flex items-center justify-end gap-2">
+                    {mn.status === "ENABLED" ? (
+                      <span className="relative inline-flex size-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                        <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                      </span>
+                    ) : (
+                      <span className="inline-flex size-2 rounded-full bg-red-500" />
+                    )}
+                    <p className="text-sm font-bold">
+                      {mn.status.charAt(0) + mn.status.slice(1).toLowerCase()}
+                    </p>
+                  </div>
                   <p className="text-xs text-muted-foreground">{mn.type}</p>
                 </div>
               </div>
@@ -356,8 +365,8 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <div className="flex flex-col gap-6">
-          <Card className="flex-1">
+        <div className="flex flex-col gap-3">
+          <Card className="flex-1 border-0">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Market Cap
@@ -369,7 +378,7 @@ function Dashboard() {
               </p>
             </CardContent>
           </Card>
-          <Card className="flex-1">
+          <Card className="flex-1 border-0">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 BTC price
@@ -388,7 +397,7 @@ function Dashboard() {
               </p>
             </CardContent>
           </Card>
-          <Card className="flex-1">
+          <Card className="flex-1 border-0">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Masternodes
@@ -410,7 +419,7 @@ function Dashboard() {
           </Card>
         </div>
 
-        <Card className="relative">
+        <Card className="relative flex flex-col border-0">
           <CardHeader>
             <div>
               <CardTitle>
@@ -501,7 +510,7 @@ function Dashboard() {
               </div>
             </CardAction>
           </CardHeader>
-          <CardContent>
+          <CardContent className="mt-auto">
             {chartHistory && chartHistory.length > 0 ? (
               <PriceChart
                 data={chartHistory}
