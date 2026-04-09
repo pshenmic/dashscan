@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Knex } from 'knex';
 import BlocksDAO from '../dao/BlocksDAO';
+import {PaginatedQuery} from "./types";
 
 export default class BlocksController {
   private blocksDAO: BlocksDAO;
@@ -9,7 +10,7 @@ export default class BlocksController {
     this.blocksDAO = new BlocksDAO(knex);
   }
 
-  getBlocks = async (request: FastifyRequest<{ Querystring: { page?: number; limit?: number; order?: string } }>, response: FastifyReply): Promise<void> => {
+  getBlocks = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
     const { page = 1, limit = 10, order = 'asc' } = request.query;
 
     const blocks = await this.blocksDAO.getBlocks(page, limit, order);

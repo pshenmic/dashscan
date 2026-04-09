@@ -52,7 +52,7 @@ export const start = async (): Promise<FastifyInstance> => {
   const dashCoreRPC = new DashCoreRPC()
 
   const blocksController = new BlocksController(knex);
-  const transactionsController = new TransactionsController(knex);
+  const transactionsController = new TransactionsController(knex, dashCoreRPC);
   const addressesController = new AddressesController(knex);
   const masternodesDAO = new MasternodesDAO(knex);
   const masternodesController = new MasternodesController(masternodesDAO);

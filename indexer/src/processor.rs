@@ -11,8 +11,10 @@ use deadpool_postgres::Client;
 use serde_json::Value;
 use tokio_postgres::GenericClient;
 use tracing::{debug, info};
+use dashcore::consensus::encode::deserialize_partial;
 use crate::config::Config;
 use crate::errors::block_index_error::BlockIndexError;
+
 
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
@@ -54,12 +56,13 @@ impl BlockProcessor {
 
     /// Indexes a block using an already-acquired pool connection.
     /// Opens a transaction on that connection, writes everything, and commits.
-    /// Used by live sync (single-block commits).
+    /// Used by live sync (single-block commits) — chain_locked is false,
+    /// set later via rawchainlocksig.
     async fn process_block(&self, client: &mut Client, block: Block) -> Result<(), BlockIndexError> {
         let db_tx = client.transaction().await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-        self.write_block(&*db_tx, block).await?;
+        self.write_block(&*db_tx, block, false).await?;
 
         db_tx.commit().await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
@@ -69,7 +72,7 @@ impl BlockProcessor {
 
     /// Writes a single block and all its data into the given client/transaction.
     /// Does NOT commit — the caller controls transaction boundaries.
-    async fn write_block(&self, client: &impl GenericClient, block: Block) -> Result<(), BlockIndexError> {
+    async fn write_block(&self, client: &impl GenericClient, block: Block, chain_locked: bool) -> Result<(), BlockIndexError> {
         let tx_count = block.tx.len() as i32;
 
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
@@ -113,7 +116,7 @@ impl BlockProcessor {
         if !block.tx.is_empty() {
             // One INSERT for all transactions
             let tx_map = self.db
-                .insert_transactions_batch(client, &block.tx, block.height)
+                .insert_transactions_batch(client, &block.tx, block.height, chain_locked)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
@@ -125,11 +128,11 @@ impl BlockProcessor {
 
             // Collect unique (address -> (tx_id, height)) for batch upsert,
             // and remember which (vout_index, txid) pairs map to which address.
-            let mut upsert_records: Vec<(String, i32, i32)> = Vec::new();
+            let mut upsert_records: Vec<(String, i32, Option<i32>)> = Vec::new();
             let mut seen_addresses: HashMap<String, usize> = HashMap::new();
             let mut vout_to_address: Vec<((i32, String), String)> = Vec::new();
 
-            let h = block.height as i32;
+            let h = Some(block.height as i32);
             for tx in &block.tx {
                 for (vout_index, vout) in tx.vout.iter().enumerate() {
                     if let Some(ref addr) = vout.script_pub_key.first_address() {
@@ -185,6 +188,106 @@ impl BlockProcessor {
             txs = tx_count,
             "Indexed block"
         );
+        Ok(())
+    }
+
+    pub async fn index_pending_transaction(
+        &self,
+        raw_bytes: Vec<u8>,
+        network: dashcore::Network,
+    ) -> Result<bool, BlockIndexError> {
+        let (raw_tx, _): (dashcore::blockdata::transaction::Transaction, usize) = deserialize_partial(&raw_bytes)
+            .map_err(|e| BlockIndexError::UnexpectedError(format!("Failed to deserialize rawtx: {e}")))?;
+
+        let tx = p2p_converter::convert_transaction(&raw_tx, network);
+
+        let mut client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        let db_tx = client.transaction().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        let inserted = if let Some(tx_id) = self.db
+            .insert_pending_transaction(&*db_tx, &tx)
+            .await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?
+        {
+            let tx_map = HashMap::from([(tx.txid.clone(), tx_id)]);
+
+            self.db
+                .insert_tx_inputs_batch(&*db_tx, &[tx.clone()], &tx_map)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            let mut upsert_records: Vec<(String, i32, Option<i32>)> = Vec::new();
+            let mut vout_to_address: Vec<((i32, String), String)> = Vec::new();
+            for (vout_index, vout) in tx.vout.iter().enumerate() {
+                if let Some(ref addr) = vout.script_pub_key.first_address() {
+                    if !upsert_records.iter().any(|(a, _, _)| a == addr) {
+                        upsert_records.push((addr.clone(), tx_id, None));
+                    }
+                    vout_to_address.push(((vout_index as i32, tx.txid.clone()), addr.clone()));
+                }
+            }
+
+            let addr_id_map = self.db
+                .upsert_addresses_batch(&*db_tx, &upsert_records)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            let mut addresses_map: HashMap<(i32, String), i32> = HashMap::new();
+            for ((vout_idx, txid), addr) in vout_to_address {
+                if let Some(&id) = addr_id_map.get(&addr) {
+                    addresses_map.insert((vout_idx, txid), id);
+                }
+            }
+
+            self.db
+                .insert_tx_outputs_batch(&*db_tx, &[tx.clone()], &addresses_map, &tx_map)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            true
+        } else {
+            false
+        };
+
+        db_tx.commit().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        Ok(inserted)
+    }
+
+    /// Store the raw ISLOCK hex on the matching transaction.
+    pub async fn apply_instant_lock(&self, txid: String, lock_hex: String) -> Result<(), BlockIndexError> {
+        let client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        let updated = self.db
+            .update_transaction_instant_lock(&**client, &txid, &lock_hex)
+            .await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        if updated == 0 {
+            debug!(txid = %txid, "instant_lock: transaction not yet indexed, skipping");
+        } else {
+            info!(txid = %txid, "Applied instant lock");
+        }
+
+        Ok(())
+    }
+
+    /// Set chain_locked = TRUE for all transactions at the given block height.
+    pub async fn apply_chain_lock(&self, block_height: i32) -> Result<(), BlockIndexError> {
+        let client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        let updated = self.db
+            .set_chain_locked_for_block(&**client, block_height)
+            .await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+        info!(height = block_height, rows = updated, "Applied chain lock");
+
         Ok(())
     }
 
@@ -308,7 +411,7 @@ impl BlockProcessor {
             }
 
             let block = p2p_converter::convert_block(&raw_block, height, network);
-            self.write_block(&*db_tx, block).await?;
+            self.write_block(&*db_tx, block, true).await?;
 
             last_height = height;
             indexed += 1;
@@ -346,6 +449,18 @@ impl BlockProcessor {
         }
 
         self.sync_masternodes().await?;
+
+        // Backfill chain_locked for any confirmed transactions that were indexed
+        // during a previous continuous sync before their chainlock arrived.
+        let backfill_client = self.db.begin().await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        let backfilled = self.db
+            .backfill_chain_locks(&**backfill_client)
+            .await
+            .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+        if backfilled > 0 {
+            info!(rows = backfilled, "Backfilled chain locks for previously unlocked transactions");
+        }
 
         info!(chain_height, indexed, "Catch-up complete");
         Ok(chain_height)

@@ -219,6 +219,11 @@ export default function Routes({ fastify, blocksController, transactionsControll
         },
       },
     },
+    {
+      path: '/transactions/mempool',
+      method: 'get',
+      handler: transactionsController.getPendingTransactions
+    }
   ];
 
   routes.forEach((route) =>

@@ -3,17 +3,19 @@ import Transaction from '../models/Transaction';
 import VIn from '../models/VIn';
 import VOut from '../models/VOut';
 import PaginatedResultSet from '../models/PaginatedResultSet';
+import {DashCoreRPC} from "../dashcoreRPC";
 
 export default class TransactionsDAO {
   private knex: Knex;
+  private dashCoreRPC: DashCoreRPC;
 
-  constructor(knex: Knex) {
+  constructor(knex: Knex, dashCoreRPC: DashCoreRPC) {
     this.knex = knex;
+    this.dashCoreRPC = dashCoreRPC;
   }
 
   getTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
-
 
     // TODO: Slow on pages like 10000000, maybe we need to add cursor
     //  or something what can improve performance
@@ -31,6 +33,8 @@ export default class TransactionsDAO {
         'transactions.hash',
         'transactions.type',
         'transactions.block_height',
+        'transactions.chain_locked',
+        'transactions.instant_lock'
       )
       .orderBy('transactions.block_height', order)
       .limit(limit)
@@ -43,8 +47,8 @@ export default class TransactionsDAO {
       .select(this.knex('total_count').as('total_count'))
       .select(
         'subquery.hash', 'type', 'block_height',
-        'blocks.timestamp as timestamp',
-        'blocks.hash as block_hash',
+        'blocks.timestamp as timestamp', 'chain_locked',
+        'blocks.hash as block_hash', 'instant_lock'
       )
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .leftJoin('blocks', 'blocks.height', 'block_height')
@@ -69,8 +73,10 @@ export default class TransactionsDAO {
         'blocks.hash as block_hash',
         'transactions.locktime',
         'transactions.is_coinbase',
-        'blocks.height as height',
         'blocks.timestamp as timestamp',
+        'block_height',
+        'instant_lock',
+        'chain_locked',
       )
       .select(this.knex.raw('max_height - block_height + 1 AS confirmations'))
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
@@ -96,19 +102,13 @@ export default class TransactionsDAO {
       VOut.fromObject({ value: value?.toString(), number: vout_index, scriptPubKeyASM: script_pub_key }),
     );
 
-    return new Transaction(
-      row.hash.trim(),
-      row.type,
-      row.height,
-      row.block_hash?.trim(),
-      null,
-      row.version,
+    const tx = Transaction.fromRow(row);
+
+    return Transaction.fromObject({
+      ...tx,
       vIn,
-      vOut,
-      row.confirmations,
-      null,
-      row.timestamp,
-    );
+      vOut
+    })
   };
 
   getTransactionHistory = async (): Promise<{ timestamp: number; count: number }[]> => {
@@ -149,4 +149,36 @@ export default class TransactionsDAO {
 
     return new PaginatedResultSet(transactions as Transaction[], page, limit, row?.total_count);
   };
+
+  getPendingTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
+    const fromRank = (page - 1) * limit;
+
+    const subquery = this.knex('transactions')
+      .select(
+        'transactions.hash', 'instant_lock', 'chain_locked',
+      )
+      .whereNull('block_height')
+      .orderBy('id', order);
+
+    const countedSubquery = this.knex
+      .with('subquery', subquery)
+      .select('hash', 'instant_lock', 'chain_locked')
+      .select(this.knex('subquery').count('*').as('total_count'))
+      .limit(limit)
+      .offset(fromRank)
+      .from('subquery');
+
+    const rows = await this.knex
+      .with('subquery', countedSubquery)
+      .select(
+        'subquery.hash', 'total_count', 'instant_lock', 'chain_locked'
+      )
+      .from('subquery')
+
+    const [row] = rows;
+
+    const transactions = rows.map(Transaction.fromRow)
+
+    return new PaginatedResultSet(transactions, Number(page), limit, row?.total_count ?? -1);
+  }
 }
