@@ -12,19 +12,19 @@ use serde_json::Value;
 use tokio_postgres::GenericClient;
 use tracing::{debug, info};
 use dashcore::consensus::encode::deserialize_partial;
-use crate::config::Config;
+use crate::config::{Config, superblock_interval};
 use crate::errors::block_index_error::BlockIndexError;
 
 
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
     pub db: Database,
-    pub super_block: i64,
+    pub superblock_interval: i64,
 }
 
 impl BlockProcessor {
-    pub fn new(rpc: DashRpcClient, db: Database, super_block: i64) -> Self {
-        Self { rpc, db , super_block }
+    pub fn new(rpc: DashRpcClient, db: Database, network: dashcore::Network) -> Self {
+        Self { rpc, db, superblock_interval: superblock_interval(network) }
     }
 
     pub async fn index_block_by_hash(&self, hash: &str) -> Result<Option<String>, BlockIndexError> {
@@ -78,8 +78,8 @@ impl BlockProcessor {
 
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
             .ok_or_else(|| BlockIndexError::UnexpectedError("Invalid block timestamp".to_string()))?;
-        
-        let is_super_block = (block.height % self.super_block) == 0;
+
+        let is_super_block = (block.height % self.superblock_interval) == 0;
 
         // Extract cb_tx fields before consuming block.cb_tx
         let mn_list_root: Option<String>             = block.cb_tx.as_ref().map(|cb| cb.merkle_root_mn_list.clone());

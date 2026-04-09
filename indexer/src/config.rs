@@ -16,7 +16,16 @@ pub struct Config {
     pub poll_interval_secs: u64,
     pub catch_up_batch_size: usize,
     pub p2p_batch_size: usize,
-    pub super_block: i64
+}
+
+pub fn superblock_interval(network: Network) -> i64 {
+    match network {
+        Network::Mainnet => 16616,
+        Network::Testnet => 24,
+        Network::Devnet => 24,
+        Network::Regtest => 20,
+        _ => 16616,
+    }
 }
 
 impl Config {
@@ -47,7 +56,6 @@ impl Config {
                 .expect("POLL_INTERVAL_SECS must be a number"),
             catch_up_batch_size: 50,
             p2p_batch_size: 16,
-            super_block: 16616
         }
     }
 
