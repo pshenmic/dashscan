@@ -220,7 +220,7 @@ export default function Routes({ fastify, blocksController, transactionsControll
       },
     },
     {
-      path: '/transactions/pending',
+      path: '/transactions/mempool',
       method: 'get',
       handler: transactionsController.getPendingTransactions
     }

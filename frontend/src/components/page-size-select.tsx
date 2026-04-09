@@ -16,10 +16,7 @@ export function PageSizeSelect({ value, onChange }: PageSizeSelectProps) {
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
       <span>Show</span>
-      <Select
-        value={String(value)}
-        onValueChange={(v) => onChange(Number(v))}
-      >
+      <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
         <SelectTrigger size="sm">
           <SelectValue />
         </SelectTrigger>
