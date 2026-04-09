@@ -19,11 +19,12 @@ use crate::errors::block_index_error::BlockIndexError;
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
     pub db: Database,
+    pub super_block: i64,
 }
 
 impl BlockProcessor {
-    pub fn new(rpc: DashRpcClient, db: Database) -> Self {
-        Self { rpc, db }
+    pub fn new(rpc: DashRpcClient, db: Database, super_block: i64) -> Self {
+        Self { rpc, db , super_block }
     }
 
     pub async fn index_block_by_hash(&self, hash: &str) -> Result<Option<String>, BlockIndexError> {
@@ -77,6 +78,8 @@ impl BlockProcessor {
 
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
             .ok_or_else(|| BlockIndexError::UnexpectedError("Invalid block timestamp".to_string()))?;
+        
+        let is_super_block = (block.height % self.super_block) == 0;
 
         // Extract cb_tx fields before consuming block.cb_tx
         let mn_list_root: Option<String>             = block.cb_tx.as_ref().map(|cb| cb.merkle_root_mn_list.clone());
@@ -109,6 +112,7 @@ impl BlockProcessor {
                 cbtx_merkle_root_quorums.as_deref(),
                 cbtx_best_cl_height_diff,
                 cbtx_best_cl_signature.as_deref(),
+                Some(is_super_block)
             )
             .await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;

@@ -163,6 +163,7 @@ impl Database {
         cbtx_merkle_root_quorums: Option<&str>,
         cbtx_best_cl_height_diff: Option<i64>,
         cbtx_best_cl_signature: Option<&str>,
+        super_block: Option<bool>,
     ) -> Result<(), PoolError> {
         let naive_timestamp = timestamp.naive_utc();
 
@@ -173,9 +174,10 @@ impl Database {
                     size, nonce, difficulty, chainwork, tx_count,
                     merkle_root_mn_list, credit_pool_balance,
                     cbtx_version, cbtx_height, cbtx_merkle_root_quorums,
-                    cbtx_best_cl_height_diff, cbtx_best_cl_signature
+                    cbtx_best_cl_height_diff, cbtx_best_cl_signature,
+                    super_block
                  )
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
                  ON CONFLICT (hash) DO NOTHING",
                 &[
                     &hash,
@@ -196,6 +198,7 @@ impl Database {
                     &cbtx_merkle_root_quorums,
                     &cbtx_best_cl_height_diff,
                     &cbtx_best_cl_signature,
+                    &super_block
                 ],
             )
             .await?;

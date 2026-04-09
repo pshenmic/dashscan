@@ -16,6 +16,7 @@ pub struct Config {
     pub poll_interval_secs: u64,
     pub catch_up_batch_size: usize,
     pub p2p_batch_size: usize,
+    pub super_block: i64
 }
 
 impl Config {
@@ -46,6 +47,7 @@ impl Config {
                 .expect("POLL_INTERVAL_SECS must be a number"),
             catch_up_batch_size: 50,
             p2p_batch_size: 16,
+            super_block: 16616
         }
     }
 

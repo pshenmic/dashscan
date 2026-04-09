@@ -131,7 +131,7 @@ async fn main() {
     }
 
     // Create block processor
-    let processor = Arc::new(BlockProcessor::new(rpc, db));
+    let processor = Arc::new(BlockProcessor::new(rpc, db, config.super_block));
 
     // Catch up with the blockchain
     let last_height = match processor.catch_up(&config).await {
@@ -164,7 +164,7 @@ async fn main() {
 
     let zmq_rawtx_url = config.zmq_url.clone();
     tokio::spawn(async move {
-        zmq_rawtx_listener(zmq_rawtx_url, rawtx_tx, rawtxlock_tx).await;
+            zmq_rawtx_listener(zmq_rawtx_url, rawtx_tx, rawtxlock_tx).await;
     });
 
     let zmq_rawchainlock_url = config.zmq_url.clone();
