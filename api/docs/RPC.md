@@ -670,7 +670,7 @@ Returns a list of governance proposals from Dash Core RPC.
 
 ---
 
-### GET /transactions/pending
+### GET /transactions/mempool
 
 Returns a list of pending transactions.
 
