@@ -14,12 +14,13 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { DataTable } from "@/components/data-table";
 import { HashCell } from "@/components/hash-cell";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -154,43 +155,6 @@ const columns: ColumnDef<ApiMasternode>[] = [
 
 const skeletonWidths = ["w-28", "w-44", "w-20", "w-20", "w-14", "w-20"];
 
-function MnStatCard({
-  icon,
-  label,
-  value,
-  bgImage,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: ReactNode;
-  bgImage: string;
-}) {
-  return (
-    <Card className="relative h-[152px] gap-0 overflow-hidden rounded-[24px] border-0 bg-white p-5 shadow-none">
-      <div
-        className="pointer-events-none absolute inset-0 bg-no-repeat"
-        style={{
-          backgroundImage: `url('${bgImage}')`,
-          backgroundPosition: "top right",
-          backgroundSize: "cover",
-        }}
-        aria-hidden
-      />
-      <div className="relative flex size-12 shrink-0 self-start items-center justify-center rounded-full bg-accent/10 text-accent">
-        {icon}
-      </div>
-      <div className="relative mt-3">
-        <p className="text-[28px] font-extrabold tracking-[-0.02em] text-[#10213f]">
-          {value}
-        </p>
-        <p className="mt-1 text-[14px] font-medium text-muted-foreground">
-          {label}
-        </p>
-      </div>
-    </Card>
-  );
-}
-
 function MasternodesPage() {
   const network = useStore(appStore, (state) => state.network);
   const { page, limit } = Route.useSearch();
@@ -234,7 +198,7 @@ function MasternodesPage() {
     <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
       <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_2fr] [&>*]:min-w-0 animate-fade-in-up">
         <div className="grid gap-4 [&>*]:min-w-0">
-          <MnStatCard
+          <StatCard
             icon={<ChartPie className="size-5" strokeWidth={1.75} />}
             label="Enabled Nodes"
             value={
@@ -244,7 +208,7 @@ function MasternodesPage() {
             }
             bgImage="/images/masternodes/enabled-nodes.png"
           />
-          <MnStatCard
+          <StatCard
             icon={
               <img src="/icons/block-reward.svg" alt="" className="size-5" />
             }
@@ -257,7 +221,7 @@ function MasternodesPage() {
         <Card className="relative overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
           <CardHeader className="relative px-5 pb-2 sm:px-6">
             <div className="flex items-start gap-4">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
                 <Wallet className="size-5" strokeWidth={1.75} />
               </div>
               <div>
