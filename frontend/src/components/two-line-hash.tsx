@@ -1,7 +1,10 @@
 export function TwoLineHash({
   hash,
   uppercase,
-}: { hash: string; uppercase?: boolean }) {
+}: {
+  hash: string;
+  uppercase?: boolean;
+}) {
   if (!hash) return <span className="text-muted-foreground">—</span>;
   const display = uppercase ? hash.toUpperCase() : hash;
   const mid = Math.ceil(display.length / 2);

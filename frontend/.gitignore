@@ -15,4 +15,5 @@ CLAUDE.md
 .content-collections/
 routeTree.gen.ts
 .claude/
+.playwright-mcp/
 AWD/

@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Dashboard" },
   { to: "/blocks", label: "Blocks" },
   { to: "/transactions", label: "Transactions" },
+  { to: "/masternodes", label: "Masternodes" },
 ] as const;
 
 export default function Header() {

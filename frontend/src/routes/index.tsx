@@ -31,7 +31,7 @@ import {
 import { transactionHistoryQueryOptions } from "@/lib/api/transaction-history";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import { volumeHistoricalQueryOptions } from "@/lib/api/volume";
-import { formatRelativeTime } from "@/lib/format";
+import { formatCompactUsd, formatDash, formatRelativeTime } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/")({
@@ -70,19 +70,6 @@ export const Route = createFileRoute("/")({
     ]);
   },
 });
-
-function formatCompactUsd(value: number): string {
-  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)} B`;
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)} M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(2)} K`;
-  return `$${value.toFixed(2)}`;
-}
-
-function formatDash(duffs: number): string {
-  const dash = duffs / 1e8;
-  if (dash >= 1) return `${dash.toFixed(2)} DASH`;
-  return `${dash.toFixed(4)} DASH`;
-}
 
 function Dashboard() {
   const network = useStore(appStore, (state) => state.network);

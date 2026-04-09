@@ -25,6 +25,7 @@ import {
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
 import {
+  formatDuffs,
   formatRelativeTime,
   getTxTypeBadgeStyle,
   getTxTypeLabel,
@@ -116,9 +117,7 @@ const columns: ColumnDef<ApiTransaction>[] = [
     accessorKey: "amount",
     header: () => <span className="text-right block">Amount</span>,
     cell: ({ getValue }) => (
-      <div className="text-right">
-        {(getValue<number>() / 100_000_000).toFixed(8)} DASH
-      </div>
+      <div className="text-right">{formatDuffs(getValue<number>())} DASH</div>
     ),
   },
   {
