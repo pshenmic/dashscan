@@ -51,6 +51,44 @@ impl Database {
         self.pool.get().await
     }
 
+    pub async fn ensure_miner_pools(&self, pools: &[crate::miner_pool::MinerPool]) -> Result<HashMap<String, i32>, PoolError> {
+        let client = self.pool.get().await?;
+
+        let existing: HashMap<String, i32> = client
+            .query("SELECT id, name FROM miner_pools", &[])
+            .await
+            .unwrap_or_default()
+            .iter()
+            .map(|row| (row.get::<_, String>(1), row.get::<_, i32>(0)))
+            .collect();
+
+        for pool in pools {
+            if !existing.contains_key(&pool.pool_name) {
+                client
+                    .execute(
+                        "INSERT INTO miner_pools (name, url) VALUES ($1, $2)",
+                        &[&pool.pool_name, &pool.url],
+                    )
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("Failed to insert miner pool {}: {e}", pool.pool_name);
+                    })
+                    .ok();
+            }
+        }
+
+        // Re-fetch to include newly inserted IDs
+        let all: HashMap<String, i32> = client
+            .query("SELECT id, name FROM miner_pools", &[])
+            .await
+            .unwrap_or_default()
+            .iter()
+            .map(|row| (row.get::<_, String>(1), row.get::<_, i32>(0)))
+            .collect();
+
+        Ok(all)
+    }
+
     /// acquires its own connection internally (removes begin() + &**client + drop(client) in code)
     pub async fn get_max_block_height(&self) -> Result<i64, PoolError> {
         let client = self.pool.get().await?;
@@ -163,6 +201,9 @@ impl Database {
         cbtx_merkle_root_quorums: Option<&str>,
         cbtx_best_cl_height_diff: Option<i64>,
         cbtx_best_cl_signature: Option<&str>,
+        superblock: Option<bool>,
+        miner_id: Option<i32>,
+        miner_name_id: Option<i32>,
     ) -> Result<(), PoolError> {
         let naive_timestamp = timestamp.naive_utc();
 
@@ -173,9 +214,10 @@ impl Database {
                     size, nonce, difficulty, chainwork, tx_count,
                     merkle_root_mn_list, credit_pool_balance,
                     cbtx_version, cbtx_height, cbtx_merkle_root_quorums,
-                    cbtx_best_cl_height_diff, cbtx_best_cl_signature
+                    cbtx_best_cl_height_diff, cbtx_best_cl_signature,
+                    superblock, miner_id, miner_name_id
                  )
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
                  ON CONFLICT (hash) DO NOTHING",
                 &[
                     &hash,
@@ -196,11 +238,32 @@ impl Database {
                     &cbtx_merkle_root_quorums,
                     &cbtx_best_cl_height_diff,
                     &cbtx_best_cl_signature,
+                    &superblock,
+                    &miner_id,
+                    &miner_name_id,
                 ],
             )
             .await?;
 
         Ok(())
+    }
+
+    /// Upsert a miner name and return its ID.
+    pub async fn upsert_miner_name(
+        &self,
+        client: &impl GenericClient,
+        name: &str,
+    ) -> Result<i32, PoolError> {
+        let row = client
+            .query_one(
+                "INSERT INTO miner_names (name) VALUES ($1)
+                 ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+                 RETURNING id",
+                &[&name],
+            )
+            .await?;
+
+        Ok(row.get(0))
     }
 
     pub async fn upsert_masternodes_batch(

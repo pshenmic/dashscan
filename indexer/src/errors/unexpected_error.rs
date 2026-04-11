@@ -1,2 +1,3 @@
+#[derive(Debug)]
 #[allow(dead_code)]
-pub struct UnexpectedError(String);
+pub struct UnexpectedError(pub String);

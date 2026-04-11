@@ -18,6 +18,16 @@ pub struct Config {
     pub p2p_batch_size: usize,
 }
 
+pub fn superblock_interval(network: Network) -> i64 {
+    match network {
+        Network::Mainnet => 16616,
+        Network::Testnet => 24,
+        Network::Devnet => 24,
+        Network::Regtest => 20,
+        _ => 16616,
+    }
+}
+
 impl Config {
     pub fn from_env() -> Self {
         Self {

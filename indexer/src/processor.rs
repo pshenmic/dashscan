@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::sync::mpsc;
 use crate::db::Database;
 use crate::errors::database_error::DatabaseError;
+use crate::miner_pool::MinerPool;
 use crate::p2p::{P2PClient, P2PError};
 use crate::p2p_converter;
 use crate::rpc::{Block, DashRpcClient, Transaction};
@@ -12,18 +13,69 @@ use serde_json::Value;
 use tokio_postgres::GenericClient;
 use tracing::{debug, info};
 use dashcore::consensus::encode::deserialize_partial;
-use crate::config::Config;
+use crate::config::{Config, superblock_interval};
 use crate::errors::block_index_error::BlockIndexError;
 
 
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
     pub db: Database,
+    pub superblock_interval: i64,
+    pub miner_pools: Vec<MinerPool>,
+    pub miner_pool_ids: HashMap<String, i32>,
 }
 
 impl BlockProcessor {
-    pub fn new(rpc: DashRpcClient, db: Database) -> Self {
-        Self { rpc, db }
+    pub fn new(
+        rpc: DashRpcClient,
+        db: Database,
+        network: dashcore::Network,
+        miner_pools: Vec<MinerPool>,
+        miner_pool_ids: HashMap<String, i32>,
+    ) -> Self {
+        Self {
+            rpc,
+            db,
+            superblock_interval: superblock_interval(network),
+            miner_pools,
+            miner_pool_ids,
+        }
+    }
+
+    /// Match coinbase data against known miner pool search strings.
+    /// Returns (pool_db_id, optional miner nickname extracted from "Mined by <name>").
+    fn identify_miner(&self, coinbase_hex: &str) -> (Option<i32>, Option<String>) {
+        let bytes = match hex::decode(coinbase_hex) {
+            Ok(b) => b,
+            Err(_) => return (None, None),
+        };
+        let coinbase_text = String::from_utf8_lossy(&bytes);
+
+        let mut pool_id: Option<i32> = None;
+
+        for pool in &self.miner_pools {
+            for search in &pool.search_strings {
+                if coinbase_text.contains(search.as_str()) {
+                    pool_id = self.miner_pool_ids.get(&pool.pool_name).copied();
+                    break;
+                }
+            }
+            if pool_id.is_some() {
+                break;
+            }
+        }
+
+        // Extract miner nickname from "Mined by <name>/" pattern
+        // Strip null bytes and control chars
+        let miner_name = coinbase_text
+            .find("Mined by ")
+            .map(|start| &coinbase_text[start + 9..])
+            .and_then(|rest| rest.find('/').map(|end| &rest[..end]))
+            .map(|name| name.replace('\0', ""))
+            .map(|name| name.trim().to_string())
+            .filter(|name| !name.is_empty());
+
+        (pool_id, miner_name)
     }
 
     pub async fn index_block_by_hash(&self, hash: &str) -> Result<Option<String>, BlockIndexError> {
@@ -78,6 +130,23 @@ impl BlockProcessor {
         let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
             .ok_or_else(|| BlockIndexError::UnexpectedError("Invalid block timestamp".to_string()))?;
 
+        let is_superblock = (block.height % self.superblock_interval) == 0;
+
+        // Identify miner pool and nickname from coinbase data
+        let (miner_id, miner_name) = block.tx.first()
+            .and_then(|tx| tx.vin.first())
+            .and_then(|vin| vin.coinbase.as_deref())
+            .map(|cb| self.identify_miner(cb))
+            .unwrap_or((None, None));
+
+        let miner_name_id = match miner_name {
+            Some(ref name) => Some(
+                self.db.upsert_miner_name(client, name).await
+                    .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?
+            ),
+            None => None,
+        };
+
         // Extract cb_tx fields before consuming block.cb_tx
         let mn_list_root: Option<String>             = block.cb_tx.as_ref().map(|cb| cb.merkle_root_mn_list.clone());
         let credit_pool_balance: Option<f64>         = block.cb_tx.as_ref().and_then(|cb| cb.credit_pool_balance);
@@ -109,6 +178,9 @@ impl BlockProcessor {
                 cbtx_merkle_root_quorums.as_deref(),
                 cbtx_best_cl_height_diff,
                 cbtx_best_cl_signature.as_deref(),
+                Some(is_superblock),
+                miner_id,
+                miner_name_id,
             )
             .await
             .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;

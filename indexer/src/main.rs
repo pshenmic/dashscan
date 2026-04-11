@@ -6,6 +6,7 @@ mod p2p_converter;
 mod processor;
 mod rpc;
 mod zmq;
+mod miner_pool;
 
 use db::Database;
 use processor::BlockProcessor;
@@ -19,6 +20,7 @@ use dotenv::dotenv;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
+use crate::miner_pool::init_miners_pools;
 
 #[tokio::main]
 async fn main() {
@@ -54,6 +56,8 @@ async fn main() {
                          DROP TABLE IF EXISTS addresses; \
                          DROP TABLE IF EXISTS transactions; \
                          DROP TABLE IF EXISTS blocks; \
+                         DROP TABLE IF EXISTS miner_pools; \
+                         DROP TABLE IF EXISTS miner_names; \
                          DROP TABLE IF EXISTS refinery_schema_history; \
                          COMMIT;",
                     )
@@ -115,6 +119,23 @@ async fn main() {
 
     let db = Database::new(pool);
 
+    // Sync miner pools from embedded pools.json
+    let (miner_pools, miner_pool_ids) = match init_miners_pools() {
+        Ok(pools) => {
+            match db.ensure_miner_pools(&pools).await {
+                Ok(ids) => (pools, ids),
+                Err(e) => {
+                    error!("Failed to sync miner pools: {e}");
+                    (pools, std::collections::HashMap::new())
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to load miner pools: {e:?}");
+            (vec![], std::collections::HashMap::new())
+        }
+    };
+
     // Connect to Dash Core RPC
     let rpc = DashRpcClient::new(
         &config.rpc_host,
@@ -131,7 +152,7 @@ async fn main() {
     }
 
     // Create block processor
-    let processor = Arc::new(BlockProcessor::new(rpc, db));
+    let processor = Arc::new(BlockProcessor::new(rpc, db, config.network, miner_pools, miner_pool_ids));
 
     // Catch up with the blockchain
     let last_height = match processor.catch_up(&config).await {
@@ -164,7 +185,7 @@ async fn main() {
 
     let zmq_rawtx_url = config.zmq_url.clone();
     tokio::spawn(async move {
-        zmq_rawtx_listener(zmq_rawtx_url, rawtx_tx, rawtxlock_tx).await;
+            zmq_rawtx_listener(zmq_rawtx_url, rawtx_tx, rawtxlock_tx).await;
     });
 
     let zmq_rawchainlock_url = config.zmq_url.clone();
