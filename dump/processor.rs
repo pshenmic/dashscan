@@ -192,12 +192,6 @@ impl BlockProcessor {
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
-            // One INSERT for all inputs
-            self.db
-                .insert_tx_inputs_batch(client, &block.tx, &tx_map)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
             // Collect unique (address -> (tx_id, height)) for batch upsert,
             // and remember which (vout_index, txid) pairs map to which address.
             let mut upsert_records: Vec<(String, i32, Option<i32>)> = Vec::new();
@@ -235,9 +229,15 @@ impl BlockProcessor {
                 addresses_map.insert((vout_idx, txid), id);
             }
 
-            // One INSERT for all outputs
+            // One INSERT for all outputs (before inputs, so address_ids are available)
             self.db
                 .insert_tx_outputs_batch(client, &block.tx, &addresses_map, &tx_map)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            // One INSERT for all inputs (address_id resolved from tx_outputs in DB)
+            self.db
+                .insert_tx_inputs_batch(client, &block.tx, &tx_map)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
@@ -285,11 +285,6 @@ impl BlockProcessor {
         {
             let tx_map = HashMap::from([(tx.txid.clone(), tx_id)]);
 
-            self.db
-                .insert_tx_inputs_batch(&*db_tx, &[tx.clone()], &tx_map)
-                .await
-                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
-
             let mut upsert_records: Vec<(String, i32, Option<i32>)> = Vec::new();
             let mut vout_to_address: Vec<((i32, String), String)> = Vec::new();
             for (vout_index, vout) in tx.vout.iter().enumerate() {
@@ -315,6 +310,11 @@ impl BlockProcessor {
 
             self.db
                 .insert_tx_outputs_batch(&*db_tx, &[tx.clone()], &addresses_map, &tx_map)
+                .await
+                .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
+
+            self.db
+                .insert_tx_inputs_batch(&*db_tx, &[tx.clone()], &tx_map)
                 .await
                 .map_err(|e| BlockIndexError::DatabaseError(DatabaseError::from(e)))?;
 
@@ -483,6 +483,7 @@ impl BlockProcessor {
             }
 
             let block = p2p_converter::convert_block(&raw_block, height, network);
+
             self.write_block(&*db_tx, block, true).await?;
 
             last_height = height;

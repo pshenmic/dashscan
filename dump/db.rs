@@ -413,26 +413,85 @@ impl Database {
     }
 
     /// Batch INSERT all inputs across every transaction in the block.
+    ///
+    /// `input_addresses` maps `(prev_tx_hash, prev_vout_index)` to an address_id,
+    /// resolved by the caller from P2P data.
     pub async fn insert_tx_inputs_batch(
         &self,
         client: &impl GenericClient,
         transactions: &[RpcTransaction],
         tx_map: &HashMap<String, i32>,
     ) -> Result<(), PoolError> {
+        // Collect unique prev tx hashes and resolve their IDs from the database.
+        let mut unique_hashes: Vec<&str> = Vec::new();
+        for tx in transactions {
+            for vin in &tx.vin {
+                if let Some(ref h) = vin.txid {
+                    if !unique_hashes.contains(&h.as_str()) {
+                        unique_hashes.push(h.as_str());
+                    }
+                }
+            }
+        }
+
+        let mut prev_tx_map: HashMap<String, i32> = HashMap::new();
+        for chunk in unique_hashes.chunks(BATCH_SIZE) {
+            let placeholders: Vec<String> = (1..=chunk.len()).map(|i| format!("${}", i)).collect();
+            let query = format!(
+                "SELECT id, TRIM(hash) as hash FROM transactions WHERE TRIM(hash) IN ({})",
+                placeholders.join(", ")
+            );
+            let params: Vec<&(dyn ToSql + Sync)> = chunk.iter().map(|h| h as &(dyn ToSql + Sync)).collect();
+            let rows = client.query(query.as_str(), &params).await?;
+            for row in rows {
+                let id: i32 = row.get("id");
+                let hash: String = row.get("hash");
+                prev_tx_map.insert(hash, id);
+            }
+        }
+
+        // Resolve address_ids from tx_outputs for all prev transactions.
+        let prev_tx_id_list: Vec<i32> = prev_tx_map.values().copied().collect();
+        let mut addr_from_outputs: HashMap<(i32, i32), i32> = HashMap::new();
+        for chunk in prev_tx_id_list.chunks(BATCH_SIZE) {
+            let placeholders: Vec<String> = (1..=chunk.len()).map(|i| format!("${}", i)).collect();
+            let query = format!(
+                "SELECT tx_id, vout_index, address_id FROM tx_outputs WHERE tx_id IN ({}) AND address_id IS NOT NULL",
+                placeholders.join(", ")
+            );
+            let params: Vec<&(dyn ToSql + Sync)> = chunk.iter().map(|id| id as &(dyn ToSql + Sync)).collect();
+            let rows = client.query(query.as_str(), &params).await?;
+            for row in rows {
+                let tx_id: i32 = row.get("tx_id");
+                let vout_index: i32 = row.get("vout_index");
+                let address_id: i32 = row.get("address_id");
+                addr_from_outputs.insert((tx_id, vout_index), address_id);
+            }
+        }
+
         // Flatten all inputs into parallel column vecs for stable references.
         let mut tx_ids: Vec<i32> = Vec::new();
         let mut vin_indices: Vec<i32> = Vec::new();
-        let mut prev_tx_hasehs: Vec<Option<&str>> = Vec::new();
+        let mut prev_tx_hashes: Vec<Option<&str>> = Vec::new();
+        let mut prev_tx_ids: Vec<Option<i32>> = Vec::new();
         let mut prev_vouts: Vec<Option<i32>> = Vec::new();
         let mut coinbase_datas: Vec<Option<&str>> = Vec::new();
+        let mut addr_ids: Vec<Option<i32>> = Vec::new();
 
         for tx in transactions {
             for (i, vin) in tx.vin.iter().enumerate() {
+                let resolved_prev_tx_id = vin.txid.as_ref().and_then(|h| prev_tx_map.get(h.as_str()).copied());
                 tx_ids.push(tx_map[&tx.txid]);
                 vin_indices.push(i as i32);
-                prev_tx_hasehs.push(vin.txid.as_deref());
+                prev_tx_hashes.push(vin.txid.as_deref());
+                prev_tx_ids.push(resolved_prev_tx_id);
                 prev_vouts.push(vin.vout);
                 coinbase_datas.push(vin.coinbase.as_deref());
+                addr_ids.push(
+                    resolved_prev_tx_id
+                        .zip(vin.vout)
+                        .and_then(|(ptid, pv)| addr_from_outputs.get(&(ptid, pv)).copied())
+                );
             }
         }
 
@@ -445,18 +504,20 @@ impl Database {
             let chunk_len = end - chunk_start;
 
             let query = format!(
-                "INSERT INTO tx_inputs (tx_id, vin_index, prev_tx_hash, prev_vout_index, coinbase_data) VALUES {} \
+                "INSERT INTO tx_inputs (tx_id, vin_index, prev_tx_hash, prev_tx_id, prev_vout_index, coinbase_data, address_id) VALUES {} \
                  ON CONFLICT DO NOTHING",
-                build_placeholders(chunk_len, 5)
+                build_placeholders(chunk_len, 7)
             );
 
-            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk_len * 5);
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk_len * 7);
             for i in chunk_start..end {
                 params.push(&tx_ids[i]);
                 params.push(&vin_indices[i]);
-                params.push(&prev_tx_hasehs[i]);
+                params.push(&prev_tx_hashes[i]);
+                params.push(&prev_tx_ids[i]);
                 params.push(&prev_vouts[i]);
                 params.push(&coinbase_datas[i]);
+                params.push(&addr_ids[i]);
             }
 
             client.execute(query.as_str(), &params).await?;
