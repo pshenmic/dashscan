@@ -97,12 +97,14 @@ impl P2PClient {
                 message::NetworkMessage::NotFound(inv) => {
                     for item in &inv {
                         if let message_blockdata::Inventory::Transaction(txid) = item {
-                            debug!("Transaction {} not found on peer", txid);
+                            info!("Transaction {} not found on peer", txid);
                             received += 1;
                         }
                     }
                 }
-                _ => {}
+                _ => {
+                    println!("eeeee")
+                }
             }
         }
 

@@ -9,8 +9,8 @@ use crate::rpc::Transaction as RpcTransaction;
 impl Database {
     /// Batch INSERT all inputs across every transaction in the block.
     ///
-    /// `input_addresses` maps `(prev_tx_hash, prev_vout_index)` to an address_id,
-    /// resolved by the caller from P2P data.
+    /// `input_addresses` maps `(prev_tx_hash, prev_vout_index)` → `address_id`,
+    /// fully resolved by the caller (DB lookup + RPC fallback).
     pub async fn insert_tx_inputs_batch(
         &self,
         client: &impl GenericClient,
@@ -18,7 +18,7 @@ impl Database {
         tx_map: &HashMap<String, i32>,
         input_addresses: &HashMap<(String, i32), i32>,
     ) -> Result<(), PoolError> {
-        // Collect unique prev tx hashes and resolve their IDs from the database.
+        // Resolve prev tx hashes → DB ids (needed for prev_tx_id column).
         let mut unique_hashes: Vec<&str> = Vec::new();
         for tx in transactions {
             for vin in &tx.vin {
@@ -47,7 +47,7 @@ impl Database {
             }
         }
 
-        // Flatten all inputs into parallel column vecs for stable references.
+        // Flatten inputs into parallel column vecs for stable borrow refs.
         let mut tx_ids: Vec<i32> = Vec::new();
         let mut vin_indices: Vec<i32> = Vec::new();
         let mut prev_tx_hashes: Vec<Option<&str>> = Vec::new();

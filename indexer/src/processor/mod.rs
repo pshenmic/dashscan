@@ -49,7 +49,7 @@ impl BlockProcessor {
         }
 
         let block = self.rpc.get_block(hash).await?;
-        self.process_block(&mut client, block, config).await?;
+        self.process_block(&mut client, block).await?;
 
         Ok(Some(hash.to_string()))
     }
