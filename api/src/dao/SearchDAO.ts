@@ -3,6 +3,7 @@ import Block from '../models/Block';
 import Transaction from '../models/Transaction';
 import Masternode from '../models/Masternode';
 import Address from '../models/Address';
+import {NETWORK} from "../constants";
 
 export interface SearchResult {
   block: Block | null;
@@ -104,7 +105,7 @@ export default class SearchDAO {
       return { block, transaction, masternode, address: null };
     }
 
-    if (ADDRESS_RE[process.env.NETWORK].test(trimmed)) {
+    if (ADDRESS_RE[NETWORK].test(trimmed)) {
       const address = await this.getAddressByAddress(trimmed);
       return { block: null, transaction: null, masternode: null, address };
     }
