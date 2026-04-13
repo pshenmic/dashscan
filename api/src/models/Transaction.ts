@@ -119,6 +119,7 @@ export default class Transaction {
             vOutIndex: input.prev_vout,
             scriptSigASM: Script.fromHex(input.scriptSig?.hex ?? '').ASMString(),
             sequence: input.sequence,
+            amount: input.amount,
           });
         } else {
           return VIn.fromObject(input)
