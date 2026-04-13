@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { to: "/blocks", label: "Blocks" },
   { to: "/transactions", label: "Transactions" },
   { to: "/masternodes", label: "Masternodes" },
+  { to: "/dao", label: "DAO" },
 ] as const;
 
 export default function Header() {
