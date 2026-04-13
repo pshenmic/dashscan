@@ -21,10 +21,10 @@ export function BlockTransactionsChart({
 
   const paddingLeft = 40;
   const paddingRight = 20;
-  const paddingTop = 18;
-  const paddingBottom = 28;
+  const paddingTop = 24;
+  const paddingBottom = 32;
   const width = 700;
-  const height = 112;
+  const height = 260;
   const chartWidth = width - paddingLeft - paddingRight;
   const chartHeight = height - paddingTop - paddingBottom;
 
@@ -92,7 +92,7 @@ export function BlockTransactionsChart({
                 y={y + 4}
                 textAnchor="end"
                 className="fill-muted-foreground"
-                fontSize="9"
+                fontSize="11"
               >
                 {tick}
               </text>
@@ -141,7 +141,7 @@ export function BlockTransactionsChart({
               y={height - 6}
               textAnchor="middle"
               className="fill-muted-foreground"
-              fontSize="9"
+              fontSize="11"
             >
               #{p.height}
             </text>
