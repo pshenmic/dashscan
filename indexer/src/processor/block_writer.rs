@@ -144,20 +144,15 @@ impl BlockProcessor {
 
         if !needed.is_empty() {
             // Step 1: resolve prev tx hashes → DB ids.
+            // Use `hash = ANY($1::bpchar[])` so the unique index on transactions.hash
+            // is usable — wrapping `hash` in TRIM() forces a sequential scan.
             let prev_hashes: Vec<&str> = needed.keys().map(|s| s.as_str()).collect();
             let mut prev_tx_id_map: HashMap<String, i32> = HashMap::new();
 
             for chunk in prev_hashes.chunks(BATCH_SIZE) {
-                let placeholders = (1..=chunk.len())
-                    .map(|i| format!("${i}"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let query = format!(
-                    "SELECT id, TRIM(hash) as hash FROM transactions WHERE TRIM(hash) IN ({placeholders})"
-                );
-                let params: Vec<&(dyn ToSql + Sync)> =
-                    chunk.iter().map(|h| h as &(dyn ToSql + Sync)).collect();
-                for row in client.query(query.as_str(), &params).await? {
+                let query = "SELECT id, TRIM(hash) AS hash FROM transactions \
+                             WHERE hash = ANY($1::bpchar[])";
+                for row in client.query(query, &[&chunk]).await? {
                     prev_tx_id_map.insert(row.get("hash"), row.get("id"));
                 }
             }

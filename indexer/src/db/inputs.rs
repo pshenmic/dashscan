@@ -30,18 +30,13 @@ impl Database {
             }
         }
 
+        // Use `hash = ANY($1::bpchar[])` so the unique index on transactions.hash
+        // is usable — wrapping `hash` in TRIM() forces a sequential scan.
         let mut prev_tx_map: HashMap<String, i32> = HashMap::new();
         for chunk in unique_hashes.chunks(BATCH_SIZE) {
-            let placeholders: Vec<String> = (1..=chunk.len()).map(|i| format!("${}", i)).collect();
-            let query = format!(
-                "SELECT id, TRIM(hash) as hash FROM transactions WHERE TRIM(hash) IN ({})",
-                placeholders.join(", ")
-            );
-            let params: Vec<&(dyn ToSql + Sync)> = chunk
-                .iter()
-                .map(|h| h as &(dyn ToSql + Sync))
-                .collect();
-            let rows = client.query(query.as_str(), &params).await?;
+            let query = "SELECT id, TRIM(hash) AS hash FROM transactions \
+                         WHERE hash = ANY($1::bpchar[])";
+            let rows = client.query(query, &[&chunk]).await?;
             for row in rows {
                 prev_tx_map.insert(row.get("hash"), row.get("id"));
             }
