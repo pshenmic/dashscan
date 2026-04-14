@@ -34,6 +34,14 @@ export default function Routes({ fastify, blocksController, transactionsControll
       },
     },
     {
+      path: '/blocks/transactions/stats',
+      method: 'get',
+      handler: blocksController.getTxCountStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
+    },
+    {
       path: '/block/:hash',
       method: 'get',
       handler: blocksController.getBlockByHash,

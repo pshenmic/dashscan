@@ -102,6 +102,46 @@ Returns a paginated list of blocks.
 
 ---
 
+### GET /blocks/transactions/stats
+
+Returns a time series of the average transaction count per block over a configurable time range.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default               | Constraints          | Description                                              |
+|-------------------|--------|-----------------------|----------------------|----------------------------------------------------------|
+| `timestamp_start` | string | 1 hour ago (ISO 8601) |                      | Start of the time range                                  |
+| `timestamp_end`   | string | now (ISO 8601)        |                      | End of the time range                                    |
+| `intervals_count` | number | auto                  | minimum: 2, max: 100 | Number of buckets. When omitted, chosen automatically via `calculateInterval` |
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "avg": 12.34 }
+  },
+  {
+    "timestamp": "2024-01-02T00:00:00.000Z",
+    "data": { "avg": 9.87 }
+  }
+]
+```
+
+| Field      | Type           | Description                                                          |
+|------------|----------------|----------------------------------------------------------------------|
+| `timestamp`  | string       | ISO 8601 start of the bucket                                         |
+| `data.avg`   | number\|null | Average `tx_count` across all blocks in the bucket. `null` if no blocks fell in the bucket |
+
+**Response `400`**
+
+```json
+{ "message": "start timestamp cannot be more than end timestamp" }
+```
+
+---
+
 ### GET /block/:hash
 
 Returns a single block by its hash.
