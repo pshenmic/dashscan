@@ -236,14 +236,23 @@ export default function Routes({ fastify, blocksController, transactionsControll
         params: {
           type: 'object',
           properties: {
-            address: {
-              type: 'string',
-              maxLength: 35,
-              minLength: 33,
-              pattern: '^[0-9A-Za-z]+$',
-            },
+            address: { $ref: 'address#' },
           }
         }
+      }
+    },
+    {
+      path: '/address/:address/transactions',
+      method: 'get',
+      handler: transactionsController.getAddressTransactions,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            address: { $ref: 'address#' },
+          },
+        },
+        querystring: { $ref: 'paginationOptions#' },
       }
     }
   ];

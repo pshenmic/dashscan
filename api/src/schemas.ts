@@ -7,6 +7,13 @@ const schemas = [
     maxLength: 64,
   },
   {
+    $id: 'address',
+    type: 'string',
+    maxLength: 35,
+    minLength: 33,
+    pattern: '^[A-Za-z0-9]+$',
+  },
+  {
     $id: 'paginationOptions',
     type: 'object',
     properties: {

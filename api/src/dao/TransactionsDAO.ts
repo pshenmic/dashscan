@@ -2,6 +2,7 @@ import {Knex} from 'knex';
 import Transaction from '../models/Transaction';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import {DashCoreRPC} from "../dashcoreRPC";
+import {Address} from "node:cluster";
 
 export default class TransactionsDAO {
   private knex: Knex;
@@ -33,7 +34,8 @@ export default class TransactionsDAO {
         'transactions.block_height',
         'transactions.chain_locked',
         'transactions.instant_lock',
-        'transactions.id'
+        'transactions.id',
+        'transactions.version'
       )
       .orderBy('transactions.block_height', order)
       .limit(limit)
@@ -76,7 +78,7 @@ export default class TransactionsDAO {
         'subquery.hash', 'type', 'block_height',
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
-        'agg_inputs.inputs', 'agg_outputs.outputs'
+        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -185,7 +187,8 @@ export default class TransactionsDAO {
         'transactions.block_height',
         'transactions.chain_locked',
         'transactions.instant_lock',
-        'transactions.id'
+        'transactions.id',
+        'transactions.version',
       )
       .where('transactions.block_height', height)
       .orderBy('transactions.id', order)
@@ -233,7 +236,7 @@ export default class TransactionsDAO {
         'subquery.hash', 'type', 'block_height',
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
-        'agg_inputs.inputs', 'agg_outputs.outputs'
+        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -259,7 +262,8 @@ export default class TransactionsDAO {
         'transactions.type',
         'transactions.chain_locked',
         'transactions.instant_lock',
-        'transactions.id'
+        'transactions.id',
+        'transactions.version'
       )
       .whereNull('block_height')
       .orderBy('id', order)
@@ -300,10 +304,96 @@ export default class TransactionsDAO {
       .select(this.knex('total_count').as('total_count'))
       .select(
         'subquery.hash', 'type', 'chain_locked', 'instant_lock',
-        'agg_inputs.inputs', 'agg_outputs.outputs'
+        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
+      .from('subquery')
+
+    const [row] = rows;
+
+    return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
+  }
+
+  getAddressTransactions = async (address: string, page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
+    const fromRank = (page - 1) * limit;
+
+    const addressIdSubquery = this.knex('addresses').select('id').where('address', address);
+
+    const addressTxIdsCTE = this.knex('tx_outputs')
+      .select('tx_id')
+      .where('address_id', addressIdSubquery)
+      .union(
+        this.knex('tx_inputs')
+          .select('tx_id')
+          .where('address_id', addressIdSubquery),
+      );
+
+    const countSubquery = this.knex('address_tx_ids').count('*');
+
+    const blockMaxHeightSubquery = this.knex('blocks')
+      .select(this.knex.raw('MAX(height) as max_height'))
+      .as('height_subquery')
+
+    const subquery = this.knex('transactions')
+      .select(
+        'transactions.hash',
+        'transactions.type',
+        'transactions.block_height',
+        'transactions.chain_locked',
+        'transactions.instant_lock',
+        'transactions.version',
+        'transactions.id',
+      )
+      .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'))
+      .orderBy('transactions.block_height', order)
+      .limit(limit)
+      .offset(fromRank)
+
+    const outputsCTE = this.knex('tx_outputs')
+      .select('tx_id')
+      .select(this.knex.raw('json_agg(tx_outputs.*) as outputs'))
+      .whereIn('tx_id', this.knex('subquery').select('id'))
+      .groupBy('tx_id');
+
+    const inputsCTE = this.knex('tx_inputs')
+      .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
+      .leftJoin('tx_outputs', function () {
+        this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
+          .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
+      })
+      .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
+      .select('tx_inputs.tx_id')
+      .select(this.knex.raw(`
+        json_agg(
+          json_build_object(
+            'prev_tx_hash', tx_inputs.prev_tx_hash,
+            'prev_vout_index', tx_inputs.prev_vout_index,
+            'address', addresses.address,
+            'amount', tx_outputs.value::text
+          )
+        ) as inputs
+      `))
+      .groupBy('tx_inputs.tx_id');
+
+    const rows = await this.knex
+      .with('address_tx_ids', addressTxIdsCTE)
+      .with('subquery', subquery)
+      .with('total_count', countSubquery)
+      .with('agg_outputs', outputsCTE)
+      .with('agg_inputs', inputsCTE)
+      .select(this.knex.raw('max_height - block_height + 1 AS confirmations'))
+      .select(this.knex('total_count').as('total_count'))
+      .select(
+        'subquery.hash', 'type', 'block_height',
+        'blocks.timestamp as timestamp', 'chain_locked',
+        'blocks.hash as block_hash', 'instant_lock',
+        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version'
+      )
+      .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
+      .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
+      .join(blockMaxHeightSubquery, this.knex.raw('true'))
+      .leftJoin('blocks', 'blocks.height', 'block_height')
       .from('subquery')
 
     const [row] = rows;
