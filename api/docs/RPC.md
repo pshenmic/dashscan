@@ -406,6 +406,50 @@ Returns a single address with aggregated balance and activity stats.
 
 ---
 
+### GET /address/:address/transactions
+
+Returns a paginated list of transactions (confirmed and pending) involving the given address — either as input sender or output recipient.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                                | Description  |
+|-----------|--------|--------------------------------------------|--------------|
+| `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "hash": "abcdef1234...",
+      "type": 0,
+      "blockHeight": 100000,
+      "blockHash": "000000000000abcd1234...",
+      "timestamp": "2023-01-01T00:00:00.000Z",
+      "amount": null,
+      "version": 3,
+      "vIn": [...],
+      "vOut": [...],
+      "confirmations": 10,
+      "instantLock": "0102375e...d571d32a0a",
+      "chainLocked": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 42
+  }
+}
+```
+
+Entries use the [Transaction Object](#transaction-object) shape. `total` reflects the distinct count of transactions the address appears in. Pending transactions (no block) are included with `blockHeight`, `blockHash`, `timestamp`, and `confirmations` set to `null`.
+
+---
+
 ### GET /transactions/history
 
 Returns transaction counts grouped by hour for the past 24 hours.
