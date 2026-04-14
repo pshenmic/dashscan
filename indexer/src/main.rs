@@ -246,7 +246,7 @@ async fn continuous_indexing(
             Some(hash) = zmq_rx.recv() => {
                 // ZMQ notified us of a new block — use the hash directly, no extra RPC call
                 info!("ZMQ: new block detected: {}", hash);
-                match processor.index_block_by_hash(&hash, &config).await {
+                match processor.index_block_by_hash(&hash).await {
                     Ok(None) => info!("Block {} already indexed, skipping", hash),
                     Ok(Some(_)) => {
                         if let Err(e) = processor.sync_masternodes().await {
@@ -278,14 +278,14 @@ async fn continuous_indexing(
             Some(()) = poll_rx.recv() => {
                 // Polling detected new blocks
                 info!("Polling: new blocks detected");
-                index_new_blocks(&processor, &config).await;
+                index_new_blocks(&processor).await;
                 backoff_sleep(1).await;
             }
         }
     }
 }
 
-async fn index_new_blocks(processor: &BlockProcessor, config: &Config) {
+async fn index_new_blocks(processor: &BlockProcessor) {
     let chain_height: i64 = processor.rpc.get_block_count().await
         .expect("Could not get block count from RPC");
 
@@ -293,7 +293,7 @@ async fn index_new_blocks(processor: &BlockProcessor, config: &Config) {
         .expect("Could not read max block height from database");
 
     for height in (db_height + 1)..=chain_height {
-        match processor.index_block_by_height(height, config).await {
+        match processor.index_block_by_height(height).await {
             Ok(None) => info!("Block {} already indexed, skipping", height),
             Ok(Some(hash)) => info!("Indexed live block {} ({})", height, hash),
             Err(e) => error!("Failed to index block with height {}: {}", height, e),
