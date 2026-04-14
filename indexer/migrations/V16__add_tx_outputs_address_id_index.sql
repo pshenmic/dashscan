@@ -1,0 +1,1 @@
+CREATE INDEX idx_tx_outputs_address_id ON tx_outputs(address_id);
