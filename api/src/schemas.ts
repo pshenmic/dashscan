@@ -44,10 +44,6 @@ const schemas = [
         type: ['string', 'null'],
         format: 'date-time'
       },
-      timespan: {
-        type: ['string', 'null'],
-        enum: ['1h', '24h', '3d', '1w']
-      },
       intervals_count: {
         type: ['number', 'null'],
         minimum: 2,
