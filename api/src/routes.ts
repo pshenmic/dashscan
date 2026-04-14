@@ -254,6 +254,20 @@ export default function Routes({ fastify, blocksController, transactionsControll
         },
         querystring: { $ref: 'paginationOptions#' },
       }
+    },
+    {
+      path: '/address/:address/balance/history',
+      method: 'get',
+      handler: addressesController.getAddressBalanceSeries,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            address: { $ref: 'address#' },
+          },
+        },
+        querystring: { $ref: 'timeInterval#' },
+      },
     }
   ];
 
