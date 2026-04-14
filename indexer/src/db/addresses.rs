@@ -21,17 +21,21 @@ impl Database {
 
         for chunk in records.chunks(BATCH_SIZE) {
             let query = format!(
-                "INSERT INTO addresses (address, first_seen_tx_id, first_seen_block) VALUES {} \
+                "INSERT INTO addresses \
+                 (address, first_seen_tx_id, first_seen_block, last_seen_tx_id, last_seen_block) \
+                 VALUES {} \
                  ON CONFLICT (address) DO UPDATE \
-                 SET last_seen_tx_id = EXCLUDED.first_seen_tx_id, \
-                     last_seen_block = COALESCE(EXCLUDED.first_seen_block, addresses.last_seen_block) \
+                 SET last_seen_tx_id = EXCLUDED.last_seen_tx_id, \
+                     last_seen_block = COALESCE(EXCLUDED.last_seen_block, addresses.last_seen_block) \
                  RETURNING id, address",
-                build_placeholders(chunk.len(), 3)
+                build_placeholders(chunk.len(), 5)
             );
 
-            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 3);
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 5);
             for (addr, tx_id, height) in chunk.iter() {
                 params.push(addr);
+                params.push(tx_id);
+                params.push(height);
                 params.push(tx_id);
                 params.push(height);
             }
