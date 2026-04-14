@@ -472,6 +472,49 @@ Returns transaction counts grouped by hour for the past 24 hours.
 
 ---
 
+### GET /transactions/stats
+
+Returns a time series of transaction counts over a configurable time range, with optional running total.
+
+**Query Parameters**
+
+| Parameter         | Type    | Default               | Constraints          | Description                                                                                                      |
+|-------------------|---------|-----------------------|----------------------|------------------------------------------------------------------------------------------------------------------|
+| `timestamp_start` | string  | 1 hour ago (ISO 8601) |                      | Start of the time range                                                                                          |
+| `timestamp_end`   | string  | now (ISO 8601)        |                      | End of the time range                                                                                            |
+| `intervals_count` | number  | auto                  | minimum: 2, max: 100 | Number of buckets. When omitted, interval is chosen automatically via `calculateInterval`                        |
+| `running_total`   | boolean | `false`               |                      | When `true`, each bucket's `count` is the cumulative total from `timestamp_start` through the end of that bucket |
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "count": 142 }
+  },
+  {
+    "timestamp": "2024-01-01T01:00:00.000Z",
+    "data": { "count": 98 }
+  }
+]
+```
+
+| Field        | Type   | Description                                                                         |
+|--------------|--------|-------------------------------------------------------------------------------------|
+| `timestamp`  | string | ISO 8601 start of the bucket                                                        |
+| `data.count` | number | Number of transactions in the bucket, or cumulative total if `running_total=true`   |
+
+> Buckets with zero transactions are included with `count: 0`.
+
+**Response `400`**
+
+```json
+{ "message": "start timestamp cannot be more than end timestamp" }
+```
+
+---
+
 ### GET /search
 
 Searches across blocks, transactions, masternodes, and addresses. Input type is detected automatically.

@@ -60,6 +60,24 @@ export default function Routes({ fastify, blocksController, transactionsControll
       handler: transactionsController.getTransactionHistory,
     },
     {
+      path: '/transactions/stats',
+      method: 'get',
+      handler: transactionsController.getTransactionCountSeries,
+      schema: {
+        querystring: {
+          allOf: [
+            { $ref: 'timeInterval#' },
+            {
+              type: 'object',
+              properties: {
+                running_total: { type: 'boolean' },
+              },
+            },
+          ],
+        },
+      },
+    },
+    {
       path: '/transactions/height/:height',
       method: 'get',
       handler: transactionsController.getTransactionsByBlockHeight,
