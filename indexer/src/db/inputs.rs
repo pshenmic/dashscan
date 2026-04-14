@@ -9,44 +9,24 @@ use crate::rpc::Transaction as RpcTransaction;
 impl Database {
     /// Batch INSERT all inputs across every transaction in the block.
     ///
-    /// `input_addresses` maps `(prev_tx_hash, prev_vout_index)` → `address_id`,
-    /// fully resolved by the caller (DB lookup + RPC fallback).
+    /// `input_addresses` maps `(prev_tx_hash, prev_vout_index)` → `address_id`
+    /// and `prev_tx_ids` maps `prev_tx_hash` → `prev_tx_id`, both fully
+    /// resolved by the caller (in-memory batch cache + single DB join +
+    /// RPC fallback). The caller is the single source of truth for these
+    /// lookups — this method does no DB reads.
     pub async fn insert_tx_inputs_batch(
         &self,
         client: &impl GenericClient,
         transactions: &[RpcTransaction],
         tx_map: &HashMap<String, i32>,
         input_addresses: &HashMap<(String, i32), i32>,
+        prev_tx_ids: &HashMap<String, i32>,
     ) -> Result<(), PoolError> {
-        // Resolve prev tx hashes → DB ids (needed for prev_tx_id column).
-        let mut unique_hashes: Vec<&str> = Vec::new();
-        for tx in transactions {
-            for vin in &tx.vin {
-                if let Some(ref h) = vin.txid {
-                    if !unique_hashes.contains(&h.as_str()) {
-                        unique_hashes.push(h.as_str());
-                    }
-                }
-            }
-        }
-
-        // Use `hash = ANY($1::bpchar[])` so the unique index on transactions.hash
-        // is usable — wrapping `hash` in TRIM() forces a sequential scan.
-        let mut prev_tx_map: HashMap<String, i32> = HashMap::new();
-        for chunk in unique_hashes.chunks(BATCH_SIZE) {
-            let query = "SELECT id, TRIM(hash) AS hash FROM transactions \
-                         WHERE hash = ANY($1::bpchar[])";
-            let rows = client.query(query, &[&chunk]).await?;
-            for row in rows {
-                prev_tx_map.insert(row.get("hash"), row.get("id"));
-            }
-        }
-
         // Flatten inputs into parallel column vecs for stable borrow refs.
         let mut tx_ids: Vec<i32> = Vec::new();
         let mut vin_indices: Vec<i32> = Vec::new();
         let mut prev_tx_hashes: Vec<Option<&str>> = Vec::new();
-        let mut prev_tx_ids: Vec<Option<i32>> = Vec::new();
+        let mut prev_tx_ids_col: Vec<Option<i32>> = Vec::new();
         let mut prev_vouts: Vec<Option<i32>> = Vec::new();
         let mut coinbase_datas: Vec<Option<&str>> = Vec::new();
         let mut addr_ids: Vec<Option<i32>> = Vec::new();
@@ -56,10 +36,10 @@ impl Database {
                 tx_ids.push(tx_map[&tx.txid]);
                 vin_indices.push(i as i32);
                 prev_tx_hashes.push(vin.txid.as_deref());
-                prev_tx_ids.push(
+                prev_tx_ids_col.push(
                     vin.txid
                         .as_ref()
-                        .and_then(|h| prev_tx_map.get(h.as_str()).copied()),
+                        .and_then(|h| prev_tx_ids.get(h.as_str()).copied()),
                 );
                 prev_vouts.push(vin.vout);
                 coinbase_datas.push(vin.coinbase.as_deref());
@@ -92,7 +72,7 @@ impl Database {
                 params.push(&tx_ids[i]);
                 params.push(&vin_indices[i]);
                 params.push(&prev_tx_hashes[i]);
-                params.push(&prev_tx_ids[i]);
+                params.push(&prev_tx_ids_col[i]);
                 params.push(&prev_vouts[i]);
                 params.push(&coinbase_datas[i]);
                 params.push(&addr_ids[i]);

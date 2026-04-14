@@ -1,4 +1,5 @@
 mod address_resolver;
+mod batch_cache;
 mod block_writer;
 mod catch_up;
 mod miner;
@@ -39,7 +40,6 @@ impl BlockProcessor {
     pub async fn index_block_by_hash(
         &self,
         hash: &str,
-        config: &Config,
     ) -> Result<Option<String>, BlockIndexError> {
         let mut client = self.db.begin().await?;
 
@@ -57,10 +57,9 @@ impl BlockProcessor {
     pub async fn index_block_by_height(
         &self,
         height: i64,
-        config: &Config,
     ) -> Result<Option<String>, BlockIndexError> {
         let hash = self.rpc.get_block_hash(height).await?;
-        self.index_block_by_hash(&hash, config).await
+        self.index_block_by_hash(&hash).await
     }
 
     /// Store the raw ISLOCK hex on the matching transaction.

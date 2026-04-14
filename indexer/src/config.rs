@@ -54,8 +54,14 @@ impl Config {
                 .unwrap_or_else(|_| "10".to_string())
                 .parse()
                 .expect("POLL_INTERVAL_SECS must be a number"),
-            catch_up_batch_size: 50,
-            p2p_batch_size: 16,
+            catch_up_batch_size: env::var("CATCH_UP_BATCH_SIZE")
+                .unwrap_or_else(|_| "500".to_string())
+                .parse()
+                .expect("CATCH_UP_BATCH_SIZE must be a number"),
+            p2p_batch_size: env::var("P2P_BATCH_SIZE")
+                .unwrap_or_else(|_| "64".to_string())
+                .parse()
+                .expect("P2P_BATCH_SIZE must be a number"),
         }
     }
 
