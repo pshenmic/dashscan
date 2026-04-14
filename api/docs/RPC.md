@@ -785,6 +785,60 @@ Returns a list of governance proposals from Dash Core RPC.
 
 ---
 
+### GET /address/:address/balance/history
+
+Returns a time series of the address balance over a given time range, with one data point per interval bucket.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                                | Description  |
+|-----------|--------|--------------------------------------------|--------------|
+| `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
+
+**Query Parameters**
+
+| Parameter         | Type    | Default                    | Constraints            | Description                                                                                |
+|-------------------|---------|----------------------------|------------------------|--------------------------------------------------------------------------------------------|
+| `timestamp_start` | string  | 1 hour ago (ISO 8601)      |                        | Start of the time range                                                                    |
+| `timestamp_end`   | string  | now (ISO 8601)             |                        | End of the time range                                                                      |
+| `intervals_count` | number  | auto                       | minimum: 2, max: 100   | Number of buckets to divide the range into. When omitted, interval is chosen automatically based on the range length using `calculateInterval` |
+
+When `intervals_count` is provided, each bucket spans `ceil((end - start) / intervals_count)` seconds, expressed as an ISO 8601 duration. When omitted, `calculateInterval` picks a bucket size from the `Intervals` enum (PT5M … P1Y) such that the range fits in 4–12 buckets.
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "balance": "75000000" }
+  },
+  {
+    "timestamp": "2024-01-02T00:00:00.000Z",
+    "data": { "balance": "50000000" }
+  }
+]
+```
+
+| Field          | Type   | Description                                                                                                                            |
+|----------------|--------|----------------------------------------------------------------------------------------------------------------------------------------|
+| `timestamp`    | string | ISO 8601 start of the bucket                                                                                                           |
+| `data.balance` | string | Cumulative balance in duffs at the end of the bucket (`received - spent`). Includes the initial balance from before `timestamp_start`. |
+
+> Balance values are returned as strings to preserve precision for large numbers.
+
+**Response `400`**
+
+```json
+{ "message": "start and end must be set" }
+```
+
+```json
+{ "message": "start timestamp cannot be more than end timestamp" }
+```
+
+---
+
 ### GET /transactions/mempool
 
 Returns a list of pending transactions.
