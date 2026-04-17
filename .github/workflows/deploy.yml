@@ -40,4 +40,4 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            ./deploy.sh ${{ env.VERSION }} ${{ env.NETWORK }}
+            ./deploy.sh ${{ env.VERSION }} ${{ env.NETWORK }} main
