@@ -158,8 +158,24 @@ Returns a paginated list of transactions. Include pending transactions
       "blockHash": "000000000000abcd1234...",
       "amount": 100000000,
       "version": 3,
-      "vIn": [...],
-      "vOut": [...],
+      "vIn": [
+        {
+          "prevTxHash": "prevtxhash...",
+          "vOutIndex": 0,
+          "sequence": null,
+          "scriptSigASM": null,
+          "amount": "100000",
+          "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw"
+        }
+      ],
+      "vOut": [
+        {
+          "value": "100000000",
+          "number": 0,
+          "scriptPubKeyASM": "OP_DUP OP_HASH160 ...",
+          "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw"
+        }
+      ],
       "confirmations": 10,
       "instantLock": "0102375e39652fee756b492762510aea4087d57b486a89f2f78f52c840f02079052f000000007652da0e18a07bcde5a2205ff041dd0b14b4b7a81b2e0ccaf5118dfe79e56aba00000000f274ca0dd6640a9236dc987e5f09db412ed2bc37806ae90bc6f34f9fd36a7a28da45b260ae37978f3a8fb973c48418a92f41e1e2b77a9d720400000000000000abc1c3d6ddaccf322f655f59979d037badc840328b0da023f70d9d1adea046f9b4486c929ff0c15f2c9036d757ca44ae168e315ba07c19269d7b44c2bf722b811aa9ab0c978198ef3637d4b20e3e316e3459ed3d75dbbafd4966a4d571d32a0a",
       "chainLocked": true
@@ -193,21 +209,26 @@ Returns a single transaction by its hash.
   "type": 0,
   "blockHeight": 100000,
   "blockHash": "000000000000abcd1234...",
-  "amount": 100000000,
+  "timestamp": "2023-01-01T00:00:00.000Z",
+  "amount": null,
   "version": 3,
+  "size": 226,
   "vIn": [
     {
-      "txId": "prevtxhash...",
-      "vOut": 0,
-      "sequence": 4294967295,
-      "scriptSigASM": "OP_DUP OP_HASH160 ..."
+      "prevTxHash": "prevtxhash...",
+      "vOutIndex": 0,
+      "sequence": null,
+      "scriptSigASM": null,
+      "amount": "100000",
+      "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw"
     }
   ],
   "vOut": [
     {
       "value": "100000000",
       "number": 0,
-      "scriptPubKeyASM": "OP_DUP OP_HASH160 ..."
+      "scriptPubKeyASM": "OP_DUP OP_HASH160 ...",
+      "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw"
     }
   ],
   "confirmations": 10,
@@ -220,36 +241,40 @@ Returns a single transaction by its hash.
 
 #### Transaction Object
 
-| Field          | Type           | Description                                                    |
-|----------------|----------------|----------------------------------------------------------------|
-| `hash`         | string         | Transaction hash (64-char hex)                                 |
-| `type`         | number         | Transaction type                                               |
-| `blockHeight`  | number \| null | Height of the block containing this transaction                |
-| `blockHash`    | string \| null | Hash of the block containing this transaction                  |
-| `amount`       | number \| null | Transaction amount in duffs                                    |
-| `version`      | number         | Transaction version                                            |
-| `vIn`          | VIn[]          | Array of transaction inputs                                    |
-| `vOut`         | VOut[]         | Array of transaction outputs                                   |
-| `confirmations`| number \| null | Number of confirmations                                        |
-| `instantLock`  | string \| null | Raw InstantSend lock hex (ISLOCK), or `null` if not IS-locked  |
-| `chainLocked`  | boolean        | Whether the transaction's block has a ChainLock                |
+| Field           | Type           | Description                                                      |
+|-----------------|----------------|------------------------------------------------------------------|
+| `hash`          | string         | Transaction hash (64-char hex)                                   |
+| `type`          | number         | Transaction type                                                 |
+| `blockHeight`   | number \| null | Height of the block containing this transaction                  |
+| `blockHash`     | string \| null | Hash of the block containing this transaction                    |
+| `timestamp`     | string \| null | ISO 8601 block timestamp, or `null` for pending transactions     |
+| `amount`        | number \| null | Transaction amount in duffs                                      |
+| `version`       | number \| null | Transaction version (only populated on single-tx endpoint)       |
+| `size`          | number \| null | Transaction size in bytes (only populated on single-tx endpoint) |
+| `vIn`           | VIn[]          | Array of transaction inputs                                      |
+| `vOut`          | VOut[]         | Array of transaction outputs                                     |
+| `confirmations` | number \| null | Number of confirmations                                          |
+| `instantLock`   | string \| null | Raw InstantSend lock hex (ISLOCK), or `null` if not IS-locked    |
+| `chainLocked`   | boolean        | Whether the transaction's block has a ChainLock                  |
 
 #### VIn Object
 
-| Field          | Type   | Description                          |
-|----------------|--------|--------------------------------------|
-| `txId`         | string | Hash of the previous transaction     |
-| `vOut`         | number | Output index in the previous tx      |
-| `sequence`     | number | Sequence number                      |
-| `scriptSigASM` | string | Input script in ASM format           |
+| Field          | Type           | Description                               |
+|----------------|----------------|-------------------------------------------|
+| `prevTxHash`   | string \| null | Hash of the previous transaction          |
+| `vOutIndex`    | number \| null | Output index in the previous tx           |
+| `address`      | string \| null | Sender address, or `null` if unresolvable |
+| `sequence`     | number \| null | Sequence number                           |
+| `scriptSigASM` | string \| null | Input script in ASM format                |
 
 #### VOut Object
 
-| Field            | Type   | Description                          |
-|------------------|--------|--------------------------------------|
-| `value`          | string | Output value in duffs                |
-| `number`         | number | Output index within the transaction  |
-| `scriptPubKeyASM`| string | Output script in ASM format          |
+| Field             | Type           | Description                                  |
+|-------------------|----------------|----------------------------------------------|
+| `value`           | string \| null | Output value in duffs                        |
+| `number`          | number \| null | Output index within the transaction          |
+| `scriptPubKeyASM` | string \| null | Output script in ASM format                  |
+| `address`         | string \| null | Recipient address, or `null` if unresolvable |
 
 ---
 
@@ -325,13 +350,13 @@ Returns a paginated list of addresses.
 
 #### Address Object
 
-| Field           | Type   | Description                                  |
-|-----------------|--------|----------------------------------------------|
-| `address`       | string | Dash address                                 |
-| `firstSeenBlock`| number | Block height where address was first seen    |
-| `firstSeenTx`   | string | Transaction hash where address was first seen|
-| `lastSeenBlock` | number | Block height where address was last seen     |
-| `lastSeenTx`    | string | Transaction hash where address was last seen |
+| Field            | Type   | Description                                   |
+|------------------|--------|-----------------------------------------------|
+| `address`        | string | Dash address                                  |
+| `firstSeenBlock` | number | Block height where address was first seen     |
+| `firstSeenTx`    | string | Transaction hash where address was first seen |
+| `lastSeenBlock`  | number | Block height where address was last seen      |
+| `lastSeenTx`     | string | Transaction hash where address was last seen  |
 
 ---
 
@@ -361,12 +386,12 @@ Returns transaction counts grouped by hour for the past 24 hours.
 
 Searches across blocks, transactions, masternodes, and addresses. Input type is detected automatically.
 
-| Input pattern             | Queried entities                              |
-|---------------------------|-----------------------------------------------|
-| Pure integer              | Block by height                               |
-| 64-char hex string        | Block by hash, transaction by hash, masternode by proTxHash |
-| Dash address (`X`, `y`, `7`, `8` prefix) | Address by address              |
-| Anything else             | Returns all nulls                             |
+| Input pattern                            | Queried entities                                            |
+|------------------------------------------|-------------------------------------------------------------|
+| Pure integer                             | Block by height                                             |
+| 64-char hex string                       | Block by hash, transaction by hash, masternode by proTxHash |
+| Dash address (`X`, `y`, `7`, `8` prefix) | Address by address                                          |
+| Anything else                            | Returns all nulls                                           |
 
 **Query Parameters**
 
@@ -688,25 +713,28 @@ Returns a list of pending transactions.
       "blockHash": null,
       "timestamp": null,
       "amount": null,
-      "version": 1,
-      "vIn": null,
-      "vOut": null,
+      "version": null,
+      "size": null,
+      "vIn": [
+        {
+          "prevTxHash": "prevtxhash...",
+          "vOutIndex": 0,
+          "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+          "amount": "100000",
+          "sequence": null,
+          "scriptSigASM": null
+        }
+      ],
+      "vOut": [
+        {
+          "value": "100000000",
+          "number": 0,
+          "scriptPubKeyASM": "OP_DUP OP_HASH160 ...",
+          "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw"
+        }
+      ],
       "confirmations": null,
       "instantLock": "0102375e39652fee756b...d571d32a0a",
-      "chainLocked": false
-    },
-    {
-      "hash": "f1edc4f297148814c5df0b5ee831f58132929b022dfad98542f27f5d19fbb348",
-      "type": 0,
-      "blockHeight": null,
-      "blockHash": null,
-      "timestamp": null,
-      "amount": null,
-      "version": 2,
-      "vIn": null,
-      "vOut": null,
-      "confirmations": null,
-      "instantLock": null,
       "chainLocked": false
     }
   ],

@@ -1,3 +1,4 @@
+use deadpool_postgres::PoolError;
 use crate::errors::database_error::DatabaseError;
 use crate::errors::p2p_error::P2PError;
 use crate::errors::rpc_error::RpcError;
@@ -8,33 +9,38 @@ pub enum BlockIndexError {
     P2PError(P2PError),
     UnexpectedError(String),
 }
+
 impl std::fmt::Display for BlockIndexError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            BlockIndexError::DatabaseError(e) => {
-                write!(f, "Block index database error: {e}")
-            }
-            BlockIndexError::RpcError(e) => {
-                write!(f, "Block index Dash RPC error: {e}")
-            }
-            BlockIndexError::P2PError(e) => {
-                write!(f, "Block index P2P error: {e}")
-            }
-            BlockIndexError::UnexpectedError(e) => {
-                write!(f, "Block index unexpected error: {e}")
-            }
+            BlockIndexError::DatabaseError(e) => write!(f, "Block index database error: {e}"),
+            BlockIndexError::RpcError(e) => write!(f, "Block index Dash RPC error: {e}"),
+            BlockIndexError::P2PError(e) => write!(f, "Block index P2P error: {e}"),
+            BlockIndexError::UnexpectedError(e) => write!(f, "Block index unexpected error: {e}"),
         }
     }
 }
 
 impl From<RpcError> for BlockIndexError {
-    fn from(rpc_error: RpcError) -> Self {
-        BlockIndexError::RpcError(rpc_error)
+    fn from(e: RpcError) -> Self {
+        BlockIndexError::RpcError(e)
     }
 }
 
 impl From<P2PError> for BlockIndexError {
-    fn from(p2p_error: P2PError) -> Self {
-        BlockIndexError::P2PError(p2p_error)
+    fn from(e: P2PError) -> Self {
+        BlockIndexError::P2PError(e)
+    }
+}
+
+impl From<PoolError> for BlockIndexError {
+    fn from(e: PoolError) -> Self {
+        BlockIndexError::DatabaseError(DatabaseError::from(e))
+    }
+}
+
+impl From<tokio_postgres::Error> for BlockIndexError {
+    fn from(e: tokio_postgres::Error) -> Self {
+        BlockIndexError::DatabaseError(DatabaseError::from(e))
     }
 }

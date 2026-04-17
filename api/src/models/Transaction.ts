@@ -13,6 +13,8 @@ interface TransactionRow {
   chain_locked: boolean;
   version: number;
   size: number;
+  inputs: any[];
+  outputs: any[];
 }
 
 interface TransactionObject {
@@ -76,8 +78,19 @@ export default class Transaction {
     this.size = size ?? null;
   }
 
-  static fromRow({hash, type, block_height, block_hash, timestamp, version, confirmations, instant_lock, chain_locked, size}: TransactionRow): Transaction {
-    return new Transaction(hash, type, block_height, block_hash, undefined, version, undefined, undefined, confirmations, instant_lock, timestamp, chain_locked, size);
+  static fromRow({hash, type, block_height, block_hash, timestamp, version, confirmations, instant_lock, chain_locked, size, inputs, outputs}: TransactionRow): Transaction {
+    let normalVOut: VOut[] | null = null;
+    let normalVIn: VIn[] | null = null;
+
+    if(outputs!=null) {
+      normalVOut = VOut.fromRows(outputs)
+    }
+
+    if(inputs!=null) {
+      normalVIn = VIn.fromRows(inputs)
+    }
+
+    return new Transaction(hash, type, block_height, block_hash, undefined, version, normalVIn, normalVOut, confirmations, instant_lock, timestamp, chain_locked, size);
   }
 
   static fromObject({
@@ -102,10 +115,11 @@ export default class Transaction {
       normalVIn = vIn.map((input) => {
         if(!(input instanceof VIn)) {
           return VIn.fromObject({
-            txId: input.prev_tx_hash,
-            vOut: input.prev_vout,
+            prevTxHash: input.prev_tx_hash,
+            vOutIndex: input.prev_vout,
             scriptSigASM: Script.fromHex(input.scriptSig?.hex ?? '').ASMString(),
             sequence: input.sequence,
+            amount: input.amount,
           });
         } else {
           return VIn.fromObject(input)
@@ -117,8 +131,8 @@ export default class Transaction {
       normalVOut = vOut.map((output) => {
         if(!(output instanceof VOut)) {
           return VOut.fromObject({
-            value: output.valueSat.toString(),
-            n: output.n,
+            value: output.valueSat?.toString(),
+            number: output.n,
             scriptPubKeyASM: Script.fromHex(output.scriptPubKey?.hex ?? '').ASMString(),
           });
         } else {

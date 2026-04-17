@@ -276,6 +276,15 @@ impl DashRpcClient {
         Ok(entries)
     }
 
+    /// Fetch a transaction by txid (verbosity=1 for decoded output).
+    pub async fn get_raw_transaction(&self, txid: &str) -> Result<Transaction, RpcError> {
+        let result = self
+            .call("getrawtransaction", vec![Value::from(txid), Value::from(1)])
+            .await?;
+        serde_json::from_value(result)
+            .map_err(|e| RpcError { code: 0, message: format!("getrawtransaction parse error: {e}") })
+    }
+
     /// Test connectivity by calling getblockchaininfo
     pub async fn ping(&self) -> Result<(), RpcError> {
         let info = self.get_blockchain_info().await?;

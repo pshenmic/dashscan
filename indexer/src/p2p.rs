@@ -7,10 +7,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use dashcore::consensus::{Decodable, encode};
 use dashcore::hashes::Hash;
 use dashcore::network::{address, constants, message, message_blockdata, message_network};
-use dashcore::{BlockHash, Network, block};
+use dashcore::{BlockHash, Network, Txid, block};
+use dashcore::blockdata::transaction::Transaction;
 use dashcore::secp256k1::rand::Rng;
 use dashcore::secp256k1::rand;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 pub struct P2PClient {
     address: SocketAddr,
@@ -65,6 +66,49 @@ impl P2PClient {
                 _ => {}
             }
         }
+    }
+
+    /// Fetch multiple transactions by their txids in a single batch.
+    /// Returns a map from txid to the full transaction.
+    pub fn get_transactions(&mut self, txids: &[Txid]) -> Result<HashMap<Txid, Transaction>, P2PError> {
+        if txids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        self.set_read_timeout(Some(Duration::from_secs(30)))?;
+
+        let inventory: Vec<_> = txids
+            .iter()
+            .map(|id| message_blockdata::Inventory::Transaction(*id))
+            .collect();
+
+        self.send(message::NetworkMessage::GetData(inventory))?;
+        debug!("Sent getdata for {} transactions", txids.len());
+
+        let mut result: HashMap<Txid, Transaction> = HashMap::with_capacity(txids.len());
+        let mut received = 0usize;
+
+        while received < txids.len() {
+            match self.recv()? {
+                message::NetworkMessage::Tx(tx) => {
+                    result.insert(tx.txid(), tx);
+                    received += 1;
+                }
+                message::NetworkMessage::NotFound(inv) => {
+                    for item in &inv {
+                        if let message_blockdata::Inventory::Transaction(txid) = item {
+                            info!("Transaction {} not found on peer", txid);
+                            received += 1;
+                        }
+                    }
+                }
+                _ => {
+                    warn!("Received unexpected message");
+                }
+            }
+        }
+
+        Ok(result)
     }
 
     /// Sync headers then stream blocks through a channel for processing.
