@@ -99,3 +99,29 @@ export interface SearchResponse {
   masternode: ApiMasternode | null;
   address: ApiAddress | null;
 }
+
+export interface ApiProposalData {
+  endEpoch: number | null;
+  startEpoch: number | null;
+  name: string | null;
+  paymentAddress: string | null;
+  paymentAmount: number | null;
+  type: number | null;
+  url: string | null;
+}
+
+export interface ApiGovernanceObject {
+  dataHex: string | null;
+  data: ApiProposalData | null;
+  hash: string | null;
+  collateralHash: string | null;
+  objectType: "Unknown" | "Proposal" | "Trigger" | null;
+  creationTime: string | null;
+  signingMasternode?: string | null;
+  absoluteYesCount: number | null;
+  yesCount: number | null;
+  noCount: number | null;
+  abstainCount: number | null;
+  localValidity: boolean | null;
+  isValidReason: string | null;
+}
