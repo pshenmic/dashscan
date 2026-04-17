@@ -3,7 +3,7 @@ name: Build
 on:
   pull_request:
     branches: [ "develop" ]
-    types: [ opened, synchronize, reopened, labeled, unlabeled, edited ]
+    types: [ opened, synchronize, reopened ]
 
 env:
   REGISTRY: ghcr.io
