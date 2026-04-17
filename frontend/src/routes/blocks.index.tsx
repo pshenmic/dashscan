@@ -241,26 +241,24 @@ function BlocksPage() {
 
   return (
     <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
-      <div className="mb-6 grid gap-6 lg:grid-cols-[2fr_3fr] [&>*]:min-w-0 animate-fade-in-up">
-        <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
+      <div className="mb-6 grid gap-6 lg:grid-cols-2 [&>*]:min-w-0 animate-fade-in-up">
+        <div className="grid gap-4 grid-cols-3 grid-rows-2 auto-rows-fr [&>*]:min-w-0">
           <StatCard
-            icon={
-              <img src="/icons/chart-pie.svg" alt="" className="size-[34px]" />
-            }
+            icon={<img src="/icons/chart-pie.svg" alt="" className="size-5" />}
             label="Latest Block"
             value={
               stats.latestHeight != null
                 ? stats.latestHeight.toLocaleString()
                 : "—"
             }
+            bgImage="/images/blocks/latest.png"
           />
 
           <StatCard
-            icon={
-              <img src="/icons/superblock.svg" alt="" className="size-[34px]" />
-            }
+            icon={<img src="/icons/superblock.svg" alt="" className="size-5" />}
             label="Latest Superblock"
             value="—"
+            bgImage="/images/blocks/superblock.png"
             adornment={
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#edf3ff] px-2.5 py-1 text-[12px] font-semibold text-accent">
                 7,336
@@ -270,84 +268,77 @@ function BlocksPage() {
           />
 
           <StatCard
-            icon={
-              <img src="/icons/sandglass.svg" alt="" className="size-[34px]" />
-            }
+            icon={<img src="/icons/sandglass.svg" alt="" className="size-5" />}
             label="Block Time"
             value={
               stats.avgBlockTime != null ? `${stats.avgBlockTime} Min` : "—"
             }
+            bgImage="/images/blocks/time.png"
           />
 
           <StatCard
-            icon={<img src="/icons/block.svg" alt="" className="size-[34px]" />}
+            icon={<img src="/icons/block.svg" alt="" className="size-5" />}
             label="Blocks"
             value={
               stats.totalBlocks != null ? formatCompact(stats.totalBlocks) : "—"
             }
+            bgImage="/images/blocks/total.png"
           />
 
           <StatCard
             icon={
-              <img
-                src="/icons/block-reward.svg"
-                alt=""
-                className="size-[34px]"
-              />
+              <img src="/icons/block-reward.svg" alt="" className="size-5" />
             }
             label="Block Reward"
             value="—"
+            bgImage="/images/blocks/reward.png"
           />
 
           <StatCard
-            icon={<img src="/icons/fees.svg" alt="" className="size-[34px]" />}
+            icon={<img src="/icons/fees.svg" alt="" className="size-5" />}
             label="Block Fees"
             value="—"
+            bgImage="/images/blocks/fees.png"
           />
         </div>
 
-        <Card className="relative overflow-hidden rounded-[24px] border bg-white">
-          <div
-            className="pointer-events-none absolute -inset-px bg-no-repeat"
-            style={{
-              backgroundImage: "url('/images/blocks/blocks-hero-bg.png')",
-              backgroundPosition: "top right",
-              backgroundSize: "cover",
-            }}
-          />
+        <Card className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
           <CardHeader className="relative px-5 pb-2 sm:px-6 ">
-            <div>
-              <CardTitle className="text-[34px] font-medium tracking-[-0.03em] text-muted-foreground">
-                Block{" "}
-                <span className="font-normal text-[#21314d]">Transactions</span>
-              </CardTitle>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="font-medium text-[#9aa7bd]">Total TXs:</span>
-                <span className="text-[24px] font-extrabold leading-none tracking-[-0.03em] text-[#1d2c47]">
-                  {stats.totalTxs != null ? formatCompact(stats.totalTxs) : "—"}
-                </span>
-                {stats.txChange != null && (
-                  <Badge className="h-5 rounded-full border-0 bg-accent/10 px-1.5 text-[10px] font-bold text-accent">
-                    {stats.txChange >= 0 ? (
-                      <MoveUp className="size-2.5" />
-                    ) : (
-                      <MoveDown className="size-2.5" />
-                    )}
-                    {Math.abs(stats.txChange).toFixed(1)}%
-                  </Badge>
-                )}
+            <div className="flex items-start gap-4">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
+                <Box className="size-5" strokeWidth={1.75} />
+              </div>
+              <div>
+                <p className="text-[15px] font-medium text-muted-foreground">
+                  Block Transactions
+                </p>
+                <CardTitle className="mt-1 flex flex-wrap items-center gap-2 text-[34px] font-medium tracking-[-0.03em]">
+                  <span className="font-extrabold text-[#21314d]">
+                    {stats.totalTxs != null
+                      ? formatCompact(stats.totalTxs)
+                      : "—"}
+                  </span>
+                  <span className="text-muted-foreground">TXs</span>
+                  {stats.txChange != null && (
+                    <Badge className="h-5 rounded-full border-0 bg-accent/10 px-1.5 text-[10px] font-bold text-accent">
+                      {stats.txChange >= 0 ? (
+                        <MoveUp className="size-2.5" />
+                      ) : (
+                        <MoveDown className="size-2.5" />
+                      )}
+                      {Math.abs(stats.txChange).toFixed(1)}%
+                    </Badge>
+                  )}
+                </CardTitle>
               </div>
             </div>
             <CardAction>
-              <Badge
-                variant="outline"
-                className="h-7 gap-1.5 whitespace-nowrap rounded-full border-white/80 bg-white/8 px-2.5 text-[11px] font-medium text-white backdrop-blur-[2px]"
-              >
+              <Badge className="h-7 gap-1.5 whitespace-nowrap rounded-full border-0 bg-[#EAF0FF] px-2.5 text-[11px] font-medium text-accent">
                 <Calendar className="size-3 shrink-0" />1 Month
               </Badge>
             </CardAction>
           </CardHeader>
-          <CardContent className="relative px-3 pb-3 sm:px-4 sm:pb-4">
+          <CardContent className="relative flex flex-1 items-end px-3 pb-3 sm:px-4 sm:pb-4">
             <BlockTransactionsChart
               className="rounded-[20px]"
               data={chartBlocks.map((b) => ({
@@ -359,7 +350,10 @@ function BlocksPage() {
         </Card>
       </div>
 
-      <Card className="animate-fade-in-up" style={{ animationDelay: "150ms" }}>
+      <Card
+        className="border-0 shadow-none animate-fade-in-up"
+        style={{ animationDelay: "150ms" }}
+      >
         <CardHeader>
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Blocks
@@ -380,6 +374,7 @@ function BlocksPage() {
             skeletonWidths={skeletonWidths}
             skeletonRows={limit}
             emptyMessage="No blocks found."
+            borderless
             onRowClick={(block) =>
               navigate({
                 to: "/blocks/$hashOrHeight",

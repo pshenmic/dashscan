@@ -7,7 +7,13 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Calendar, Percent, Server, ShieldBan } from "lucide-react";
+import {
+  ChartPie,
+  ChevronDown,
+  Server,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { DataTable } from "@/components/data-table";
@@ -172,9 +178,8 @@ function MasternodesPage() {
     const bannedCount = all.filter((n) =>
       n.status.toUpperCase().includes("BANNED"),
     ).length;
-    const totalRewards = all.reduce((sum, n) => sum + n.consecutivePayments, 0);
 
-    return { total, bannedCount, totalRewards };
+    return { total, bannedCount };
   }, [statsData]);
 
   const table = useReactTable({
@@ -194,58 +199,59 @@ function MasternodesPage() {
       <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_2fr] [&>*]:min-w-0 animate-fade-in-up">
         <div className="grid gap-4 [&>*]:min-w-0">
           <StatCard
-            icon={<Server className="size-[34px]" strokeWidth={1.5} />}
+            icon={<ChartPie className="size-5" strokeWidth={1.75} />}
             label="Enabled Nodes"
             value={
               stats.total != null
                 ? formatCompact(stats.total - stats.bannedCount)
                 : "—"
             }
+            bgImage="/images/masternodes/enabled-nodes.png"
           />
           <StatCard
-            icon={<ShieldBan className="size-[34px]" strokeWidth={1.5} />}
-            label="Banned Nodes"
-            value={`${stats.bannedCount} Min`}
-          />
-          <StatCard
-            icon={<Percent className="size-[34px]" strokeWidth={1.5} />}
-            label="Rewards"
-            value={
-              stats.totalRewards > 0 ? formatCompact(stats.totalRewards) : "—"
+            icon={
+              <img src="/icons/block-reward.svg" alt="" className="size-5" />
             }
+            label="Banned Nodes"
+            value={formatCompact(stats.bannedCount)}
+            bgImage="/images/masternodes/banned-nodes.png"
           />
         </div>
 
-        <Card className="relative overflow-hidden rounded-[24px] border bg-white">
-          <div
-            className="pointer-events-none absolute -inset-px bg-no-repeat"
-            style={{
-              backgroundImage:
-                "url('/images/masternodes/masternodes-hero-bg.png')",
-              backgroundPosition: "top right",
-              backgroundSize: "cover",
-            }}
-          />
+        <Card className="relative overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
           <CardHeader className="relative px-5 pb-2 sm:px-6">
-            <div>
-              <p className="text-[15px] font-medium text-muted-foreground">
-                Current Masternodes (Total)
-              </p>
-              <CardTitle className="mt-1 text-[34px] font-medium tracking-[-0.03em]">
-                <span className="font-extrabold text-[#21314d]">
-                  {stats.total != null ? stats.total.toLocaleString() : "—"}
-                </span>{" "}
-                <span className="text-muted-foreground">Nodes</span>
-              </CardTitle>
+            <div className="flex items-start gap-4">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
+                <Wallet className="size-5" strokeWidth={1.75} />
+              </div>
+              <div>
+                <p className="text-[15px] font-medium text-muted-foreground">
+                  Current Masternodes (Total)
+                </p>
+                <CardTitle className="mt-1 text-[34px] font-medium tracking-[-0.03em]">
+                  <span className="font-extrabold text-[#21314d]">
+                    {stats.total != null ? stats.total.toLocaleString() : "—"}
+                  </span>{" "}
+                  <span className="text-muted-foreground">Nodes</span>
+                </CardTitle>
+              </div>
             </div>
             <CardAction>
-              <Badge
-                variant="outline"
-                className="h-7 gap-1.5 whitespace-nowrap rounded-full border-white/80 bg-white/8 px-2.5 text-[11px] font-medium text-white backdrop-blur-[2px]"
-              >
-                <Calendar className="size-3 shrink-0" />
-                Compared to 24h
-              </Badge>
+              <div className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-full bg-[#EAF0FF] px-1.5 text-[12px] font-medium">
+                <span className="inline-flex h-6 items-center gap-1 rounded-full bg-white px-2 text-accent">
+                  <span className="font-semibold">3</span>
+                  <TrendingUp className="size-3" strokeWidth={2.75} />
+                  <span className="font-semibold">2.5%</span>
+                </span>
+                <span className="text-muted-foreground">Compared to</span>
+                <button
+                  type="button"
+                  className="inline-flex h-6 items-center gap-1 rounded-full bg-white px-2 text-[12px] font-medium text-foreground"
+                >
+                  24h
+                  <ChevronDown className="size-3 text-muted-foreground" />
+                </button>
+              </div>
             </CardAction>
           </CardHeader>
           <CardContent className="relative flex min-h-[200px] items-center justify-center px-3 pb-3 sm:px-4 sm:pb-4">
@@ -256,7 +262,10 @@ function MasternodesPage() {
         </Card>
       </div>
 
-      <Card className="animate-fade-in-up" style={{ animationDelay: "150ms" }}>
+      <Card
+        className="border-0 shadow-none animate-fade-in-up"
+        style={{ animationDelay: "150ms" }}
+      >
         <CardHeader>
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Masternodes
@@ -277,6 +286,7 @@ function MasternodesPage() {
             skeletonWidths={skeletonWidths}
             skeletonRows={limit}
             emptyMessage="No masternodes found."
+            borderless
             onRowClick={(node) =>
               navigate({
                 to: "/masternodes/$hash",
