@@ -127,4 +127,8 @@ export class DashCoreRPC {
   async getMemPoolTransactionHashes(): Promise<string[]> {
     return this.callMethod('getrawmempool', []);
   }
+
+  async getBlockCount(): Promise<number> {
+    return this.callMethod('getBlockCount', []);
+  }
 }
