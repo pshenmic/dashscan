@@ -11,7 +11,7 @@ use dashcore::{BlockHash, Network, Txid, block};
 use dashcore::blockdata::transaction::Transaction;
 use dashcore::secp256k1::rand::Rng;
 use dashcore::secp256k1::rand;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 pub struct P2PClient {
     address: SocketAddr,
@@ -103,7 +103,7 @@ impl P2PClient {
                     }
                 }
                 _ => {
-                    println!("eeeee")
+                    warn!("Received unexpected message");
                 }
             }
         }

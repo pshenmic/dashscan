@@ -9,6 +9,7 @@ interface DataTableProps<T> {
   skeletonRows?: number;
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
+  borderless?: boolean;
 }
 
 export function DataTable<T>({
@@ -19,6 +20,7 @@ export function DataTable<T>({
   skeletonRows = 10,
   emptyMessage = "No results found.",
   onRowClick,
+  borderless = false,
 }: DataTableProps<T>) {
   return (
     <table
@@ -63,7 +65,7 @@ export function DataTable<T>({
                 return (
                   <td
                     key={cell.id}
-                    className={`border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10 ${isFirst ? "rounded-l-xl border-l overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-accent before:opacity-0 before:transition-opacity before:duration-150 group-hover:before:opacity-100 relative" : ""} ${isLast ? "rounded-r-xl border-r" : ""}`}
+                    className={`${borderless ? "" : "border-y border-border"} bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10 ${isFirst ? `rounded-l-xl ${borderless ? "" : "border-l"} overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-accent before:opacity-0 before:transition-opacity before:duration-150 group-hover:before:opacity-100 relative` : ""} ${isLast ? `rounded-r-xl ${borderless ? "" : "border-r"}` : ""}`}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>

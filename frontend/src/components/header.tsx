@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { to: "/blocks", label: "Blocks" },
   { to: "/transactions", label: "Transactions" },
   { to: "/masternodes", label: "Masternodes" },
+  { to: "/dao", label: "DAO" },
 ] as const;
 
 export default function Header() {
@@ -27,7 +28,7 @@ export default function Header() {
         {/* Desktop layout (>= md) */}
         <div className="hidden md:flex md:items-center md:gap-8">
           <Link to="/" className="shrink-0">
-            <img src="/dashscan-logo.svg" alt="DScan" className="h-7" />
+            <img src="/dashscan-logo.svg" alt="DScan" className="h-6" />
           </Link>
           {NAV_ITEMS.map((item) => (
             <Link
