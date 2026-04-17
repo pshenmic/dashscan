@@ -17,4 +17,17 @@ export default class AddressesController {
 
     response.send(addresses);
   };
+
+  getAddress = async (request: FastifyRequest<{Params: { address: string }}>, response: FastifyReply): Promise<void> => {
+    const { address } = request.params;
+
+    const result = await this.addressesDAO.getAddress(address);
+
+    if (!result) {
+      response.status(404).send({ error: 'Address not found' });
+      return;
+    }
+
+    response.send(result);
+  }
 }

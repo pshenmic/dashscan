@@ -355,8 +355,98 @@ Returns a paginated list of addresses.
 | `address`        | string | Dash address                                  |
 | `firstSeenBlock` | number | Block height where address was first seen     |
 | `firstSeenTx`    | string | Transaction hash where address was first seen |
-| `lastSeenBlock`  | number | Block height where address was last seen      |
+| `lastSeenBlock`  | number | Block height where address was last seen     |
 | `lastSeenTx`     | string | Transaction hash where address was last seen  |
+
+---
+
+### GET /address/:address
+
+Returns a single address with aggregated balance and activity stats.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                              | Description  |
+|-----------|--------|------------------------------------------|--------------|
+| `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
+
+**Response `200`**
+
+```json
+{
+  "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+  "firstSeenBlock": "000000000000abcd1234...",
+  "firstSeenTx": "abcdef1234...",
+  "lastSeenBlock": "000000000000efgh5678...",
+  "lastSeenTx": "fedcba4321...",
+  "txCount": "42",
+  "received": "100000000",
+  "sent": "25000000",
+  "balance": "75000000"
+}
+```
+
+#### Address Detail Object
+
+| Field            | Type           | Description                                                            |
+|------------------|----------------|------------------------------------------------------------------------|
+| `address`        | string         | Dash address                                                           |
+| `firstSeenBlock` | string \| null | Hash of the block where address was first seen                         |
+| `firstSeenTx`    | string \| null | Hash of the transaction where address was first seen                   |
+| `lastSeenBlock`  | string \| null | Hash of the block where address was last seen                          |
+| `lastSeenTx`     | string \| null | Hash of the transaction where address was last seen                    |
+| `txCount`        | string         | Total number of transactions involving this address (inputs + outputs) |
+| `received`       | string         | Total value received in duffs                                          |
+| `sent`           | string         | Total value sent in duffs                                              |
+| `balance`        | string         | Current balance in duffs (`received - sent`)                           |
+
+> Numeric stats are returned as strings to preserve precision for large values.
+
+**Response `404`** — `"Address not found"`
+
+---
+
+### GET /address/:address/transactions
+
+Returns a paginated list of transactions (confirmed and pending) involving the given address — either as input sender or output recipient.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                                | Description  |
+|-----------|--------|--------------------------------------------|--------------|
+| `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "hash": "abcdef1234...",
+      "type": 0,
+      "blockHeight": 100000,
+      "blockHash": "000000000000abcd1234...",
+      "timestamp": "2023-01-01T00:00:00.000Z",
+      "amount": null,
+      "version": 3,
+      "vIn": [...],
+      "vOut": [...],
+      "confirmations": 10,
+      "instantLock": "0102375e...d571d32a0a",
+      "chainLocked": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 42
+  }
+}
+```
+
+Entries use the [Transaction Object](#transaction-object) shape. `total` reflects the distinct count of transactions the address appears in. Pending transactions (no block) are included with `blockHeight`, `blockHash`, `timestamp`, and `confirmations` set to `null`.
 
 ---
 

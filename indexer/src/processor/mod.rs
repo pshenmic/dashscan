@@ -1,14 +1,15 @@
 mod address_resolver;
+mod batch_cache;
 mod block_writer;
 mod catch_up;
 mod miner;
 
-use std::collections::HashMap;
-use crate::config::{Config, superblock_interval};
+use crate::config::superblock_interval;
 use crate::db::Database;
 use crate::errors::block_index_error::BlockIndexError;
 use crate::miner_pool::MinerPool;
 use crate::rpc::DashRpcClient;
+use std::collections::HashMap;
 use tracing::{debug, info};
 
 pub struct BlockProcessor {
@@ -36,11 +37,7 @@ impl BlockProcessor {
         }
     }
 
-    pub async fn index_block_by_hash(
-        &self,
-        hash: &str,
-        config: &Config,
-    ) -> Result<Option<String>, BlockIndexError> {
+    pub async fn index_block_by_hash(&self, hash: &str) -> Result<Option<String>, BlockIndexError> {
         let mut client = self.db.begin().await?;
 
         if self.db.get_block_by_hash(&**client, hash).await?.is_some() {
@@ -57,10 +54,9 @@ impl BlockProcessor {
     pub async fn index_block_by_height(
         &self,
         height: i64,
-        config: &Config,
     ) -> Result<Option<String>, BlockIndexError> {
         let hash = self.rpc.get_block_hash(height).await?;
-        self.index_block_by_hash(&hash, config).await
+        self.index_block_by_hash(&hash).await
     }
 
     /// Store the raw ISLOCK hex on the matching transaction.
@@ -71,7 +67,8 @@ impl BlockProcessor {
     ) -> Result<(), BlockIndexError> {
         let client = self.db.begin().await?;
 
-        let updated = self.db
+        let updated = self
+            .db
             .update_transaction_instant_lock(&**client, &txid, &lock_hex)
             .await?;
 
@@ -88,7 +85,8 @@ impl BlockProcessor {
     pub async fn apply_chain_lock(&self, block_height: i32) -> Result<(), BlockIndexError> {
         let client = self.db.begin().await?;
 
-        let updated = self.db
+        let updated = self
+            .db
             .set_chain_locked_for_block(&**client, block_height)
             .await?;
 

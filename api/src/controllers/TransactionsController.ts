@@ -56,4 +56,13 @@ export default class TransactionsController {
 
     response.send(transactions)
   }
+
+  getAddressTransactions = async (request: FastifyRequest<{ Params: {address: string}, Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
+    const { page = 1, limit = 10, order = 'asc' } = request.query;
+    const { address } = request.params;
+
+    const transactions = await this.transactionsDAO.getAddressTransactions(address, page, limit, order);
+
+    response.send(transactions)
+  }
 }

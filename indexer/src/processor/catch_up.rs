@@ -7,6 +7,7 @@ use crate::errors::block_index_error::BlockIndexError;
 use crate::p2p::{P2PClient, P2PError};
 use crate::p2p_converter;
 
+use super::batch_cache::BatchCache;
 use super::BlockProcessor;
 
 impl BlockProcessor {
@@ -66,6 +67,7 @@ impl BlockProcessor {
         let mut last_height = db_height;
         let mut batch_count: usize = 0;
         let mut db_tx = client.transaction().await?;
+        let mut cache = BatchCache::default();
 
         while let Ok((height, raw_block)) = block_rx.recv() {
             if height <= last_height {
@@ -74,7 +76,7 @@ impl BlockProcessor {
             }
 
             let block = p2p_converter::convert_block(&raw_block, height, network);
-            self.write_block(&*db_tx, block, true).await?;
+            self.write_block(&*db_tx, block, true, &mut cache).await?;
 
             last_height = height;
             indexed += 1;
@@ -93,6 +95,9 @@ impl BlockProcessor {
 
                 db_tx = client.transaction().await?;
                 batch_count = 0;
+                // Release per-batch memory; cached rows are still in the DB
+                // after commit, we just won't skip the query next time.
+                cache.clear();
             }
         }
 

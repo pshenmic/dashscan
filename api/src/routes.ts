@@ -199,7 +199,11 @@ export default function Routes({ fastify, mainController, blocksController, tran
         querystring: {
           type: 'object',
           properties: {
-            query: { type: 'string', minLength: 1 },
+            query: { 
+              type: 'string', 
+              minLength: 1,
+              pattern: '^[0-9A-Za-z]+$',
+            },
           },
           required: ['query'],
         },
@@ -225,6 +229,33 @@ export default function Routes({ fastify, mainController, blocksController, tran
       path: '/transactions/mempool',
       method: 'get',
       handler: transactionsController.getPendingTransactions
+    },
+    {
+      path: '/address/:address',
+      method: 'get',
+      handler: addressesController.getAddress,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            address: { $ref: 'address#' },
+          }
+        }
+      }
+    },
+    {
+      path: '/address/:address/transactions',
+      method: 'get',
+      handler: transactionsController.getAddressTransactions,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            address: { $ref: 'address#' },
+          },
+        },
+        querystring: { $ref: 'paginationOptions#' },
+      }
     }
   ];
 
