@@ -36,8 +36,11 @@ impl BlockProcessor {
             if let Some(vout_indices) = needed.get(&txid_str) {
                 for &vout_idx in vout_indices {
                     if let Some(output) = raw_tx.output.get(vout_idx as usize) {
-                        if let Ok(addr) = Address::from_script(&output.script_pubkey, network) {
-                            result.insert((txid_str.clone(), vout_idx), addr.to_string());
+                        let is_standard = output.script_pubkey.is_p2pkh() || output.script_pubkey.is_p2sh();
+                        if is_standard {
+                            if let Ok(addr) = Address::from_script(&output.script_pubkey, network) {
+                                result.insert((txid_str.clone(), vout_idx), addr.to_string());
+                            }
                         }
                     }
                 }
