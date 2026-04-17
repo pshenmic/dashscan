@@ -81,9 +81,15 @@ pub fn convert_transaction(
         .iter()
         .enumerate()
         .map(|(n, output)| {
-            let address = Address::from_script(&output.script_pubkey, network)
-                .ok()
-                .map(|a| a.to_string());
+            let is_standard = output.script_pubkey.is_p2pkh() || output.script_pubkey.is_p2sh();
+
+            let address = if is_standard {
+                Address::from_script(&output.script_pubkey, network)
+                    .ok()
+                    .map(|a| a.to_string())
+            } else {
+                None
+            };
 
             let script_type = if output.script_pubkey.is_p2pkh() {
                 Some("pubkeyhash".to_string())
