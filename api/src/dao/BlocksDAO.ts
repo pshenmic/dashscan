@@ -1,6 +1,7 @@
 import {Knex} from 'knex';
 import Block from '../models/Block';
 import PaginatedResultSet from '../models/PaginatedResultSet';
+import SeriesData from '../models/SeriesData';
 
 export default class BlocksDAO {
   private knex: Knex;
@@ -48,6 +49,43 @@ export default class BlocksDAO {
 
     return new PaginatedResultSet(rows.map(row => Block.fromRow(row)), page, limit, row?.total_count);
   };
+
+  getTxCountStats = async (start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
+    const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
+    const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
+
+    const ranges = this.knex
+      .from(this.knex.raw(`generate_series(${startSql}, ${endSql}, '${interval}'::interval) date_to`))
+      .select('date_to')
+      .select(
+        this.knex.raw(
+          'LAG(date_to, 1, ?::timestamptz) OVER (ORDER BY date_to ASC) AS date_from',
+          [start.toISOString()]
+        )
+      );
+
+    const bucketsCTE = this.knex('ranges')
+      .select('date_from')
+      .select(this.knex.raw('AVG(blocks.tx_count) AS avg_tx_count'))
+      .leftJoin('blocks', function () {
+        this.on('blocks.timestamp', '>', 'ranges.date_from')
+          .andOn('blocks.timestamp', '<=', 'ranges.date_to');
+      })
+      .groupBy('date_from');
+
+    const rows = await this.knex
+      .with('ranges', ranges)
+      .with('buckets', bucketsCTE)
+      .select('date_from', 'avg_tx_count')
+      .select(this.knex.raw('COALESCE(avg_tx_count, 0) AS avg_tx_count'))
+      .from('buckets')
+      .orderBy('date_from', 'asc');
+
+    return rows.map((row: any) => new SeriesData(
+      new Date(row.date_from),
+      { avg: row.avg_tx_count !== null ? parseFloat(parseFloat(row.avg_tx_count).toFixed(2)) : null },
+    ));
+  }
 
   getBlockByHash = async (hash: string): Promise<Block | null> => {
     const rows = await this.knex('blocks')

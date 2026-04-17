@@ -36,6 +36,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/blocks/transactions/stats',
+      method: 'get',
+      handler: blocksController.getTxCountStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
+    },
+    {
       path: '/block/:hash',
       method: 'get',
       handler: blocksController.getBlockByHash,
@@ -60,6 +68,24 @@ export default function Routes({ fastify, mainController, blocksController, tran
       path: '/transactions/history',
       method: 'get',
       handler: transactionsController.getTransactionHistory,
+    },
+    {
+      path: '/transactions/stats',
+      method: 'get',
+      handler: transactionsController.getTransactionCountSeries,
+      schema: {
+        querystring: {
+          allOf: [
+            { $ref: 'timeInterval#' },
+            {
+              type: 'object',
+              properties: {
+                running_total: { type: 'boolean' },
+              },
+            },
+          ],
+        },
+      },
     },
     {
       path: '/transactions/height/:height',
@@ -256,6 +282,20 @@ export default function Routes({ fastify, mainController, blocksController, tran
         },
         querystring: { $ref: 'paginationOptions#' },
       }
+    },
+    {
+      path: '/address/:address/balance/history',
+      method: 'get',
+      handler: addressesController.getAddressBalanceSeries,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            address: { $ref: 'address#' },
+          },
+        },
+        querystring: { $ref: 'timeInterval#' },
+      },
     }
   ];
 

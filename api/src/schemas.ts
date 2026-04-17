@@ -32,6 +32,25 @@ const schemas = [
       },
     },
   },
+  {
+    $id: 'timeInterval',
+    type: 'object',
+    properties: {
+      timestamp_start: {
+        type: ['string', 'null'],
+        format: 'date-time'
+      },
+      timestamp_end: {
+        type: ['string', 'null'],
+        format: 'date-time'
+      },
+      intervals_count: {
+        type: ['number', 'null'],
+        minimum: 2,
+        maximum: 100
+      }
+    }
+  },
 ];
 
 export default schemas;

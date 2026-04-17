@@ -3,6 +3,7 @@ import Transaction from '../models/Transaction';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import {DashCoreRPC} from "../dashcoreRPC";
 import {Address} from "node:cluster";
+import SeriesData from '../models/SeriesData';
 
 export default class TransactionsDAO {
   private knex: Knex;
@@ -313,6 +314,49 @@ export default class TransactionsDAO {
     const [row] = rows;
 
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
+  }
+
+  getTransactionCountSeries = async (start: Date, end: Date, interval: string, intervalInMs: number, runningTotal: boolean): Promise<SeriesData[]> => {
+    const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
+    const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
+
+    const ranges = this.knex
+      .from(this.knex.raw(`generate_series(${startSql}, ${endSql}, '${interval}'::interval) date_to`))
+      .select('date_to')
+      .select(
+        this.knex.raw(
+          'LAG(date_to, 1, ?::timestamptz) OVER (ORDER BY date_to ASC) AS date_from',
+          [start.toISOString()]
+        )
+      );
+
+    // Use blocks.tx_count directly — avoids touching the transactions table entirely.
+    // The block_timestamp index covers the range scan; tx_count is in the same row.
+    const bucketsCTE = this.knex('ranges')
+      .select('date_from')
+      .select(this.knex.raw('COALESCE(SUM(blocks.tx_count), 0)::bigint AS count'))
+      .leftJoin('blocks', function () {
+        this.on('blocks.timestamp', '>', 'ranges.date_from')
+          .andOn('blocks.timestamp', '<=', 'ranges.date_to');
+      })
+      .groupBy('date_from');
+
+    const countSelect = runningTotal
+      ? this.knex.raw('SUM(count) OVER (ORDER BY date_from ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS value')
+      : this.knex.raw('count AS value');
+
+    const rows = await this.knex
+      .with('ranges', ranges)
+      .with('buckets', bucketsCTE)
+      .select('date_from')
+      .select(countSelect)
+      .from('buckets')
+      .orderBy('date_from', 'asc');
+
+    return rows.map((row: any) => new SeriesData(
+      new Date(row.date_from),
+      { count: row.value !== null ? Number(row.value) : 0 },
+    ));
   }
 
   getAddressTransactions = async (address: string, page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {

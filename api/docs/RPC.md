@@ -102,6 +102,46 @@ Returns a paginated list of blocks.
 
 ---
 
+### GET /blocks/transactions/stats
+
+Returns a time series of the average transaction count per block over a configurable time range.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default               | Constraints          | Description                                              |
+|-------------------|--------|-----------------------|----------------------|----------------------------------------------------------|
+| `timestamp_start` | string | 1 hour ago (ISO 8601) |                      | Start of the time range                                  |
+| `timestamp_end`   | string | now (ISO 8601)        |                      | End of the time range                                    |
+| `intervals_count` | number | auto                  | minimum: 2, max: 100 | Number of buckets. When omitted, chosen automatically via `calculateInterval` |
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "avg": 12.34 }
+  },
+  {
+    "timestamp": "2024-01-02T00:00:00.000Z",
+    "data": { "avg": 9.87 }
+  }
+]
+```
+
+| Field      | Type           | Description                                                          |
+|------------|----------------|----------------------------------------------------------------------|
+| `timestamp`  | string       | ISO 8601 start of the bucket                                         |
+| `data.avg`   | number\|null | Average `tx_count` across all blocks in the bucket. `null` if no blocks fell in the bucket |
+
+**Response `400`**
+
+```json
+{ "message": "start timestamp cannot be more than end timestamp" }
+```
+
+---
+
 ### GET /block/:hash
 
 Returns a single block by its hash.
@@ -472,6 +512,49 @@ Returns transaction counts grouped by hour for the past 24 hours.
 
 ---
 
+### GET /transactions/stats
+
+Returns a time series of transaction counts over a configurable time range, with optional running total.
+
+**Query Parameters**
+
+| Parameter         | Type    | Default               | Constraints          | Description                                                                                                      |
+|-------------------|---------|-----------------------|----------------------|------------------------------------------------------------------------------------------------------------------|
+| `timestamp_start` | string  | 1 hour ago (ISO 8601) |                      | Start of the time range                                                                                          |
+| `timestamp_end`   | string  | now (ISO 8601)        |                      | End of the time range                                                                                            |
+| `intervals_count` | number  | auto                  | minimum: 2, max: 100 | Number of buckets. When omitted, interval is chosen automatically via `calculateInterval`                        |
+| `running_total`   | boolean | `false`               |                      | When `true`, each bucket's `count` is the cumulative total from `timestamp_start` through the end of that bucket |
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "count": 142 }
+  },
+  {
+    "timestamp": "2024-01-01T01:00:00.000Z",
+    "data": { "count": 98 }
+  }
+]
+```
+
+| Field        | Type   | Description                                                                         |
+|--------------|--------|-------------------------------------------------------------------------------------|
+| `timestamp`  | string | ISO 8601 start of the bucket                                                        |
+| `data.count` | number | Number of transactions in the bucket, or cumulative total if `running_total=true`   |
+
+> Buckets with zero transactions are included with `count: 0`.
+
+**Response `400`**
+
+```json
+{ "message": "start timestamp cannot be more than end timestamp" }
+```
+
+---
+
 ### GET /search
 
 Searches across blocks, transactions, masternodes, and addresses. Input type is detected automatically.
@@ -782,6 +865,60 @@ Returns a list of governance proposals from Dash Core RPC.
 | `paymentAmount`  | number | Requested payment amount in Dash                 |
 | `type`           | number | Proposal type identifier                         |
 | `url`            | string | URL with proposal details                        |
+
+---
+
+### GET /address/:address/balance/history
+
+Returns a time series of the address balance over a given time range, with one data point per interval bucket.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                                | Description  |
+|-----------|--------|--------------------------------------------|--------------|
+| `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
+
+**Query Parameters**
+
+| Parameter         | Type    | Default                    | Constraints            | Description                                                                                |
+|-------------------|---------|----------------------------|------------------------|--------------------------------------------------------------------------------------------|
+| `timestamp_start` | string  | 1 hour ago (ISO 8601)      |                        | Start of the time range                                                                    |
+| `timestamp_end`   | string  | now (ISO 8601)             |                        | End of the time range                                                                      |
+| `intervals_count` | number  | auto                       | minimum: 2, max: 100   | Number of buckets to divide the range into. When omitted, interval is chosen automatically based on the range length using `calculateInterval` |
+
+When `intervals_count` is provided, each bucket spans `ceil((end - start) / intervals_count)` seconds, expressed as an ISO 8601 duration. When omitted, `calculateInterval` picks a bucket size from the `Intervals` enum (PT5M … P1Y) such that the range fits in 4–12 buckets.
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "balance": "75000000" }
+  },
+  {
+    "timestamp": "2024-01-02T00:00:00.000Z",
+    "data": { "balance": "50000000" }
+  }
+]
+```
+
+| Field          | Type   | Description                                                                                                                            |
+|----------------|--------|----------------------------------------------------------------------------------------------------------------------------------------|
+| `timestamp`    | string | ISO 8601 start of the bucket                                                                                                           |
+| `data.balance` | string | Cumulative balance in duffs at the end of the bucket (`received - spent`). Includes the initial balance from before `timestamp_start`. |
+
+> Balance values are returned as strings to preserve precision for large numbers.
+
+**Response `400`**
+
+```json
+{ "message": "start and end must be set" }
+```
+
+```json
+{ "message": "start timestamp cannot be more than end timestamp" }
+```
 
 ---
 
