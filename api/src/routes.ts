@@ -6,9 +6,11 @@ import MasternodesController from './controllers/MasternodesController';
 import MarketController from './controllers/MarketController';
 import SearchController from './controllers/SearchController';
 import GovernanceController from "./controllers/GovernanceController";
+import MainController from './controllers/MainController';
 
 interface RoutesOptions {
   fastify: FastifyInstance;
+  mainController: MainController;
   blocksController: BlocksController;
   transactionsController: TransactionsController;
   addressesController: AddressesController;
@@ -18,12 +20,12 @@ interface RoutesOptions {
   governanceController: GovernanceController;
 }
 
-export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController }: RoutesOptions): void {
+export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController }: RoutesOptions): void {
   const routes = [
     {
       path: '/status',
       method: 'GET',
-      handler: (request, reply) => reply.status(200).send({ status: 'ok' }),
+      handler: mainController.getStatus,
     },
     {
       path: '/blocks',

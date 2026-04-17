@@ -17,6 +17,7 @@ import GovernanceController from "./controllers/GovernanceController";
 import MarketService from './services/MarketService';
 import SearchDAO from './dao/SearchDAO';
 import SearchController from './controllers/SearchController';
+import MainController from './controllers/MainController';
 
 function errorHandler(err: FastifyError, req: FastifyRequest, reply: FastifyReply): void {
   if (err instanceof ServiceNotAvailableError) {
@@ -49,10 +50,10 @@ export const start = async (): Promise<FastifyInstance> => {
 
   await knex.raw('select 1')
 
-  const dashCoreRPC = new DashCoreRPC()
-
+  const dashcoreRPC = new DashCoreRPC();
+  const mainController = new MainController(dashcoreRPC, knex);
   const blocksController = new BlocksController(knex);
-  const transactionsController = new TransactionsController(knex, dashCoreRPC);
+  const transactionsController = new TransactionsController(knex, dashcoreRPC);
   const addressesController = new AddressesController(knex);
   const masternodesDAO = new MasternodesDAO(knex);
   const masternodesController = new MasternodesController(masternodesDAO);
@@ -60,10 +61,11 @@ export const start = async (): Promise<FastifyInstance> => {
   const marketController = new MarketController(marketService);
   const searchDAO = new SearchDAO(knex);
   const searchController = new SearchController(searchDAO);
-  const governanceController = new GovernanceController(dashCoreRPC);
+  const governanceController = new GovernanceController(dashcoreRPC);
 
   Routes({
     fastify,
+    mainController,
     blocksController,
     transactionsController,
     addressesController,
