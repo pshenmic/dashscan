@@ -327,9 +327,11 @@ function Dashboard() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {mnData?.resultSet.map((mn) => (
-              <div
+              <Link
                 key={mn.proTxHash}
-                className="-mx-3 flex items-center justify-between rounded-xl px-3 py-2"
+                to="/masternodes/$hash"
+                params={{ hash: mn.proTxHash }}
+                className="-mx-3 flex items-center justify-between rounded-xl px-3 py-2 transition-colors duration-100 hover:bg-accent/10"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex size-8 items-center justify-center rounded-full border border-accent/12">
@@ -360,7 +362,7 @@ function Dashboard() {
                   </div>
                   <p className="text-xs text-muted-foreground">{mn.type}</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </CardContent>
         </Card>
