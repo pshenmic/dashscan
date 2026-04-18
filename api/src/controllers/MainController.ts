@@ -17,7 +17,7 @@ export default class MainController {
       const networkHeight = await this.dashcoreRPC.getBlockCount();
       const {resultSet: [block]} = await this.blocksDAO.getBlocks(1, 1, 'desc');
 
-      if (block == null || block.height <= networkHeight) {
+      if (block == null || block.height < networkHeight) {
         return response.status(503).send({ status: 'syncing' });
       }
 
