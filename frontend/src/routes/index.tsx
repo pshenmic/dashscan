@@ -4,10 +4,10 @@ import { useStore } from "@tanstack/react-store";
 
 import { Avatar } from "dash-ui-kit/react";
 import {
-  ArrowDown,
   ArrowLeftRight,
-  ArrowUp,
   Box,
+  ChevronDown,
+  ChevronUp,
   MoveDown,
   MoveUp,
 } from "lucide-react";
@@ -185,7 +185,7 @@ function Dashboard() {
       : null;
 
   return (
-    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
+    <main className="mx-auto max-w-[1440px] px-6 py-10">
       <div className="mb-8">
         <p className="text-sm text-muted-foreground">Welcome to #1</p>
         <h1 className="text-4xl font-extrabold tracking-tight">
@@ -198,7 +198,7 @@ function Dashboard() {
         style={{ animationDelay: "100ms" }}
       >
         <Card
-          className="border-0"
+          className="border-0 shadow-card"
           style={{
             background:
               "radial-gradient(circle at top right, oklch(from var(--accent) l c h / 0.05), var(--color-card) 70%)",
@@ -252,7 +252,7 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-0">
+        <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Transactions
@@ -289,17 +289,23 @@ function Dashboard() {
                     <div className="flex items-center gap-1.5">
                       <Badge
                         variant="outline"
-                        className="gap-1 rounded-full border-border/60 bg-transparent px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                        className="gap-1 rounded-full border-transparent bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent"
                       >
-                        <ArrowDown className="size-3" />
-                        {tx.vIn?.length ?? "—"} Inputs
+                        <ChevronDown className="size-3" />
+                        <span className="font-bold">
+                          {tx.vIn?.length ?? "—"}
+                        </span>{" "}
+                        Inputs
                       </Badge>
                       <Badge
                         variant="outline"
-                        className="gap-1 rounded-full border-border/60 bg-transparent px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                        className="gap-1 rounded-full border-transparent bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent"
                       >
-                        <ArrowUp className="size-3" />
-                        {tx.vOut?.length ?? "—"} Outputs
+                        <ChevronUp className="size-3" />
+                        <span className="font-bold">
+                          {tx.vOut?.length ?? "—"}
+                        </span>{" "}
+                        Outputs
                       </Badge>
                     </div>
                   </div>
@@ -317,7 +323,7 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-0">
+        <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Blocks
@@ -370,7 +376,7 @@ function Dashboard() {
         className="grid gap-6 lg:grid-cols-[1fr_auto_2fr] [&>*]:min-w-0"
         delay={200}
       >
-        <Card className="border-0">
+        <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Masternodes
@@ -419,7 +425,7 @@ function Dashboard() {
         </Card>
 
         <div className="flex flex-col gap-3">
-          <Card className="flex-1 border-0">
+          <Card className="flex-1 border-0 shadow-card">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Market Cap
@@ -431,7 +437,7 @@ function Dashboard() {
               </p>
             </CardContent>
           </Card>
-          <Card className="flex-1 border-0">
+          <Card className="flex-1 border-0 shadow-card">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 BTC price
@@ -450,7 +456,7 @@ function Dashboard() {
               </p>
             </CardContent>
           </Card>
-          <Card className="flex-1 border-0">
+          <Card className="flex-1 border-0 shadow-card">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Masternodes
@@ -472,7 +478,7 @@ function Dashboard() {
           </Card>
         </div>
 
-        <Card className="relative flex flex-col border-0">
+        <Card className="relative flex flex-col border-0 shadow-card">
           <CardHeader>
             <div>
               <CardTitle>

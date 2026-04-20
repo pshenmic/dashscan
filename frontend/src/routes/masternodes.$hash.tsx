@@ -103,7 +103,7 @@ function MasternodeDetailPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
+    <main className="mx-auto max-w-[1440px] px-6 py-10">
       <h1 className="mb-8 text-4xl tracking-tight animate-fade-in-up">
         <span>Masternode</span>{" "}
         <span className="text-muted-foreground">Info</span>

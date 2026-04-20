@@ -213,12 +213,12 @@ function DaoPage() {
   const pageCount = table.getPageCount();
 
   return (
-    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
+    <main className="mx-auto max-w-[1440px] px-6 py-10">
       <h1 className="mb-6 text-[28px] font-bold tracking-tight text-[#10213f] sm:text-[34px]">
         Decentralized Autonomous Organization
       </h1>
 
-      <div className="mb-6 grid gap-6 lg:grid-cols-2 [&>*]:min-w-0 animate-fade-in-up">
+      <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
         <div>
           <div className="grid gap-4 grid-cols-2 auto-rows-fr [&>*]:min-w-0">
             <StatCard
@@ -267,7 +267,7 @@ function DaoPage() {
             />
           </div>
 
-          <div className="mt-5 space-y-2 text-[13px] text-muted-foreground">
+          <div className="mt-5 space-y-2 px-5 pb-5 text-[13px] text-muted-foreground">
             <div className="flex items-center gap-6">
               <span className="w-[200px] shrink-0 text-muted-foreground/60">
                 Required votes:

@@ -104,7 +104,7 @@ function BlockDetailPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
+    <main className="mx-auto max-w-[1440px] px-6 py-10">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-fade-in-up">
         <h1 className="text-4xl tracking-tight">
           <span className="mr-3 text-muted-foreground">Block</span>{" "}
