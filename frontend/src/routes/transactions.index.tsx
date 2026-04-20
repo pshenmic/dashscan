@@ -70,7 +70,7 @@ export const Route = createFileRoute("/transactions/")({
         }),
       ),
       context.queryClient.prefetchQuery(
-        transactionsStatsQueryOptions({ network }),
+        transactionsStatsQueryOptions({ network, intervalsCount: 30 }),
       ),
     ]);
   },
@@ -189,7 +189,7 @@ function TransactionsPage() {
   );
 
   const { data: txStats } = useQuery(
-    transactionsStatsQueryOptions({ network }),
+    transactionsStatsQueryOptions({ network, intervalsCount: 30 }),
   );
 
   const transactions = data?.resultSet ?? [];
