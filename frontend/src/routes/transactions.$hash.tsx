@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { ArrowLeftRight } from "lucide-react";
 import { useState } from "react";
+import { AddressLink } from "@/components/address-link";
 import { CopyButton } from "@/components/copy-button";
 import { DetailRow } from "@/components/detail-row";
 import { PageStatus } from "@/components/page-status";
@@ -15,6 +16,7 @@ import {
   getTxTypeBadgeStyle,
   getTxTypeLabel,
   highlightJson,
+  sumVOut,
 } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 
@@ -50,7 +52,7 @@ function TransactionDetailPage() {
     return <PageStatus message="Transaction not found." />;
   }
 
-  const totalOutput = tx.vOut.reduce((sum, out) => sum + Number(out.value), 0);
+  const totalOutput = sumVOut(tx.vOut);
 
   return (
     <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
@@ -147,50 +149,62 @@ function TransactionDetailPage() {
                     Index
                   </th>
                   <th className="px-3 pb-2 text-left font-medium text-foreground">
-                    Previous Output
+                    Address
                   </th>
                   <th className="px-3 pb-2 text-left font-medium text-foreground">
-                    Sequence
+                    Previous Output
+                  </th>
+                  <th className="px-3 pb-2 text-right font-medium text-foreground">
+                    Amount (DASH)
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {tx.vIn.length > 0 ? (
-                  tx.vIn.map((input, idx) => (
-                    <tr
-                      key={`${input.txId ?? "coinbase"}-${input.vOut}`}
-                      className="group transition-colors"
-                    >
-                      <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                        <div className="flex items-center gap-2">
-                          <ArrowLeftRight className="size-4 text-muted-foreground" />
-                          <span>{idx}</span>
-                        </div>
-                      </td>
-                      <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                        {input.txId ? (
-                          <Link
-                            to="/transactions/$hash"
-                            params={{ hash: input.txId }}
-                            className="font-mono text-accent hover:underline"
-                          >
-                            {input.txId.slice(0, 16)}...:{input.vOut}
-                          </Link>
-                        ) : (
-                          <span className="font-mono text-muted-foreground">
-                            Coinbase
-                          </span>
-                        )}
-                      </td>
-                      <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-muted-foreground transition-colors group-hover:bg-accent/10">
-                        {input.sequence}
-                      </td>
-                    </tr>
-                  ))
+                  tx.vIn.map((input, idx) => {
+                    const { prevTxHash } = input;
+                    return (
+                      <tr
+                        key={`${prevTxHash ?? "coinbase"}-${input.vOutIndex ?? idx}`}
+                        className="group transition-colors"
+                      >
+                        <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                          <div className="flex items-center gap-2">
+                            <ArrowLeftRight className="size-4 text-muted-foreground" />
+                            <span>{idx}</span>
+                          </div>
+                        </td>
+                        <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                          <AddressLink address={input.address} />
+                        </td>
+                        <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                          {prevTxHash ? (
+                            <Link
+                              to="/transactions/$hash"
+                              params={{ hash: prevTxHash }}
+                              className="font-mono text-accent hover:underline"
+                            >
+                              {prevTxHash.slice(0, 16)}...:
+                              {input.vOutIndex ?? 0}
+                            </Link>
+                          ) : (
+                            <span className="font-mono text-muted-foreground">
+                              Coinbase
+                            </span>
+                          )}
+                        </td>
+                        <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-right font-semibold transition-colors group-hover:bg-accent/10">
+                          {input.amount != null
+                            ? formatDuffs(input.amount)
+                            : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td
-                      colSpan={3}
+                      colSpan={4}
                       className="px-6 py-10 text-center text-muted-foreground"
                     >
                       No inputs (coinbase transaction).
@@ -213,6 +227,9 @@ function TransactionDetailPage() {
                     Index
                   </th>
                   <th className="px-3 pb-2 text-left font-medium text-foreground">
+                    Address
+                  </th>
+                  <th className="px-3 pb-2 text-left font-medium text-foreground">
                     Script
                   </th>
                   <th className="px-3 pb-2 text-right font-medium text-foreground">
@@ -230,18 +247,21 @@ function TransactionDetailPage() {
                           <span>{output.number}</span>
                         </div>
                       </td>
+                      <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                        <AddressLink address={output.address} />
+                      </td>
                       <td className="max-w-md truncate border-y border-border bg-secondary/50 px-3 py-2 font-mono text-muted-foreground transition-colors group-hover:bg-accent/10">
                         {output.scriptPubKeyASM}
                       </td>
                       <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-right font-semibold transition-colors group-hover:bg-accent/10">
-                        {formatDuffs(Number(output.value))}
+                        {formatDuffs(output.value ?? 0)}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td
-                      colSpan={3}
+                      colSpan={4}
                       className="px-6 py-10 text-center text-muted-foreground"
                     >
                       No outputs.

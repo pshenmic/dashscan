@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
 import { FadeInSection } from "@/components/fade-in-section";
+import { PillToggleGroup } from "@/components/pill-toggle-group";
 import { PriceChart } from "@/components/price-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,11 +36,35 @@ import {
   priceHistoricalQueryOptions,
   priceQueryOptions,
 } from "@/lib/api/price";
-import { transactionHistoryQueryOptions } from "@/lib/api/transaction-history";
+import {
+  blockTransactionsStatsQueryOptions,
+  transactionsStatsQueryOptions,
+} from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import { volumeHistoricalQueryOptions } from "@/lib/api/volume";
-import { formatCompactUsd, formatDash, formatRelativeTime } from "@/lib/format";
+import {
+  formatCompactUsd,
+  formatDash,
+  formatRelativeTime,
+  sumVOut,
+} from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
+
+const TX_STATS_OPTIONS = [
+  { value: "total", label: "Total" },
+  { value: "perBlock", label: "Per Block" },
+] as const;
+
+const CHART_METRIC_OPTIONS = [
+  { value: "price", label: "Price" },
+  { value: "volume", label: "Volume" },
+  { value: "mcap", label: "MCap" },
+] as const;
+
+const PRICE_CURRENCY_OPTIONS = [
+  { value: "usd", label: "USD" },
+  { value: "btc", label: "BTC" },
+] as const;
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -60,7 +85,10 @@ export const Route = createFileRoute("/")({
         masternodesQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
       ),
       context.queryClient.prefetchQuery(
-        transactionHistoryQueryOptions({ network }),
+        transactionsStatsQueryOptions({ network }),
+      ),
+      context.queryClient.prefetchQuery(
+        blockTransactionsStatsQueryOptions({ network }),
       ),
       context.queryClient.prefetchQuery(
         priceQueryOptions({ network, currency: "usd" }),
@@ -84,6 +112,9 @@ function Dashboard() {
     "price",
   );
   const [priceCurrency, setPriceCurrency] = useState<"usd" | "btc">("usd");
+  const [txStatsMetric, setTxStatsMetric] = useState<"total" | "perBlock">(
+    "total",
+  );
 
   const { data: blocksData } = useQuery(
     blocksQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
@@ -94,8 +125,11 @@ function Dashboard() {
   const { data: mnData } = useQuery(
     masternodesQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
   );
-  const { data: txHistory } = useQuery(
-    transactionHistoryQueryOptions({ network }),
+  const { data: txStats } = useQuery(
+    transactionsStatsQueryOptions({ network }),
+  );
+  const { data: blockTxStats } = useQuery(
+    blockTransactionsStatsQueryOptions({ network }),
   );
   const { data: usdPrice } = useQuery(
     priceQueryOptions({ network, currency: "usd" }),
@@ -116,34 +150,25 @@ function Dashboard() {
     marketCapQueryOptions({ network, currency: "usd" }),
   );
 
-  const fullTxHistory = (() => {
-    if (!txHistory) return undefined;
-    const now = new Date();
-    const hourMap = new Map(
-      txHistory.map((e) => {
-        const d = new Date(e.timestamp * 1000);
-        return [d.getHours(), e];
-      }),
-    );
-    return Array.from({ length: 20 }, (_, i) => {
-      const d = new Date(now);
-      d.setHours(now.getHours() - 19 + i, 0, 0, 0);
-      const hour = d.getHours();
-      return (
-        hourMap.get(hour) ?? {
-          timestamp: Math.floor(d.getTime() / 1000),
-          count: 0,
-        }
-      );
-    });
-  })();
+  const txStatsChartData = txStats?.map((e) => ({
+    timestamp: Math.floor(new Date(e.timestamp).getTime() / 1000),
+    value: e.data.count,
+  }));
+  const blockTxStatsChartData = blockTxStats?.map((e) => ({
+    timestamp: Math.floor(new Date(e.timestamp).getTime() / 1000),
+    value: e.data.avg,
+  }));
 
   const totalTxs =
-    fullTxHistory?.reduce((sum, entry) => sum + entry.count, 0) ?? 0;
-  const txHistoryChartData = fullTxHistory?.map((e) => ({
-    timestamp: e.timestamp,
-    value: e.count,
-  }));
+    txStats?.reduce((sum, entry) => sum + entry.data.count, 0) ?? 0;
+  const avgPerBlock =
+    blockTxStats && blockTxStats.length > 0
+      ? blockTxStats.reduce((sum, entry) => sum + entry.data.avg, 0) /
+        blockTxStats.length
+      : 0;
+
+  const activeTxChart =
+    txStatsMetric === "total" ? txStatsChartData : blockTxStatsChartData;
 
   const currentPrice = priceCurrency === "usd" ? usdPrice?.usd : btcPrice?.btc;
   const chartHistory =
@@ -181,22 +206,46 @@ function Dashboard() {
         >
           <CardHeader>
             <CardTitle>Transactions history</CardTitle>
+            <CardAction>
+              <PillToggleGroup
+                value={txStatsMetric}
+                options={TX_STATS_OPTIONS}
+                onChange={setTxStatsMetric}
+              />
+            </CardAction>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-4">
             <div className="flex items-baseline gap-3">
-              <AnimatedNumber
-                value={totalTxs}
-                className="text-4xl font-extrabold"
-              />
-              <span className="text-sm font-medium text-muted-foreground">
-                TXS (20h)
-              </span>
+              {txStatsMetric === "total" ? (
+                <>
+                  <AnimatedNumber
+                    value={totalTxs}
+                    className="text-4xl font-extrabold"
+                  />
+                  <span className="text-sm font-medium text-muted-foreground">
+                    TXs
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-4xl font-extrabold">
+                    {avgPerBlock.toFixed(2)}
+                  </span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Avg TX / Block
+                  </span>
+                </>
+              )}
             </div>
-            {txHistoryChartData && txHistoryChartData.length > 0 ? (
+            {activeTxChart && activeTxChart.length > 0 ? (
               <div className="mt-auto">
                 <PriceChart
-                  data={txHistoryChartData}
-                  formatValue={(v) => `${Math.round(v)} txs`}
+                  data={activeTxChart}
+                  formatValue={(v) =>
+                    txStatsMetric === "total"
+                      ? `${Math.round(v)} txs`
+                      : `${v.toFixed(2)} tx/block`
+                  }
                 />
               </div>
             ) : null}
@@ -256,7 +305,9 @@ function Dashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold">{formatDash(tx.amount)}</p>
+                  <p className="text-sm font-bold">
+                    {formatDash(sumVOut(tx.vOut))}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {tx.timestamp ? formatRelativeTime(tx.timestamp) : ""}
                   </p>
@@ -481,34 +532,16 @@ function Dashboard() {
             </div>
             <CardAction className="absolute right-4 top-4 lg:relative lg:right-auto lg:top-auto">
               <div className="flex flex-col items-end gap-1">
-                <div className="flex items-center gap-1">
-                  {(["price", "volume", "mcap"] as const).map((m) => (
-                    <Button
-                      key={m}
-                      variant={m === chartMetric ? "default" : "ghost"}
-                      size="xs"
-                      className={`rounded-full ${m === chartMetric ? "bg-accent text-accent-foreground" : ""}`}
-                      onClick={() => setChartMetric(m)}
-                    >
-                      {m === "mcap"
-                        ? "MCap"
-                        : m.charAt(0).toUpperCase() + m.slice(1)}
-                    </Button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1">
-                  {(["usd", "btc"] as const).map((c) => (
-                    <Button
-                      key={c}
-                      variant={c === priceCurrency ? "default" : "ghost"}
-                      size="xs"
-                      className={`rounded-full ${c === priceCurrency ? "bg-accent text-accent-foreground" : ""}`}
-                      onClick={() => setPriceCurrency(c)}
-                    >
-                      {c.toUpperCase()}
-                    </Button>
-                  ))}
-                </div>
+                <PillToggleGroup
+                  value={chartMetric}
+                  options={CHART_METRIC_OPTIONS}
+                  onChange={setChartMetric}
+                />
+                <PillToggleGroup
+                  value={priceCurrency}
+                  options={PRICE_CURRENCY_OPTIONS}
+                  onChange={setPriceCurrency}
+                />
               </div>
             </CardAction>
           </CardHeader>

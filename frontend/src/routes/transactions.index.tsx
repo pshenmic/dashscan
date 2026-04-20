@@ -29,6 +29,7 @@ import {
   formatRelativeTime,
   getTxTypeBadgeStyle,
   getTxTypeLabel,
+  sumVOut,
 } from "@/lib/format";
 import { getPageCount, paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
@@ -114,10 +115,12 @@ const columns: ColumnDef<ApiTransaction>[] = [
     ),
   },
   {
-    accessorKey: "amount",
+    id: "amount",
     header: () => <span className="text-right block">Amount</span>,
-    cell: ({ getValue }) => (
-      <div className="text-right">{formatDuffs(getValue<number>())} DASH</div>
+    cell: ({ row }) => (
+      <div className="text-right">
+        {formatDuffs(sumVOut(row.original.vOut))} DASH
+      </div>
     ),
   },
   {

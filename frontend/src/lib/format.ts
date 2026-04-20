@@ -1,9 +1,16 @@
+import type { ApiVOut } from "@/lib/api/types";
+
 export const DUFFS_PER_DASH = 100_000_000;
 
 export function formatDash(duffs: number): string {
   const dash = duffs / DUFFS_PER_DASH;
   if (dash >= 1) return `${dash.toFixed(2)} DASH`;
   return `${dash.toFixed(4)} DASH`;
+}
+
+export function sumVOut(vOut: ApiVOut[] | undefined | null): number {
+  if (!vOut) return 0;
+  return vOut.reduce((sum, out) => sum + (out.value ?? 0), 0);
 }
 
 export function formatDuffs(duffs: number, decimals = 8): string {
