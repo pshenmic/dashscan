@@ -197,13 +197,7 @@ function Dashboard() {
         className="mb-6 grid gap-6 lg:grid-cols-3 animate-fade-in-up [&>*]:min-w-0"
         style={{ animationDelay: "100ms" }}
       >
-        <Card
-          className="border-0 shadow-card"
-          style={{
-            background:
-              "radial-gradient(circle at top right, oklch(from var(--accent) l c h / 0.05), var(--color-card) 70%)",
-          }}
-        >
+        <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle>Transactions history</CardTitle>
             <CardAction>
