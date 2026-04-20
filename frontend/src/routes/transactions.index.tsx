@@ -194,42 +194,36 @@ function TransactionsPage() {
 
   const transactions = data?.resultSet ?? [];
   const pageCount = getPageCount(data?.pagination);
+  const total = data?.pagination?.total ?? null;
 
-  const chartData = useMemo(
-    () =>
-      txStats?.map((e) => ({ timestamp: e.timestamp, count: e.data.count })) ??
-      [],
-    [txStats],
-  );
-
-  const stats = useMemo(() => {
-    const total = data?.pagination?.total ?? null;
-
-    let change: number | null = null;
-    let tps: number | null = null;
-    if (chartData.length >= 2) {
-      const sorted = [...chartData].sort(
+  const chartData = useMemo(() => {
+    if (!txStats) return [];
+    return txStats
+      .map((e) => ({ timestamp: e.timestamp, count: e.data.count }))
+      .sort(
         (a, b) =>
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
       );
-      const half = Math.floor(sorted.length / 2);
-      const firstHalf = sorted.slice(0, half).reduce((s, d) => s + d.count, 0);
-      const secondHalf = sorted.slice(half).reduce((s, d) => s + d.count, 0);
-      if (firstHalf > 0) {
-        change = ((secondHalf - firstHalf) / firstHalf) * 100;
-      }
+  }, [txStats]);
 
-      const totalCount = firstHalf + secondHalf;
-      const firstTs = new Date(sorted[0].timestamp).getTime();
-      const lastTs = new Date(sorted[sorted.length - 1].timestamp).getTime();
-      const spanSeconds = (lastTs - firstTs) / 1000;
-      if (spanSeconds > 0) {
-        tps = totalCount / spanSeconds;
-      }
-    }
+  const { change, tps } = useMemo(() => {
+    if (chartData.length < 2) return { change: null, tps: null };
 
-    return { total, change, tps };
-  }, [chartData, data?.pagination]);
+    const half = Math.floor(chartData.length / 2);
+    const firstHalf = chartData.slice(0, half).reduce((s, d) => s + d.count, 0);
+    const secondHalf = chartData.slice(half).reduce((s, d) => s + d.count, 0);
+    const firstTs = new Date(chartData[0].timestamp).getTime();
+    const lastTs = new Date(
+      chartData[chartData.length - 1].timestamp,
+    ).getTime();
+    const spanSeconds = (lastTs - firstTs) / 1000;
+
+    return {
+      change:
+        firstHalf > 0 ? ((secondHalf - firstHalf) / firstHalf) * 100 : null,
+      tps: spanSeconds > 0 ? (firstHalf + secondHalf) / spanSeconds : null,
+    };
+  }, [chartData]);
 
   const table = useReactTable({
     data: transactions,
@@ -258,17 +252,17 @@ function TransactionsPage() {
                 </p>
                 <CardTitle className="mt-1 flex flex-wrap items-center gap-2 text-[34px] font-medium tracking-[-0.03em]">
                   <span className="font-extrabold text-[#21314d]">
-                    {stats.total != null ? formatCompact(stats.total) : "—"}
+                    {total != null ? formatCompact(total) : "—"}
                   </span>
                   <span className="text-muted-foreground">TXs</span>
-                  {stats.change != null && (
+                  {change != null && (
                     <Badge className="h-5 rounded-full border-0 bg-accent/10 px-1.5 text-[10px] font-bold text-accent">
-                      {stats.change >= 0 ? (
+                      {change >= 0 ? (
                         <MoveUp className="size-2.5" />
                       ) : (
                         <MoveDown className="size-2.5" />
                       )}
-                      {Math.abs(stats.change).toFixed(1)}%
+                      {Math.abs(change).toFixed(1)}%
                     </Badge>
                   )}
                 </CardTitle>
@@ -294,7 +288,7 @@ function TransactionsPage() {
             label="Average Blockchain TPS"
             value={
               <>
-                {stats.tps != null ? stats.tps.toFixed(2) : "—"}{" "}
+                {tps != null ? tps.toFixed(2) : "—"}{" "}
                 <span className="text-muted-foreground font-medium">
                   Transactions
                 </span>

@@ -122,7 +122,7 @@ function TransactionDetailPage() {
       </h1>
 
       <div
-        className="mb-6 grid gap-6 lg:grid-cols-2 [&>*]:min-w-0 animate-fade-in-up"
+        className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up"
         style={{ animationDelay: "100ms" }}
       >
         <div className="flex flex-col gap-6">
@@ -170,13 +170,13 @@ function TransactionDetailPage() {
 
           <Card className="border-0 px-6 py-4">
             <div className="flex flex-col">
-              <MetaRow label="Transaction Hash">
+              <DetailRow label="Transaction Hash">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <HashCell hash={tx.hash} />
                   <CopyButton value={tx.hash} />
                 </div>
-              </MetaRow>
-              <MetaRow label="Block">
+              </DetailRow>
+              <DetailRow label="Block">
                 {tx.blockHeight != null ? (
                   <div className="flex items-center gap-1.5">
                     <Link
@@ -191,8 +191,8 @@ function TransactionDetailPage() {
                 ) : (
                   <span className="text-muted-foreground">Mempool</span>
                 )}
-              </MetaRow>
-              <MetaRow label="Timestamp">
+              </DetailRow>
+              <DetailRow label="Timestamp">
                 {tx.timestamp ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <span>{new Date(tx.timestamp).toLocaleString()}</span>
@@ -206,30 +206,30 @@ function TransactionDetailPage() {
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}
-              </MetaRow>
+              </DetailRow>
               {tx.type === 5 ? (
-                <MetaRow label="Block Reward">
+                <DetailRow label="Block Reward">
                   <AmountValue value={totalOutput} />
-                </MetaRow>
+                </DetailRow>
               ) : tx.type !== 6 ? (
                 <>
-                  <MetaRow label="Total Input">
+                  <DetailRow label="Total Input">
                     <AmountValue value={totalInput} />
-                  </MetaRow>
-                  <MetaRow label="Total Output">
+                  </DetailRow>
+                  <DetailRow label="Total Output">
                     <AmountValue value={totalOutput} />
-                  </MetaRow>
-                  <MetaRow label="Fee">
+                  </DetailRow>
+                  <DetailRow label="Fee">
                     <AmountValue value={fee} muted />
-                  </MetaRow>
+                  </DetailRow>
                 </>
               ) : null}
               {tx.size != null ? (
-                <MetaRow label="Size">
+                <DetailRow label="Size">
                   <span>
                     <span className="font-bold">{tx.size}</span> bytes
                   </span>
-                </MetaRow>
+                </DetailRow>
               ) : null}
             </div>
           </Card>
@@ -238,45 +238,45 @@ function TransactionDetailPage() {
         <Card className="flex flex-col gap-3 border-0 px-6 py-5">
           <h2 className="text-sm text-foreground">Extra Payload</h2>
           <div className="flex flex-col">
-            <PayloadRow label="Version">
+            <DetailRow label="Version">
               <span className="font-bold">{tx.version ?? "—"}</span>
-            </PayloadRow>
-            <PayloadRow label="Type">
+            </DetailRow>
+            <DetailRow label="Type">
               <span className="font-bold">
                 {tx.type} <span className="text-muted-foreground">·</span>{" "}
                 {typeLabel}
               </span>
-            </PayloadRow>
+            </DetailRow>
             {tx.size != null ? (
-              <PayloadRow label="Size">
+              <DetailRow label="Size">
                 <span>
                   <span className="font-bold">{tx.size}</span> bytes
                 </span>
-              </PayloadRow>
+              </DetailRow>
             ) : null}
-            <PayloadRow label="Confirmations">
+            <DetailRow label="Confirmations">
               <span className="font-bold">
                 {(tx.confirmations ?? 0).toLocaleString()}
               </span>
-            </PayloadRow>
-            <PayloadRow label="Chain Locked">
+            </DetailRow>
+            <DetailRow label="Chain Locked">
               <span className="font-bold">{tx.chainLocked ? "Yes" : "No"}</span>
-            </PayloadRow>
+            </DetailRow>
             {tx.blockHash ? (
-              <PayloadRow label="Block Hash">
+              <DetailRow label="Block Hash">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <HashCell hash={tx.blockHash} />
                   <CopyButton value={tx.blockHash} />
                 </div>
-              </PayloadRow>
+              </DetailRow>
             ) : null}
             {tx.instantLock ? (
-              <PayloadRow label="InstantSend Lock">
+              <DetailRow label="InstantSend Lock">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <HashCell hash={tx.instantLock} />
                   <CopyButton value={tx.instantLock} />
                 </div>
-              </PayloadRow>
+              </DetailRow>
             ) : null}
           </div>
         </Card>
@@ -360,18 +360,7 @@ function IconTile({
   );
 }
 
-function MetaRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-6 py-3">
-      <span className="min-w-24 shrink-0 text-xs text-muted-foreground">
-        {label}
-      </span>
-      <div className="flex min-w-0 items-center text-xs">{children}</div>
-    </div>
-  );
-}
-
-function PayloadRow({
+function DetailRow({
   label,
   children,
 }: {
