@@ -36,7 +36,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { transactionsStatsQueryOptions } from "@/lib/api/stats";
+import {
+  monthStatsRange,
+  transactionsStatsQueryOptions,
+} from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
 import {
@@ -70,7 +73,11 @@ export const Route = createFileRoute("/transactions/")({
         }),
       ),
       context.queryClient.prefetchQuery(
-        transactionsStatsQueryOptions({ network, intervalsCount: 30 }),
+        transactionsStatsQueryOptions({
+          network,
+          ...monthStatsRange(),
+          intervalsCount: 30,
+        }),
       ),
     ]);
   },
@@ -189,7 +196,11 @@ function TransactionsPage() {
   );
 
   const { data: txStats } = useQuery(
-    transactionsStatsQueryOptions({ network, intervalsCount: 30 }),
+    transactionsStatsQueryOptions({
+      network,
+      ...monthStatsRange(),
+      intervalsCount: 30,
+    }),
   );
 
   const transactions = data?.resultSet ?? [];

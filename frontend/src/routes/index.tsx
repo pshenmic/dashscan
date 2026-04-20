@@ -85,10 +85,10 @@ export const Route = createFileRoute("/")({
         masternodesQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
       ),
       context.queryClient.prefetchQuery(
-        transactionsStatsQueryOptions({ network, intervalsCount: 30 }),
+        transactionsStatsQueryOptions({ network }),
       ),
       context.queryClient.prefetchQuery(
-        blockTransactionsStatsQueryOptions({ network, intervalsCount: 30 }),
+        blockTransactionsStatsQueryOptions({ network }),
       ),
       context.queryClient.prefetchQuery(
         priceQueryOptions({ network, currency: "usd" }),
@@ -126,10 +126,10 @@ function Dashboard() {
     masternodesQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
   );
   const { data: txStats } = useQuery(
-    transactionsStatsQueryOptions({ network, intervalsCount: 30 }),
+    transactionsStatsQueryOptions({ network }),
   );
   const { data: blockTxStats } = useQuery(
-    blockTransactionsStatsQueryOptions({ network, intervalsCount: 30 }),
+    blockTransactionsStatsQueryOptions({ network }),
   );
   const { data: usdPrice } = useQuery(
     priceQueryOptions({ network, currency: "usd" }),

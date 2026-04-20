@@ -14,21 +14,27 @@ interface FetchStatsInput {
   intervalsCount?: number;
 }
 
-const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-
-function resolveRange(params: FetchStatsInput) {
-  const end = params.timestampEnd ?? new Date().toISOString();
-  const start =
-    params.timestampStart ??
-    new Date(new Date(end).getTime() - ONE_MONTH_MS).toISOString();
-  return { start, end };
+export function monthStatsRange(): {
+  timestampStart: string;
+  timestampEnd: string;
+} {
+  const now = new Date();
+  now.setUTCMinutes(0, 0, 0);
+  const end = now.toISOString();
+  const start = new Date(
+    now.getTime() - 30 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  return { timestampStart: start, timestampEnd: end };
 }
 
 function buildStatsUrl(path: string, params: FetchStatsInput) {
   const url = new URL(path, getBaseUrl(params.network));
-  const { start, end } = resolveRange(params);
-  url.searchParams.set("timestamp_start", start);
-  url.searchParams.set("timestamp_end", end);
+  if (params.timestampStart) {
+    url.searchParams.set("timestamp_start", params.timestampStart);
+  }
+  if (params.timestampEnd) {
+    url.searchParams.set("timestamp_end", params.timestampEnd);
+  }
   if (params.intervalsCount != null) {
     url.searchParams.set("intervals_count", String(params.intervalsCount));
   }
