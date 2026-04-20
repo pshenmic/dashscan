@@ -13,6 +13,7 @@ import {
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import { AddressLink } from "@/components/address-link";
 import { CopyButton } from "@/components/copy-button";
+import { HashCell } from "@/components/hash-cell";
 import { PageStatus } from "@/components/page-status";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -171,7 +172,7 @@ function TransactionDetailPage() {
             <div className="flex flex-col">
               <MetaRow label="Transaction Hash">
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <span className="break-all font-mono text-xs">{tx.hash}</span>
+                  <HashCell hash={tx.hash} />
                   <CopyButton value={tx.hash} />
                 </div>
               </MetaRow>
@@ -236,7 +237,7 @@ function TransactionDetailPage() {
 
         <Card className="flex flex-col gap-3 border-0 px-6 py-5">
           <h2 className="text-sm text-foreground">Extra Payload</h2>
-          <div className="flex flex-col divide-y divide-border">
+          <div className="flex flex-col">
             <PayloadRow label="Version">
               <span className="font-bold">{tx.version ?? "—"}</span>
             </PayloadRow>
@@ -263,12 +264,18 @@ function TransactionDetailPage() {
             </PayloadRow>
             {tx.blockHash ? (
               <PayloadRow label="Block Hash">
-                <AccentCopyPill value={tx.blockHash} mono />
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <HashCell hash={tx.blockHash} />
+                  <CopyButton value={tx.blockHash} />
+                </div>
               </PayloadRow>
             ) : null}
             {tx.instantLock ? (
               <PayloadRow label="InstantSend Lock">
-                <AccentCopyPill value={tx.instantLock} mono truncate />
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <HashCell hash={tx.instantLock} />
+                  <CopyButton value={tx.instantLock} />
+                </div>
               </PayloadRow>
             ) : null}
           </div>
@@ -355,11 +362,11 @@ function IconTile({
 
 function MetaRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3">
-      <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
-      <div className="flex min-w-0 items-center text-right text-sm">
-        {children}
-      </div>
+    <div className="flex items-center gap-6 py-3">
+      <span className="min-w-24 shrink-0 text-xs text-muted-foreground">
+        {label}
+      </span>
+      <div className="flex min-w-0 items-center text-xs">{children}</div>
     </div>
   );
 }
@@ -372,11 +379,11 @@ function PayloadRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3">
-      <span className="shrink-0 text-sm text-foreground">{label}</span>
-      <div className="flex min-w-0 items-center justify-end text-right text-sm">
-        {children}
-      </div>
+    <div className="flex items-center gap-6 py-3">
+      <span className="min-w-24 shrink-0 text-xs text-muted-foreground">
+        {label}
+      </span>
+      <div className="flex min-w-0 items-center text-xs">{children}</div>
     </div>
   );
 }
@@ -394,29 +401,6 @@ function AmountValue({
       <span className="font-bold">{amount}</span>{" "}
       <span className="text-muted-foreground">DASH</span>
     </span>
-  );
-}
-
-function AccentCopyPill({
-  value,
-  mono,
-  truncate,
-}: {
-  value: string;
-  mono?: boolean;
-  truncate?: boolean;
-}) {
-  return (
-    <div
-      className={`flex min-w-0 items-center gap-2 rounded-md bg-accent/8 p-3 text-accent ${mono ? "font-mono text-xs" : "text-sm"}`}
-    >
-      <span
-        className={`min-w-0 font-bold ${truncate ? "truncate" : "break-all"}`}
-      >
-        {value}
-      </span>
-      <CopyButton value={value} />
-    </div>
   );
 }
 
@@ -493,13 +477,13 @@ function InputsTable({ vIn }: { vIn: ApiVIn[] }) {
                 key={`${prevTxHash ?? "coinbase"}-${input.vOutIndex ?? idx}`}
                 className="group transition-colors"
               >
-                <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                <td className="rounded-l-xl bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
                   {idx}
                 </td>
-                <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
                   <AddressLink address={input.address} />
                 </td>
-                <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
                   {prevTxHash ? (
                     <Link
                       to="/transactions/$hash"
@@ -514,7 +498,7 @@ function InputsTable({ vIn }: { vIn: ApiVIn[] }) {
                     </span>
                   )}
                 </td>
-                <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
+                <td className="rounded-r-xl bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
                   {input.amount != null ? (
                     <DashAmountBadge value={Number(input.amount)} />
                   ) : (
@@ -554,16 +538,16 @@ function OutputsTable({ vOut }: { vOut: ApiVOut[] }) {
         <tbody>
           {vOut.map((output) => (
             <tr key={output.number} className="group transition-colors">
-              <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+              <td className="rounded-l-xl bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
                 {output.number}
               </td>
-              <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+              <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
                 <AddressLink address={output.address} />
               </td>
-              <td className="max-w-[140px] truncate border-y border-border bg-secondary/50 px-3 py-2 font-mono text-muted-foreground transition-colors group-hover:bg-accent/10">
+              <td className="max-w-[140px] truncate bg-secondary/50 px-3 py-2 font-mono text-muted-foreground transition-colors group-hover:bg-accent/10">
                 {output.scriptPubKeyASM}
               </td>
-              <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
+              <td className="rounded-r-xl bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
                 {output.value != null ? (
                   <DashAmountBadge value={output.value} />
                 ) : (

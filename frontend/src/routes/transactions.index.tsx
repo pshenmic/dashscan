@@ -7,13 +7,27 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowLeftRight, Box, Lock, Unlock } from "lucide-react";
-import { useState } from "react";
+import {
+  ArrowLeftRight,
+  BadgePercent,
+  Box,
+  Calendar,
+  Check,
+  Lock,
+  MoveDown,
+  MoveUp,
+  Percent,
+  Timer,
+  Unlock,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { DataTable } from "@/components/data-table";
 import { HashCell } from "@/components/hash-cell";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
+import { StatCard } from "@/components/stat-card";
+import { TransactionsAmountChart } from "@/components/transactions-amount-chart";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -22,9 +36,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { transactionsStatsQueryOptions } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
 import {
+  formatCompact,
   formatDuffs,
   formatRelativeTime,
   getTxTypeBadgeStyle,
@@ -43,14 +59,20 @@ export const Route = createFileRoute("/transactions/")({
   }),
   loader: ({ context, deps: { page, limit } }) => {
     if (typeof window !== "undefined") return;
-    return context.queryClient.prefetchQuery(
-      transactionsQueryOptions({
-        network: defaultNetwork,
-        page,
-        limit,
-        order: "desc",
-      }),
-    );
+    const network = defaultNetwork;
+    return Promise.all([
+      context.queryClient.prefetchQuery(
+        transactionsQueryOptions({
+          network,
+          page,
+          limit,
+          order: "desc",
+        }),
+      ),
+      context.queryClient.prefetchQuery(
+        transactionsStatsQueryOptions({ network }),
+      ),
+    ]);
   },
 });
 
@@ -166,8 +188,48 @@ function TransactionsPage() {
     transactionsQueryOptions({ network, page, limit, order: "desc" }),
   );
 
+  const { data: txStats } = useQuery(
+    transactionsStatsQueryOptions({ network }),
+  );
+
   const transactions = data?.resultSet ?? [];
   const pageCount = getPageCount(data?.pagination);
+
+  const chartData = useMemo(
+    () =>
+      txStats?.map((e) => ({ timestamp: e.timestamp, count: e.data.count })) ??
+      [],
+    [txStats],
+  );
+
+  const stats = useMemo(() => {
+    const total = data?.pagination?.total ?? null;
+
+    let change: number | null = null;
+    let tps: number | null = null;
+    if (chartData.length >= 2) {
+      const sorted = [...chartData].sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      );
+      const half = Math.floor(sorted.length / 2);
+      const firstHalf = sorted.slice(0, half).reduce((s, d) => s + d.count, 0);
+      const secondHalf = sorted.slice(half).reduce((s, d) => s + d.count, 0);
+      if (firstHalf > 0) {
+        change = ((secondHalf - firstHalf) / firstHalf) * 100;
+      }
+
+      const totalCount = firstHalf + secondHalf;
+      const firstTs = new Date(sorted[0].timestamp).getTime();
+      const lastTs = new Date(sorted[sorted.length - 1].timestamp).getTime();
+      const spanSeconds = (lastTs - firstTs) / 1000;
+      if (spanSeconds > 0) {
+        tps = totalCount / spanSeconds;
+      }
+    }
+
+    return { total, change, tps };
+  }, [chartData, data?.pagination]);
 
   const table = useReactTable({
     data: transactions,
@@ -183,11 +245,108 @@ function TransactionsPage() {
 
   return (
     <main className="mx-auto max-w-[1440px] px-6 py-10">
-      <h1 className="mb-6 text-4xl font-extrabold tracking-tight">
-        Transactions
-      </h1>
+      <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
+        <Card className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
+          <CardHeader className="relative px-5 pb-2 sm:px-6">
+            <div className="flex items-start gap-4">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
+                <ArrowLeftRight className="size-5" strokeWidth={1.75} />
+              </div>
+              <div>
+                <p className="text-[15px] font-medium text-muted-foreground">
+                  Transactions Amount (Total)
+                </p>
+                <CardTitle className="mt-1 flex flex-wrap items-center gap-2 text-[34px] font-medium tracking-[-0.03em]">
+                  <span className="font-extrabold text-[#21314d]">
+                    {stats.total != null ? formatCompact(stats.total) : "—"}
+                  </span>
+                  <span className="text-muted-foreground">TXs</span>
+                  {stats.change != null && (
+                    <Badge className="h-5 rounded-full border-0 bg-accent/10 px-1.5 text-[10px] font-bold text-accent">
+                      {stats.change >= 0 ? (
+                        <MoveUp className="size-2.5" />
+                      ) : (
+                        <MoveDown className="size-2.5" />
+                      )}
+                      {Math.abs(stats.change).toFixed(1)}%
+                    </Badge>
+                  )}
+                </CardTitle>
+              </div>
+            </div>
+            <CardAction>
+              <Badge className="h-7 gap-1.5 whitespace-nowrap rounded-full border-0 bg-[#EAF0FF] px-2.5 text-[11px] font-medium text-accent">
+                <Calendar className="size-3 shrink-0" />1 Month
+              </Badge>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="relative flex flex-1 items-end px-3 pb-3 sm:px-4 sm:pb-4">
+            <TransactionsAmountChart
+              className="rounded-[20px]"
+              data={chartData}
+            />
+          </CardContent>
+        </Card>
 
-      <Card>
+        <div className="grid gap-4 grid-cols-2 grid-rows-2 auto-rows-fr [&>*]:min-w-0">
+          <StatCard
+            icon={<Timer className="size-5" strokeWidth={1.75} />}
+            label="Average Blockchain TPS"
+            value={
+              <>
+                {stats.tps != null ? stats.tps.toFixed(2) : "—"}{" "}
+                <span className="text-muted-foreground font-medium">
+                  Transactions
+                </span>
+              </>
+            }
+            bgImage="/images/blocks/time.png"
+          />
+
+          <StatCard
+            icon={<Percent className="size-5" strokeWidth={1.75} />}
+            label="Average Transaction Fees"
+            value={
+              <>
+                —{" "}
+                <span className="text-muted-foreground font-medium">Dash</span>
+              </>
+            }
+            bgImage="/images/blocks/fees.png"
+          />
+
+          <StatCard
+            icon={<BadgePercent className="size-5" strokeWidth={1.75} />}
+            label="Total Transaction Fees"
+            value={
+              <>
+                —{" "}
+                <span className="text-muted-foreground font-medium">Dash</span>
+              </>
+            }
+            bgImage="/images/blocks/total.png"
+          />
+
+          <StatCard
+            icon={<Check className="size-5" strokeWidth={2} />}
+            label="Average InstantLock confirmation"
+            value={
+              <>
+                1-3{" "}
+                <span className="text-muted-foreground font-medium">
+                  Seconds
+                </span>
+              </>
+            }
+            bgImage="/images/blocks/latest.png"
+          />
+        </div>
+      </div>
+
+      <Card
+        className="border-0 shadow-none animate-fade-in-up"
+        style={{ animationDelay: "150ms" }}
+      >
         <CardHeader>
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Transactions
@@ -208,6 +367,7 @@ function TransactionsPage() {
             skeletonWidths={skeletonWidths}
             skeletonRows={limit}
             emptyMessage="No transactions found."
+            borderless
             onRowClick={(tx) =>
               navigate({
                 to: "/transactions/$hash",
