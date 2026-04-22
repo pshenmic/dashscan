@@ -296,6 +296,32 @@ export default function Routes({ fastify, mainController, blocksController, tran
         },
         querystring: { $ref: 'timeInterval#' },
       },
+    },
+    {
+      path: '/superblock/last',
+      method: 'get',
+      handler: blocksController.getLastSuperBlock
+    },
+    {
+      path: '/governance/budget',
+      method: 'get',
+      handler: governanceController.getPeriodBudget,
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            superblockHeight: {
+              type: 'number',
+              minimum: 0,
+            },
+          }
+        }
+      }
+    },
+    {
+      path: '/chainInfo',
+      method: 'get',
+      handler: mainController.getChainInfo,
     }
   ];
 

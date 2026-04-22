@@ -61,7 +61,7 @@ export const start = async (): Promise<FastifyInstance> => {
   const marketController = new MarketController(marketService);
   const searchDAO = new SearchDAO(knex);
   const searchController = new SearchController(searchDAO);
-  const governanceController = new GovernanceController(dashcoreRPC);
+  const governanceController = new GovernanceController(dashcoreRPC, knex);
 
   Routes({
     fastify,
