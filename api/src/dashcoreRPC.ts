@@ -1,6 +1,26 @@
 import RpcClient from '@dashevo/dashd-rpc/promise';
 import ServiceNotAvailableError from './errors/ServiceNotAvailableError';
 
+export interface BlockchainInfoRPC {
+  chain: string;
+  blocks: number;
+  headers: number;
+  bestblockhash: string;
+  difficulty: number;
+  mediantime: number;
+  verificationprogress: number;
+  initialblockdownload: boolean;
+  chainwork: string;
+  size_on_disk: number;
+  pruned: boolean;
+  pruneheight?: number;
+  automatic_pruning?: boolean;
+  prune_target_size?: number;
+  softforks: any;
+  warnings: string;
+}
+
+
 export interface TransactionRPC {
   in_active_chain?: boolean;
   txid: string;
@@ -124,11 +144,19 @@ export class DashCoreRPC {
     return this.callMethod('gobject', ['list', signal, type]);
   }
 
+  async getSuperblockBudget(superblockHeight: number): Promise<number> {
+    return this.callMethod('getsuperblockbudget', [superblockHeight]);
+  }
+
   async getMemPoolTransactionHashes(): Promise<string[]> {
     return this.callMethod('getrawmempool', []);
   }
 
   async getBlockCount(): Promise<number> {
     return this.callMethod('getBlockCount', []);
+  }
+
+  async getChainInfo(): Promise<BlockchainInfoRPC> {
+    return this.callMethod('getblockchaininfo', []);
   }
 }
