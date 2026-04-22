@@ -19,4 +19,8 @@ export default class GovernanceDAO {
 
     return proposals
   }
+
+  getPeriodBudget = async (superblockHeight: number): Promise<number> => {
+    return this.dashCoreRPC.getSuperblockBudget(superblockHeight)
+  }
 }
