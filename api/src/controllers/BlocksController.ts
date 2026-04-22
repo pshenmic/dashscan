@@ -66,4 +66,14 @@ export default class BlocksController {
 
     response.send(block);
   };
+
+  getLastSuperBlock = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
+    const block = await this.blocksDAO.getLastSuperBlock()
+
+    if (!block) {
+      return response.status(404).send({ error: 'Block not found' });
+    }
+
+    response.send(block)
+  }
 }

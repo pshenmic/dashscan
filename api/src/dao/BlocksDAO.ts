@@ -27,7 +27,7 @@ export default class BlocksDAO {
       .select('blocks.height', 'blocks.hash', 'blocks.difficulty',
         'blocks.version', 'blocks.timestamp', 'blocks.tx_count',
         'blocks.size', 'blocks.nonce', 'blocks.previous_block_hash',
-        'blocks.merkle_root', 'blocks.credit_pool_balance')
+        'blocks.merkle_root', 'blocks.credit_pool_balance', 'blocks.superblock')
       .orderBy('height', order)
       .limit(limit)
       .offset(fromRank)
@@ -40,7 +40,7 @@ export default class BlocksDAO {
     const rows =await this.knex(subquery)
       .select(this.knex.raw('max_height - subquery.height + 1 AS confirmations'))
       .select('height', 'hash', 'difficulty',
-        'version', 'timestamp', 'tx_count',
+        'version', 'timestamp', 'tx_count','superblock',
         'size', 'nonce', 'previous_block_hash',
         'merkle_root', 'credit_pool_balance', 'total_count')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
@@ -89,7 +89,9 @@ export default class BlocksDAO {
 
   getBlockByHash = async (hash: string): Promise<Block | null> => {
     const rows = await this.knex('blocks')
-      .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce', 'blocks.previous_block_hash', 'blocks.merkle_root', 'blocks.credit_pool_balance')
+      .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.superblock',
+        'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce',
+        'blocks.previous_block_hash', 'blocks.merkle_root', 'blocks.credit_pool_balance')
       .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
       .where('blocks.hash', hash)
       .limit(1)
@@ -102,4 +104,21 @@ export default class BlocksDAO {
 
     return Block.fromRow(row)
   };
+
+  getLastSuperBlock = async (): Promise<Block | null> => {
+    const [row] = await this.knex('blocks')
+      .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.superblock',
+        'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size',
+        'blocks.nonce', 'blocks.previous_block_hash', 'blocks.merkle_root', 'blocks.credit_pool_balance')
+      .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
+      .where('superblock', true)
+      .orderBy('height', 'desc')
+      .limit(1)
+
+    if (row == null) {
+      return null;
+    }
+
+    return Block.fromRow(row)
+  }
 }
