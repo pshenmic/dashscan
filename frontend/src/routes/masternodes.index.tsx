@@ -195,8 +195,8 @@ function MasternodesPage() {
   });
 
   return (
-    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
-      <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_2fr] [&>*]:min-w-0 animate-fade-in-up">
+    <main className="mx-auto max-w-[1440px] px-6 py-10">
+      <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_2fr] rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
         <div className="grid gap-4 [&>*]:min-w-0">
           <StatCard
             icon={<ChartPie className="size-5" strokeWidth={1.75} />}

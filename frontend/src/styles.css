@@ -157,15 +157,13 @@
   animation: subtle-pulse 2s ease-in-out infinite;
 }
 
+@utility shadow-card {
+  box-shadow: 0 0 48px rgba(0, 0, 0, 0.08);
+}
+
 @layer base {
   html {
-    background:
-      radial-gradient(
-        circle at top right,
-        rgba(76, 126, 255, 0.1),
-        transparent 32%
-      ),
-      linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+    background: rgba(248, 248, 248, 1);
   }
 
   * {

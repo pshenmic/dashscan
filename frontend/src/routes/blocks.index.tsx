@@ -240,8 +240,8 @@ function BlocksPage() {
   });
 
   return (
-    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
-      <div className="mb-6 grid gap-6 lg:grid-cols-2 [&>*]:min-w-0 animate-fade-in-up">
+    <main className="mx-auto max-w-[1440px] px-6 py-10">
+      <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
         <div className="grid gap-4 grid-cols-3 grid-rows-2 auto-rows-fr [&>*]:min-w-0">
           <StatCard
             icon={<img src="/icons/chart-pie.svg" alt="" className="size-5" />}

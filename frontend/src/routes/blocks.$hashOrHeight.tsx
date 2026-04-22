@@ -32,6 +32,7 @@ import {
   formatRelativeTime,
   getTxTypeBadgeStyle,
   getTxTypeLabel,
+  sumVOut,
 } from "@/lib/format";
 import { getPageCount } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
@@ -103,7 +104,7 @@ function BlockDetailPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
+    <main className="mx-auto max-w-[1440px] px-6 py-10">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-fade-in-up">
         <h1 className="text-4xl tracking-tight">
           <span className="mr-3 text-muted-foreground">Block</span>{" "}
@@ -352,11 +353,7 @@ function BlockDetailPage() {
                       </Badge>
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
-                      <span>
-                        {tx.amount != null
-                          ? `${formatDuffs(tx.amount)} DASH`
-                          : "—"}
-                      </span>
+                      <span>{formatDuffs(sumVOut(tx.vOut))} DASH</span>
                     </td>
                     <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
                       <span className="inline-flex size-8 items-center justify-center rounded-full border border-accent/20 font-medium text-accent">
