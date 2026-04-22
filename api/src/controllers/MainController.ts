@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Knex } from 'knex';
 import { DashCoreRPC } from '../dashcoreRPC';
 import BlocksDAO from '../dao/BlocksDAO';
+import ChainInfo from "../models/ChainInfo";
 
 export default class MainController {
   private dashcoreRPC: DashCoreRPC;
@@ -12,7 +13,7 @@ export default class MainController {
     this.blocksDAO = new BlocksDAO(knex);
   }
 
-  getStatus = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
+  getStatus = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
     try {
       const networkHeight = await this.dashcoreRPC.getBlockCount();
       const {resultSet: [block]} = await this.blocksDAO.getBlocks(1, 1, 'desc');
@@ -27,4 +28,10 @@ export default class MainController {
       return response.status(500).send({ status: 'internal server error' });
     }
   };
+
+  getChainInfo = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
+    const chainInfo = await this.dashcoreRPC.getChainInfo();
+
+    response.send(ChainInfo.fromRpcResponse(chainInfo))
+  }
 }
