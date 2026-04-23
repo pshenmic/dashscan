@@ -300,7 +300,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
     {
       path: '/governance/budget',
       method: 'get',
-      handler: governanceController.getPeriodBudget,
+      handler: governanceController.getBudgetInfo,
       schema: {
         querystring: {
           type: 'object',
@@ -314,7 +314,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
       }
     },
     {
-      path: '/chainInfo',
+      path: '/chain/stats',
       method: 'get',
       handler: mainController.getChainInfo,
     }

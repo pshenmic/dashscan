@@ -13,14 +13,12 @@ export default class GovernanceDAO {
 
     const keys = Object.keys(response)
 
-    const proposals: GovernanceObject[] = keys.map(key => GovernanceObject.fromObject({
+    return keys.map(key => GovernanceObject.fromObject({
       ...response[key]
     }))
-
-    return proposals
   }
 
-  getPeriodBudget = async (superblockHeight: number): Promise<number> => {
+  getBudgetInfo = async (superblockHeight: number): Promise<number> => {
     return this.dashCoreRPC.getSuperblockBudget(superblockHeight)
   }
 }

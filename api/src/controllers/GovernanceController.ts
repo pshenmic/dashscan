@@ -21,7 +21,7 @@ export default class GovernanceController {
     response.send(proposals)
   }
 
-  getPeriodBudget = async (request: FastifyRequest<{ Querystring: { superblockHeight?: number } }>, response: FastifyReply): Promise<void> => {
+  getBudgetInfo = async (request: FastifyRequest<{ Querystring: { superblockHeight?: number } }>, response: FastifyReply): Promise<void> => {
     let {superblockHeight} = request.query;
 
     if (superblockHeight == null) {
@@ -35,7 +35,7 @@ export default class GovernanceController {
       superblockHeight = lastSuperblock.height
     }
 
-    const budget = await this.governanceDAO.getPeriodBudget(superblockHeight);
+    const budget = await this.governanceDAO.getBudgetInfo(superblockHeight);
 
     response.send({budget})
   }

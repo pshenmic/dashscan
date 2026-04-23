@@ -1,6 +1,6 @@
 import {BlockchainInfoRPC} from "../dashcoreRPC";
 
-interface ChainInfoObject {
+interface ChainStatsObject {
   chain?: string;
   sizeOnDisk?: number;
   difficulty?: number;
@@ -10,7 +10,7 @@ interface ChainInfoObject {
   latestHeight: number;
 }
 
-export default class ChainInfo {
+export default class ChainStats {
   chain: string | null;
   sizeOnDisk: number | null;
   difficulty: number | null;
@@ -29,11 +29,11 @@ export default class ChainInfo {
     this.latestHeight = latestHeight ?? null;
   }
 
-  static fromRpcResponse({chain, size_on_disk, difficulty}: BlockchainInfoRPC): ChainInfo {
-    return new ChainInfo(chain, size_on_disk, difficulty);
+  static fromRpcResponse({chain, size_on_disk, difficulty}: BlockchainInfoRPC): ChainStats {
+    return new ChainStats(chain, size_on_disk, difficulty);
   }
 
-  static fromObject({chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight}: ChainInfoObject): ChainInfo {
-    return new ChainInfo(chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight);
+  static fromObject({chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight}: ChainStatsObject): ChainStats {
+    return new ChainStats(chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight);
   }
 }

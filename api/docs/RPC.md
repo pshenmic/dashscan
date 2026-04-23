@@ -1013,7 +1013,7 @@ Returns the total treasury budget for a given superblock, in Dash. When `superbl
 
 ---
 
-### GET /chainInfo
+### GET /chain/stats
 
 Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics computed from the 20 most recently indexed blocks.
 
@@ -1031,7 +1031,7 @@ Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics
 }
 ```
 
-#### ChainInfo Object
+#### ChainStats Object
 
 | Field                   | Type           | Description                                                                   |
 |-------------------------|----------------|-------------------------------------------------------------------------------|
