@@ -25,7 +25,7 @@ export default class GovernanceController {
     let {superblockHeight} = request.query;
 
     if (superblockHeight == null) {
-      const lastSuperblock = await this.blocksDAO.getLastSuperBlock()
+      const {resultSet: [lastSuperblock]} = await this.blocksDAO.getBlocks(1,1,'desc', true)
 
       if (lastSuperblock?.height == null) {
         response.code(404).send({error: 'No superblock found. Please try to set superblockHeight.'})
