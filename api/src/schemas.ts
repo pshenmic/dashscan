@@ -30,6 +30,9 @@ const schemas = [
         type: ['string', 'null'],
         enum: ['asc', 'desc'],
       },
+      superblock: {
+        type: ['boolean', 'null'],
+      },
     },
   },
   {

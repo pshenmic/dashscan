@@ -10,16 +10,18 @@ export default class BlocksDAO {
     this.knex = knex;
   }
 
-  getBlocks = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Block>> => {
+  getBlocks = async (page: number, limit: number, order: string, superblock?: boolean): Promise<PaginatedResultSet<Block>> => {
     const fromRank = (page - 1) * limit;
 
     // TODO: Implement more accurate solution
     // we cannot use count() on tables with 100 million rows
     // we can use pg_class to get approximate information about the table
-    const countSubquery = this.knex('pg_class')
-      .select(this.knex.raw('reltuples::bigint'))
-      .whereRaw(`relname='blocks'`)
-      .limit(1)
+    const countSubquery = superblock
+      ? this.knex('blocks').count('* as reltuples').where('superblock', true)
+      : this.knex('pg_class')
+          .select(this.knex.raw('reltuples::bigint'))
+          .whereRaw(`relname='blocks'`)
+          .limit(1)
 
     const subquery = this.knex('blocks')
       .with('total_count', countSubquery)
@@ -28,6 +30,11 @@ export default class BlocksDAO {
         'blocks.version', 'blocks.timestamp', 'blocks.tx_count',
         'blocks.size', 'blocks.nonce', 'blocks.previous_block_hash',
         'blocks.merkle_root', 'blocks.credit_pool_balance', 'blocks.superblock')
+      .modify((builder) => {
+        if (superblock != null && typeof superblock === 'boolean') {
+          builder.where('blocks.superblock', superblock);
+        }
+      })
       .orderBy('height', order)
       .limit(limit)
       .offset(fromRank)
@@ -104,21 +111,4 @@ export default class BlocksDAO {
 
     return Block.fromRow(row)
   };
-
-  getLastSuperBlock = async (): Promise<Block | null> => {
-    const [row] = await this.knex('blocks')
-      .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.superblock',
-        'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size',
-        'blocks.nonce', 'blocks.previous_block_hash', 'blocks.merkle_root', 'blocks.credit_pool_balance')
-      .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
-      .where('superblock', true)
-      .orderBy('height', 'desc')
-      .limit(1)
-
-    if (row == null) {
-      return null;
-    }
-
-    return Block.fromRow(row)
-  }
 }

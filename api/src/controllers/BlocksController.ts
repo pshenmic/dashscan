@@ -13,9 +13,9 @@ export default class BlocksController {
   }
 
   getBlocks = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
-    const { page = 1, limit = 10, order = 'asc' } = request.query;
+    const { page = 1, limit = 10, order = 'asc', superblock } = request.query;
 
-    const blocks = await this.blocksDAO.getBlocks(page, limit, order);
+    const blocks = await this.blocksDAO.getBlocks(page, limit, order, superblock);
 
     response.send(blocks);
   };
@@ -66,14 +66,4 @@ export default class BlocksController {
 
     response.send(block);
   };
-
-  getLastSuperBlock = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
-    const block = await this.blocksDAO.getLastSuperBlock()
-
-    if (!block) {
-      return response.status(404).send({ error: 'Block not found' });
-    }
-
-    response.send(block)
-  }
 }

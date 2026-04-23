@@ -298,11 +298,6 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/superblock/last',
-      method: 'get',
-      handler: blocksController.getLastSuperBlock
-    },
-    {
       path: '/governance/budget',
       method: 'get',
       handler: governanceController.getPeriodBudget,

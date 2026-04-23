@@ -981,38 +981,6 @@ Returns a list of pending transactions.
 
 ---
 
-### GET /superblock/last
-
-Returns the most recent superblock (a block where `superblock = true`).
-
-**Response `200`** — [Block Object](#block-object)
-
-```json
-{
-  "height": 2100000,
-  "hash": "000000000000abcd1234...",
-  "version": 536870912,
-  "timestamp": "2024-03-01T00:00:00.000Z",
-  "txCount": 12,
-  "size": 2345,
-  "creditPoolBalance": 500000,
-  "difficulty": 123456.789,
-  "merkleRoot": "abcdef1234...",
-  "previousBlockHash": "000000000000efgh5678...",
-  "nonce": 987654321,
-  "confirmations": 128,
-  "superblock": true
-}
-```
-
-**Response `404`**
-
-```json
-{ "error": "Block not found" }
-```
-
----
-
 ### GET /governance/budget
 
 Returns the total treasury budget for a given superblock, in Dash. When `superblockHeight` is omitted, the height of the most recent superblock is used.
