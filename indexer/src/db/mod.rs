@@ -8,7 +8,7 @@ mod transactions;
 use deadpool_postgres::{Client, Pool, PoolError};
 
 /// Maximum rows per batched INSERT to stay under PostgreSQL's 32 767 parameter limit.
-pub(crate) const BATCH_SIZE: usize = 1000;
+pub(crate) const BATCH_SIZE: usize = 128;
 
 /// Builds a placeholder string like `($1,$2,$3),($4,$5,$6)` for a batch INSERT.
 pub(crate) fn build_placeholders(n_rows: usize, n_cols: usize) -> String {

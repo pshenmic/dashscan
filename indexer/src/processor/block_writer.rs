@@ -4,7 +4,6 @@ use dashcore::consensus::encode::deserialize_partial;
 use deadpool_postgres::Client;
 use futures::stream::{self, StreamExt};
 use serde_json::Value;
-use tokio_postgres::GenericClient;
 use tracing::{error, info};
 
 /// Max concurrent `getrawtransaction` calls during the RPC fallback path.
@@ -45,7 +44,7 @@ impl BlockProcessor {
     /// memory instead of hitting the DB.
     pub(super) async fn write_block(
         &self,
-        client: &impl GenericClient,
+        client: &tokio_postgres::Transaction<'_>,
         block: Block,
         chain_locked: bool,
         cache: &mut BatchCache,
@@ -104,7 +103,7 @@ impl BlockProcessor {
     /// `block_height` is None for pending (mempool) transactions.
     async fn write_transaction_data(
         &self,
-        client: &impl GenericClient,
+        client: &tokio_postgres::Transaction<'_>,
         txs: &[Transaction],
         tx_map: &HashMap<String, i32>,
         block_height: Option<i32>,

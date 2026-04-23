@@ -55,7 +55,7 @@ impl Config {
                 .parse()
                 .expect("POLL_INTERVAL_SECS must be a number"),
             catch_up_batch_size: env::var("CATCH_UP_BATCH_SIZE")
-                .unwrap_or_else(|_| "500".to_string())
+                .unwrap_or_else(|_| "50".to_string())
                 .parse()
                 .expect("CATCH_UP_BATCH_SIZE must be a number"),
             p2p_batch_size: env::var("P2P_BATCH_SIZE")
@@ -67,6 +67,9 @@ impl Config {
 
     pub fn pg_config(&self) -> deadpool_postgres::Config {
         let mut cfg = deadpool_postgres::Config::new();
+        // Suppress NOTICE messages (e.g. `relation already exists, skipping`
+        // from the `CREATE TEMP TABLE IF NOT EXISTS` staging-table pattern).
+        cfg.options = Some("-c client_min_messages=WARNING".to_string());
         // Parse postgres://user:password@host:port/dbname
         let without_scheme = self
             .database_url
