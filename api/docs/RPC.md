@@ -57,6 +57,10 @@ Returns a paginated list of blocks.
 
 **Query Parameters:** [Pagination](#pagination-query-parameters)
 
+| Parameter    | Type              | Default | Description                                                                 |
+|--------------|-------------------|---------|-----------------------------------------------------------------------------|
+| `superblock` | boolean \| null   | `null`  | When set, returns only blocks with this `superblock` flag value             |
+
 **Response `200`**
 
 ```json
