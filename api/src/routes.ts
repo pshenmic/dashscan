@@ -311,7 +311,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
           type: 'object',
           properties: {
             superblockHeight: {
-              type: 'number',
+              type: ['number', 'null'],
               minimum: 0,
             },
           }
