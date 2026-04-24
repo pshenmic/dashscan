@@ -33,11 +33,6 @@ export default class TransactionsController {
     response.send(transaction);
   };
 
-  getTransactionHistory = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
-    const history = await this.transactionsDAO.getTransactionHistory();
-    response.send(history);
-  };
-
   getTransactionsByBlockHeight = async (request: FastifyRequest<{ Querystring: PaginatedQuery; Params: { height?: number } }>, response: FastifyReply): Promise<void> => {
     const { page = 1, limit = 10, order = 'asc' } = request.query;
     const { height = 1 } = request.params;

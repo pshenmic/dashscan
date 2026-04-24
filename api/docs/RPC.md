@@ -110,7 +110,7 @@ Returns a paginated list of blocks.
 
 ---
 
-### GET /blocks/transactions/stats
+### GET /blocks/transactions/chart
 
 Returns a time series of the average transaction count per block over a configurable time range.
 
@@ -500,29 +500,7 @@ Entries use the [Transaction Object](#transaction-object) shape. `total` reflect
 
 ---
 
-### GET /transactions/history
-
-Returns transaction counts grouped by hour for the past 24 hours.
-
-**Response `200`**
-
-```json
-[
-  { "timestamp": 1741305600, "count": 142 },
-  { "timestamp": 1741309200, "count": 98 }
-]
-```
-
-| Field       | Type   | Description                          |
-|-------------|--------|--------------------------------------|
-| `timestamp` | number | Hour start as Unix timestamp (seconds) |
-| `count`     | number | Number of transactions in that hour  |
-
-> Hours with zero transactions are omitted.
-
----
-
-### GET /transactions/stats
+### GET /transactions/chart
 
 Returns a time series of transaction counts over a configurable time range, with optional running total.
 
@@ -682,7 +660,7 @@ Returns the current DASH price for the given currency. Cached for 60 minutes. Fa
 
 ---
 
-### GET /price/:currency/historical
+### GET /price/:currency/chart
 
 Returns DASH price for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. For `usd`, falls back to Kraken if CoinGecko is unavailable. For `btc`, only CoinGecko is used.
 
@@ -730,7 +708,7 @@ Returns the current DASH market cap for the given currency. Cached for 60 minute
 
 ---
 
-### GET /marketcap/:currency/historical
+### GET /marketcap/:currency/chart
 
 Returns DASH market cap for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. Provided by CoinGecko only.
 
@@ -778,7 +756,7 @@ Returns the current DASH 24h trading volume for the given currency. Cached for 6
 
 ---
 
-### GET /volume/:currency/historical
+### GET /volume/:currency/chart
 
 Returns DASH trading volume for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. For `usd`, falls back to Kraken if CoinGecko is unavailable. For `btc`, only CoinGecko is used.
 
@@ -878,7 +856,7 @@ Returns a list of governance proposals from Dash Core RPC.
 
 ---
 
-### GET /address/:address/balance/history
+### GET /address/:address/balance/chart
 
 Returns a time series of the address balance over a given time range, with one data point per interval bucket.
 
