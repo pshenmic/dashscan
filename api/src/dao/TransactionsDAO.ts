@@ -1,17 +1,13 @@
 import {Knex} from 'knex';
 import Transaction from '../models/Transaction';
 import PaginatedResultSet from '../models/PaginatedResultSet';
-import {DashCoreRPC} from "../dashcoreRPC";
-import {Address} from "node:cluster";
 import SeriesData from '../models/SeriesData';
 
 export default class TransactionsDAO {
   private knex: Knex;
-  private dashCoreRPC: DashCoreRPC;
 
-  constructor(knex: Knex, dashCoreRPC: DashCoreRPC) {
+  constructor(knex: Knex) {
     this.knex = knex;
-    this.dashCoreRPC = dashCoreRPC;
   }
 
   getTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
