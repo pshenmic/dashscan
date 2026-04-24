@@ -53,7 +53,7 @@ export const start = async (): Promise<FastifyInstance> => {
   const dashcoreRPC = new DashCoreRPC();
   const mainController = new MainController(dashcoreRPC, knex);
   const blocksController = new BlocksController(knex);
-  const transactionsController = new TransactionsController(knex, dashcoreRPC);
+  const transactionsController = new TransactionsController(knex);
   const addressesController = new AddressesController(knex);
   const masternodesDAO = new MasternodesDAO(knex);
   const masternodesController = new MasternodesController(masternodesDAO);
@@ -61,7 +61,7 @@ export const start = async (): Promise<FastifyInstance> => {
   const marketController = new MarketController(marketService);
   const searchDAO = new SearchDAO(knex);
   const searchController = new SearchController(searchDAO);
-  const governanceController = new GovernanceController(dashcoreRPC);
+  const governanceController = new GovernanceController(dashcoreRPC, knex);
 
   Routes({
     fastify,

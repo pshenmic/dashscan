@@ -1,7 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Knex } from 'knex';
 import TransactionsDAO from '../dao/TransactionsDAO';
-import {DashCoreRPC} from "../dashcoreRPC";
 import {PaginatedQuery} from "./types";
 import {calculateInterval, iso8601duration} from "../utils";
 import Intervals from "../enums/Intervals";
@@ -9,8 +8,8 @@ import Intervals from "../enums/Intervals";
 export default class TransactionsController {
   private transactionsDAO: TransactionsDAO;
 
-  constructor(knex: Knex, dashCoreRPC: DashCoreRPC) {
-    this.transactionsDAO = new TransactionsDAO(knex, dashCoreRPC);
+  constructor(knex: Knex) {
+    this.transactionsDAO = new TransactionsDAO(knex);
   }
 
   getTransactions = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
@@ -31,11 +30,6 @@ export default class TransactionsController {
     }
 
     response.send(transaction);
-  };
-
-  getTransactionHistory = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
-    const history = await this.transactionsDAO.getTransactionHistory();
-    response.send(history);
   };
 
   getTransactionsByBlockHeight = async (request: FastifyRequest<{ Querystring: PaginatedQuery; Params: { height?: number } }>, response: FastifyReply): Promise<void> => {

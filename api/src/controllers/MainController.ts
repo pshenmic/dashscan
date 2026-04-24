@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Knex } from 'knex';
 import { DashCoreRPC } from '../dashcoreRPC';
 import BlocksDAO from '../dao/BlocksDAO';
+import ChainStats from "../models/ChainStats";
 
 export default class MainController {
   private dashcoreRPC: DashCoreRPC;
@@ -12,7 +13,7 @@ export default class MainController {
     this.blocksDAO = new BlocksDAO(knex);
   }
 
-  getStatus = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
+  getStatus = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
     try {
       const networkHeight = await this.dashcoreRPC.getBlockCount();
       const {resultSet: [block]} = await this.blocksDAO.getBlocks(1, 1, 'desc');
@@ -27,4 +28,31 @@ export default class MainController {
       return response.status(500).send({ status: 'internal server error' });
     }
   };
+
+  getChainStats = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
+    const chainInfoResponse = await this.dashcoreRPC.getChainInfo();
+    const chainStats = ChainStats.fromRpcResponse(chainInfoResponse)
+
+    const {resultSet} = await this.blocksDAO.getBlocks(1, 20, 'desc');
+
+    const [lastBlock] = resultSet;
+    const [firstBlock] = resultSet.reverse();
+
+    const timeSpanMSec = lastBlock.timestamp.getTime() - firstBlock.timestamp.getTime();
+    const timeSpanSec = timeSpanMSec / 1000;
+
+    const blockTime = Math.floor((timeSpanMSec / (resultSet.length - 1)));
+
+    const transactionsCount = resultSet.reduce((acc, curr) => acc+curr.txCount, 0)
+    const transactionsPerSecond = Number((transactionsCount / timeSpanSec).toFixed(2))
+    const transactionsPerMinute = Number((transactionsCount / (timeSpanSec / 60)).toFixed(2))
+
+    response.send(ChainStats.fromObject({
+      ...chainStats,
+      blockTime,
+      transactionsPerSecond,
+      transactionsPerMinute,
+      latestHeight: lastBlock.height
+    }))
+  }
 }

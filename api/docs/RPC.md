@@ -57,6 +57,10 @@ Returns a paginated list of blocks.
 
 **Query Parameters:** [Pagination](#pagination-query-parameters)
 
+| Parameter    | Type              | Default | Description                                                                 |
+|--------------|-------------------|---------|-----------------------------------------------------------------------------|
+| `superblock` | boolean \| null   | `null`  | When set, returns only blocks with this `superblock` flag value             |
+
 **Response `200`**
 
 ```json
@@ -73,7 +77,9 @@ Returns a paginated list of blocks.
       "difficulty": 123456.789,
       "merkleRoot": "abcdef1234...",
       "previousBlockHash": "000000000000efgh5678...",
-      "nonce": 987654321
+      "nonce": 987654321,
+      "confirmations": 42,
+      "superblock": false
     }
   ],
   "pagination": {
@@ -86,23 +92,25 @@ Returns a paginated list of blocks.
 
 #### Block Object
 
-| Field               | Type    | Description                              |
-|---------------------|---------|------------------------------------------|
-| `height`            | number  | Block height                             |
-| `hash`              | string  | Block hash (64-char hex)                 |
-| `version`           | number  | Block version                            |
-| `timestamp`         | string  | ISO 8601 timestamp                       |
-| `txCount`           | number  | Number of transactions in the block      |
-| `size`              | number  | Block size in bytes                      |
-| `creditPoolBalance` | number  | Credit pool balance at this block        |
-| `difficulty`        | number  | Mining difficulty                        |
-| `merkleRoot`        | string  | Merkle root hash                         |
-| `previousBlockHash` | string  | Hash of the previous block               |
-| `nonce`             | number  | Mining nonce                             |
+| Field               | Type    | Description                                                  |
+|---------------------|---------|--------------------------------------------------------------|
+| `height`            | number  | Block height                                                 |
+| `hash`              | string  | Block hash (64-char hex)                                     |
+| `version`           | number  | Block version                                                |
+| `timestamp`         | string  | ISO 8601 timestamp                                           |
+| `txCount`           | number  | Number of transactions in the block                          |
+| `size`              | number  | Block size in bytes                                          |
+| `creditPoolBalance` | number  | Credit pool balance at this block                            |
+| `difficulty`        | number  | Mining difficulty                                            |
+| `merkleRoot`        | string  | Merkle root hash                                             |
+| `previousBlockHash` | string  | Hash of the previous block                                   |
+| `nonce`             | number  | Mining nonce                                                 |
+| `confirmations`     | number  | Number of confirmations (`tip height - block height + 1`)    |
+| `superblock`        | boolean | Whether this block is a governance superblock                |
 
 ---
 
-### GET /blocks/transactions/stats
+### GET /blocks/transactions/chart
 
 Returns a time series of the average transaction count per block over a configurable time range.
 
@@ -166,7 +174,9 @@ Returns a single block by its hash.
   "difficulty": 123456.789,
   "merkleRoot": "abcdef1234...",
   "previousBlockHash": "000000000000efgh5678...",
-  "nonce": 987654321
+  "nonce": 987654321,
+  "confirmations": 42,
+  "superblock": false
 }
 ```
 
@@ -490,29 +500,7 @@ Entries use the [Transaction Object](#transaction-object) shape. `total` reflect
 
 ---
 
-### GET /transactions/history
-
-Returns transaction counts grouped by hour for the past 24 hours.
-
-**Response `200`**
-
-```json
-[
-  { "timestamp": 1741305600, "count": 142 },
-  { "timestamp": 1741309200, "count": 98 }
-]
-```
-
-| Field       | Type   | Description                          |
-|-------------|--------|--------------------------------------|
-| `timestamp` | number | Hour start as Unix timestamp (seconds) |
-| `count`     | number | Number of transactions in that hour  |
-
-> Hours with zero transactions are omitted.
-
----
-
-### GET /transactions/stats
+### GET /transactions/chart
 
 Returns a time series of transaction counts over a configurable time range, with optional running total.
 
@@ -672,7 +660,7 @@ Returns the current DASH price for the given currency. Cached for 60 minutes. Fa
 
 ---
 
-### GET /price/:currency/historical
+### GET /price/:currency/chart
 
 Returns DASH price for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. For `usd`, falls back to Kraken if CoinGecko is unavailable. For `btc`, only CoinGecko is used.
 
@@ -720,7 +708,7 @@ Returns the current DASH market cap for the given currency. Cached for 60 minute
 
 ---
 
-### GET /marketcap/:currency/historical
+### GET /marketcap/:currency/chart
 
 Returns DASH market cap for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. Provided by CoinGecko only.
 
@@ -768,7 +756,7 @@ Returns the current DASH 24h trading volume for the given currency. Cached for 6
 
 ---
 
-### GET /volume/:currency/historical
+### GET /volume/:currency/chart
 
 Returns DASH trading volume for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. For `usd`, falls back to Kraken if CoinGecko is unavailable. For `btc`, only CoinGecko is used.
 
@@ -868,7 +856,7 @@ Returns a list of governance proposals from Dash Core RPC.
 
 ---
 
-### GET /address/:address/balance/history
+### GET /address/:address/balance/chart
 
 Returns a time series of the address balance over a given time range, with one data point per interval bucket.
 
@@ -880,11 +868,11 @@ Returns a time series of the address balance over a given time range, with one d
 
 **Query Parameters**
 
-| Parameter         | Type    | Default                    | Constraints            | Description                                                                                |
-|-------------------|---------|----------------------------|------------------------|--------------------------------------------------------------------------------------------|
-| `timestamp_start` | string  | 1 hour ago (ISO 8601)      |                        | Start of the time range                                                                    |
-| `timestamp_end`   | string  | now (ISO 8601)             |                        | End of the time range                                                                      |
-| `intervals_count` | number  | auto                       | minimum: 2, max: 100   | Number of buckets to divide the range into. When omitted, interval is chosen automatically based on the range length using `calculateInterval` |
+| Parameter         | Type   | Default               | Constraints          | Description                                                                                                                                    |
+|-------------------|--------|-----------------------|----------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| `timestamp_start` | string | 1 hour ago (ISO 8601) |                      | Start of the time range                                                                                                                        |
+| `timestamp_end`   | string | now (ISO 8601)        |                      | End of the time range                                                                                                                          |
+| `intervals_count` | number | auto                  | minimum: 2, max: 100 | Number of buckets to divide the range into. When omitted, interval is chosen automatically based on the range length using `calculateInterval` |
 
 When `intervals_count` is provided, each bucket spans `ceil((end - start) / intervals_count)` seconds, expressed as an ISO 8601 duration. When omitted, `calculateInterval` picks a bucket size from the `Intervals` enum (PT5M … P1Y) such that the range fits in 4–12 buckets.
 
@@ -972,3 +960,83 @@ Returns a list of pending transactions.
   }
 }
 ```
+
+---
+
+### GET /governance/budget
+
+Returns treasury stats for the next superblock: the budget from Dash Core RPC plus aggregate figures computed across currently pending proposals.
+
+`nextSuperblockTime` is derived empirically from the spacing of the two most recent indexed superblocks: `lastSuperblock.timestamp + (lastSuperblock.timestamp - prevSuperblock.timestamp)`.
+
+**Response `200`**
+
+```json
+{
+  "totalBudget": 7353.51481616,
+  "totalProposals": 12,
+  "totalRequested": 8423.0,
+  "enoughVotesTotal": 7611.0,
+  "enoughVotesCount": 9,
+  "enoughFundsTotal": 7337.0,
+  "enoughFundsCount": 8,
+  "remainingAllPass": -1069.48518384,
+  "remainingEnoughVotes": -257.48518384
+}
+```
+
+| Field                  | Type   | Description                                                                                                                                                                     |
+|------------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `totalBudget`          | number | Superblock budget in Dash for `nextsuperblock`, from `getsuperblockbudget` RPC                                                                                                  |
+| `totalProposals`       | number | Number of pending proposals (see pending definition above)                                                                                                                      |
+| `totalRequested`       | number | Sum of `paymentAmount` across all pending proposals                                                                                                                             |
+| `enoughVotesCount`     | number | Count of pending proposals whose `absoluteYesCount >= governanceminquorum`                                                                                                      |
+| `enoughVotesTotal`     | number | Sum of `paymentAmount` across the `enoughVotes` subset                                                                                                                          |
+| `enoughFundsCount`     | number | Count of proposals that would actually be paid: vote-qualified proposals selected greedily (descending by `absoluteYesCount`) while the cumulative amount fits in `totalBudget` |
+| `enoughFundsTotal`     | number | Sum of `paymentAmount` across the `enoughFunds` subset                                                                                                                          |
+| `remainingAllPass`     | number | `totalBudget - totalRequested` (negative when proposals are oversubscribed)                                                                                                     |
+| `remainingEnoughVotes` | number | `totalBudget - enoughVotesTotal` (negative when vote-passing proposals exceed budget)                                                                                           |
+
+**Response `404`** — fewer than 2 superblocks have been indexed, so `nextSuperblockTime` cannot be computed
+
+```json
+{ "error": "Not enough superblocks indexed to compute next superblock time" }
+```
+
+**Response `500`** — Dash Core's `lastsuperblock` height is ahead of the indexer's latest indexed superblock (sync lag)
+
+```json
+{ "error": "Cannot find the last superblock in the database. Please wait if the sync progress is not at 100%." }
+```
+
+---
+
+### GET /chain/stats
+
+Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics computed from the 20 most recently indexed blocks.
+
+**Response `200`**
+
+```json
+{
+  "chain": "main",
+  "sizeOnDisk": 12345678901,
+  "difficulty": 123456.789,
+  "blockTime": 154321,
+  "transactionsPerSecond": 1.23,
+  "transactionsPerMinute": 73.8,
+  "latestHeight": 2100000
+}
+```
+
+#### ChainStats Object
+
+| Field                   | Type           | Description                                                                   |
+|-------------------------|----------------|-------------------------------------------------------------------------------|
+| `chain`                 | string \| null | Network name (e.g. `main`, `test`)                                            |
+| `sizeOnDisk`            | number \| null | Size of the block storage on the Dash Core node in bytes                      |
+| `difficulty`            | number \| null | Current mining difficulty                                                     |
+| `blockTime`             | number \| null | Average time between blocks in milliseconds, over the last 20 indexed blocks  |
+| `transactionsPerSecond` | number \| null | Average transactions per second over the last 20 indexed blocks               |
+| `transactionsPerMinute` | number \| null | Average transactions per minute over the last 20 indexed blocks               |
+| `latestHeight`          | number \| null | Height of the most recently indexed block                                     |
