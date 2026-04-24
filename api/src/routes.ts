@@ -305,7 +305,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
     {
       path: '/chain/stats',
       method: 'get',
-      handler: mainController.getChainInfo,
+      handler: mainController.getChainStats,
     }
   ];
 

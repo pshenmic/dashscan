@@ -29,7 +29,7 @@ export default class MainController {
     }
   };
 
-  getChainInfo = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
+  getChainStats = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
     const chainInfoResponse = await this.dashcoreRPC.getChainInfo();
     const chainStats = ChainStats.fromRpcResponse(chainInfoResponse)
 
