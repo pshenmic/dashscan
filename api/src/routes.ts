@@ -293,7 +293,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/superblock/budget',
+      path: '/governance/budget',
       method: 'get',
       handler: governanceController.getBudgetInfo,
     },

@@ -963,7 +963,7 @@ Returns a list of pending transactions.
 
 ---
 
-### GET /superblock/budget
+### GET /governance/budget
 
 Returns treasury stats for the next superblock: the budget from Dash Core RPC plus aggregate figures computed across currently pending proposals.
 
