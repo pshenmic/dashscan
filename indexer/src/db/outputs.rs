@@ -18,7 +18,7 @@ impl Database {
     pub async fn insert_tx_outputs_batch(
         &self,
         client: &Transaction<'_>,
-        transactions: &[RpcTransaction],
+        transactions: &[&RpcTransaction],
         addresses_map: &HashMap<(i32, String), i32>,
         tx_map: &HashMap<String, i32>,
     ) -> Result<(), PoolError> {
@@ -26,6 +26,7 @@ impl Database {
             Vec::new();
 
         for tx in transactions {
+            let tx = *tx;
             let tx_id = tx_map[&tx.txid];
             for (vout_index, vout) in tx.vout.iter().enumerate() {
                 let value = (vout.value * 100_000_000.0).round() as i64;

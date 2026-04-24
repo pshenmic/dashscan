@@ -8,7 +8,7 @@ use tracing::{error, info};
 
 /// Max concurrent `getrawtransaction` calls during the RPC fallback path.
 /// Local Dash Core handles dozens of parallel JSON-RPC requests fine; this
-/// just bounds memory and avoids pathological fan-out when a block spends
+/// just bounds memory and avoids pathological fan-out when a batch spends
 /// hundreds of pre-indexed outputs.
 const RPC_FALLBACK_CONCURRENCY: usize = 32;
 
@@ -18,119 +18,146 @@ use crate::errors::block_index_error::BlockIndexError;
 use crate::p2p_converter;
 use crate::rpc::{Block, Transaction};
 
-use super::batch_cache::BatchCache;
 use super::BlockProcessor;
 
-impl BlockProcessor {
-    /// Indexes a block using an already-acquired pool connection.
-    /// Opens a DB transaction, writes everything, and commits.
-    pub(super) async fn process_block(
-        &self,
-        client: &mut Client,
-        block: Block,
-    ) -> Result<(), BlockIndexError> {
-        let db_tx = client.transaction().await?;
-        let mut cache = BatchCache::default();
-        self.write_block(&*db_tx, block, false, &mut cache).await?;
-        db_tx.commit().await?;
-        Ok(())
-    }
+/// A parsed block enriched with its metadata, ready to be flushed as part of
+/// a multi-block commit batch. Produced by `prepare_block` (no DB I/O).
+pub(super) struct PendingBlock {
+    pub block: Block,
+    pub chain_locked: bool,
+    pub is_superblock: bool,
+    pub miner_id: Option<i32>,
+    pub miner_name: Option<String>,
+    pub timestamp: DateTime<Utc>,
+}
 
-    /// Writes a single block and all its data into the given client/transaction.
-    /// Does NOT commit — the caller controls transaction boundaries.
-    ///
-    /// `cache` is populated with the transactions and outputs inserted so
-    /// later blocks in the same commit batch can resolve their inputs from
-    /// memory instead of hitting the DB.
-    pub(super) async fn write_block(
+impl BlockProcessor {
+    /// Pure parse/enrich step — no DB I/O. Safe to call while accumulating.
+    pub(super) fn prepare_block(
         &self,
-        client: &tokio_postgres::Transaction<'_>,
         block: Block,
         chain_locked: bool,
-        cache: &mut BatchCache,
-    ) -> Result<(), BlockIndexError> {
-        let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0)
-            .ok_or_else(|| BlockIndexError::UnexpectedError("Invalid block timestamp".to_string()))?;
+    ) -> Result<PendingBlock, BlockIndexError> {
+        let timestamp = DateTime::<Utc>::from_timestamp(block.time, 0).ok_or_else(|| {
+            BlockIndexError::UnexpectedError("Invalid block timestamp".to_string())
+        })?;
 
         let is_superblock = (block.height % self.superblock_interval) == 0;
 
-        let (miner_id, miner_name) = block.tx.first()
+        let (miner_id, miner_name) = block
+            .tx
+            .first()
             .and_then(|tx| tx.vin.first())
             .and_then(|vin| vin.coinbase.as_deref())
             .map(|cb| self.identify_miner(cb))
             .unwrap_or((None, None));
 
-        let miner_name_id = match miner_name {
-            Some(ref name) => Some(self.db.upsert_miner_name(client, name).await?),
-            None => None,
-        };
+        Ok(PendingBlock {
+            block,
+            chain_locked,
+            is_superblock,
+            miner_id,
+            miner_name,
+            timestamp,
+        })
+    }
 
-        self.db
-            .insert_block(client, &block, timestamp, is_superblock, miner_id, miner_name_id)
-            .await?;
-
-        if !block.tx.is_empty() {
-            let tx_map = self.db
-                .insert_transactions_batch(client, &block.tx, block.height, chain_locked)
-                .await?;
-
-            self.write_transaction_data(client, &block.tx, &tx_map, Some(block.height as i32), cache)
-                .await?;
-
-            let special_records: Vec<(i32, i16, Value)> = block.tx
-                .iter()
-                .filter(|tx| tx.tx_type.unwrap_or(0) > 0)
-                .map(|tx| (tx_map[&tx.txid], tx.tx_type.unwrap(), self.build_special_tx_payload(tx)))
-                .collect();
-
-            self.db
-                .insert_special_transactions_batch(client, &special_records)
-                .await?;
-        }
-
-        info!(height = block.height, hash = %block.hash, txs = block.tx.len(), "Indexed block");
+    /// Live-sync path: wraps prepare + single-block write_batch + commit.
+    pub(super) async fn process_block(
+        &self,
+        client: &mut Client,
+        block: Block,
+    ) -> Result<(), BlockIndexError> {
+        let pending = self.prepare_block(block, false)?;
+        let db_tx = client.transaction().await?;
+        self.write_batch(&*db_tx, &[pending]).await?;
+        db_tx.commit().await?;
         Ok(())
     }
 
-    /// Shared pipeline for confirmed and pending transactions.
+    /// Flush an entire commit batch with one bulk round-trip per table.
     ///
-    /// Order of operations:
-    ///   1. Upsert output addresses → insert tx_outputs  (populates cache)
-    ///   2. Resolve input prev_tx_id + address_id from cache; single-join DB
-    ///      query for any misses; RPC fallback for pairs still unresolved.
-    ///   3. Insert tx_inputs with fully-resolved prev_tx_id + address_id.
-    ///
-    /// `block_height` is None for pending (mempool) transactions.
-    async fn write_transaction_data(
+    /// 1. Upsert unique miner names.
+    /// 2. INSERT block headers (per-block — cheap, 21 cols each).
+    /// 3. INSERT all transactions (single batch, RETURNING id).
+    /// 4. Upsert output addresses batch-wide.
+    /// 5. COPY tx_outputs batch-wide.
+    /// 6. Resolve input prev_tx_id + address_id: in-batch map → DB join → RPC.
+    /// 7. COPY tx_inputs batch-wide.
+    /// 8. INSERT special_transactions batch-wide.
+    pub(super) async fn write_batch(
         &self,
         client: &tokio_postgres::Transaction<'_>,
-        txs: &[Transaction],
-        tx_map: &HashMap<String, i32>,
-        block_height: Option<i32>,
-        cache: &mut BatchCache,
+        pending: &[PendingBlock],
     ) -> Result<(), BlockIndexError> {
-        // Publish the current block's tx ids into the batch cache so later
-        // blocks in the same commit can resolve inputs referencing them.
-        for (hash, id) in tx_map {
-            cache.tx_ids.insert(hash.clone(), *id);
+        if pending.is_empty() {
+            return Ok(());
         }
 
-        // ── OUTPUTS ──────────────────────────────────────────────────────────
-        let mut out_upserts: Vec<(String, i32, Option<i32>)> = Vec::new();
-        let mut seen_out: HashMap<String, usize> = HashMap::new();
-        let mut vout_to_address: Vec<((i32, String), String)> = Vec::new();
+        // ── 1. Miner names (typically 1–5 unique per batch; loop is fine)
+        let mut unique_names: HashSet<&str> = HashSet::new();
+        for p in pending {
+            if let Some(n) = p.miner_name.as_deref() {
+                unique_names.insert(n);
+            }
+        }
+        let mut miner_name_ids: HashMap<String, i32> = HashMap::new();
+        for name in unique_names {
+            let id = self.db.upsert_miner_name(client, name).await?;
+            miner_name_ids.insert(name.to_string(), id);
+        }
 
-        for tx in txs {
-            for (vout_index, vout) in tx.vout.iter().enumerate() {
-                if let Some(ref addr) = vout.script_pub_key.first_address() {
-                    let tx_id = tx_map[&tx.txid];
-                    if let Some(&idx) = seen_out.get(addr.as_str()) {
-                        out_upserts[idx] = (addr.clone(), tx_id, block_height);
-                    } else {
-                        seen_out.insert(addr.clone(), out_upserts.len());
-                        out_upserts.push((addr.clone(), tx_id, block_height));
+        // ── 2. Block headers
+        for p in pending {
+            let name_id = p
+                .miner_name
+                .as_deref()
+                .and_then(|n| miner_name_ids.get(n).copied());
+            self.db
+                .insert_block(
+                    client,
+                    &p.block,
+                    p.timestamp,
+                    p.is_superblock,
+                    p.miner_id,
+                    name_id,
+                )
+                .await?;
+        }
+
+        // ── 3. Transactions (one batched INSERT across every block)
+        let mut tx_meta: Vec<(&Transaction, i32, bool)> = Vec::new();
+        for p in pending {
+            let h = p.block.height as i32;
+            for tx in &p.block.tx {
+                tx_meta.push((tx, h, p.chain_locked));
+            }
+        }
+        if tx_meta.is_empty() {
+            return Ok(());
+        }
+        let tx_map = self.db.insert_transactions_batch(client, &tx_meta).await?;
+        let flat_txs: Vec<&Transaction> = tx_meta.iter().map(|(tx, _, _)| *tx).collect();
+
+        // ── 4. Output addresses (batch-wide, deduped, last-block wins)
+        let mut out_upserts: Vec<(String, i32, Option<i32>)> = Vec::new();
+        let mut seen_addr: HashMap<String, usize> = HashMap::new();
+        let mut vout_addr_pairs: Vec<((i32, String), String)> = Vec::new();
+
+        for p in pending {
+            let height = p.block.height as i32;
+            for tx in &p.block.tx {
+                let tx_id = tx_map[&tx.txid];
+                for (vout_index, vout) in tx.vout.iter().enumerate() {
+                    if let Some(addr) = vout.script_pub_key.first_address() {
+                        if let Some(&idx) = seen_addr.get(addr.as_str()) {
+                            out_upserts[idx] = (addr.clone(), tx_id, Some(height));
+                        } else {
+                            seen_addr.insert(addr.clone(), out_upserts.len());
+                            out_upserts.push((addr.clone(), tx_id, Some(height)));
+                        }
+                        vout_addr_pairs.push(((vout_index as i32, tx.txid.clone()), addr));
                     }
-                    vout_to_address.push(((vout_index as i32, tx.txid.clone()), addr.clone()));
                 }
             }
         }
@@ -138,39 +165,40 @@ impl BlockProcessor {
         let out_addr_id_map = self.db.upsert_addresses_batch(client, &out_upserts).await?;
 
         let mut addresses_map: HashMap<(i32, String), i32> = HashMap::new();
-        for ((vout_idx, txid), addr) in vout_to_address {
-            let id = *out_addr_id_map.get(&addr).ok_or_else(|| {
-                BlockIndexError::UnexpectedError(format!("Missing address id for {addr}"))
-            })?;
-            addresses_map.insert((vout_idx, txid), id);
+        for ((vout_idx, txid), addr) in vout_addr_pairs {
+            if let Some(&id) = out_addr_id_map.get(&addr) {
+                addresses_map.insert((vout_idx, txid), id);
+            }
         }
 
+        // ── 5. COPY tx_outputs
         self.db
-            .insert_tx_outputs_batch(client, txs, &addresses_map, tx_map)
+            .insert_tx_outputs_batch(client, &flat_txs, &addresses_map, &tx_map)
             .await?;
 
-        // Cache this block's outputs so in-batch descendants can resolve
-        // inputs without a DB round-trip. Keyed by `vout.n` — the same
-        // column `insert_tx_outputs_batch` writes and the input lookup
-        // queries on — not by Vec position.
-        for tx in txs {
-            let tx_id = tx_map[&tx.txid];
-            for vout in &tx.vout {
-                if let Some(addr) = vout.script_pub_key.first_address() {
-                    if let Some(&addr_id) = out_addr_id_map.get(&addr) {
-                        cache.output_addresses.insert((tx_id, vout.n), addr_id);
+        // In-memory output index for resolving in-batch inputs without a DB hit.
+        let mut output_cache: HashMap<(i32, i32), i32> = HashMap::new();
+        for p in pending {
+            for tx in &p.block.tx {
+                let tx_id = tx_map[&tx.txid];
+                for vout in &tx.vout {
+                    if let Some(addr) = vout.script_pub_key.first_address() {
+                        if let Some(&addr_id) = out_addr_id_map.get(&addr) {
+                            output_cache.insert((tx_id, vout.n), addr_id);
+                        }
                     }
                 }
             }
         }
 
-        // ── INPUT ADDRESS RESOLUTION ──────────────────────────────────────────
-        // Collect all (prev_hash, vout_idx) pairs needed.
+        // ── 6. Input address resolution
         let mut needed: HashMap<String, Vec<i32>> = HashMap::new();
-        for tx in txs {
-            for vin in &tx.vin {
-                if let (Some(h), Some(v)) = (&vin.txid, vin.vout) {
-                    needed.entry(h.clone()).or_default().push(v);
+        for p in pending {
+            for tx in &p.block.tx {
+                for vin in &tx.vin {
+                    if let (Some(h), Some(v)) = (&vin.txid, vin.vout) {
+                        needed.entry(h.clone()).or_default().push(v);
+                    }
                 }
             }
         }
@@ -179,15 +207,13 @@ impl BlockProcessor {
         let mut prev_tx_id_map: HashMap<String, i32> = HashMap::new();
 
         if !needed.is_empty() {
-            // Phase 1: satisfy what we can from the in-memory batch cache.
-            // A hash is a "miss" if either its tx_id isn't cached or any of
-            // its required vout addresses aren't cached.
+            // 6a: in-batch resolution from tx_map + output_cache.
             let mut miss_hashes: HashSet<String> = HashSet::new();
             for (prev_hash, vouts) in &needed {
-                if let Some(&prev_tx_id) = cache.tx_ids.get(prev_hash.as_str()) {
+                if let Some(&prev_tx_id) = tx_map.get(prev_hash) {
                     prev_tx_id_map.insert(prev_hash.clone(), prev_tx_id);
                     for &vout_idx in vouts {
-                        if let Some(&addr_id) = cache.output_addresses.get(&(prev_tx_id, vout_idx)) {
+                        if let Some(&addr_id) = output_cache.get(&(prev_tx_id, vout_idx)) {
                             input_address_ids.insert((prev_hash.clone(), vout_idx), addr_id);
                         } else {
                             miss_hashes.insert(prev_hash.clone());
@@ -198,10 +224,7 @@ impl BlockProcessor {
                 }
             }
 
-            // Phase 2: single join for the misses — replaces the previous
-            // two-step (SELECT transactions, then SELECT tx_outputs) pair.
-            // `hash = ANY($1::bpchar[])` so the unique index stays usable;
-            // TRIM only on the returned column to strip CHAR(64) padding.
+            // 6b: single DB join for everything not in the batch.
             if !miss_hashes.is_empty() {
                 let miss_list: Vec<String> = miss_hashes.into_iter().collect();
                 let query = "SELECT TRIM(t.hash) AS hash, t.id AS tx_id, \
@@ -217,21 +240,19 @@ impl BlockProcessor {
                         let hash: String = row.get("hash");
                         let tx_id: i32 = row.get("tx_id");
                         prev_tx_id_map.insert(hash.clone(), tx_id);
-                        cache.tx_ids.insert(hash.clone(), tx_id);
 
                         let vout_idx: Option<i32> = row.get("vout_index");
                         let addr_id: Option<i32> = row.get("address_id");
                         if let (Some(vout_idx), Some(addr_id)) = (vout_idx, addr_id) {
-                            cache.output_addresses.insert((tx_id, vout_idx), addr_id);
+                            output_cache.insert((tx_id, vout_idx), addr_id);
                         }
                     }
                 }
 
-                // Fill input_address_ids from the refreshed cache for needed pairs.
                 for (prev_hash, vout_indices) in &needed {
                     if let Some(&prev_tx_id) = prev_tx_id_map.get(prev_hash.as_str()) {
                         for &vout_idx in vout_indices {
-                            if let Some(&addr_id) = cache.output_addresses.get(&(prev_tx_id, vout_idx)) {
+                            if let Some(&addr_id) = output_cache.get(&(prev_tx_id, vout_idx)) {
                                 input_address_ids.insert((prev_hash.clone(), vout_idx), addr_id);
                             }
                         }
@@ -239,9 +260,8 @@ impl BlockProcessor {
                 }
             }
 
-            // Phase 3: RPC fallback for (prev_hash, vout_idx) pairs that are
-            // neither cached nor in the DB — typically prev txs outside the
-            // indexed height range.
+            // 6c: RPC fallback for pairs that are neither in-batch nor in the DB
+            // (typically prev txs below START_HEIGHT during partial sync).
             let mut missing: HashMap<String, Vec<i32>> = HashMap::new();
             for (prev_hash, vout_indices) in &needed {
                 for &vout_idx in vout_indices {
@@ -252,20 +272,20 @@ impl BlockProcessor {
             }
 
             if !missing.is_empty() {
-                let mut spending_tx_map: HashMap<(String, i32), i32> = HashMap::new();
-                for tx in txs {
-                    for vin in &tx.vin {
-                        if let (Some(h), Some(v)) = (vin.txid.as_deref(), vin.vout) {
-                            spending_tx_map.insert((h.to_string(), v), tx_map[&tx.txid]);
+                // (prev_hash, vout) → (spending tx_id, spending block height)
+                let mut spending_meta: HashMap<(String, i32), (i32, i32)> = HashMap::new();
+                for p in pending {
+                    let height = p.block.height as i32;
+                    for tx in &p.block.tx {
+                        for vin in &tx.vin {
+                            if let (Some(h), Some(v)) = (vin.txid.as_deref(), vin.vout) {
+                                spending_meta
+                                    .insert((h.to_string(), v), (tx_map[&tx.txid], height));
+                            }
                         }
                     }
                 }
 
-                // Fire getrawtransaction concurrently (bounded) — this is the
-                // hot path for partial-sync catch-ups where most prev txs
-                // sit below START_HEIGHT and can never be served from DB.
-                // Pre-regression throughput (~2000 TPS) was achievable only
-                // because there was no per-block RPC round-trip at all.
                 let hashes: Vec<String> = missing.keys().cloned().collect();
                 let fetched: Vec<(String, Result<Transaction, _>)> = stream::iter(hashes)
                     .map(|h| async move {
@@ -283,16 +303,22 @@ impl BlockProcessor {
                 for (prev_hash, res) in fetched {
                     match res {
                         Ok(fetched_tx) => {
-                            let Some(vout_indices) = missing.get(&prev_hash) else { continue; };
+                            let Some(vout_indices) = missing.get(&prev_hash) else {
+                                continue;
+                            };
                             for &vout_idx in vout_indices {
                                 if let Some(vout) = fetched_tx.vout.get(vout_idx as usize) {
                                     if let Some(addr) = vout.script_pub_key.first_address() {
                                         if seen_rpc.insert(addr.clone()) {
-                                            let spending_tx_id = spending_tx_map
+                                            let (spending_tx_id, height) = spending_meta
                                                 .get(&(prev_hash.clone(), vout_idx))
                                                 .copied()
-                                                .unwrap_or(0);
-                                            rpc_upserts.push((addr.clone(), spending_tx_id, block_height));
+                                                .unwrap_or((0, 0));
+                                            rpc_upserts.push((
+                                                addr.clone(),
+                                                spending_tx_id,
+                                                Some(height),
+                                            ));
                                         }
                                         rpc_keys.push(((prev_hash.clone(), vout_idx), addr));
                                     }
@@ -316,14 +342,44 @@ impl BlockProcessor {
             }
         }
 
-        // ── INPUTS ───────────────────────────────────────────────────────────
+        // ── 7. COPY tx_inputs
         self.db
-            .insert_tx_inputs_batch(client, txs, tx_map, &input_address_ids, &prev_tx_id_map)
+            .insert_tx_inputs_batch(client, &flat_txs, &tx_map, &input_address_ids, &prev_tx_id_map)
             .await?;
+
+        // ── 8. Special transactions
+        let mut special_records: Vec<(i32, i16, Value)> = Vec::new();
+        for p in pending {
+            for tx in &p.block.tx {
+                if tx.tx_type.unwrap_or(0) > 0 {
+                    special_records.push((
+                        tx_map[&tx.txid],
+                        tx.tx_type.unwrap(),
+                        self.build_special_tx_payload(tx),
+                    ));
+                }
+            }
+        }
+        if !special_records.is_empty() {
+            self.db
+                .insert_special_transactions_batch(client, &special_records)
+                .await?;
+        }
+
+        for p in pending {
+            info!(
+                height = p.block.height,
+                hash = %p.block.hash,
+                txs = p.block.tx.len(),
+                "Indexed block"
+            );
+        }
 
         Ok(())
     }
 
+    /// Index a single mempool (pending) transaction. Shares the same DB
+    /// helpers as the block path but drives them directly — no PendingBlock.
     pub async fn index_pending_transaction(
         &self,
         raw_bytes: Vec<u8>,
@@ -338,18 +394,148 @@ impl BlockProcessor {
 
         let mut client = self.db.begin().await?;
         let db_tx = client.transaction().await?;
-        let mut cache = BatchCache::default();
 
-        let inserted = if let Some(tx_id) = self.db.insert_pending_transaction(&*db_tx, &tx).await? {
-            let tx_map = HashMap::from([(tx.txid.clone(), tx_id)]);
-            self.write_transaction_data(&*db_tx, &[tx], &tx_map, None, &mut cache).await?;
-            true
-        } else {
-            false
+        let Some(tx_id) = self.db.insert_pending_transaction(&*db_tx, &tx).await? else {
+            db_tx.commit().await?;
+            return Ok(false);
         };
 
-        db_tx.commit().await?;
+        let tx_map = HashMap::from([(tx.txid.clone(), tx_id)]);
+        let flat_txs: Vec<&Transaction> = vec![&tx];
 
-        Ok(inserted)
+        // Outputs
+        let mut out_upserts: Vec<(String, i32, Option<i32>)> = Vec::new();
+        let mut seen_addr: HashMap<String, usize> = HashMap::new();
+        let mut vout_addr_pairs: Vec<((i32, String), String)> = Vec::new();
+        for (vout_index, vout) in tx.vout.iter().enumerate() {
+            if let Some(addr) = vout.script_pub_key.first_address() {
+                if let Some(&idx) = seen_addr.get(addr.as_str()) {
+                    out_upserts[idx] = (addr.clone(), tx_id, None);
+                } else {
+                    seen_addr.insert(addr.clone(), out_upserts.len());
+                    out_upserts.push((addr.clone(), tx_id, None));
+                }
+                vout_addr_pairs.push(((vout_index as i32, tx.txid.clone()), addr));
+            }
+        }
+        let out_addr_id_map = self.db.upsert_addresses_batch(&*db_tx, &out_upserts).await?;
+        let mut addresses_map: HashMap<(i32, String), i32> = HashMap::new();
+        for ((vout_idx, txid), addr) in vout_addr_pairs {
+            if let Some(&id) = out_addr_id_map.get(&addr) {
+                addresses_map.insert((vout_idx, txid), id);
+            }
+        }
+        self.db
+            .insert_tx_outputs_batch(&*db_tx, &flat_txs, &addresses_map, &tx_map)
+            .await?;
+
+        // Inputs: DB join first, then RPC fallback
+        let mut needed: HashMap<String, Vec<i32>> = HashMap::new();
+        for vin in &tx.vin {
+            if let (Some(h), Some(v)) = (&vin.txid, vin.vout) {
+                needed.entry(h.clone()).or_default().push(v);
+            }
+        }
+        let mut input_address_ids: HashMap<(String, i32), i32> = HashMap::new();
+        let mut prev_tx_id_map: HashMap<String, i32> = HashMap::new();
+        let mut output_cache: HashMap<(i32, i32), i32> = HashMap::new();
+
+        if !needed.is_empty() {
+            let miss_list: Vec<String> = needed.keys().cloned().collect();
+            let query = "SELECT TRIM(t.hash) AS hash, t.id AS tx_id, \
+                                o.vout_index, o.address_id \
+                         FROM transactions t \
+                         LEFT JOIN tx_outputs o \
+                                ON o.tx_id = t.id AND o.address_id IS NOT NULL \
+                         WHERE t.hash = ANY($1::bpchar[])";
+            for chunk in miss_list.chunks(BATCH_SIZE) {
+                let chunk_refs: Vec<&str> = chunk.iter().map(|s| s.as_str()).collect();
+                for row in db_tx.query(query, &[&chunk_refs]).await? {
+                    let hash: String = row.get("hash");
+                    let tx_id_prev: i32 = row.get("tx_id");
+                    prev_tx_id_map.insert(hash.clone(), tx_id_prev);
+                    let vout_idx: Option<i32> = row.get("vout_index");
+                    let addr_id: Option<i32> = row.get("address_id");
+                    if let (Some(vout_idx), Some(addr_id)) = (vout_idx, addr_id) {
+                        output_cache.insert((tx_id_prev, vout_idx), addr_id);
+                    }
+                }
+            }
+            for (prev_hash, vout_indices) in &needed {
+                if let Some(&prev_tx_id) = prev_tx_id_map.get(prev_hash.as_str()) {
+                    for &vout_idx in vout_indices {
+                        if let Some(&addr_id) = output_cache.get(&(prev_tx_id, vout_idx)) {
+                            input_address_ids.insert((prev_hash.clone(), vout_idx), addr_id);
+                        }
+                    }
+                }
+            }
+
+            let mut missing: HashMap<String, Vec<i32>> = HashMap::new();
+            for (prev_hash, vout_indices) in &needed {
+                for &vout_idx in vout_indices {
+                    if !input_address_ids.contains_key(&(prev_hash.clone(), vout_idx)) {
+                        missing.entry(prev_hash.clone()).or_default().push(vout_idx);
+                    }
+                }
+            }
+
+            if !missing.is_empty() {
+                let hashes: Vec<String> = missing.keys().cloned().collect();
+                let fetched: Vec<(String, Result<Transaction, _>)> = stream::iter(hashes)
+                    .map(|h| async move {
+                        let res = self.rpc.get_raw_transaction(&h).await;
+                        (h, res)
+                    })
+                    .buffer_unordered(RPC_FALLBACK_CONCURRENCY)
+                    .collect()
+                    .await;
+
+                let mut rpc_upserts: Vec<(String, i32, Option<i32>)> = Vec::new();
+                let mut rpc_keys: Vec<((String, i32), String)> = Vec::new();
+                let mut seen_rpc: HashSet<String> = HashSet::new();
+                for (prev_hash, res) in fetched {
+                    match res {
+                        Ok(fetched_tx) => {
+                            let Some(vout_indices) = missing.get(&prev_hash) else {
+                                continue;
+                            };
+                            for &vout_idx in vout_indices {
+                                if let Some(vout) = fetched_tx.vout.get(vout_idx as usize) {
+                                    if let Some(addr) = vout.script_pub_key.first_address() {
+                                        if seen_rpc.insert(addr.clone()) {
+                                            rpc_upserts.push((addr.clone(), tx_id, None));
+                                        }
+                                        rpc_keys.push(((prev_hash.clone(), vout_idx), addr));
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => error!("RPC fallback for {prev_hash}: {e}"),
+                    }
+                }
+                if !rpc_upserts.is_empty() {
+                    let rpc_id_map = self.db.upsert_addresses_batch(&*db_tx, &rpc_upserts).await?;
+                    for ((prev_hash, vout_idx), addr) in rpc_keys {
+                        if let Some(&id) = rpc_id_map.get(&addr) {
+                            input_address_ids.insert((prev_hash, vout_idx), id);
+                        }
+                    }
+                }
+            }
+        }
+
+        self.db
+            .insert_tx_inputs_batch(
+                &*db_tx,
+                &flat_txs,
+                &tx_map,
+                &input_address_ids,
+                &prev_tx_id_map,
+            )
+            .await?;
+
+        db_tx.commit().await?;
+        Ok(true)
     }
 }

@@ -41,26 +41,29 @@ impl Database {
         Ok(rows.first().map(|r| r.get(0)))
     }
 
-    /// Batch INSERT all transactions for a block in chunks of BATCH_SIZE.
+    /// Batch INSERT transactions from one or more blocks in a single call.
+    /// Each tuple carries its own `(block_height, chain_locked)` so the caller
+    /// can flatten multiple blocks' transactions into one insert.
     pub async fn insert_transactions_batch(
         &self,
         client: &impl GenericClient,
-        transactions: &[RpcTransaction],
-        block_height: i64,
-        chain_locked: bool,
+        tx_meta: &[(&RpcTransaction, i32, bool)],
     ) -> Result<HashMap<String, i32>, PoolError> {
         let mut tx_map: HashMap<String, i32> = HashMap::new();
 
-        // Precompute type-converted values so we can take stable references to them.
-        let tx_types: Vec<i16> = transactions.iter().map(|tx| tx.tx_type.unwrap_or(0)).collect();
-        let sizes: Vec<i32> = transactions.iter().map(|tx| tx.size as i32).collect();
-        let is_coinbases: Vec<bool> = transactions
-            .iter()
-            .map(|tx| tx.vin.first().map_or(false, |v| v.coinbase.is_some()))
-            .collect();
-        let height = block_height as i32;
+        if tx_meta.is_empty() {
+            return Ok(tx_map);
+        }
 
-        for (chunk_idx, chunk) in transactions.chunks(BATCH_SIZE).enumerate() {
+        // Precompute type-converted values so we can take stable references.
+        let tx_types: Vec<i16> = tx_meta.iter().map(|(tx, _, _)| tx.tx_type.unwrap_or(0)).collect();
+        let sizes: Vec<i32> = tx_meta.iter().map(|(tx, _, _)| tx.size as i32).collect();
+        let is_coinbases: Vec<bool> = tx_meta
+            .iter()
+            .map(|(tx, _, _)| tx.vin.first().map_or(false, |v| v.coinbase.is_some()))
+            .collect();
+
+        for (chunk_idx, chunk) in tx_meta.chunks(BATCH_SIZE).enumerate() {
             let base = chunk_idx * BATCH_SIZE;
             let query = format!(
                 "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, chain_locked) VALUES {} \
@@ -70,16 +73,16 @@ impl Database {
             );
 
             let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 8);
-            for (i, tx) in chunk.iter().enumerate() {
+            for (i, (tx, height, chain_locked)) in chunk.iter().enumerate() {
                 let abs = base + i;
                 params.push(&tx.txid);
-                params.push(&height);
+                params.push(height);
                 params.push(&tx.version);
                 params.push(&tx_types[abs]);
                 params.push(&sizes[abs]);
                 params.push(&tx.locktime);
                 params.push(&is_coinbases[abs]);
-                params.push(&chain_locked);
+                params.push(chain_locked);
             }
 
             let rows = client.query(query.as_str(), &params).await?;

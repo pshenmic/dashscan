@@ -7,16 +7,15 @@ use crate::errors::block_index_error::BlockIndexError;
 use crate::p2p::{P2PClient, P2PError};
 use crate::p2p_converter;
 
-use super::batch_cache::BatchCache;
+use super::block_writer::PendingBlock;
 use super::BlockProcessor;
 
 impl BlockProcessor {
     /// Catch up from last indexed block to current chain tip via P2P.
     ///
-    /// Keeps a single P2P connection (`p2p_block`) open for the full sync, streaming
-    /// blocks in order. Address resolution for inputs is handled inside `write_block`:
-    /// DB lookup for already-indexed transactions, RPC fallback for any gaps.
-    /// Blocks are committed in batches (`catch_up_batch_size`) to amortize WAL flush.
+    /// Streams blocks through a single P2P connection, accumulates parsed
+    /// `PendingBlock`s up to `catch_up_batch_size`, then flushes the whole
+    /// batch with one bulk round-trip per table via `write_batch`.
     pub async fn catch_up(&self, config: &Config) -> Result<i64, BlockIndexError> {
         let chain_height = self.rpc.get_block_count().await?;
 
@@ -65,9 +64,8 @@ impl BlockProcessor {
         let mut client = self.db.begin().await?;
         let mut indexed: i64 = 0;
         let mut last_height = db_height;
-        let mut batch_count: usize = 0;
+        let mut pending: Vec<PendingBlock> = Vec::with_capacity(config.catch_up_batch_size);
         let mut db_tx = client.transaction().await?;
-        let mut cache = BatchCache::default();
 
         while let Ok((height, raw_block)) = block_rx.recv() {
             if height <= last_height {
@@ -76,32 +74,33 @@ impl BlockProcessor {
             }
 
             let block = p2p_converter::convert_block(&raw_block, height, network);
-            self.write_block(&*db_tx, block, true, &mut cache).await?;
-
+            let p = self.prepare_block(block, true)?;
+            pending.push(p);
             last_height = height;
             indexed += 1;
-            batch_count += 1;
 
-            if batch_count >= config.catch_up_batch_size {
+            if pending.len() >= config.catch_up_batch_size {
+                self.write_batch(&*db_tx, &pending).await?;
                 db_tx.commit().await?;
 
                 info!(
                     indexed,
                     height = last_height,
                     remaining = total - indexed,
-                    batch = config.catch_up_batch_size,
+                    batch = pending.len(),
                     "Committed batch"
                 );
 
                 db_tx = client.transaction().await?;
-                batch_count = 0;
-                // Release per-batch memory; cached rows are still in the DB
-                // after commit, we just won't skip the query next time.
-                cache.clear();
+                pending.clear();
             }
         }
 
-        if batch_count > 0 {
+        if !pending.is_empty() {
+            self.write_batch(&*db_tx, &pending).await?;
+            db_tx.commit().await?;
+        } else {
+            // No pending rows to flush — release the idle transaction cleanly.
             db_tx.commit().await?;
         }
 

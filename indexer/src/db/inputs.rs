@@ -20,7 +20,7 @@ impl Database {
     pub async fn insert_tx_inputs_batch(
         &self,
         client: &Transaction<'_>,
-        transactions: &[RpcTransaction],
+        transactions: &[&RpcTransaction],
         tx_map: &HashMap<String, i32>,
         input_addresses: &HashMap<(String, i32), i32>,
         prev_tx_ids: &HashMap<String, i32>,
@@ -36,6 +36,7 @@ impl Database {
         )> = Vec::new();
 
         for tx in transactions {
+            let tx = *tx;
             let tx_id = tx_map[&tx.txid];
             for (i, vin) in tx.vin.iter().enumerate() {
                 let prev_hash = vin.txid.as_deref();

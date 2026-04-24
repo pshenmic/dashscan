@@ -1,5 +1,4 @@
 mod address_resolver;
-mod batch_cache;
 mod block_writer;
 mod catch_up;
 mod miner;
