@@ -985,30 +985,50 @@ Returns a list of pending transactions.
 
 ---
 
-### GET /governance/budget
+### GET /superblock/budget
 
-Returns the total treasury budget for a given superblock, in Dash. When `superblockHeight` is omitted, the height of the most recent superblock is used.
+Returns treasury stats for the next superblock: the budget from Dash Core RPC plus aggregate figures computed across currently pending proposals.
 
-**Query Parameters**
-
-| Parameter          | Type           | Default                | Constraints | Description                                      |
-|--------------------|----------------|------------------------|-------------|--------------------------------------------------|
-| `superblockHeight` | number \| null | last superblock height | minimum: 0  | Height of the superblock to query the budget for |
+`nextSuperblockTime` is derived empirically from the spacing of the two most recent indexed superblocks: `lastSuperblock.timestamp + (lastSuperblock.timestamp - prevSuperblock.timestamp)`.
 
 **Response `200`**
 
 ```json
-{ "budget": 12345.67 }
+{
+  "totalBudget": 7353.51481616,
+  "totalProposals": 12,
+  "totalRequested": 8423.0,
+  "enoughVotesTotal": 7611.0,
+  "enoughVotesCount": 9,
+  "enoughFundsTotal": 7337.0,
+  "enoughFundsCount": 8,
+  "remainingAllPass": -1069.48518384,
+  "remainingEnoughVotes": -257.48518384
+}
 ```
 
-| Field    | Type   | Description                                    |
-|----------|--------|------------------------------------------------|
-| `budget` | number | Superblock budget in Dash, from Dash Core RPC  |
+| Field                  | Type   | Description                                                                                                                                                                     |
+|------------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `totalBudget`          | number | Superblock budget in Dash for `nextsuperblock`, from `getsuperblockbudget` RPC                                                                                                  |
+| `totalProposals`       | number | Number of pending proposals (see pending definition above)                                                                                                                      |
+| `totalRequested`       | number | Sum of `paymentAmount` across all pending proposals                                                                                                                             |
+| `enoughVotesCount`     | number | Count of pending proposals whose `absoluteYesCount >= governanceminquorum`                                                                                                      |
+| `enoughVotesTotal`     | number | Sum of `paymentAmount` across the `enoughVotes` subset                                                                                                                          |
+| `enoughFundsCount`     | number | Count of proposals that would actually be paid: vote-qualified proposals selected greedily (descending by `absoluteYesCount`) while the cumulative amount fits in `totalBudget` |
+| `enoughFundsTotal`     | number | Sum of `paymentAmount` across the `enoughFunds` subset                                                                                                                          |
+| `remainingAllPass`     | number | `totalBudget - totalRequested` (negative when proposals are oversubscribed)                                                                                                     |
+| `remainingEnoughVotes` | number | `totalBudget - enoughVotesTotal` (negative when vote-passing proposals exceed budget)                                                                                           |
 
-**Response `404`** — no superblock has been indexed yet and `superblockHeight` was not provided
+**Response `404`** — fewer than 2 superblocks have been indexed, so `nextSuperblockTime` cannot be computed
 
 ```json
-{ "error": "No superblock found. Please try to set superblockHeight." }
+{ "error": "Not enough superblocks indexed to compute next superblock time" }
+```
+
+**Response `500`** — Dash Core's `lastsuperblock` height is ahead of the indexer's latest indexed superblock (sync lag)
+
+```json
+{ "error": "Cannot find the last superblock in the database. Please wait if the sync progress is not at 100%." }
 ```
 
 ---

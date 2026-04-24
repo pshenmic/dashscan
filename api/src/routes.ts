@@ -298,20 +298,9 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/governance/budget',
+      path: '/superblock/budget',
       method: 'get',
       handler: governanceController.getBudgetInfo,
-      schema: {
-        querystring: {
-          type: 'object',
-          properties: {
-            superblockHeight: {
-              type: ['number', 'null'],
-              minimum: 0,
-            },
-          }
-        }
-      }
     },
     {
       path: '/chain/stats',
