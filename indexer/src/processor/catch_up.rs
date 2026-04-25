@@ -21,7 +21,7 @@ const PARALLEL_P2P_THRESHOLD: i64 = 1024;
 /// fills this while stream A drains, so a higher value lets B do more
 /// concurrent work at the cost of memory. Speedup cap is
 /// `N / (N - PREFETCH_BUFFER)` for a range of N blocks.
-const P2P_PREFETCH_BUFFER: usize = 25_000;
+const P2P_PREFETCH_BUFFER: usize = 5_000;
 
 /// Hard cap on the persistent UTXO cache. Each entry is ~80 bytes, so 2 M
 /// entries ≈ 160 MB. The cache shrinks naturally as outputs are spent;
