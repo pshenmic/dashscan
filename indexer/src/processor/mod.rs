@@ -2,6 +2,7 @@ mod address_resolver;
 mod block_writer;
 mod catch_up;
 mod miner;
+mod utxo_cache;
 
 use crate::config::superblock_interval;
 use crate::db::Database;

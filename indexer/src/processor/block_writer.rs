@@ -18,6 +18,7 @@ use crate::errors::block_index_error::BlockIndexError;
 use crate::p2p_converter;
 use crate::rpc::{Block, Transaction};
 
+use super::utxo_cache::UtxoCache;
 use super::BlockProcessor;
 
 /// A parsed block enriched with its metadata, ready to be flushed as part of
@@ -63,6 +64,8 @@ impl BlockProcessor {
     }
 
     /// Live-sync path: wraps prepare + single-block write_batch + commit.
+    /// Uses a zero-capacity UtxoCache (no cross-call benefit) so the cache
+    /// helpers compile-time inline to no-ops on this path.
     pub(super) async fn process_block(
         &self,
         client: &mut Client,
@@ -70,7 +73,8 @@ impl BlockProcessor {
     ) -> Result<(), BlockIndexError> {
         let pending = self.prepare_block(block, false)?;
         let db_tx = client.transaction().await?;
-        self.write_batch(&*db_tx, &[pending]).await?;
+        let mut cache = UtxoCache::new(0);
+        self.write_batch(&*db_tx, &[pending], &mut cache).await?;
         db_tx.commit().await?;
         Ok(())
     }
@@ -89,6 +93,7 @@ impl BlockProcessor {
         &self,
         client: &tokio_postgres::Transaction<'_>,
         pending: &[PendingBlock],
+        cache: &mut UtxoCache,
     ) -> Result<(), BlockIndexError> {
         if pending.is_empty() {
             return Ok(());
@@ -177,17 +182,22 @@ impl BlockProcessor {
             .await?;
 
         // In-memory output index for resolving in-batch inputs without a DB hit.
+        // Same loop also feeds the persistent UtxoCache so the *next* batch's
+        // Phase 6a-bis can hit on these outputs without a DB round-trip.
         let mut output_cache: HashMap<(i32, i32), i32> = HashMap::new();
         for p in pending {
             for tx in &p.block.tx {
                 let tx_id = tx_map[&tx.txid];
+                let mut outputs_for_cache: Vec<(i32, i32)> = Vec::new();
                 for vout in &tx.vout {
                     if let Some(addr) = vout.script_pub_key.first_address() {
                         if let Some(&addr_id) = out_addr_id_map.get(&addr) {
                             output_cache.insert((tx_id, vout.n), addr_id);
+                            outputs_for_cache.push((vout.n, addr_id));
                         }
                     }
                 }
+                cache.insert(&tx.txid, tx_id, &outputs_for_cache);
             }
         }
 
@@ -207,6 +217,16 @@ impl BlockProcessor {
         let mut prev_tx_id_map: HashMap<String, i32> = HashMap::new();
 
         if !needed.is_empty() {
+            // Phase 6 instrumentation: track where each input's prev-tx hash was
+            // resolved (in-batch / cache / DB / RPC) and how long the DB join took.
+            let needed_hashes = needed.len();
+            let needed_pairs: usize = needed.values().map(|v| v.len()).sum();
+            let mut inbatch_hits: usize = 0;
+            let mut cache_hits: usize = 0;
+            let mut db_misses: usize = 0;
+            let mut db_rows: usize = 0;
+            let mut db_query_us: u128 = 0;
+
             // 6a: in-batch resolution from tx_map + output_cache.
             let mut miss_hashes: HashSet<String> = HashSet::new();
             for (prev_hash, vouts) in &needed {
@@ -215,6 +235,7 @@ impl BlockProcessor {
                     for &vout_idx in vouts {
                         if let Some(&addr_id) = output_cache.get(&(prev_tx_id, vout_idx)) {
                             input_address_ids.insert((prev_hash.clone(), vout_idx), addr_id);
+                            inbatch_hits += 1;
                         } else {
                             miss_hashes.insert(prev_hash.clone());
                         }
@@ -224,19 +245,52 @@ impl BlockProcessor {
                 }
             }
 
-            // 6b: single DB join for everything not in the batch.
+            // 6a-bis: persistent UTXO cache lookup for everything missed in 6a.
+            // A hash is dropped from `miss_hashes` only if every one of its
+            // unresolved vouts hit the cache; partial hits leave the hash for
+            // Phase 6b to handle.
+            let mut still_miss: HashSet<String> = HashSet::with_capacity(miss_hashes.len());
+            for prev_hash in miss_hashes {
+                let Some(vouts) = needed.get(prev_hash.as_str()) else {
+                    continue;
+                };
+                let mut all_resolved = true;
+                for &vout_idx in vouts {
+                    if input_address_ids.contains_key(&(prev_hash.clone(), vout_idx)) {
+                        continue;
+                    }
+                    if let Some((prev_tx_id, addr_id)) = cache.lookup(&prev_hash, vout_idx) {
+                        prev_tx_id_map.insert(prev_hash.clone(), prev_tx_id);
+                        input_address_ids.insert((prev_hash.clone(), vout_idx), addr_id);
+                        cache_hits += 1;
+                    } else {
+                        all_resolved = false;
+                    }
+                }
+                if !all_resolved {
+                    still_miss.insert(prev_hash);
+                }
+            }
+            let miss_hashes = still_miss;
+
+            // 6b: bulk DB join for hashes with at least one miss.
+            // Empirically faster than per-pair UNNEST: sequential output reads
+            // from cached pages beat the seek count of targeted lookups.
             if !miss_hashes.is_empty() {
+                db_misses = miss_hashes.len();
                 let miss_list: Vec<String> = miss_hashes.into_iter().collect();
-                let query = "SELECT TRIM(t.hash) AS hash, t.id AS tx_id, \
+                let query = "SELECT t.hash AS hash, t.id AS tx_id, \
                                     o.vout_index, o.address_id \
                              FROM transactions t \
                              LEFT JOIN tx_outputs o \
                                     ON o.tx_id = t.id AND o.address_id IS NOT NULL \
                              WHERE t.hash = ANY($1::bpchar[])";
 
+                let phase6b_start = std::time::Instant::now();
                 for chunk in miss_list.chunks(BATCH_SIZE) {
                     let chunk_refs: Vec<&str> = chunk.iter().map(|s| s.as_str()).collect();
                     for row in client.query(query, &[&chunk_refs]).await? {
+                        db_rows += 1;
                         let hash: String = row.get("hash");
                         let tx_id: i32 = row.get("tx_id");
                         prev_tx_id_map.insert(hash.clone(), tx_id);
@@ -248,6 +302,7 @@ impl BlockProcessor {
                         }
                     }
                 }
+                db_query_us = phase6b_start.elapsed().as_micros();
 
                 for (prev_hash, vout_indices) in &needed {
                     if let Some(&prev_tx_id) = prev_tx_id_map.get(prev_hash.as_str()) {
@@ -270,6 +325,7 @@ impl BlockProcessor {
                     }
                 }
             }
+            let rpc_misses = missing.len();
 
             if !missing.is_empty() {
                 // (prev_hash, vout) → (spending tx_id, spending block height)
@@ -340,6 +396,28 @@ impl BlockProcessor {
                     }
                 }
             }
+
+            // Mark every spent (prev_hash, vout_idx) in the persistent cache.
+            // Idempotent: no-op for entries that aren't (or are no longer) cached.
+            for (prev_hash, vouts) in &needed {
+                for &vout_idx in vouts {
+                    cache.mark_spent(prev_hash, vout_idx);
+                }
+            }
+
+            info!(
+                blocks = pending.len(),
+                needed_pairs,
+                needed_hashes,
+                inbatch = inbatch_hits,
+                cache = cache_hits,
+                db_misses,
+                db_rows,
+                db_query_us,
+                rpc = rpc_misses,
+                cache_size = cache.len(),
+                "Phase 6 input resolution"
+            );
         }
 
         // ── 7. COPY tx_inputs

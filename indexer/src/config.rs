@@ -55,7 +55,7 @@ impl Config {
                 .parse()
                 .expect("POLL_INTERVAL_SECS must be a number"),
             catch_up_batch_size: env::var("CATCH_UP_BATCH_SIZE")
-                .unwrap_or_else(|_| "32".to_string())
+                .unwrap_or_else(|_| "256".to_string())
                 .parse()
                 .expect("CATCH_UP_BATCH_SIZE must be a number"),
             p2p_batch_size: env::var("P2P_BATCH_SIZE")
