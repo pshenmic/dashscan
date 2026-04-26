@@ -7,6 +7,7 @@ mod processor;
 mod rpc;
 mod zmq;
 mod miner_pool;
+mod utils;
 
 use db::Database;
 use processor::BlockProcessor;
