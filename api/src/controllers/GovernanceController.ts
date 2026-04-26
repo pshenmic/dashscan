@@ -3,6 +3,7 @@ import {DashCoreRPC, GovernanceObjectSignal} from "../dashcoreRPC";
 import {FastifyReply, FastifyRequest} from "fastify";
 import GovernanceDAO from "../dao/GovernanceDAO";
 import BlocksDAO from "../dao/BlocksDAO";
+import {GovernanceObject} from "../models/GovernanceObject";
 
 export default class GovernanceController {
   governanceDAO: GovernanceDAO
@@ -21,22 +22,71 @@ export default class GovernanceController {
     response.send(proposals)
   }
 
-  getPeriodBudget = async (request: FastifyRequest<{ Querystring: { superblockHeight?: number } }>, response: FastifyReply): Promise<void> => {
-    let {superblockHeight} = request.query;
+  getBudgetInfo = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
 
-    if (superblockHeight == null) {
-      const {resultSet: [lastSuperblock]} = await this.blocksDAO.getBlocks(1,1,'desc', true)
+    const {resultSet: superblocks} = await this.blocksDAO.getBlocks(1, 2, 'desc', true)
+    const [lastSuperblock, prevSuperblock] = superblocks
 
-      if (lastSuperblock?.height == null) {
-        response.code(404).send({error: 'No superblock found. Please try to set superblockHeight.'})
-        return
-      }
-
-      superblockHeight = lastSuperblock.height
+    if (lastSuperblock?.timestamp == null || prevSuperblock?.timestamp == null) {
+      response.code(404).send({error: 'Not enough superblocks indexed to compute next superblock time'})
+      return
     }
 
-    const budget = await this.governanceDAO.getPeriodBudget(superblockHeight);
+    const [governanceInfo, allProposals] = await Promise.all([
+      this.governanceDAO.getGovernanceInfo(),
+      this.governanceDAO.getProposals(),
+    ])
 
-    response.send({budget})
+    if(governanceInfo.lastsuperblock>lastSuperblock.height) {
+      response.status(500).send({error: 'Cannot find the last superblock in the database. Please wait if the sync progress is not at 100%.'})
+    }
+
+    const totalBudget = await this.governanceDAO.getBudgetInfo(governanceInfo.nextsuperblock)
+
+    const cycleMs = lastSuperblock.timestamp.getTime() - prevSuperblock.timestamp.getTime()
+    const nextSuperblockTimeSec = Math.floor((lastSuperblock.timestamp.getTime() + cycleMs) / 1000)
+
+    const proposals = allProposals.filter(p =>
+      p.objectType === 'Proposal' &&
+      (p.data?.endEpoch ?? 0) > nextSuperblockTimeSec
+    )
+    const voteThreshold = governanceInfo.governanceminquorum
+
+    const totalRequested = proposals
+      .reduce(
+        (acc, curr) => acc + (curr.data?.paymentAmount ?? 0),
+        0
+      )
+
+    const enoughVotes = proposals
+      .filter(p => (p.absoluteYesCount ?? 0) >= voteThreshold)
+    const enoughVotesTotal = enoughVotes
+      .reduce((acc, curr) => acc + (curr.data?.paymentAmount ?? 0), 0)
+
+    const rankedByVotes = [...enoughVotes].sort(
+      (a, b) => b.absoluteYesCount - a.absoluteYesCount
+    )
+
+    let running = 0
+    const enoughFunds = rankedByVotes.filter((p: GovernanceObject) => {
+      const amount = p.data?.paymentAmount ?? 0
+      if (running + amount <= totalBudget) {
+        running += amount
+        return true
+      }
+      return false
+    })
+
+    response.send({
+      totalBudget,
+      totalProposals: proposals.length,
+      totalRequested,
+      enoughVotesTotal,
+      enoughVotesCount: enoughVotes.length,
+      enoughFundsTotal: running,
+      enoughFundsCount: enoughFunds.length,
+      remainingAllPass: totalBudget - totalRequested,
+      remainingEnoughVotes: totalBudget - enoughVotesTotal,
+    })
   }
 }

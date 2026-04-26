@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Knex } from 'knex';
 import { DashCoreRPC } from '../dashcoreRPC';
 import BlocksDAO from '../dao/BlocksDAO';
-import ChainInfo from "../models/ChainInfo";
+import ChainStats from "../models/ChainStats";
 
 export default class MainController {
   private dashcoreRPC: DashCoreRPC;
@@ -29,9 +29,9 @@ export default class MainController {
     }
   };
 
-  getChainInfo = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
+  getChainStats = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
     const chainInfoResponse = await this.dashcoreRPC.getChainInfo();
-    const chainInfo = ChainInfo.fromRpcResponse(chainInfoResponse)
+    const chainStats = ChainStats.fromRpcResponse(chainInfoResponse)
 
     const {resultSet} = await this.blocksDAO.getBlocks(1, 20, 'desc');
 
@@ -47,8 +47,8 @@ export default class MainController {
     const transactionsPerSecond = Number((transactionsCount / timeSpanSec).toFixed(2))
     const transactionsPerMinute = Number((transactionsCount / (timeSpanSec / 60)).toFixed(2))
 
-    response.send(ChainInfo.fromObject({
-      ...chainInfo,
+    response.send(ChainStats.fromObject({
+      ...chainStats,
       blockTime,
       transactionsPerSecond,
       transactionsPerMinute,

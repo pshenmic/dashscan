@@ -97,6 +97,17 @@ export interface GovernanceObjectDetails {
 
 type GovernanceObjectsResult = Record<string, GovernanceObjectDetails>;
 
+export interface GovernanceInfoRPC {
+  governanceminquorum: number;
+  proposalfee: number;
+  superblockcycle: number;
+  superblockmaturitywindow: number;
+  lastsuperblock: number;
+  nextsuperblock: number;
+  fundingthreshold: number;
+  governancebudget: number;
+}
+
 export class DashCoreRPC {
   rpc: RpcClient
 
@@ -146,6 +157,10 @@ export class DashCoreRPC {
 
   async getSuperblockBudget(superblockHeight: number): Promise<number> {
     return this.callMethod('getsuperblockbudget', [superblockHeight]);
+  }
+
+  async getGovernanceInfo(): Promise<GovernanceInfoRPC> {
+    return this.callMethod('getgovernanceinfo', []);
   }
 
   async getMemPoolTransactionHashes(): Promise<string[]> {

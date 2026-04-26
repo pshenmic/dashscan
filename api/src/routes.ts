@@ -36,7 +36,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/blocks/transactions/stats',
+      path: '/blocks/transactions/chart',
       method: 'get',
       handler: blocksController.getTxCountStats,
       schema: {
@@ -65,12 +65,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/transactions/history',
-      method: 'get',
-      handler: transactionsController.getTransactionHistory,
-    },
-    {
-      path: '/transactions/stats',
+      path: '/transactions/chart',
       method: 'get',
       handler: transactionsController.getTransactionCountSeries,
       schema: {
@@ -148,7 +143,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/price/:currency/historical',
+      path: '/price/:currency/chart',
       method: 'get',
       handler: marketController.getHistoricalPrices,
       schema: {
@@ -176,7 +171,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/marketcap/:currency/historical',
+      path: '/marketcap/:currency/chart',
       method: 'get',
       handler: marketController.getHistoricalMarketCaps,
       schema: {
@@ -204,7 +199,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/volume/:currency/historical',
+      path: '/volume/:currency/chart',
       method: 'get',
       handler: marketController.getHistoricalVolumes,
       schema: {
@@ -284,7 +279,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
       }
     },
     {
-      path: '/address/:address/balance/history',
+      path: '/address/:address/balance/chart',
       method: 'get',
       handler: addressesController.getAddressBalanceSeries,
       schema: {
@@ -300,23 +295,12 @@ export default function Routes({ fastify, mainController, blocksController, tran
     {
       path: '/governance/budget',
       method: 'get',
-      handler: governanceController.getPeriodBudget,
-      schema: {
-        querystring: {
-          type: 'object',
-          properties: {
-            superblockHeight: {
-              type: ['number', 'null'],
-              minimum: 0,
-            },
-          }
-        }
-      }
+      handler: governanceController.getBudgetInfo,
     },
     {
-      path: '/chainInfo',
+      path: '/chain/stats',
       method: 'get',
-      handler: mainController.getChainInfo,
+      handler: mainController.getChainStats,
     }
   ];
 

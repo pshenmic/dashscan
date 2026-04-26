@@ -1,17 +1,13 @@
 import {Knex} from 'knex';
 import Transaction from '../models/Transaction';
 import PaginatedResultSet from '../models/PaginatedResultSet';
-import {DashCoreRPC} from "../dashcoreRPC";
-import {Address} from "node:cluster";
 import SeriesData from '../models/SeriesData';
 
 export default class TransactionsDAO {
   private knex: Knex;
-  private dashCoreRPC: DashCoreRPC;
 
-  constructor(knex: Knex, dashCoreRPC: DashCoreRPC) {
+  constructor(knex: Knex) {
     this.knex = knex;
-    this.dashCoreRPC = dashCoreRPC;
   }
 
   getTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
@@ -157,21 +153,6 @@ export default class TransactionsDAO {
     if (!row) return null;
 
     return Transaction.fromRow(row);
-  };
-
-  getTransactionHistory = async (): Promise<{ timestamp: number; count: number }[]> => {
-    const rows = await this.knex('transactions')
-      .join('blocks', 'blocks.height', 'transactions.block_height')
-      .where('blocks.timestamp', '>=', this.knex.raw("NOW() - INTERVAL '24 hours'"))
-      .groupByRaw("date_trunc('hour', blocks.timestamp)")
-      .orderByRaw("date_trunc('hour', blocks.timestamp) ASC")
-      .select(this.knex.raw("date_trunc('hour', blocks.timestamp) as hour"))
-      .count('transactions.hash as count');
-
-    return (rows as any[]).map(({hour, count}: { hour: Date; count: string }) => ({
-      timestamp: Math.floor(new Date(hour).getTime() / 1000),
-      count: Number(count),
-    }));
   };
 
   getTransactionsByBlockHeight = async (height: number, page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {

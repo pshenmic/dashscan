@@ -110,7 +110,7 @@ Returns a paginated list of blocks.
 
 ---
 
-### GET /blocks/transactions/stats
+### GET /blocks/transactions/chart
 
 Returns a time series of the average transaction count per block over a configurable time range.
 
@@ -500,29 +500,7 @@ Entries use the [Transaction Object](#transaction-object) shape. `total` reflect
 
 ---
 
-### GET /transactions/history
-
-Returns transaction counts grouped by hour for the past 24 hours.
-
-**Response `200`**
-
-```json
-[
-  { "timestamp": 1741305600, "count": 142 },
-  { "timestamp": 1741309200, "count": 98 }
-]
-```
-
-| Field       | Type   | Description                          |
-|-------------|--------|--------------------------------------|
-| `timestamp` | number | Hour start as Unix timestamp (seconds) |
-| `count`     | number | Number of transactions in that hour  |
-
-> Hours with zero transactions are omitted.
-
----
-
-### GET /transactions/stats
+### GET /transactions/chart
 
 Returns a time series of transaction counts over a configurable time range, with optional running total.
 
@@ -682,7 +660,7 @@ Returns the current DASH price for the given currency. Cached for 60 minutes. Fa
 
 ---
 
-### GET /price/:currency/historical
+### GET /price/:currency/chart
 
 Returns DASH price for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. For `usd`, falls back to Kraken if CoinGecko is unavailable. For `btc`, only CoinGecko is used.
 
@@ -730,7 +708,7 @@ Returns the current DASH market cap for the given currency. Cached for 60 minute
 
 ---
 
-### GET /marketcap/:currency/historical
+### GET /marketcap/:currency/chart
 
 Returns DASH market cap for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. Provided by CoinGecko only.
 
@@ -778,7 +756,7 @@ Returns the current DASH 24h trading volume for the given currency. Cached for 6
 
 ---
 
-### GET /volume/:currency/historical
+### GET /volume/:currency/chart
 
 Returns DASH trading volume for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. For `usd`, falls back to Kraken if CoinGecko is unavailable. For `btc`, only CoinGecko is used.
 
@@ -878,7 +856,7 @@ Returns a list of governance proposals from Dash Core RPC.
 
 ---
 
-### GET /address/:address/balance/history
+### GET /address/:address/balance/chart
 
 Returns a time series of the address balance over a given time range, with one data point per interval bucket.
 
@@ -987,33 +965,53 @@ Returns a list of pending transactions.
 
 ### GET /governance/budget
 
-Returns the total treasury budget for a given superblock, in Dash. When `superblockHeight` is omitted, the height of the most recent superblock is used.
+Returns treasury stats for the next superblock: the budget from Dash Core RPC plus aggregate figures computed across currently pending proposals.
 
-**Query Parameters**
-
-| Parameter          | Type           | Default                | Constraints | Description                                      |
-|--------------------|----------------|------------------------|-------------|--------------------------------------------------|
-| `superblockHeight` | number \| null | last superblock height | minimum: 0  | Height of the superblock to query the budget for |
+`nextSuperblockTime` is derived empirically from the spacing of the two most recent indexed superblocks: `lastSuperblock.timestamp + (lastSuperblock.timestamp - prevSuperblock.timestamp)`.
 
 **Response `200`**
 
 ```json
-{ "budget": 12345.67 }
+{
+  "totalBudget": 7353.51481616,
+  "totalProposals": 12,
+  "totalRequested": 8423.0,
+  "enoughVotesTotal": 7611.0,
+  "enoughVotesCount": 9,
+  "enoughFundsTotal": 7337.0,
+  "enoughFundsCount": 8,
+  "remainingAllPass": -1069.48518384,
+  "remainingEnoughVotes": -257.48518384
+}
 ```
 
-| Field    | Type   | Description                                    |
-|----------|--------|------------------------------------------------|
-| `budget` | number | Superblock budget in Dash, from Dash Core RPC  |
+| Field                  | Type   | Description                                                                                                                                                                     |
+|------------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `totalBudget`          | number | Superblock budget in Dash for `nextsuperblock`, from `getsuperblockbudget` RPC                                                                                                  |
+| `totalProposals`       | number | Number of pending proposals (see pending definition above)                                                                                                                      |
+| `totalRequested`       | number | Sum of `paymentAmount` across all pending proposals                                                                                                                             |
+| `enoughVotesCount`     | number | Count of pending proposals whose `absoluteYesCount >= governanceminquorum`                                                                                                      |
+| `enoughVotesTotal`     | number | Sum of `paymentAmount` across the `enoughVotes` subset                                                                                                                          |
+| `enoughFundsCount`     | number | Count of proposals that would actually be paid: vote-qualified proposals selected greedily (descending by `absoluteYesCount`) while the cumulative amount fits in `totalBudget` |
+| `enoughFundsTotal`     | number | Sum of `paymentAmount` across the `enoughFunds` subset                                                                                                                          |
+| `remainingAllPass`     | number | `totalBudget - totalRequested` (negative when proposals are oversubscribed)                                                                                                     |
+| `remainingEnoughVotes` | number | `totalBudget - enoughVotesTotal` (negative when vote-passing proposals exceed budget)                                                                                           |
 
-**Response `404`** — no superblock has been indexed yet and `superblockHeight` was not provided
+**Response `404`** — fewer than 2 superblocks have been indexed, so `nextSuperblockTime` cannot be computed
 
 ```json
-{ "error": "No superblock found. Please try to set superblockHeight." }
+{ "error": "Not enough superblocks indexed to compute next superblock time" }
+```
+
+**Response `500`** — Dash Core's `lastsuperblock` height is ahead of the indexer's latest indexed superblock (sync lag)
+
+```json
+{ "error": "Cannot find the last superblock in the database. Please wait if the sync progress is not at 100%." }
 ```
 
 ---
 
-### GET /chainInfo
+### GET /chain/stats
 
 Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics computed from the 20 most recently indexed blocks.
 
@@ -1031,7 +1029,7 @@ Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics
 }
 ```
 
-#### ChainInfo Object
+#### ChainStats Object
 
 | Field                   | Type           | Description                                                                   |
 |-------------------------|----------------|-------------------------------------------------------------------------------|
