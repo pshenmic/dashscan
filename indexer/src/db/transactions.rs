@@ -6,9 +6,7 @@ use tokio_postgres::GenericClient;
 
 use super::{Database, BATCH_SIZE, build_placeholders};
 use crate::rpc::Transaction as RpcTransaction;
-use crate::utils::transaction::calculate_amount::TransactionAmountCalculator;
-use crate::utils::transaction::check_coinjoin::CheckCoinjoin;
-use crate::utils::transaction::get_coinbase_tx_info::GetCoinbaseTxInfo;
+use crate::utils::transaction::TransactionUtils;
 
 impl Database {
     /// INSERT a single pending (mempool) transaction with NULL block_height.

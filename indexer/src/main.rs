@@ -51,6 +51,7 @@ async fn main() {
                     .batch_execute(
                         "BEGIN; \
                          DROP TABLE IF EXISTS masternodes; \
+                         DROP TABLE IF EXISTS utxo; \
                          DROP TABLE IF EXISTS special_transactions; \
                          DROP TABLE IF EXISTS tx_inputs; \
                          DROP TABLE IF EXISTS tx_outputs; \
