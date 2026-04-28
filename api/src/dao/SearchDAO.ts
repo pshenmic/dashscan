@@ -53,14 +53,19 @@ export default class SearchDAO {
         'blocks.hash as block_hash',
         'transactions.locktime',
         'transactions.is_coinbase',
-        'blocks.height as height',
+        'blocks.height as block_height',
         'blocks.timestamp as timestamp',
+        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
+        this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
+        'transactions.coinjoin',
       )
       .leftJoin('blocks', 'blocks.height', 'transactions.block_height')
       .where('transactions.hash', hash)
       .first();
+
     if (!row) return null;
-    return new Transaction(row.hash.trim(), row.type, row.height, row.block_hash?.trim(), null, row.version, [], [], null, null, row.timestamp);
+
+    return Transaction.fromRow(row);
   };
 
   private getMasternodeByProTxHash = async (proTxHash: string): Promise<Masternode | null> => {

@@ -32,7 +32,10 @@ export default class TransactionsDAO {
         'transactions.chain_locked',
         'transactions.instant_lock',
         'transactions.id',
-        'transactions.version'
+        'transactions.version',
+        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
+        this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
+        'transactions.coinjoin'
       )
       .orderBy('transactions.block_height', order)
       .limit(limit)
@@ -75,7 +78,8 @@ export default class TransactionsDAO {
         'subquery.hash', 'type', 'block_height',
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
-        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version'
+        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
+        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -140,6 +144,9 @@ export default class TransactionsDAO {
         'subquery.chain_locked',
         'blocks.hash as block_hash',
         'blocks.timestamp as timestamp',
+        this.knex.raw('subquery.coinbase_amount::text as coinbase_amount'),
+        this.knex.raw('subquery.transfer_amount::text as transfer_amount'),
+        'subquery.coinjoin',
       )
       .select(this.knex.raw('max_height - block_height + 1 AS confirmations'))
       .select('agg_inputs.inputs', 'agg_outputs.outputs')
@@ -171,6 +178,9 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.id',
         'transactions.version',
+        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
+        this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
+        'transactions.coinjoin',
       )
       .where('transactions.block_height', height)
       .orderBy('transactions.id', order)
@@ -218,7 +228,8 @@ export default class TransactionsDAO {
         'subquery.hash', 'type', 'block_height',
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
-        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version'
+        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
+        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -245,7 +256,10 @@ export default class TransactionsDAO {
         'transactions.chain_locked',
         'transactions.instant_lock',
         'transactions.id',
-        'transactions.version'
+        'transactions.version',
+        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
+        this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
+        'transactions.coinjoin'
       )
       .whereNull('block_height')
       .orderBy('id', order)
@@ -286,7 +300,8 @@ export default class TransactionsDAO {
       .select(this.knex('total_count').as('total_count'))
       .select(
         'subquery.hash', 'type', 'chain_locked', 'instant_lock',
-        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version'
+        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
+        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -369,6 +384,9 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.version',
         'transactions.id',
+        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
+        this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
+        'transactions.coinjoin',
       )
       .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'))
       .orderBy('transactions.block_height', order)
@@ -413,7 +431,8 @@ export default class TransactionsDAO {
         'subquery.hash', 'type', 'block_height',
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
-        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version'
+        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
+        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')

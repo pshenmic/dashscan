@@ -15,6 +15,9 @@ interface TransactionRow {
   size: number;
   inputs: any[];
   outputs: any[];
+  coinbase_amount: string | null;
+  transfer_amount: string | null;
+  coinjoin: boolean;
 }
 
 interface TransactionObject {
@@ -22,7 +25,7 @@ interface TransactionObject {
   type?: number;
   blockHeight?: number;
   blockHash?: string;
-  amount?: number;
+  amount?: string | null;
   version?: number;
   vIn?: any[];
   vOut?: any[];
@@ -31,6 +34,8 @@ interface TransactionObject {
   timestamp?: Date;
   chainLocked?: boolean;
   size?: number;
+  coinbaseAmount?: string | null;
+  coinjoin?: boolean;
 }
 
 export default class Transaction {
@@ -39,7 +44,7 @@ export default class Transaction {
   blockHeight: number | null;
   blockHash: string | null;
   timestamp: Date | null;
-  amount: number | null;
+  amount: string | null;
   version: number | null;
   vIn: VIn[] | null;
   vOut: VOut[] | null;
@@ -47,13 +52,15 @@ export default class Transaction {
   instantLock: string | null;
   chainLocked: boolean | null;
   size: number | null;
+  coinbaseAmount: string | null;
+  coinjoin: boolean | null;
 
   constructor(
     hash?: string,
     type?: number,
     blockHeight?: number,
     blockHash?: string,
-    amount?: number,
+    amount?: string | null,
     version?: number,
     vIn?: VIn[],
     vOut?: VOut[],
@@ -62,6 +69,8 @@ export default class Transaction {
     timestamp?: Date,
     chainLock?: boolean,
     size?: number,
+    coinbaseAmount?: string | null,
+    coinjoin?: boolean,
 ) {
     this.hash = hash ?? null;
     this.type = type ?? null;
@@ -76,9 +85,11 @@ export default class Transaction {
     this.instantLock = instantLock ?? null;
     this.chainLocked = chainLock ?? null;
     this.size = size ?? null;
+    this.coinbaseAmount = coinbaseAmount ?? null;
+    this.coinjoin = coinjoin ?? null;
   }
 
-  static fromRow({hash, type, block_height, block_hash, timestamp, version, confirmations, instant_lock, chain_locked, size, inputs, outputs}: TransactionRow): Transaction {
+  static fromRow({hash, type, block_height, block_hash, timestamp, version, confirmations, instant_lock, chain_locked, size, inputs, outputs, coinbase_amount, transfer_amount, coinjoin}: TransactionRow): Transaction {
     let normalVOut: VOut[] | null = null;
     let normalVIn: VIn[] | null = null;
 
@@ -90,7 +101,7 @@ export default class Transaction {
       normalVIn = VIn.fromRows(inputs)
     }
 
-    return new Transaction(hash, type, block_height, block_hash, undefined, version, normalVIn, normalVOut, confirmations, instant_lock, timestamp, chain_locked, size);
+    return new Transaction(hash, type, block_height, block_hash, transfer_amount, version, normalVIn, normalVOut, confirmations, instant_lock, timestamp, chain_locked, size, coinbase_amount, coinjoin);
   }
 
   static fromObject({
@@ -107,6 +118,8 @@ export default class Transaction {
                       timestamp,
                       chainLocked,
                       size,
+                      coinbaseAmount,
+                      coinjoin,
                     }: TransactionObject): Transaction {
     let normalVIn: VIn[] | undefined;
     let normalVOut: VOut[] | undefined;
@@ -141,6 +154,6 @@ export default class Transaction {
       });
     }
 
-    return new Transaction(hash, type, blockHeight, blockHash, amount, version, normalVIn, normalVOut, confirmations, instantLock, timestamp, chainLocked, size);
+    return new Transaction(hash, type, blockHeight, blockHash, amount, version, normalVIn, normalVOut, confirmations, instantLock, timestamp, chainLocked, size, coinbaseAmount, coinjoin);
   }
 }
