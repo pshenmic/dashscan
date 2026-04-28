@@ -10,7 +10,7 @@ use tracing::{error, info};
 /// Local Dash Core handles dozens of parallel JSON-RPC requests fine; this
 /// just bounds memory and avoids pathological fan-out when a batch spends
 /// hundreds of pre-indexed outputs.
-const RPC_FALLBACK_CONCURRENCY: usize = 32;
+const RPC_FALLBACK_CONCURRENCY: usize = 64;
 
 use crate::config::Config;
 use crate::db::BATCH_SIZE;

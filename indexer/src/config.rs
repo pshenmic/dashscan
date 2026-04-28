@@ -67,9 +67,13 @@ impl Config {
 
     pub fn pg_config(&self) -> deadpool_postgres::Config {
         let mut cfg = deadpool_postgres::Config::new();
-        // Suppress NOTICE messages (e.g. `relation already exists, skipping`
-        // from the `CREATE TEMP TABLE IF NOT EXISTS` staging-table pattern).
-        cfg.options = Some("-c client_min_messages=WARNING".to_string());
+        // Per-session GUCs applied to every pooled connection.
+        //   client_min_messages=WARNING: suppress NOTICE spam from
+        //     `CREATE TEMP TABLE IF NOT EXISTS` staging tables.
+        //   synchronous_commit=off: indexer is restartable from chain state,
+        //     so losing the last ~200ms of commits on crash just re-indexes
+        //     a few blocks.
+        cfg.options = Some("-c client_min_messages=WARNING -c synchronous_commit=off".to_string());
         // Parse postgres://user:password@host:port/dbname
         let without_scheme = self
             .database_url
