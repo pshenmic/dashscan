@@ -72,4 +72,16 @@ export default class AddressesController {
 
     response.send(series);
   }
+
+  getAddressUtxo = async (request: FastifyRequest<{
+    Querystring: PaginatedQuery,
+    Params: { address: string }
+  }>, response: FastifyReply): Promise<void> => {
+    const {page = 1, limit = 10, order = 'asc'} = request.query;
+    const {address} = request.params;
+
+    const utxo = await this.addressesDAO.getAddressUtxo(address, page, limit, order);
+
+    response.send(utxo)
+  }
 }

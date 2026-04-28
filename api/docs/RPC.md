@@ -533,6 +533,44 @@ Entries use the [Transaction Object](#transaction-object) shape. `total` reflect
 
 ---
 
+### GET /address/:address/utxo
+
+Returns a paginated list of unspent transaction outputs (UTXOs) for the given address, ordered by amount.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                                | Description  |
+|-----------|--------|--------------------------------------------|--------------|
+| `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
+
+**Query Parameters:** [Pagination](#pagination-query-parameters). `order` sorts by UTXO amount (`asc`/`desc`).
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "prevTxHash": "abcdef1234...",
+      "vOutIndex": 0,
+      "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+      "amount": "100000000",
+      "sequence": null,
+      "scriptSigASM": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 17
+  }
+}
+```
+
+Entries use the [VIn Object](#vin-object) shape. `prevTxHash` and `vOutIndex` identify the unspent output; `amount` is in duffs as a string. `sequence` and `scriptSigASM` are always `null` for UTXOs (they apply only to inputs that have spent the output).
+
+---
+
 ### GET /transactions/chart
 
 Returns a time series of transaction counts over a configurable time range, with optional running total.

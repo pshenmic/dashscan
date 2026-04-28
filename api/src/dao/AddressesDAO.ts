@@ -1,7 +1,8 @@
-import { Knex } from 'knex';
+import {Knex} from 'knex';
 import Address from '../models/Address';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
+import VIn from "../models/VIn";
 
 export default class AddressesDAO {
   private knex: Knex;
@@ -167,9 +168,42 @@ export default class AddressesDAO {
     return rows
       .map((row: any) => {
         const timestamp = new Date(row.date_from);
-        const data = { balance: row.balance !== null ? row.balance.toString() : '0' };
+        const data = {balance: row.balance !== null ? row.balance.toString() : '0'};
 
         return new SeriesData(timestamp, data)
       })
+  }
+
+  getAddressUtxo = async (address: string, page: number, limit: number, order: string): Promise<PaginatedResultSet<VIn>> => {
+    const fromRank = (page - 1) * limit;
+
+    const addressIdSubquery = this.knex('addresses').select('id').where('address', address);
+
+    const countSubquery = this.knex('utxo')
+      .where('address_id', addressIdSubquery)
+      .count('* as total');
+
+    const rows = await this.knex('utxo')
+      .with('total_count', countSubquery)
+      .leftJoin('transactions', 'transactions.id', 'utxo.tx_id')
+      .where('utxo.address_id', addressIdSubquery)
+      .select(
+        'transactions.hash as prev_tx_hash',
+        'utxo.vout_index as prev_vout_index',
+        this.knex.raw('utxo.amount::text as amount'),
+      )
+      .select(this.knex('total_count').select('total').as('total_count'))
+      .orderBy('utxo.amount', order)
+      .limit(limit)
+      .offset(fromRank);
+
+    const [row] = rows;
+
+    return new PaginatedResultSet(
+      rows.map((r: any) => VIn.fromRow({...r, address})),
+      page,
+      limit,
+      row?.total_count ?? -1,
+    );
   }
 }

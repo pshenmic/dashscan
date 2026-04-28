@@ -293,6 +293,20 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/address/:address/utxo',
+      method: 'get',
+      handler: addressesController.getAddressUtxo,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            address: { $ref: 'address#' },
+          },
+        },
+        querystring: { $ref: 'paginationOptions#' },
+      }
+    },
+    {
       path: '/governance/budget',
       method: 'get',
       handler: governanceController.getBudgetInfo,
