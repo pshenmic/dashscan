@@ -194,7 +194,13 @@ Returns a single block by its hash.
 
 Returns a paginated list of transactions. Include pending transactions
 
-**Query Parameters:** [Pagination](#pagination-query-parameters)
+**Query Parameters:** [Pagination](#pagination-query-parameters), plus optional filters:
+
+| Parameter          | Type    | Constraints                                  | Description                                                                |
+|--------------------|---------|----------------------------------------------|----------------------------------------------------------------------------|
+| `transaction_type` | string  | one of the [transaction type](#transaction-types) names (e.g. `CLASSIC`, `COINBASE`) | Filter by transaction type                                                 |
+| `coinjoin`         | boolean |                                              | Filter to (`true`) or exclude (`false`) CoinJoin-pattern transactions      |
+| `block_height`     | integer | minimum: 1                                   | Filter to transactions in a specific block height                          |
 
 **Response `200`**
 
@@ -203,7 +209,7 @@ Returns a paginated list of transactions. Include pending transactions
   "resultSet": [
     {
       "hash": "abcdef1234...",
-      "type": 0,
+      "type": "CLASSIC",
       "blockHeight": 100000,
       "blockHash": "000000000000abcd1234...",
       "amount": "100000000",
@@ -258,7 +264,7 @@ Returns a single transaction by its hash.
 ```json
 {
   "hash": "abcdef1234...",
-  "type": 0,
+  "type": "CLASSIC",
   "blockHeight": 100000,
   "blockHash": "000000000000abcd1234...",
   "timestamp": "2023-01-01T00:00:00.000Z",
@@ -298,7 +304,7 @@ Returns a single transaction by its hash.
 | Field            | Type           | Description                                                                                  |
 |------------------|----------------|----------------------------------------------------------------------------------------------|
 | `hash`           | string         | Transaction hash (64-char hex)                                                               |
-| `type`           | number         | Transaction type                                                                             |
+| `type`           | string \| null | [Transaction type](#transaction-types) name (e.g. `CLASSIC`, `COINBASE`)                     |
 | `blockHeight`    | number \| null | Height of the block containing this transaction                                              |
 | `blockHash`      | string \| null | Hash of the block containing this transaction                                                |
 | `timestamp`      | string \| null | ISO 8601 block timestamp, or `null` for pending transactions                                 |
@@ -312,6 +318,23 @@ Returns a single transaction by its hash.
 | `chainLocked`    | boolean        | Whether the transaction's block has a ChainLock                                              |
 | `coinbaseAmount` | string \| null | Coinbase reward in duffs for coinbase transactions, `null` for non-coinbase                  |
 | `coinjoin`       | boolean        | Whether this transaction matches the CoinJoin (mixing) pattern                               |
+
+#### Transaction Types
+
+DIP-2 special-transaction type values. The numeric value is returned in the `type` field of the [Transaction Object](#transaction-object); the string name is what the `transaction_type` query filter on `GET /transactions` accepts.
+
+| Value | Name                          | Description                       |
+|-------|-------------------------------|-----------------------------------|
+| `0`   | `CLASSIC`                     | Standard transaction              |
+| `1`   | `PROVIDER_REGISTRATION`       | Masternode registration           |
+| `2`   | `PROVIDER_UPDATE_SERVICE`     | Masternode service update         |
+| `3`   | `PROVIDER_UPDATE_REGISTRAR`   | Masternode registrar update       |
+| `4`   | `PROVIDER_UPDATE_REVOCATION`  | Masternode revocation             |
+| `5`   | `COINBASE`                    | Coinbase transaction              |
+| `6`   | `QUORUM_COMMITMENT`           | LLMQ commitment                   |
+| `7`   | `MASTERNODE_HARD_FORK_SIGNAL` | Masternode hard-fork signal       |
+| `8`   | `ASSET_LOCK`                  | Asset lock (Platform credit)      |
+| `9`   | `ASSET_UNLOCK`                | Asset unlock (Platform withdraw)  |
 
 #### VIn Object
 
@@ -353,7 +376,7 @@ Returns a paginated list of transactions for a specific block height.
   "resultSet": [
     {
       "hash": "abcdef1234...",
-      "type": 0,
+      "type": "CLASSIC",
       "blockHeight": 100000,
       "blockHash": "000000000000abcd1234...",
       "amount": "100000000",
@@ -483,7 +506,7 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
   "resultSet": [
     {
       "hash": "abcdef1234...",
-      "type": 0,
+      "type": "CLASSIC",
       "blockHeight": 100000,
       "blockHash": "000000000000abcd1234...",
       "timestamp": "2023-01-01T00:00:00.000Z",
@@ -933,7 +956,7 @@ Returns a list of pending transactions.
   "resultSet": [
     {
       "hash": "4b82593225c75ad9566fe2938291edc53afc3eb9e61ced51a47bb98264dc1cb4",
-      "type": 0,
+      "type": "CLASSIC",
       "blockHeight": null,
       "blockHash": null,
       "timestamp": null,

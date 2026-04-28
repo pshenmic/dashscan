@@ -2,6 +2,7 @@ import {Knex} from 'knex';
 import Transaction from '../models/Transaction';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
+import {TransactionType} from "../enums/TransactionType";
 
 export default class TransactionsDAO {
   private knex: Knex;
@@ -10,15 +11,25 @@ export default class TransactionsDAO {
     this.knex = knex;
   }
 
-  getTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
+  getTransactions = async (page: number, limit: number, order: string, transactionType?: TransactionType, coinjoin?: boolean, blockHeight?: number): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
+
+    const filtered = transactionType != null || coinjoin != null || blockHeight != null;
 
     // TODO: Slow on pages like 10000000, maybe we need to add cursor
     //  or something what can improve performance
-    const countSubquery = this.knex('pg_class')
-      .select(this.knex.raw('reltuples::bigint'))
-      .whereRaw(`relname='transactions'`)
-      .limit(1)
+    const countSubquery = filtered
+      ? this.knex('transactions')
+          .count('* as reltuples')
+          .modify((builder) => {
+            if (transactionType != null) builder.where('type', transactionType);
+            if (coinjoin != null) builder.where('coinjoin', coinjoin);
+            if (blockHeight != null) builder.where('block_height', blockHeight);
+          })
+      : this.knex('pg_class')
+          .select(this.knex.raw('reltuples::bigint'))
+          .whereRaw(`relname='transactions'`)
+          .limit(1)
 
     const blockMaxHeightSubquery = this.knex('blocks')
       .select(this.knex.raw('MAX(height) as max_height'))
@@ -37,6 +48,11 @@ export default class TransactionsDAO {
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin'
       )
+      .modify((builder) => {
+        if (transactionType != null) builder.where('transactions.type', transactionType);
+        if (coinjoin != null) builder.where('transactions.coinjoin', coinjoin);
+        if (blockHeight != null) builder.where('transactions.block_height', blockHeight);
+      })
       .orderBy('transactions.block_height', order)
       .limit(limit)
       .offset(fromRank)

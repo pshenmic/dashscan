@@ -1,6 +1,7 @@
 import VIn from './VIn';
 import VOut from './VOut';
 import {Script} from 'dash-core-sdk/dist/src/types/Script';
+import {TransactionType} from "../enums/TransactionType";
 
 interface TransactionRow {
   hash: string;
@@ -22,7 +23,7 @@ interface TransactionRow {
 
 interface TransactionObject {
   hash?: string;
-  type?: number;
+  type?: string;
   blockHeight?: number;
   blockHash?: string;
   amount?: string | null;
@@ -40,7 +41,7 @@ interface TransactionObject {
 
 export default class Transaction {
   hash: string | null;
-  type: number | null;
+  type: string | null;
   blockHeight: number | null;
   blockHash: string | null;
   timestamp: Date | null;
@@ -54,10 +55,9 @@ export default class Transaction {
   size: number | null;
   coinbaseAmount: string | null;
   coinjoin: boolean | null;
-
   constructor(
     hash?: string,
-    type?: number,
+    type?: string,
     blockHeight?: number,
     blockHash?: string,
     amount?: string | null,
@@ -101,7 +101,9 @@ export default class Transaction {
       normalVIn = VIn.fromRows(inputs)
     }
 
-    return new Transaction(hash, type, block_height, block_hash, transfer_amount, version, normalVIn, normalVOut, confirmations, instant_lock, timestamp, chain_locked, size, coinbase_amount, coinjoin);
+    const typeText = type != null ? TransactionType[type] : null;
+
+    return new Transaction(hash, typeText, block_height, block_hash, transfer_amount, version, normalVIn, normalVOut, confirmations, instant_lock, timestamp, chain_locked, size, coinbase_amount, coinjoin);
   }
 
   static fromObject({

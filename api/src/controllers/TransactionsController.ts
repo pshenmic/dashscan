@@ -4,6 +4,7 @@ import TransactionsDAO from '../dao/TransactionsDAO';
 import {PaginatedQuery} from "./types";
 import {calculateInterval, iso8601duration} from "../utils";
 import Intervals from "../enums/Intervals";
+import {TransactionType} from "../enums/TransactionType";
 
 export default class TransactionsController {
   private transactionsDAO: TransactionsDAO;
@@ -13,9 +14,13 @@ export default class TransactionsController {
   }
 
   getTransactions = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
-    const { page = 1, limit = 10, order = 'asc' } = request.query;
+    const {
+      page = 1, limit = 10, order = 'asc',
+      coinjoin,
+      transaction_type: transactionType,
+      block_height: blockHeight } = request.query;
 
-    const transactions = await this.transactionsDAO.getTransactions(page, limit, order);
+    const transactions = await this.transactionsDAO.getTransactions(page, limit, order, TransactionType[transactionType], coinjoin, blockHeight);
 
     response.send(transactions);
   };
