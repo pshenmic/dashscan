@@ -50,6 +50,7 @@ async fn main() {
                 client
                     .batch_execute(
                         "BEGIN; \
+                         DROP MATERIALIZED VIEW IF EXISTS address_balances; \
                          DROP TABLE IF EXISTS masternodes; \
                          DROP TABLE IF EXISTS utxo; \
                          DROP TABLE IF EXISTS special_transactions; \
@@ -165,6 +166,14 @@ async fn main() {
         }
     };
 
+    // Bootstrap the address_balances matview now that we're at the tip.
+    // First call after V21 migration is non-CONCURRENT (matview is empty).
+    if let Err(e) = processor.db.refresh_address_balances().await {
+        error!("Failed to bootstrap address_balances matview: {e:?}");
+    } else {
+        info!("Bootstrapped address_balances matview");
+    }
+
     info!(last_height, "Starting continuous indexing...");
 
     // Channel for ZMQ block notifications
@@ -254,6 +263,9 @@ async fn continuous_indexing(
                         if let Err(e) = processor.sync_masternodes().await {
                             error!("Failed to sync masternode list: {}", e);
                         }
+                        processor
+                            .tick_address_balances_refresh(config.address_balances_refresh_blocks)
+                            .await;
                     },
                     Err(e) => error!("Failed to index block {}: {}", hash, e),
                 }
@@ -280,14 +292,14 @@ async fn continuous_indexing(
             Some(()) = poll_rx.recv() => {
                 // Polling detected new blocks
                 info!("Polling: new blocks detected");
-                index_new_blocks(&processor).await;
+                index_new_blocks(&processor, &config).await;
                 backoff_sleep(1).await;
             }
         }
     }
 }
 
-async fn index_new_blocks(processor: &BlockProcessor) {
+async fn index_new_blocks(processor: &BlockProcessor, config: &Config) {
     let chain_height: i64 = processor.rpc.get_block_count().await
         .expect("Could not get block count from RPC");
 
@@ -297,7 +309,12 @@ async fn index_new_blocks(processor: &BlockProcessor) {
     for height in (db_height + 1)..=chain_height {
         match processor.index_block_by_height(height).await {
             Ok(None) => info!("Block {} already indexed, skipping", height),
-            Ok(Some(hash)) => info!("Indexed live block {} ({})", height, hash),
+            Ok(Some(hash)) => {
+                info!("Indexed live block {} ({})", height, hash);
+                processor
+                    .tick_address_balances_refresh(config.address_balances_refresh_blocks)
+                    .await;
+            }
             Err(e) => error!("Failed to index block with height {}: {}", height, e),
         }
     }

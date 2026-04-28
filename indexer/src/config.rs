@@ -16,6 +16,7 @@ pub struct Config {
     pub poll_interval_secs: u64,
     pub catch_up_batch_size: usize,
     pub p2p_batch_size: usize,
+    pub address_balances_refresh_blocks: u64,
 }
 
 pub fn superblock_interval(network: Network) -> i64 {
@@ -62,6 +63,10 @@ impl Config {
                 .unwrap_or_else(|_| "16".to_string())
                 .parse()
                 .expect("P2P_BATCH_SIZE must be a number"),
+            address_balances_refresh_blocks: env::var("ADDRESS_BALANCES_REFRESH_BLOCKS")
+                .unwrap_or_else(|_| "1".to_string())
+                .parse()
+                .expect("ADDRESS_BALANCES_REFRESH_BLOCKS must be a number"),
         }
     }
 
