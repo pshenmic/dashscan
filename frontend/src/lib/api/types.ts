@@ -120,6 +120,18 @@ export interface ApiProposalData {
   url: string | null;
 }
 
+export interface ApiGovernanceBudget {
+  totalBudget: number;
+  totalProposals: number;
+  totalRequested: number;
+  enoughVotesTotal: number;
+  enoughVotesCount: number;
+  enoughFundsTotal: number;
+  enoughFundsCount: number;
+  remainingAllPass: number;
+  remainingEnoughVotes: number;
+}
+
 export interface ApiGovernanceObject {
   dataHex: string | null;
   data: ApiProposalData | null;
