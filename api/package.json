@@ -11,8 +11,9 @@
   },
   "dependencies": {
     "@dashevo/dashd-rpc": "github:owl352/dashd-rpc",
-    "dash-core-sdk": "github:pshenmic/dash-core-sdk#08e3530df2a0353fcd94c4d8e95f873d179750cd",
     "@fastify/cors": "^11.2.0",
+    "@ip-location-db/geo-whois-asn-country": "^2.3.2026042819",
+    "dash-core-sdk": "github:pshenmic/dash-core-sdk#08e3530df2a0353fcd94c4d8e95f873d179750cd",
     "dotenv": "^17.2.3",
     "fastify": "^5.6.2",
     "fastify-metrics": "^12.1.0",

@@ -70,6 +70,11 @@
     "@fastify/forwarded" "^3.0.0"
     ipaddr.js "^2.1.0"
 
+"@ip-location-db/geo-whois-asn-country@^2.3.2026042819":
+  version "2.3.2026042819"
+  resolved "https://registry.yarnpkg.com/@ip-location-db/geo-whois-asn-country/-/geo-whois-asn-country-2.3.2026042819.tgz#951f810d49b1510d253165bbdc0b026ba546bb20"
+  integrity sha512-gVN2pigu81QPgR7aBQCcLCob6D702a4uI0lxQKpUQpq87bp7LA5ktj+MECjBfthQdiZkD9ww87E2Q4S7FZVlig==
+
 "@jridgewell/resolve-uri@^3.0.3":
   version "3.1.2"
   resolved "https://registry.yarnpkg.com/@jridgewell/resolve-uri/-/resolve-uri-3.1.2.tgz#7a0ee601f60f99a20c7c7c5ff0c80388c1189bd6"

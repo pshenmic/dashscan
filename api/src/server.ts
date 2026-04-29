@@ -15,6 +15,7 @@ import MasternodesDAO from './dao/MasternodesDAO';
 import MarketController from './controllers/MarketController';
 import GovernanceController from "./controllers/GovernanceController";
 import MarketService from './services/MarketService';
+import GeoIPService from './services/GeoIPService';
 import SearchDAO from './dao/SearchDAO';
 import SearchController from './controllers/SearchController';
 import MainController from './controllers/MainController';
@@ -55,6 +56,10 @@ export const start = async (): Promise<FastifyInstance> => {
   const dashcoreRPC = new DashCoreRPC();
 
   const cache = new Cache()
+
+  const geoIPService = new GeoIPService();
+
+  console.log('GeoIP test 51.250.35.156:', geoIPService.lookup('51.250.35.156'));
 
   const preCacheUtxoInfo = await dashcoreRPC.getUtxoInfo()
 
