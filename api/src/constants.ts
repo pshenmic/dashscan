@@ -1,0 +1,1 @@
+export const NETWORK: "testnet" | "mainnet" = process.env.NETWORK as "testnet" | "mainnet";

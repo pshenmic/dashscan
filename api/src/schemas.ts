@@ -7,6 +7,13 @@ const schemas = [
     maxLength: 64,
   },
   {
+    $id: 'address',
+    type: 'string',
+    maxLength: 35,
+    minLength: 33,
+    pattern: '^[A-Za-z0-9]+$',
+  },
+  {
     $id: 'paginationOptions',
     type: 'object',
     properties: {
@@ -23,7 +30,29 @@ const schemas = [
         type: ['string', 'null'],
         enum: ['asc', 'desc'],
       },
+      superblock: {
+        type: ['boolean', 'null'],
+      },
     },
+  },
+  {
+    $id: 'timeInterval',
+    type: 'object',
+    properties: {
+      timestamp_start: {
+        type: ['string', 'null'],
+        format: 'date-time'
+      },
+      timestamp_end: {
+        type: ['string', 'null'],
+        format: 'date-time'
+      },
+      intervals_count: {
+        type: ['number', 'null'],
+        minimum: 2,
+        maximum: 100
+      }
+    }
   },
 ];
 

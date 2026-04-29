@@ -1,5 +1,6 @@
 import { useId } from "react";
 import type { ApiHistoricalEntry } from "@/lib/api/types";
+import { buildSmoothPath } from "@/lib/chart-utils";
 import { cn } from "@/lib/utils";
 
 type PriceChartProps = {
@@ -29,9 +30,7 @@ export function PriceChart({ data, className, formatValue }: PriceChartProps) {
     ...d,
   }));
 
-  const linePath = points
-    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`)
-    .join(" ");
+  const linePath = buildSmoothPath(points);
   const areaPath = `${linePath} L${points[points.length - 1].x},${H} L${points[0].x},${H} Z`;
 
   const fmt = formatValue ?? ((v: number) => v.toLocaleString());
@@ -117,14 +116,27 @@ export function PriceChart({ data, className, formatValue }: PriceChartProps) {
       <div className="mt-1 flex justify-between px-2">
         {data
           .filter((_, i) => i % Math.max(1, Math.floor(data.length / 6)) === 0)
-          .map((d) => (
-            <span key={d.timestamp} className="text-xs text-muted-foreground">
-              {new Date(d.timestamp * 1000).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
-          ))}
+          .map((d) => {
+            const first = data[0].timestamp;
+            const last = data[data.length - 1].timestamp;
+            const spanSeconds = last - first;
+            const date = new Date(d.timestamp * 1000);
+            const label =
+              spanSeconds >= 24 * 60 * 60
+                ? date.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })
+                : date.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+            return (
+              <span key={d.timestamp} className="text-xs text-muted-foreground">
+                {label}
+              </span>
+            );
+          })}
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ interface BlockRow {
   block_size: number;
   credit_pool_balance: number;
   confirmations: number;
+  superblock: boolean;
 }
 
 interface BlockObject {
@@ -28,6 +29,7 @@ interface BlockObject {
   previousBlockHash?: string;
   nonce?: bigint;
   confirmations?: number;
+  superblock?: boolean;
 }
 
 export default class Block {
@@ -43,6 +45,7 @@ export default class Block {
   previousBlockHash: string | null;
   nonce: bigint;
   confirmations: number | null;
+  superblock: boolean | null;
 
   constructor(
     height?: number,
@@ -57,6 +60,7 @@ export default class Block {
     previousBlockHash?: string,
     nonce?: bigint,
     confirmations?: number,
+    superblock?: boolean,
   ) {
     this.height = height ?? null;
     this.hash = hash ?? null;
@@ -70,13 +74,14 @@ export default class Block {
     this.previousBlockHash = previousBlockHash ?? null;
     this.nonce = nonce ?? null;
     this.confirmations = confirmations ?? null;
+    this.superblock = superblock ?? null;
   }
 
-  static fromRow({ height, hash, version, timestamp, tx_count, size, credit_pool_balance, difficulty, merkle_root, previous_block_hash, nonce, confirmations }: BlockRow): Block {
-    return new Block(height, hash, version, timestamp, tx_count, size, credit_pool_balance, difficulty, merkle_root, previous_block_hash, nonce, confirmations);
+  static fromRow({ height, hash, version, timestamp, tx_count, size, credit_pool_balance, difficulty, merkle_root, previous_block_hash, nonce, confirmations, superblock }: BlockRow): Block {
+    return new Block(height, hash, version, timestamp, tx_count, size, credit_pool_balance, difficulty, merkle_root, previous_block_hash, nonce, confirmations, superblock);
   }
 
-  static fromObject({ height, hash, version, timestamp, txCount, size, creditPoolBalance, difficulty, merkleRoot, previousBlockHash, nonce, confirmations }: BlockObject): Block {
-    return new Block(height, hash, version, timestamp, txCount, size, creditPoolBalance, difficulty, merkleRoot, previousBlockHash, nonce, confirmations);
+  static fromObject({ height, hash, version, timestamp, txCount, size, creditPoolBalance, difficulty, merkleRoot, previousBlockHash, nonce, confirmations, superblock }: BlockObject): Block {
+    return new Block(height, hash, version, timestamp, txCount, size, creditPoolBalance, difficulty, merkleRoot, previousBlockHash, nonce, confirmations, superblock);
   }
 }

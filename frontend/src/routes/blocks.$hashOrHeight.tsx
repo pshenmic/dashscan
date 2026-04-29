@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { DetailRow } from "@/components/detail-row";
+import { PageStatus } from "@/components/page-status";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
 import { SkeletonBar } from "@/components/skeleton";
@@ -26,9 +28,11 @@ import {
 import { blockQueryOptions } from "@/lib/api/blocks";
 import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
 import {
+  formatDuffs,
   formatRelativeTime,
   getTxTypeBadgeStyle,
   getTxTypeLabel,
+  sumVOut,
 } from "@/lib/format";
 import { getPageCount } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
@@ -92,27 +96,15 @@ function BlockDetailPage() {
   );
 
   if (isBlockFetching && !block) {
-    return (
-      <main className="mx-auto max-w-[1440px] px-6 py-10">
-        <div className="flex h-64 items-center justify-center text-muted-foreground">
-          Loading block...
-        </div>
-      </main>
-    );
+    return <PageStatus message="Loading block..." />;
   }
 
   if (!block) {
-    return (
-      <main className="mx-auto max-w-[1440px] px-6 py-10">
-        <div className="flex h-64 items-center justify-center text-muted-foreground">
-          Block not found.
-        </div>
-      </main>
-    );
+    return <PageStatus message="Block not found." />;
   }
 
   return (
-    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
+    <main className="mx-auto max-w-[1440px] px-6 py-10">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-fade-in-up">
         <h1 className="text-4xl tracking-tight">
           <span className="mr-3 text-muted-foreground">Block</span>{" "}
@@ -176,7 +168,9 @@ function BlockDetailPage() {
                 </Badge>
               </DetailRow>
               <DetailRow label="Confirmations:">
-                <span className="font-medium text-muted-foreground">{block.confirmations.toLocaleString()}</span>
+                <span className="font-medium text-muted-foreground">
+                  {block.confirmations.toLocaleString()}
+                </span>
               </DetailRow>
               <DetailRow label="Merkle Root:">
                 <div className="flex items-center gap-1.5">
@@ -359,11 +353,7 @@ function BlockDetailPage() {
                       </Badge>
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
-                      <span>
-                        {tx.amount != null
-                          ? `${(tx.amount / 100_000_000).toFixed(8)} DASH`
-                          : "—"}
-                      </span>
+                      <span>{formatDuffs(sumVOut(tx.vOut))} DASH</span>
                     </td>
                     <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
                       <span className="inline-flex size-8 items-center justify-center rounded-full border border-accent/20 font-medium text-accent">
@@ -397,20 +387,5 @@ function BlockDetailPage() {
         />
       </Card>
     </main>
-  );
-}
-
-function DetailRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="flex items-center text-xs">{children}</div>
-    </div>
   );
 }

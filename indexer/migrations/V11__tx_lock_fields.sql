@@ -1,0 +1,3 @@
+ALTER TABLE transactions
+    ADD COLUMN instant_lock TEXT DEFAULT NULL,
+    ADD COLUMN chain_locked BOOLEAN NOT NULL DEFAULT FALSE;

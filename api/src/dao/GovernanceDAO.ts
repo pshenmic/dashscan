@@ -1,0 +1,28 @@
+import {DashCoreRPC, GovernanceInfoRPC, GovernanceObjectSignal} from "../dashcoreRPC";
+import {GovernanceObject} from "../models/GovernanceObject";
+
+export default class GovernanceDAO {
+  dashCoreRPC: DashCoreRPC;
+
+  constructor(dashCoreRPC: DashCoreRPC) {
+    this.dashCoreRPC = dashCoreRPC
+  }
+
+  getProposals = async (proposalType?: GovernanceObjectSignal): Promise<GovernanceObject[]> => {
+    const response = await this.dashCoreRPC.getGovernanceObjects(proposalType)
+
+    const keys = Object.keys(response)
+
+    return keys.map(key => GovernanceObject.fromObject({
+      ...response[key]
+    }))
+  }
+
+  getBudgetInfo = async (superblockHeight: number): Promise<number> => {
+    return this.dashCoreRPC.getSuperblockBudget(superblockHeight)
+  }
+
+  getGovernanceInfo = async (): Promise<GovernanceInfoRPC> => {
+    return this.dashCoreRPC.getGovernanceInfo()
+  }
+}

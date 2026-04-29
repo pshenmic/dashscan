@@ -5,23 +5,27 @@ import AddressesController from './controllers/AddressesController';
 import MasternodesController from './controllers/MasternodesController';
 import MarketController from './controllers/MarketController';
 import SearchController from './controllers/SearchController';
+import GovernanceController from "./controllers/GovernanceController";
+import MainController from './controllers/MainController';
 
 interface RoutesOptions {
   fastify: FastifyInstance;
+  mainController: MainController;
   blocksController: BlocksController;
   transactionsController: TransactionsController;
   addressesController: AddressesController;
   masternodesController: MasternodesController;
   marketController: MarketController;
   searchController: SearchController;
+  governanceController: GovernanceController;
 }
 
-export default function Routes({ fastify, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController }: RoutesOptions): void {
+export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController }: RoutesOptions): void {
   const routes = [
     {
       path: '/status',
       method: 'GET',
-      handler: (request, reply) => reply.status(200).send({ status: 'ok' }),
+      handler: mainController.getStatus,
     },
     {
       path: '/blocks',
@@ -29,6 +33,14 @@ export default function Routes({ fastify, blocksController, transactionsControll
       handler: blocksController.getBlocks,
       schema: {
         querystring: { $ref: 'paginationOptions#' },
+      },
+    },
+    {
+      path: '/blocks/transactions/chart',
+      method: 'get',
+      handler: blocksController.getTxCountStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
       },
     },
     {
@@ -53,9 +65,22 @@ export default function Routes({ fastify, blocksController, transactionsControll
       },
     },
     {
-      path: '/transactions/history',
+      path: '/transactions/chart',
       method: 'get',
-      handler: transactionsController.getTransactionHistory,
+      handler: transactionsController.getTransactionCountSeries,
+      schema: {
+        querystring: {
+          allOf: [
+            { $ref: 'timeInterval#' },
+            {
+              type: 'object',
+              properties: {
+                running_total: { type: 'boolean' },
+              },
+            },
+          ],
+        },
+      },
     },
     {
       path: '/transactions/height/:height',
@@ -118,7 +143,7 @@ export default function Routes({ fastify, blocksController, transactionsControll
       },
     },
     {
-      path: '/price/:currency/historical',
+      path: '/price/:currency/chart',
       method: 'get',
       handler: marketController.getHistoricalPrices,
       schema: {
@@ -146,7 +171,7 @@ export default function Routes({ fastify, blocksController, transactionsControll
       },
     },
     {
-      path: '/marketcap/:currency/historical',
+      path: '/marketcap/:currency/chart',
       method: 'get',
       handler: marketController.getHistoricalMarketCaps,
       schema: {
@@ -174,7 +199,7 @@ export default function Routes({ fastify, blocksController, transactionsControll
       },
     },
     {
-      path: '/volume/:currency/historical',
+      path: '/volume/:currency/chart',
       method: 'get',
       handler: marketController.getHistoricalVolumes,
       schema: {
@@ -195,12 +220,88 @@ export default function Routes({ fastify, blocksController, transactionsControll
         querystring: {
           type: 'object',
           properties: {
-            query: { type: 'string', minLength: 1 },
+            query: { 
+              type: 'string', 
+              minLength: 1,
+              pattern: '^[0-9A-Za-z]+$',
+            },
           },
           required: ['query'],
         },
       },
     },
+    {
+      path: '/governance/proposals',
+      method: 'get',
+      handler: governanceController.getProposals,
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            proposalType: {
+              type: ['string', 'null'],
+              enum: ['valid', 'funding', 'delete', 'endorsed', 'all'],
+            },
+          },
+        },
+      },
+    },
+    {
+      path: '/transactions/mempool',
+      method: 'get',
+      handler: transactionsController.getPendingTransactions
+    },
+    {
+      path: '/address/:address',
+      method: 'get',
+      handler: addressesController.getAddress,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            address: { $ref: 'address#' },
+          }
+        }
+      }
+    },
+    {
+      path: '/address/:address/transactions',
+      method: 'get',
+      handler: transactionsController.getAddressTransactions,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            address: { $ref: 'address#' },
+          },
+        },
+        querystring: { $ref: 'paginationOptions#' },
+      }
+    },
+    {
+      path: '/address/:address/balance/chart',
+      method: 'get',
+      handler: addressesController.getAddressBalanceSeries,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            address: { $ref: 'address#' },
+          },
+        },
+        querystring: { $ref: 'timeInterval#' },
+      },
+    },
+    {
+      path: '/governance/budget',
+      method: 'get',
+      handler: governanceController.getBudgetInfo,
+    },
+    {
+      path: '/chain/stats',
+      method: 'get',
+      handler: mainController.getChainStats,
+    }
   ];
 
   routes.forEach((route) =>

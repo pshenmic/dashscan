@@ -1,6 +1,6 @@
 {
   "name": "dashscan-api",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "main": "index.js",
   "repository": "https://github.com/owl352/dash-core-explorer",
   "author": "owl352",

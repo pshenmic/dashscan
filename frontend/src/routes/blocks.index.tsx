@@ -7,15 +7,7 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  Box,
-  Calendar,
-  HardDrive,
-  Hourglass,
-  MoveDown,
-  MoveUp,
-  Square,
-} from "lucide-react";
+import { Box, Calendar, MoveDown, MoveUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { BlockTransactionsChart } from "@/components/block-transactions-chart";
 import { CopyButton } from "@/components/copy-button";
@@ -23,6 +15,7 @@ import { DataTable } from "@/components/data-table";
 import { HashCell } from "@/components/hash-cell";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -34,7 +27,7 @@ import {
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiBlock } from "@/lib/api/types";
-import { formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatRelativeTime } from "@/lib/format";
 import { getPageCount, paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
 
@@ -68,15 +61,6 @@ export const Route = createFileRoute("/blocks/")({
 });
 
 const columns: ColumnDef<ApiBlock>[] = [
-  {
-    accessorKey: "timestamp",
-    header: "Time",
-    cell: ({ getValue }) => (
-      <span className="text-muted-foreground">
-        {formatRelativeTime(getValue<string>())}
-      </span>
-    ),
-  },
   {
     accessorKey: "height",
     header: "Height",
@@ -116,9 +100,16 @@ const columns: ColumnDef<ApiBlock>[] = [
     cell: () => <span className="text-muted-foreground">—</span>,
   },
   {
+    accessorKey: "txCount",
+    header: "Txs",
+    cell: ({ getValue }) => (
+      <span className="text-muted-foreground">{getValue<number>()}</span>
+    ),
+  },
+  {
     id: "fees",
     header: "Fees",
-    cell: () => <span className="text-muted-foreground">—</span>,
+    cell: () => <span className="text-muted-foreground">0</span>,
   },
   {
     accessorKey: "size",
@@ -152,35 +143,21 @@ const columns: ColumnDef<ApiBlock>[] = [
     },
   },
   {
-    accessorKey: "txCount",
-    header: "TX count",
+    accessorKey: "timestamp",
+    header: "Time",
     cell: ({ getValue }) => (
-      <Badge className="h-6 border border-[#0C1C331F] bg-[#4C7EFF1F] font-medium text-foreground">
-        {getValue<number>()}
-      </Badge>
+      <span className="text-muted-foreground">
+        {formatRelativeTime(getValue<string>())}
+      </span>
     ),
   },
 ];
 
-function StatIcon({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="hidden size-12 items-center justify-center rounded-full border border-accent/12 text-accent sm:flex">
-      {children}
-    </div>
-  );
-}
-
-function formatCompact(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return value.toLocaleString();
-}
-
 const skeletonWidths = [
-  "w-16",
   "w-20",
   "w-44",
   "w-28",
+  "w-14",
   "w-14",
   "w-16",
   "w-20",
@@ -226,13 +203,6 @@ function BlocksPage() {
       );
     }
 
-    let avgBlockSize: number | null = null;
-    if (blocks.length > 0) {
-      avgBlockSize = Math.round(
-        blocks.reduce((s, b) => s + b.size, 0) / blocks.length / 1024,
-      );
-    }
-
     let txChange: number | null = null;
     if (chartBlocks.length >= 2) {
       const sorted = [...chartBlocks].sort((a, b) => a.height - b.height);
@@ -253,7 +223,6 @@ function BlocksPage() {
       totalBlocks,
       totalTxs,
       avgBlockTime,
-      avgBlockSize,
       txChange,
     };
   }, [blocks, data?.pagination, txData?.pagination, chartBlocks]);
@@ -271,154 +240,107 @@ function BlocksPage() {
   });
 
   return (
-    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
-      <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_2fr] [&>*]:min-w-0 animate-fade-in-up">
-        <div className="grid grid-cols-2 gap-4 [&>*]:min-w-0">
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4 min-w-0">
-              <StatIcon>
-                <Box className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Latest Block
-                </p>
-                <p className="truncate text-2xl font-extrabold">
-                  {stats.latestHeight != null
-                    ? `#${stats.latestHeight.toLocaleString()}`
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          </Card>
+    <main className="mx-auto max-w-[1440px] px-6 py-10">
+      <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
+        <div className="grid gap-4 grid-cols-3 grid-rows-2 auto-rows-fr [&>*]:min-w-0">
+          <StatCard
+            icon={<img src="/icons/chart-pie.svg" alt="" className="size-5" />}
+            label="Latest Block"
+            value={
+              stats.latestHeight != null
+                ? stats.latestHeight.toLocaleString()
+                : "—"
+            }
+            bgImage="/images/blocks/latest.png"
+          />
 
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4">
-              <StatIcon>
-                <Box className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Latest Superblock
-                </p>
-                <p className="text-2xl font-extrabold">—</p>
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            icon={<img src="/icons/superblock.svg" alt="" className="size-5" />}
+            label="Latest Superblock"
+            value="—"
+            bgImage="/images/blocks/superblock.png"
+            adornment={
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#edf3ff] px-2.5 py-1 text-[12px] font-semibold text-accent">
+                7,336
+                <img src="/icons/dash.svg" alt="" className="size-3.5" />
+              </span>
+            }
+          />
 
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4">
-              <StatIcon>
-                <Hourglass className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Block Time
-                </p>
-                <p className="text-2xl font-extrabold">
-                  {stats.avgBlockTime != null
-                    ? `${stats.avgBlockTime} Min`
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            icon={<img src="/icons/sandglass.svg" alt="" className="size-5" />}
+            label="Block Time"
+            value={
+              stats.avgBlockTime != null ? `${stats.avgBlockTime} Min` : "—"
+            }
+            bgImage="/images/blocks/time.png"
+          />
 
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4">
-              <StatIcon>
-                <Box className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Blocks
-                </p>
-                <p className="text-2xl font-extrabold">
-                  {stats.totalBlocks != null
-                    ? formatCompact(stats.totalBlocks)
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            icon={<img src="/icons/block.svg" alt="" className="size-5" />}
+            label="Blocks"
+            value={
+              stats.totalBlocks != null ? formatCompact(stats.totalBlocks) : "—"
+            }
+            bgImage="/images/blocks/total.png"
+          />
 
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4">
-              <StatIcon>
-                <Square className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Block Size
-                </p>
-                <p className="text-2xl font-extrabold">
-                  {stats.avgBlockSize != null
-                    ? `${stats.avgBlockSize} Kb`
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            icon={
+              <img src="/icons/block-reward.svg" alt="" className="size-5" />
+            }
+            label="Block Reward"
+            value="—"
+            bgImage="/images/blocks/reward.png"
+          />
 
-          <Card className="p-4">
-            <div className="flex h-full items-center gap-4">
-              <StatIcon>
-                <HardDrive className="size-5" />
-              </StatIcon>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Blockchain Size
-                </p>
-                <p className="text-2xl font-extrabold">—</p>
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            icon={<img src="/icons/fees.svg" alt="" className="size-5" />}
+            label="Block Fees"
+            value="—"
+            bgImage="/images/blocks/fees.png"
+          />
         </div>
 
-        <Card
-          className="overflow-hidden"
-          style={{
-            background:
-              "radial-gradient(circle at top right, oklch(from var(--accent) l c h / 0.08), var(--color-card) 70%)",
-          }}
-        >
-          <CardHeader>
-            <div>
-              <CardTitle>
-                Block{" "}
-                <span className="text-muted-foreground">Transactions</span>
-              </CardTitle>
-              <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                <span className="text-base text-muted-foreground">
-                  Total TXs:
-                </span>
-                <span className="text-[32px] font-extrabold leading-tight">
-                  {stats.totalTxs != null ? formatCompact(stats.totalTxs) : "—"}
-                </span>
-                {stats.txChange != null && (
-                  <Badge className="bg-accent/12 font-bold text-accent">
-                    {stats.txChange >= 0 ? (
-                      <MoveUp className="size-3" />
-                    ) : (
-                      <MoveDown className="size-3" />
-                    )}
-                    {Math.abs(stats.txChange).toFixed(1)}%
-                  </Badge>
-                )}
+        <Card className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
+          <CardHeader className="relative px-5 pb-2 sm:px-6 ">
+            <div className="flex items-start gap-4">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
+                <Box className="size-5" strokeWidth={1.75} />
+              </div>
+              <div>
+                <p className="text-[15px] font-medium text-muted-foreground">
+                  Block Transactions
+                </p>
+                <CardTitle className="mt-1 flex flex-wrap items-center gap-2 text-[34px] font-medium tracking-[-0.03em]">
+                  <span className="font-extrabold text-[#21314d]">
+                    {stats.totalTxs != null
+                      ? formatCompact(stats.totalTxs)
+                      : "—"}
+                  </span>
+                  <span className="text-muted-foreground">TXs</span>
+                  {stats.txChange != null && (
+                    <Badge className="h-5 rounded-full border-0 bg-accent/10 px-1.5 text-[10px] font-bold text-accent">
+                      {stats.txChange >= 0 ? (
+                        <MoveUp className="size-2.5" />
+                      ) : (
+                        <MoveDown className="size-2.5" />
+                      )}
+                      {Math.abs(stats.txChange).toFixed(1)}%
+                    </Badge>
+                  )}
+                </CardTitle>
               </div>
             </div>
             <CardAction>
-              <Badge
-                variant="outline"
-                className="gap-1.5 whitespace-nowrap rounded-full border-accent/20 px-3 py-1.5 text-sm"
-              >
-                <Calendar className="size-3.5 shrink-0" />
-                Last 40 blocks
+              <Badge className="h-7 gap-1.5 whitespace-nowrap rounded-full border-0 bg-[#EAF0FF] px-2.5 text-[11px] font-medium text-accent">
+                <Calendar className="size-3 shrink-0" />1 Month
               </Badge>
             </CardAction>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative flex flex-1 items-end px-3 pb-3 sm:px-4 sm:pb-4">
             <BlockTransactionsChart
+              className="rounded-[20px]"
               data={chartBlocks.map((b) => ({
                 height: b.height,
                 txCount: b.txCount,
@@ -428,7 +350,10 @@ function BlocksPage() {
         </Card>
       </div>
 
-      <Card className="animate-fade-in-up" style={{ animationDelay: "150ms" }}>
+      <Card
+        className="border-0 shadow-none animate-fade-in-up"
+        style={{ animationDelay: "150ms" }}
+      >
         <CardHeader>
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Blocks
@@ -449,6 +374,7 @@ function BlocksPage() {
             skeletonWidths={skeletonWidths}
             skeletonRows={limit}
             emptyMessage="No blocks found."
+            borderless
             onRowClick={(block) =>
               navigate({
                 to: "/blocks/$hashOrHeight",

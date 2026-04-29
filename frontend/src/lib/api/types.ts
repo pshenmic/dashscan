@@ -31,16 +31,19 @@ export interface ApiBlock {
 }
 
 export interface ApiVIn {
-  txId: string | null;
-  vOut: number;
-  sequence: number;
-  scriptSigASM: string;
+  prevTxHash: string | null;
+  vOutIndex: number | null;
+  sequence: number | null;
+  scriptSigASM: string | null;
+  address: string | null;
+  amount: number | null;
 }
 
 export interface ApiVOut {
-  value: string;
+  value: number;
   number: number;
   scriptPubKeyASM: string;
+  address: string | null;
 }
 
 export interface ApiTransaction {
@@ -48,12 +51,14 @@ export interface ApiTransaction {
   type: number;
   blockHeight: number;
   blockHash: string;
-  amount: number;
+  amount: number | null;
   version: number;
   vIn: ApiVIn[];
   vOut: ApiVOut[];
   confirmations: number;
-  instantLock: boolean;
+  instantLock: boolean | null;
+  chainLocked?: boolean | null;
+  size?: number | null;
   timestamp: string;
 }
 
@@ -83,9 +88,14 @@ export interface ApiMasternode {
   updatedAt: string;
 }
 
-export interface ApiTransactionHistoryEntry {
-  timestamp: number;
-  count: number;
+export interface ApiTransactionsStatsEntry {
+  timestamp: string;
+  data: { count: number };
+}
+
+export interface ApiBlockTransactionsStatsEntry {
+  timestamp: string;
+  data: { avg: number };
 }
 
 export interface ApiHistoricalEntry {
@@ -98,4 +108,30 @@ export interface SearchResponse {
   transaction: ApiTransaction | null;
   masternode: ApiMasternode | null;
   address: ApiAddress | null;
+}
+
+export interface ApiProposalData {
+  endEpoch: number | null;
+  startEpoch: number | null;
+  name: string | null;
+  paymentAddress: string | null;
+  paymentAmount: number | null;
+  type: number | null;
+  url: string | null;
+}
+
+export interface ApiGovernanceObject {
+  dataHex: string | null;
+  data: ApiProposalData | null;
+  hash: string | null;
+  collateralHash: string | null;
+  objectType: "Unknown" | "Proposal" | "Trigger" | null;
+  creationTime: string | null;
+  signingMasternode?: string | null;
+  absoluteYesCount: number | null;
+  yesCount: number | null;
+  noCount: number | null;
+  abstainCount: number | null;
+  localValidity: boolean | null;
+  isValidReason: string | null;
 }

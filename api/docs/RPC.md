@@ -57,6 +57,10 @@ Returns a paginated list of blocks.
 
 **Query Parameters:** [Pagination](#pagination-query-parameters)
 
+| Parameter    | Type              | Default | Description                                                                 |
+|--------------|-------------------|---------|-----------------------------------------------------------------------------|
+| `superblock` | boolean \| null   | `null`  | When set, returns only blocks with this `superblock` flag value             |
+
 **Response `200`**
 
 ```json
@@ -73,7 +77,9 @@ Returns a paginated list of blocks.
       "difficulty": 123456.789,
       "merkleRoot": "abcdef1234...",
       "previousBlockHash": "000000000000efgh5678...",
-      "nonce": 987654321
+      "nonce": 987654321,
+      "confirmations": 42,
+      "superblock": false
     }
   ],
   "pagination": {
@@ -86,19 +92,61 @@ Returns a paginated list of blocks.
 
 #### Block Object
 
-| Field               | Type    | Description                              |
-|---------------------|---------|------------------------------------------|
-| `height`            | number  | Block height                             |
-| `hash`              | string  | Block hash (64-char hex)                 |
-| `version`           | number  | Block version                            |
-| `timestamp`         | string  | ISO 8601 timestamp                       |
-| `txCount`           | number  | Number of transactions in the block      |
-| `size`              | number  | Block size in bytes                      |
-| `creditPoolBalance` | number  | Credit pool balance at this block        |
-| `difficulty`        | number  | Mining difficulty                        |
-| `merkleRoot`        | string  | Merkle root hash                         |
-| `previousBlockHash` | string  | Hash of the previous block               |
-| `nonce`             | number  | Mining nonce                             |
+| Field               | Type    | Description                                                  |
+|---------------------|---------|--------------------------------------------------------------|
+| `height`            | number  | Block height                                                 |
+| `hash`              | string  | Block hash (64-char hex)                                     |
+| `version`           | number  | Block version                                                |
+| `timestamp`         | string  | ISO 8601 timestamp                                           |
+| `txCount`           | number  | Number of transactions in the block                          |
+| `size`              | number  | Block size in bytes                                          |
+| `creditPoolBalance` | number  | Credit pool balance at this block                            |
+| `difficulty`        | number  | Mining difficulty                                            |
+| `merkleRoot`        | string  | Merkle root hash                                             |
+| `previousBlockHash` | string  | Hash of the previous block                                   |
+| `nonce`             | number  | Mining nonce                                                 |
+| `confirmations`     | number  | Number of confirmations (`tip height - block height + 1`)    |
+| `superblock`        | boolean | Whether this block is a governance superblock                |
+
+---
+
+### GET /blocks/transactions/chart
+
+Returns a time series of the average transaction count per block over a configurable time range.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default               | Constraints          | Description                                              |
+|-------------------|--------|-----------------------|----------------------|----------------------------------------------------------|
+| `timestamp_start` | string | 1 hour ago (ISO 8601) |                      | Start of the time range                                  |
+| `timestamp_end`   | string | now (ISO 8601)        |                      | End of the time range                                    |
+| `intervals_count` | number | auto                  | minimum: 2, max: 100 | Number of buckets. When omitted, chosen automatically via `calculateInterval` |
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "avg": 12.34 }
+  },
+  {
+    "timestamp": "2024-01-02T00:00:00.000Z",
+    "data": { "avg": 9.87 }
+  }
+]
+```
+
+| Field      | Type           | Description                                                          |
+|------------|----------------|----------------------------------------------------------------------|
+| `timestamp`  | string       | ISO 8601 start of the bucket                                         |
+| `data.avg`   | number\|null | Average `tx_count` across all blocks in the bucket. `null` if no blocks fell in the bucket |
+
+**Response `400`**
+
+```json
+{ "message": "start timestamp cannot be more than end timestamp" }
+```
 
 ---
 
@@ -126,7 +174,9 @@ Returns a single block by its hash.
   "difficulty": 123456.789,
   "merkleRoot": "abcdef1234...",
   "previousBlockHash": "000000000000efgh5678...",
-  "nonce": 987654321
+  "nonce": 987654321,
+  "confirmations": 42,
+  "superblock": false
 }
 ```
 
@@ -142,7 +192,7 @@ Returns a single block by its hash.
 
 ### GET /transactions
 
-Returns a paginated list of transactions.
+Returns a paginated list of transactions. Include pending transactions
 
 **Query Parameters:** [Pagination](#pagination-query-parameters)
 
@@ -158,10 +208,27 @@ Returns a paginated list of transactions.
       "blockHash": "000000000000abcd1234...",
       "amount": 100000000,
       "version": 3,
-      "vIn": [...],
-      "vOut": [...],
+      "vIn": [
+        {
+          "prevTxHash": "prevtxhash...",
+          "vOutIndex": 0,
+          "sequence": null,
+          "scriptSigASM": null,
+          "amount": "100000",
+          "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw"
+        }
+      ],
+      "vOut": [
+        {
+          "value": "100000000",
+          "number": 0,
+          "scriptPubKeyASM": "OP_DUP OP_HASH160 ...",
+          "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw"
+        }
+      ],
       "confirmations": 10,
-      "instantLock": true
+      "instantLock": "0102375e39652fee756b492762510aea4087d57b486a89f2f78f52c840f02079052f000000007652da0e18a07bcde5a2205ff041dd0b14b4b7a81b2e0ccaf5118dfe79e56aba00000000f274ca0dd6640a9236dc987e5f09db412ed2bc37806ae90bc6f34f9fd36a7a28da45b260ae37978f3a8fb973c48418a92f41e1e2b77a9d720400000000000000abc1c3d6ddaccf322f655f59979d037badc840328b0da023f70d9d1adea046f9b4486c929ff0c15f2c9036d757ca44ae168e315ba07c19269d7b44c2bf722b811aa9ab0c978198ef3637d4b20e3e316e3459ed3d75dbbafd4966a4d571d32a0a",
+      "chainLocked": true
     }
   ],
   "pagination": {
@@ -192,25 +259,31 @@ Returns a single transaction by its hash.
   "type": 0,
   "blockHeight": 100000,
   "blockHash": "000000000000abcd1234...",
-  "amount": 100000000,
+  "timestamp": "2023-01-01T00:00:00.000Z",
+  "amount": null,
   "version": 3,
+  "size": 226,
   "vIn": [
     {
-      "txId": "prevtxhash...",
-      "vOut": 0,
-      "sequence": 4294967295,
-      "scriptSigASM": "OP_DUP OP_HASH160 ..."
+      "prevTxHash": "prevtxhash...",
+      "vOutIndex": 0,
+      "sequence": null,
+      "scriptSigASM": null,
+      "amount": "100000",
+      "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw"
     }
   ],
   "vOut": [
     {
       "value": "100000000",
       "number": 0,
-      "scriptPubKeyASM": "OP_DUP OP_HASH160 ..."
+      "scriptPubKeyASM": "OP_DUP OP_HASH160 ...",
+      "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw"
     }
   ],
   "confirmations": 10,
-  "instantLock": true
+  "instantLock": "0102375e39652fee756b...d571d32a0a",
+  "chainLocked": true
 }
 ```
 
@@ -218,35 +291,40 @@ Returns a single transaction by its hash.
 
 #### Transaction Object
 
-| Field          | Type     | Description                                     |
-|----------------|----------|-------------------------------------------------|
-| `hash`         | string   | Transaction hash (64-char hex)                  |
-| `type`         | number   | Transaction type                                |
-| `blockHeight`  | number   | Height of the block containing this transaction |
-| `blockHash`    | string   | Hash of the block containing this transaction   |
-| `amount`       | number   | Transaction amount in duffs                     |
-| `version`      | number   | Transaction version                             |
-| `vIn`          | VIn[]    | Array of transaction inputs                     |
-| `vOut`         | VOut[]   | Array of transaction outputs                    |
-| `confirmations`| number   | Number of confirmations                         |
-| `instantLock`  | boolean  | Whether the transaction has an InstantSend lock  |
+| Field           | Type           | Description                                                      |
+|-----------------|----------------|------------------------------------------------------------------|
+| `hash`          | string         | Transaction hash (64-char hex)                                   |
+| `type`          | number         | Transaction type                                                 |
+| `blockHeight`   | number \| null | Height of the block containing this transaction                  |
+| `blockHash`     | string \| null | Hash of the block containing this transaction                    |
+| `timestamp`     | string \| null | ISO 8601 block timestamp, or `null` for pending transactions     |
+| `amount`        | number \| null | Transaction amount in duffs                                      |
+| `version`       | number \| null | Transaction version (only populated on single-tx endpoint)       |
+| `size`          | number \| null | Transaction size in bytes (only populated on single-tx endpoint) |
+| `vIn`           | VIn[]          | Array of transaction inputs                                      |
+| `vOut`          | VOut[]         | Array of transaction outputs                                     |
+| `confirmations` | number \| null | Number of confirmations                                          |
+| `instantLock`   | string \| null | Raw InstantSend lock hex (ISLOCK), or `null` if not IS-locked    |
+| `chainLocked`   | boolean        | Whether the transaction's block has a ChainLock                  |
 
 #### VIn Object
 
-| Field          | Type   | Description                          |
-|----------------|--------|--------------------------------------|
-| `txId`         | string | Hash of the previous transaction     |
-| `vOut`         | number | Output index in the previous tx      |
-| `sequence`     | number | Sequence number                      |
-| `scriptSigASM` | string | Input script in ASM format           |
+| Field          | Type           | Description                               |
+|----------------|----------------|-------------------------------------------|
+| `prevTxHash`   | string \| null | Hash of the previous transaction          |
+| `vOutIndex`    | number \| null | Output index in the previous tx           |
+| `address`      | string \| null | Sender address, or `null` if unresolvable |
+| `sequence`     | number \| null | Sequence number                           |
+| `scriptSigASM` | string \| null | Input script in ASM format                |
 
 #### VOut Object
 
-| Field            | Type   | Description                          |
-|------------------|--------|--------------------------------------|
-| `value`          | string | Output value in duffs                |
-| `number`         | number | Output index within the transaction  |
-| `scriptPubKeyASM`| string | Output script in ASM format          |
+| Field             | Type           | Description                                  |
+|-------------------|----------------|----------------------------------------------|
+| `value`           | string \| null | Output value in duffs                        |
+| `number`          | number \| null | Output index within the transaction          |
+| `scriptPubKeyASM` | string \| null | Output script in ASM format                  |
+| `address`         | string \| null | Recipient address, or `null` if unresolvable |
 
 ---
 
@@ -277,7 +355,8 @@ Returns a paginated list of transactions for a specific block height.
       "vIn": [...],
       "vOut": [...],
       "confirmations": 10,
-      "instantLock": true
+      "instantLock": "0102375e...d571d32a0a",
+      "chainLocked": true
     }
   ],
   "pagination": {
@@ -321,35 +400,146 @@ Returns a paginated list of addresses.
 
 #### Address Object
 
-| Field           | Type   | Description                                  |
-|-----------------|--------|----------------------------------------------|
-| `address`       | string | Dash address                                 |
-| `firstSeenBlock`| number | Block height where address was first seen    |
-| `firstSeenTx`   | string | Transaction hash where address was first seen|
-| `lastSeenBlock` | number | Block height where address was last seen     |
-| `lastSeenTx`    | string | Transaction hash where address was last seen |
+| Field            | Type   | Description                                   |
+|------------------|--------|-----------------------------------------------|
+| `address`        | string | Dash address                                  |
+| `firstSeenBlock` | number | Block height where address was first seen     |
+| `firstSeenTx`    | string | Transaction hash where address was first seen |
+| `lastSeenBlock`  | number | Block height where address was last seen     |
+| `lastSeenTx`     | string | Transaction hash where address was last seen  |
 
 ---
 
-### GET /transactions/history
+### GET /address/:address
 
-Returns transaction counts grouped by hour for the past 24 hours.
+Returns a single address with aggregated balance and activity stats.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                              | Description  |
+|-----------|--------|------------------------------------------|--------------|
+| `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
+
+**Response `200`**
+
+```json
+{
+  "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+  "firstSeenBlock": "000000000000abcd1234...",
+  "firstSeenTx": "abcdef1234...",
+  "lastSeenBlock": "000000000000efgh5678...",
+  "lastSeenTx": "fedcba4321...",
+  "txCount": "42",
+  "received": "100000000",
+  "sent": "25000000",
+  "balance": "75000000"
+}
+```
+
+#### Address Detail Object
+
+| Field            | Type           | Description                                                            |
+|------------------|----------------|------------------------------------------------------------------------|
+| `address`        | string         | Dash address                                                           |
+| `firstSeenBlock` | string \| null | Hash of the block where address was first seen                         |
+| `firstSeenTx`    | string \| null | Hash of the transaction where address was first seen                   |
+| `lastSeenBlock`  | string \| null | Hash of the block where address was last seen                          |
+| `lastSeenTx`     | string \| null | Hash of the transaction where address was last seen                    |
+| `txCount`        | string         | Total number of transactions involving this address (inputs + outputs) |
+| `received`       | string         | Total value received in duffs                                          |
+| `sent`           | string         | Total value sent in duffs                                              |
+| `balance`        | string         | Current balance in duffs (`received - sent`)                           |
+
+> Numeric stats are returned as strings to preserve precision for large values.
+
+**Response `404`** — `"Address not found"`
+
+---
+
+### GET /address/:address/transactions
+
+Returns a paginated list of transactions (confirmed and pending) involving the given address — either as input sender or output recipient.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                                | Description  |
+|-----------|--------|--------------------------------------------|--------------|
+| `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "hash": "abcdef1234...",
+      "type": 0,
+      "blockHeight": 100000,
+      "blockHash": "000000000000abcd1234...",
+      "timestamp": "2023-01-01T00:00:00.000Z",
+      "amount": null,
+      "version": 3,
+      "vIn": [...],
+      "vOut": [...],
+      "confirmations": 10,
+      "instantLock": "0102375e...d571d32a0a",
+      "chainLocked": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 42
+  }
+}
+```
+
+Entries use the [Transaction Object](#transaction-object) shape. `total` reflects the distinct count of transactions the address appears in. Pending transactions (no block) are included with `blockHeight`, `blockHash`, `timestamp`, and `confirmations` set to `null`.
+
+---
+
+### GET /transactions/chart
+
+Returns a time series of transaction counts over a configurable time range, with optional running total.
+
+**Query Parameters**
+
+| Parameter         | Type    | Default               | Constraints          | Description                                                                                                      |
+|-------------------|---------|-----------------------|----------------------|------------------------------------------------------------------------------------------------------------------|
+| `timestamp_start` | string  | 1 hour ago (ISO 8601) |                      | Start of the time range                                                                                          |
+| `timestamp_end`   | string  | now (ISO 8601)        |                      | End of the time range                                                                                            |
+| `intervals_count` | number  | auto                  | minimum: 2, max: 100 | Number of buckets. When omitted, interval is chosen automatically via `calculateInterval`                        |
+| `running_total`   | boolean | `false`               |                      | When `true`, each bucket's `count` is the cumulative total from `timestamp_start` through the end of that bucket |
 
 **Response `200`**
 
 ```json
 [
-  { "timestamp": 1741305600, "count": 142 },
-  { "timestamp": 1741309200, "count": 98 }
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "count": 142 }
+  },
+  {
+    "timestamp": "2024-01-01T01:00:00.000Z",
+    "data": { "count": 98 }
+  }
 ]
 ```
 
-| Field       | Type   | Description                          |
-|-------------|--------|--------------------------------------|
-| `timestamp` | number | Hour start as Unix timestamp (seconds) |
-| `count`     | number | Number of transactions in that hour  |
+| Field        | Type   | Description                                                                         |
+|--------------|--------|-------------------------------------------------------------------------------------|
+| `timestamp`  | string | ISO 8601 start of the bucket                                                        |
+| `data.count` | number | Number of transactions in the bucket, or cumulative total if `running_total=true`   |
 
-> Hours with zero transactions are omitted.
+> Buckets with zero transactions are included with `count: 0`.
+
+**Response `400`**
+
+```json
+{ "message": "start timestamp cannot be more than end timestamp" }
+```
 
 ---
 
@@ -357,12 +547,12 @@ Returns transaction counts grouped by hour for the past 24 hours.
 
 Searches across blocks, transactions, masternodes, and addresses. Input type is detected automatically.
 
-| Input pattern             | Queried entities                              |
-|---------------------------|-----------------------------------------------|
-| Pure integer              | Block by height                               |
-| 64-char hex string        | Block by hash, transaction by hash, masternode by proTxHash |
-| Dash address (`X`, `y`, `7`, `8` prefix) | Address by address              |
-| Anything else             | Returns all nulls                             |
+| Input pattern                            | Queried entities                                            |
+|------------------------------------------|-------------------------------------------------------------|
+| Pure integer                             | Block by height                                             |
+| 64-char hex string                       | Block by hash, transaction by hash, masternode by proTxHash |
+| Dash address (`X`, `y`, `7`, `8` prefix) | Address by address                                          |
+| Anything else                            | Returns all nulls                                           |
 
 **Query Parameters**
 
@@ -470,7 +660,7 @@ Returns the current DASH price for the given currency. Cached for 60 minutes. Fa
 
 ---
 
-### GET /price/:currency/historical
+### GET /price/:currency/chart
 
 Returns DASH price for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. For `usd`, falls back to Kraken if CoinGecko is unavailable. For `btc`, only CoinGecko is used.
 
@@ -518,7 +708,7 @@ Returns the current DASH market cap for the given currency. Cached for 60 minute
 
 ---
 
-### GET /marketcap/:currency/historical
+### GET /marketcap/:currency/chart
 
 Returns DASH market cap for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. Provided by CoinGecko only.
 
@@ -566,7 +756,7 @@ Returns the current DASH 24h trading volume for the given currency. Cached for 6
 
 ---
 
-### GET /volume/:currency/historical
+### GET /volume/:currency/chart
 
 Returns DASH trading volume for the past 24 hours, compacted to one point per hour. Cached for 60 minutes. For `usd`, falls back to Kraken if CoinGecko is unavailable. For `btc`, only CoinGecko is used.
 
@@ -591,3 +781,262 @@ Returns DASH trading volume for the past 24 hours, compacted to one point per ho
 | `value`     | number | Trading volume in the requested currency |
 
 **Response `400`** — Invalid currency (not `usd` or `btc`)
+
+---
+
+### GET /governance/proposals
+
+Returns a list of governance proposals from Dash Core RPC.
+
+**Query Parameters**
+
+| Parameter      | Type   | Default | Constraints                                               | Description                     |
+|----------------|--------|---------|-----------------------------------------------------------|---------------------------------|
+| `proposalType` | string | `null`  | `"valid"`, `"funding"`, `"delete"`, `"endorsed"`, `"all"` | Filter proposals by signal type |
+
+**Response `200`**
+
+```json
+[
+  {
+    "dataHex": "5b5b2270726f706f73616c222c...",
+    "data": {
+      "endEpoch": 1776307317,
+      "startEpoch": 1773258297,
+      "name": "proposal-name",
+      "paymentAddress": "XgNfgrEB9n6uCY9Pi1hb2foimxPdtiZ4Z2",
+      "paymentAmount": 250,
+      "type": 1,
+      "url": "https://www.dashcentral.org/p/proposal-name"
+    },
+    "hash": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+    "collateralHash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "objectType": "Proposal",
+    "creationTime": "2024-01-01T00:00:00.000Z",
+    "signingMasternode": "abcdef1234...",
+    "absoluteYesCount": 150,
+    "yesCount": 200,
+    "noCount": 50,
+    "abstainCount": 10,
+    "localValidity": true,
+    "isValidReason": ""
+  }
+]
+```
+
+#### Governance Proposal Object
+
+| Field               | Type         | Description                                                 |
+|---------------------|--------------|-------------------------------------------------------------|
+| `dataHex`           | string       | Governance object info as hex string                        |
+| `data`              | ProposalData | Decoded governance object data (see ProposalData below)     |
+| `hash`              | string       | Hash of this governance object (64-char hex)                |
+| `collateralHash`    | string       | Hash of the collateral payment transaction (64-char hex)    |
+| `objectType`        | string       | Object type name: `"Unknown"`, `"Proposal"`, or `"Trigger"` |
+| `creationTime`      | string       | ISO 8601 timestamp of object creation                       |
+| `signingMasternode` | string       | Signing masternode's vin (only present in triggers)         |
+| `absoluteYesCount`  | number       | Number of Yes votes minus number of No votes                |
+| `yesCount`          | number       | Number of Yes votes                                         |
+| `noCount`           | number       | Number of No votes                                          |
+| `abstainCount`      | number       | Number of Abstain votes                                     |
+| `localValidity`     | boolean      | Valid by the blockchain                                     |
+| `isValidReason`     | string       | Validation error reason. Empty if no error                  |
+
+#### ProposalData Object
+
+| Field            | Type   | Description                                      |
+|------------------|--------|--------------------------------------------------|
+| `endEpoch`       | number | Unix timestamp of proposal end date              |
+| `startEpoch`     | number | Unix timestamp of proposal start date            |
+| `name`           | string | Proposal name                                    |
+| `paymentAddress` | string | Dash address to receive payment if funded        |
+| `paymentAmount`  | number | Requested payment amount in Dash                 |
+| `type`           | number | Proposal type identifier                         |
+| `url`            | string | URL with proposal details                        |
+
+---
+
+### GET /address/:address/balance/chart
+
+Returns a time series of the address balance over a given time range, with one data point per interval bucket.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                                | Description  |
+|-----------|--------|--------------------------------------------|--------------|
+| `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
+
+**Query Parameters**
+
+| Parameter         | Type   | Default               | Constraints          | Description                                                                                                                                    |
+|-------------------|--------|-----------------------|----------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| `timestamp_start` | string | 1 hour ago (ISO 8601) |                      | Start of the time range                                                                                                                        |
+| `timestamp_end`   | string | now (ISO 8601)        |                      | End of the time range                                                                                                                          |
+| `intervals_count` | number | auto                  | minimum: 2, max: 100 | Number of buckets to divide the range into. When omitted, interval is chosen automatically based on the range length using `calculateInterval` |
+
+When `intervals_count` is provided, each bucket spans `ceil((end - start) / intervals_count)` seconds, expressed as an ISO 8601 duration. When omitted, `calculateInterval` picks a bucket size from the `Intervals` enum (PT5M … P1Y) such that the range fits in 4–12 buckets.
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "balance": "75000000" }
+  },
+  {
+    "timestamp": "2024-01-02T00:00:00.000Z",
+    "data": { "balance": "50000000" }
+  }
+]
+```
+
+| Field          | Type   | Description                                                                                                                            |
+|----------------|--------|----------------------------------------------------------------------------------------------------------------------------------------|
+| `timestamp`    | string | ISO 8601 start of the bucket                                                                                                           |
+| `data.balance` | string | Cumulative balance in duffs at the end of the bucket (`received - spent`). Includes the initial balance from before `timestamp_start`. |
+
+> Balance values are returned as strings to preserve precision for large numbers.
+
+**Response `400`**
+
+```json
+{ "message": "start and end must be set" }
+```
+
+```json
+{ "message": "start timestamp cannot be more than end timestamp" }
+```
+
+---
+
+### GET /transactions/mempool
+
+Returns a list of pending transactions.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "hash": "4b82593225c75ad9566fe2938291edc53afc3eb9e61ced51a47bb98264dc1cb4",
+      "type": 0,
+      "blockHeight": null,
+      "blockHash": null,
+      "timestamp": null,
+      "amount": null,
+      "version": null,
+      "size": null,
+      "vIn": [
+        {
+          "prevTxHash": "prevtxhash...",
+          "vOutIndex": 0,
+          "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+          "amount": "100000",
+          "sequence": null,
+          "scriptSigASM": null
+        }
+      ],
+      "vOut": [
+        {
+          "value": "100000000",
+          "number": 0,
+          "scriptPubKeyASM": "OP_DUP OP_HASH160 ...",
+          "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw"
+        }
+      ],
+      "confirmations": null,
+      "instantLock": "0102375e39652fee756b...d571d32a0a",
+      "chainLocked": false
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 2
+  }
+}
+```
+
+---
+
+### GET /governance/budget
+
+Returns treasury stats for the next superblock: the budget from Dash Core RPC plus aggregate figures computed across currently pending proposals.
+
+`nextSuperblockTime` is derived empirically from the spacing of the two most recent indexed superblocks: `lastSuperblock.timestamp + (lastSuperblock.timestamp - prevSuperblock.timestamp)`.
+
+**Response `200`**
+
+```json
+{
+  "totalBudget": 7353.51481616,
+  "totalProposals": 12,
+  "totalRequested": 8423.0,
+  "enoughVotesTotal": 7611.0,
+  "enoughVotesCount": 9,
+  "enoughFundsTotal": 7337.0,
+  "enoughFundsCount": 8,
+  "remainingAllPass": -1069.48518384,
+  "remainingEnoughVotes": -257.48518384
+}
+```
+
+| Field                  | Type   | Description                                                                                                                                                                     |
+|------------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `totalBudget`          | number | Superblock budget in Dash for `nextsuperblock`, from `getsuperblockbudget` RPC                                                                                                  |
+| `totalProposals`       | number | Number of pending proposals (see pending definition above)                                                                                                                      |
+| `totalRequested`       | number | Sum of `paymentAmount` across all pending proposals                                                                                                                             |
+| `enoughVotesCount`     | number | Count of pending proposals whose `absoluteYesCount >= governanceminquorum`                                                                                                      |
+| `enoughVotesTotal`     | number | Sum of `paymentAmount` across the `enoughVotes` subset                                                                                                                          |
+| `enoughFundsCount`     | number | Count of proposals that would actually be paid: vote-qualified proposals selected greedily (descending by `absoluteYesCount`) while the cumulative amount fits in `totalBudget` |
+| `enoughFundsTotal`     | number | Sum of `paymentAmount` across the `enoughFunds` subset                                                                                                                          |
+| `remainingAllPass`     | number | `totalBudget - totalRequested` (negative when proposals are oversubscribed)                                                                                                     |
+| `remainingEnoughVotes` | number | `totalBudget - enoughVotesTotal` (negative when vote-passing proposals exceed budget)                                                                                           |
+
+**Response `404`** — fewer than 2 superblocks have been indexed, so `nextSuperblockTime` cannot be computed
+
+```json
+{ "error": "Not enough superblocks indexed to compute next superblock time" }
+```
+
+**Response `500`** — Dash Core's `lastsuperblock` height is ahead of the indexer's latest indexed superblock (sync lag)
+
+```json
+{ "error": "Cannot find the last superblock in the database. Please wait if the sync progress is not at 100%." }
+```
+
+---
+
+### GET /chain/stats
+
+Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics computed from the 20 most recently indexed blocks.
+
+**Response `200`**
+
+```json
+{
+  "chain": "main",
+  "sizeOnDisk": 12345678901,
+  "difficulty": 123456.789,
+  "blockTime": 154321,
+  "transactionsPerSecond": 1.23,
+  "transactionsPerMinute": 73.8,
+  "latestHeight": 2100000
+}
+```
+
+#### ChainStats Object
+
+| Field                   | Type           | Description                                                                   |
+|-------------------------|----------------|-------------------------------------------------------------------------------|
+| `chain`                 | string \| null | Network name (e.g. `main`, `test`)                                            |
+| `sizeOnDisk`            | number \| null | Size of the block storage on the Dash Core node in bytes                      |
+| `difficulty`            | number \| null | Current mining difficulty                                                     |
+| `blockTime`             | number \| null | Average time between blocks in milliseconds, over the last 20 indexed blocks  |
+| `transactionsPerSecond` | number \| null | Average transactions per second over the last 20 indexed blocks               |
+| `transactionsPerMinute` | number \| null | Average transactions per minute over the last 20 indexed blocks               |
+| `latestHeight`          | number \| null | Height of the most recently indexed block                                     |

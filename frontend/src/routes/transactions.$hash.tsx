@@ -1,13 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { ArrowLeftRight, Info } from "lucide-react";
-import { useState } from "react";
+import {
+  ArrowDown,
+  ArrowLeftRight,
+  ArrowUp,
+  CheckCircle2,
+  Clock,
+  Lock,
+  ShieldCheck,
+} from "lucide-react";
+import type { ComponentType, ReactNode, SVGProps } from "react";
+import { AddressLink } from "@/components/address-link";
 import { CopyButton } from "@/components/copy-button";
+import { HashCell } from "@/components/hash-cell";
+import { PageStatus } from "@/components/page-status";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { transactionQueryOptions } from "@/lib/api/transactions";
-import { getTxTypeBadgeStyle, getTxTypeLabel } from "@/lib/format";
+import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
+import {
+  DUFFS_PER_DASH,
+  formatDuffs,
+  formatRelativeTime,
+  getTxTypeBadgeStyle,
+  getTxTypeLabel,
+} from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/transactions/$hash")({
@@ -23,279 +41,322 @@ export const Route = createFileRoute("/transactions/$hash")({
   },
 });
 
-type Tab = "io" | "raw";
+type IconType = ComponentType<SVGProps<SVGSVGElement>>;
+
+function sumInputs(vIn: ApiVIn[] | null | undefined): number | null {
+  if (!vIn || vIn.length === 0) return null;
+  let total = 0;
+  let hasAmount = false;
+  for (const input of vIn) {
+    if (input.amount == null) continue;
+    const num = Number(input.amount);
+    if (!Number.isFinite(num)) continue;
+    total += num;
+    hasAmount = true;
+  }
+  return hasAmount ? total : null;
+}
+
+function sumOutputs(vOut: ApiVOut[] | null | undefined): number | null {
+  if (!vOut || vOut.length === 0) return null;
+  let total = 0;
+  for (const out of vOut) {
+    if (out.value != null) total += Number(out.value);
+  }
+  return total;
+}
+
+function deriveStatus(tx: ApiTransaction): {
+  label: string;
+  tone: "success" | "warning";
+  icon: IconType;
+} {
+  if (tx.chainLocked) {
+    return { label: "Chain Locked", tone: "success", icon: Lock };
+  }
+  if (tx.confirmations && tx.confirmations > 0) {
+    return { label: "Confirmed", tone: "success", icon: CheckCircle2 };
+  }
+  return { label: "Pending", tone: "warning", icon: Clock };
+}
+
+function formatDashAmount(value: number | null): string {
+  if (value == null) return "—";
+  return (value / DUFFS_PER_DASH).toFixed(8);
+}
 
 function TransactionDetailPage() {
   const { hash } = Route.useParams();
   const network = useStore(appStore, (state) => state.network);
-  const [activeTab, setActiveTab] = useState<Tab>("io");
 
   const { data: tx, isFetching } = useQuery(
     transactionQueryOptions({ network, hash }),
   );
 
   if (isFetching && !tx) {
-    return (
-      <main className="mx-auto max-w-[1440px] px-6 py-10">
-        <div className="flex h-64 items-center justify-center text-muted-foreground">
-          Loading transaction...
-        </div>
-      </main>
-    );
+    return <PageStatus message="Loading transaction..." />;
   }
-
   if (!tx) {
-    return (
-      <main className="mx-auto max-w-[1440px] px-6 py-10">
-        <div className="flex h-64 items-center justify-center text-muted-foreground">
-          Transaction not found.
-        </div>
-      </main>
-    );
+    return <PageStatus message="Transaction not found." />;
   }
 
-  const totalOutput = tx.vOut.reduce((sum, out) => sum + Number(out.value), 0);
+  const status = deriveStatus(tx);
+  const StatusIcon = status.icon;
+  const typeLabel = getTxTypeLabel(tx.type);
+  const typeBadgeStyle = getTxTypeBadgeStyle(tx.type);
+
+  const totalInput = sumInputs(tx.vIn);
+  const totalOutput = sumOutputs(tx.vOut);
+  const fee =
+    tx.type === 5 || totalInput == null || totalOutput == null
+      ? null
+      : Math.max(0, totalInput - totalOutput);
+
+  const hasInputs = tx.vIn && tx.vIn.length > 0;
+  const hasOutputs = tx.vOut && tx.vOut.length > 0;
 
   return (
-    <main className="mx-auto max-w-[1440px] overflow-hidden px-6 py-10">
+    <main className="mx-auto max-w-[1440px] px-6 py-10">
       <h1 className="mb-8 text-4xl tracking-tight animate-fade-in-up">
         Transaction Details
       </h1>
 
-      <Card
-        className="mb-8 px-6 py-4 animate-fade-in-up"
+      <div
+        className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up"
         style={{ animationDelay: "100ms" }}
       >
-        <div className="flex flex-col divide-y divide-border">
-          <DetailRow label="Hash">
-            <div className="flex items-center gap-1.5">
-              <span className="break-all font-mono text-xs font-semibold">
-                {tx.hash}
-              </span>
-              <CopyButton value={tx.hash} />
-            </div>
-          </DetailRow>
-          <DetailRow label="Block Height">
-            <div className="flex items-center gap-1.5">
-              <Link
-                to="/blocks/$hashOrHeight"
-                params={{ hashOrHeight: String(tx.blockHeight) }}
-                className="font-semibold text-accent hover:underline"
-              >
-                {tx.blockHeight}
-              </Link>
-              <span className="text-muted-foreground">
-                ({tx.confirmations} confirmations)
-              </span>
-            </div>
-          </DetailRow>
-          <DetailRow label="Date/Time">
-            <span className="font-semibold">
-              {new Date(tx.timestamp).toLocaleString()}
-            </span>
-          </DetailRow>
-          <DetailRow label="Type">
-            <Badge
-              className={`h-6 whitespace-nowrap border font-medium ${getTxTypeBadgeStyle(tx.type)}`}
-            >
-              {getTxTypeLabel(tx.type)}
-            </Badge>
-          </DetailRow>
-          <DetailRow label="Total Output">
-            <span className="font-semibold">
-              {(totalOutput / 100_000_000).toFixed(8)} DASH
-            </span>
-          </DetailRow>
-          <DetailRow label="Fees">
-            <span className="font-semibold text-muted-foreground">—</span>
-          </DetailRow>
-        </div>
-      </Card>
+        <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <IconTile
+              icon={StatusIcon}
+              label="Status"
+              tone={status.tone}
+              value={
+                <Badge
+                  className={
+                    status.tone === "success"
+                      ? "bg-accent/12 font-bold text-accent"
+                      : "bg-amber-500/12 font-bold text-amber-500"
+                  }
+                >
+                  {status.label}
+                </Badge>
+              }
+            />
+            <IconTile
+              icon={ShieldCheck}
+              label="Confirmations"
+              value={
+                <p className="text-3xl font-extrabold">
+                  {(tx.confirmations ?? 0).toLocaleString()}
+                </p>
+              }
+            />
+          </div>
 
-      <div
-        className="mb-6 flex gap-3 animate-fade-in-up"
-        style={{ animationDelay: "200ms" }}
-      >
-        <button
-          type="button"
-          onClick={() => setActiveTab("io")}
-          className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-            activeTab === "io"
-              ? "bg-accent text-white"
-              : "border border-border text-foreground hover:bg-accent/10"
-          }`}
-        >
-          Inputs / Outputs
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("raw")}
-          className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-            activeTab === "raw"
-              ? "bg-accent text-white"
-              : "border border-border text-foreground hover:bg-accent/10"
-          }`}
-        >
-          Raw Transaction
-        </button>
+          <Card className="flex flex-row items-center gap-6 rounded-2xl border-0 px-5 py-4 sm:px-6 sm:py-[22px]">
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-full border border-accent/12 text-accent">
+              <ArrowLeftRight className="size-7" />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <p className="text-sm text-muted-foreground">Transaction Type</p>
+              <Badge
+                className={`h-7 w-fit whitespace-nowrap border px-3 font-medium ${typeBadgeStyle}`}
+              >
+                {typeLabel}
+              </Badge>
+            </div>
+          </Card>
+
+          <Card className="border-0 px-6 py-4">
+            <div className="flex flex-col">
+              <DetailRow label="Transaction Hash">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <HashCell hash={tx.hash} />
+                  <CopyButton value={tx.hash} />
+                </div>
+              </DetailRow>
+              <DetailRow label="Block">
+                {tx.blockHeight != null ? (
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      to="/blocks/$hashOrHeight"
+                      params={{ hashOrHeight: String(tx.blockHeight) }}
+                      className="font-mono text-accent hover:underline"
+                    >
+                      #{tx.blockHeight}
+                    </Link>
+                    {tx.blockHash ? <CopyButton value={tx.blockHash} /> : null}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">Mempool</span>
+                )}
+              </DetailRow>
+              <DetailRow label="Timestamp">
+                {tx.timestamp ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>{new Date(tx.timestamp).toLocaleString()}</span>
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-border text-xs font-medium"
+                    >
+                      {formatRelativeTime(tx.timestamp)}
+                    </Badge>
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </DetailRow>
+              {tx.type === 5 ? (
+                <DetailRow label="Block Reward">
+                  <AmountValue value={totalOutput} />
+                </DetailRow>
+              ) : tx.type !== 6 ? (
+                <>
+                  <DetailRow label="Total Input">
+                    <AmountValue value={totalInput} />
+                  </DetailRow>
+                  <DetailRow label="Total Output">
+                    <AmountValue value={totalOutput} />
+                  </DetailRow>
+                  <DetailRow label="Fee">
+                    <AmountValue value={fee} muted />
+                  </DetailRow>
+                </>
+              ) : null}
+              {tx.size != null ? (
+                <DetailRow label="Size">
+                  <span>
+                    <span className="font-bold">{tx.size}</span> bytes
+                  </span>
+                </DetailRow>
+              ) : null}
+            </div>
+          </Card>
+        </div>
+
+        <Card className="flex flex-col gap-3 border-0 px-6 py-5">
+          <h2 className="text-sm text-foreground">Extra Payload</h2>
+          <div className="flex flex-col">
+            <DetailRow label="Version">
+              <span className="font-bold">{tx.version ?? "—"}</span>
+            </DetailRow>
+            <DetailRow label="Type">
+              <span className="font-bold">
+                {tx.type} <span className="text-muted-foreground">·</span>{" "}
+                {typeLabel}
+              </span>
+            </DetailRow>
+            {tx.size != null ? (
+              <DetailRow label="Size">
+                <span>
+                  <span className="font-bold">{tx.size}</span> bytes
+                </span>
+              </DetailRow>
+            ) : null}
+            <DetailRow label="Confirmations">
+              <span className="font-bold">
+                {(tx.confirmations ?? 0).toLocaleString()}
+              </span>
+            </DetailRow>
+            <DetailRow label="Chain Locked">
+              <span className="font-bold">{tx.chainLocked ? "Yes" : "No"}</span>
+            </DetailRow>
+            {tx.blockHash ? (
+              <DetailRow label="Block Hash">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <HashCell hash={tx.blockHash} />
+                  <CopyButton value={tx.blockHash} />
+                </div>
+              </DetailRow>
+            ) : null}
+            {tx.instantLock ? (
+              <DetailRow label="InstantSend Lock">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <HashCell hash={tx.instantLock} />
+                  <CopyButton value={tx.instantLock} />
+                </div>
+              </DetailRow>
+            ) : null}
+          </div>
+        </Card>
       </div>
 
-      {activeTab === "io" ? (
-        <div
-          className="flex flex-col gap-8 animate-fade-in-up"
-          style={{ animationDelay: "300ms" }}
+      <div
+        className="grid gap-6 lg:grid-cols-2 animate-fade-in-up"
+        style={{ animationDelay: "200ms" }}
+      >
+        <IoSection
+          title="Inputs"
+          icon={ArrowDown}
+          count={tx.vIn?.length ?? 0}
+          total={totalInput}
         >
-          <div>
-            <h2 className="mb-4 text-2xl font-semibold">Inputs</h2>
-            <table
-              className="w-full text-xs"
-              style={{ borderCollapse: "separate", borderSpacing: "0 6px" }}
-            >
-              <thead>
-                <tr>
-                  <th className="px-3 pb-2 text-left font-medium text-foreground">
-                    Index
-                  </th>
-                  <th className="px-3 pb-2 text-left font-medium text-foreground">
-                    Previous Output
-                  </th>
-                  <th className="px-3 pb-2 text-left font-medium text-foreground">
-                    Sequence
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {tx.vIn.length > 0 ? (
-                  tx.vIn.map((input, idx) => (
-                    <tr
-                      key={`${input.txId ?? "coinbase"}-${input.vOut}`}
-                      className="group transition-colors"
-                    >
-                      <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                        <div className="flex items-center gap-2">
-                          <ArrowLeftRight className="size-4 text-muted-foreground" />
-                          <span>{idx}</span>
-                        </div>
-                      </td>
-                      <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                        {input.txId ? (
-                          <Link
-                            to="/transactions/$hash"
-                            params={{ hash: input.txId }}
-                            className="font-mono text-accent hover:underline"
-                          >
-                            {input.txId.slice(0, 16)}...:{input.vOut}
-                          </Link>
-                        ) : (
-                          <span className="font-mono text-muted-foreground">
-                            Coinbase
-                          </span>
-                        )}
-                      </td>
-                      <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-muted-foreground transition-colors group-hover:bg-accent/10">
-                        {input.sequence}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-6 py-10 text-center text-muted-foreground"
-                    >
-                      No inputs (coinbase transaction).
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {hasInputs ? (
+            <InputsTable vIn={tx.vIn ?? []} />
+          ) : (
+            <EmptyIo
+              message={
+                tx.type === 5
+                  ? "No inputs (coinbase transaction)."
+                  : tx.type === 6
+                    ? "Not applicable for quorum commitment."
+                    : "No inputs."
+              }
+            />
+          )}
+        </IoSection>
 
-          <div>
-            <h2 className="mb-4 text-2xl font-semibold">Outputs</h2>
-            <table
-              className="w-full text-xs"
-              style={{ borderCollapse: "separate", borderSpacing: "0 6px" }}
-            >
-              <thead>
-                <tr>
-                  <th className="px-3 pb-2 text-left font-medium text-foreground">
-                    Index
-                  </th>
-                  <th className="px-3 pb-2 text-left font-medium text-foreground">
-                    Script
-                  </th>
-                  <th className="px-3 pb-2 text-right font-medium text-foreground">
-                    Amount (DASH)
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {tx.vOut.length > 0 ? (
-                  tx.vOut.map((output) => (
-                    <tr key={output.number} className="group transition-colors">
-                      <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                        <div className="flex items-center gap-2">
-                          <ArrowLeftRight className="size-4 text-muted-foreground" />
-                          <span>{output.number}</span>
-                        </div>
-                      </td>
-                      <td className="max-w-md truncate border-y border-border bg-secondary/50 px-3 py-2 font-mono text-muted-foreground transition-colors group-hover:bg-accent/10">
-                        {output.scriptPubKeyASM}
-                      </td>
-                      <td className="rounded-r-xl border-y border-r border-border bg-secondary/50 px-3 py-2 text-right font-semibold transition-colors group-hover:bg-accent/10">
-                        {(Number(output.value) / 100_000_000).toFixed(8)}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-6 py-10 text-center text-muted-foreground"
-                    >
-                      No outputs.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        <div
-          className="relative animate-fade-in-up"
-          style={{ animationDelay: "300ms" }}
+        <IoSection
+          title="Outputs"
+          icon={ArrowUp}
+          count={tx.vOut?.length ?? 0}
+          total={totalOutput}
         >
-          <div className="absolute top-3 right-3">
-            <CopyButton value={JSON.stringify(tx, null, 2)} />
-          </div>
-          <pre
-            className="overflow-x-auto rounded-xl border border-border bg-secondary/50 p-6 pr-12 font-mono text-sm leading-relaxed"
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: escaped JSON only
-            dangerouslySetInnerHTML={{ __html: highlightJson(tx) }}
-          />
-        </div>
-      )}
+          {hasOutputs ? (
+            <OutputsTable vOut={tx.vOut ?? []} />
+          ) : (
+            <EmptyIo
+              message={
+                tx.type === 6
+                  ? "Not applicable for quorum commitment."
+                  : "No outputs."
+              }
+            />
+          )}
+        </IoSection>
+      </div>
     </main>
   );
 }
 
-function highlightJson(obj: unknown): string {
-  const raw = JSON.stringify(obj, null, 2);
-  const escaped = raw
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  return escaped.replace(
-    /("(?:\\.|[^"\\])*")\s*(:)?|(\b(?:true|false|null)\b)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
-    (match, str, colon, bool, num) => {
-      if (str && colon) return `<span class="text-foreground">${str}</span>:`;
-      if (str) return `<span class="text-emerald-600">${str}</span>`;
-      if (bool) return `<span class="text-accent">${match}</span>`;
-      if (num) return `<span class="text-accent">${match}</span>`;
-      return match;
-    },
+function IconTile({
+  icon: Icon,
+  label,
+  value,
+  tone = "default",
+}: {
+  icon: IconType;
+  label: string;
+  value: ReactNode;
+  tone?: "default" | "success" | "warning";
+}) {
+  const ringClass =
+    tone === "warning"
+      ? "border-amber-500/20 text-amber-500"
+      : "border-accent/12 text-accent";
+  return (
+    <Card className="flex flex-row items-center gap-4 rounded-2xl border-0 px-5 py-4 sm:px-6 sm:py-[22px]">
+      <div
+        className={`flex size-14 shrink-0 items-center justify-center rounded-full border ${ringClass}`}
+      >
+        <Icon className="size-7" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <div className="mt-1">{value}</div>
+      </div>
+    </Card>
   );
 }
 
@@ -304,15 +365,196 @@ function DetailRow({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-4 py-3">
-      <Info className="size-4 shrink-0 text-muted-foreground" />
-      <span className="w-28 shrink-0 text-sm text-muted-foreground">
+    <div className="flex items-center gap-6 py-3">
+      <span className="min-w-24 shrink-0 text-xs text-muted-foreground">
         {label}
       </span>
-      <div className="flex min-w-0 items-center text-sm">{children}</div>
+      <div className="flex min-w-0 items-center text-xs">{children}</div>
+    </div>
+  );
+}
+
+function AmountValue({
+  value,
+  muted = false,
+}: {
+  value: number | null;
+  muted?: boolean;
+}) {
+  const amount = formatDashAmount(value);
+  return (
+    <span className={muted ? "text-muted-foreground" : undefined}>
+      <span className="font-bold">{amount}</span>{" "}
+      <span className="text-muted-foreground">DASH</span>
+    </span>
+  );
+}
+
+function IoSection({
+  title,
+  icon: Icon,
+  count,
+  total,
+  children,
+}: {
+  title: string;
+  icon: IconType;
+  count: number;
+  total: number | null;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="border-0 px-5 py-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex size-8 items-center justify-center rounded-full border border-accent/12 text-accent">
+            <Icon className="size-4" />
+          </div>
+          <h2 className="text-lg">{title}</h2>
+          <Badge
+            variant="outline"
+            className="rounded-full border-border text-xs font-medium"
+          >
+            {count}
+          </Badge>
+        </div>
+        {total != null ? <DashAmountBadge value={total} /> : null}
+      </div>
+      {children}
+    </Card>
+  );
+}
+
+function DashAmountBadge({ value }: { value: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-accent/12 px-2.5 py-1 text-xs text-accent">
+      <img src="/images/dash-logo.svg" alt="" className="size-3.5" />
+      <span className="font-bold">{formatDuffs(value)}</span>
+    </span>
+  );
+}
+
+function InputsTable({ vIn }: { vIn: ApiVIn[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table
+        className="w-full text-xs"
+        style={{ borderCollapse: "separate", borderSpacing: "0 6px" }}
+      >
+        <thead>
+          <tr>
+            <th className="px-3 pb-2 text-left text-muted-foreground">#</th>
+            <th className="px-3 pb-2 text-left text-muted-foreground">
+              Address
+            </th>
+            <th className="px-3 pb-2 text-left text-muted-foreground">
+              Previous Output
+            </th>
+            <th className="px-3 pb-2 text-right text-muted-foreground">
+              Amount
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {vIn.map((input, idx) => {
+            const { prevTxHash } = input;
+            return (
+              <tr
+                key={`${prevTxHash ?? "coinbase"}-${input.vOutIndex ?? idx}`}
+                className="group transition-colors"
+              >
+                <td className="rounded-l-xl bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                  {idx}
+                </td>
+                <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                  <AddressLink address={input.address} />
+                </td>
+                <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                  {prevTxHash ? (
+                    <Link
+                      to="/transactions/$hash"
+                      params={{ hash: prevTxHash }}
+                      className="font-mono text-accent hover:underline"
+                    >
+                      {prevTxHash.slice(0, 12)}…:{input.vOutIndex ?? 0}
+                    </Link>
+                  ) : (
+                    <span className="font-mono text-muted-foreground">
+                      Coinbase
+                    </span>
+                  )}
+                </td>
+                <td className="rounded-r-xl bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
+                  {input.amount != null ? (
+                    <DashAmountBadge value={Number(input.amount)} />
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function OutputsTable({ vOut }: { vOut: ApiVOut[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table
+        className="w-full text-xs"
+        style={{ borderCollapse: "separate", borderSpacing: "0 6px" }}
+      >
+        <thead>
+          <tr>
+            <th className="px-3 pb-2 text-left text-muted-foreground">#</th>
+            <th className="px-3 pb-2 text-left text-muted-foreground">
+              Address
+            </th>
+            <th className="px-3 pb-2 text-left text-muted-foreground">
+              Script
+            </th>
+            <th className="px-3 pb-2 text-right text-muted-foreground">
+              Amount
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {vOut.map((output) => (
+            <tr key={output.number} className="group transition-colors">
+              <td className="rounded-l-xl bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                {output.number}
+              </td>
+              <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
+                <AddressLink address={output.address} />
+              </td>
+              <td className="max-w-[140px] truncate bg-secondary/50 px-3 py-2 font-mono text-muted-foreground transition-colors group-hover:bg-accent/10">
+                {output.scriptPubKeyASM}
+              </td>
+              <td className="rounded-r-xl bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
+                {output.value != null ? (
+                  <DashAmountBadge value={output.value} />
+                ) : (
+                  "—"
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EmptyIo({ message }: { message: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground">
+      {message}
     </div>
   );
 }
