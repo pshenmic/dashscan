@@ -571,6 +571,62 @@ Entries use the [VIn Object](#vin-object) shape. `prevTxHash` and `vOutIndex` id
 
 ---
 
+### GET /addresses/rich-list
+
+Returns a paginated rich-list view: addresses sorted by current UTXO balance, each annotated with the share of total chain supply they hold. Backed by a materialized view (`address_balances`) refreshed by the indexer every block, so values lag the chain tip by at most one block.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters). Use `order=desc` to get the largest holders first (the rich-list view).
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+      "balance": "543210000000000",
+      "concentration": "5.123456789012"
+    },
+    {
+      "address": "XfooBar...",
+      "balance": "100000000000",
+      "concentration": "0.000943217650"
+    },
+    {
+      "address": "others",
+      "balance": "<remaining duffs>",
+      "concentration": "<remaining percent>"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 1234567
+  }
+}
+```
+
+#### Address Balance Object
+
+| Field           | Type           | Description                                                                                          |
+|-----------------|----------------|------------------------------------------------------------------------------------------------------|
+| `address`       | string \| null | Dash address, or the literal `"others"` for the aggregate row (see below)                            |
+| `balance`       | string \| null | UTXO balance in duffs (1 DASH = 10⁸ duffs)                                                           |
+| `concentration` | string \| null | Share of total chain supply held by this address, in percent. Fixed-decimal string with 12 decimals. |
+
+**The `"others"` row.** The last entry in `resultSet` is always a synthetic row with `address: "others"` representing every address *not* on the current page. Its `balance` is `chain_supply_in_duffs − sum(balances on this page)` and its `concentration` is the matching percentage. As a result, the page is constructed so that the displayed rows + `"others"` sum to 100% of supply. `pagination.limit` reflects the requested limit; under the hood the DAO is queried with `limit − 1` to leave room for the `"others"` row.
+
+**Sources & freshness.**
+- `address`/`balance` come from the `address_balances` materialized view (UTXO sums grouped by address). The indexer refreshes it `CONCURRENTLY` after every live block.
+- `concentration` is computed against the chain's total UTXO supply returned by Dash Core's `gettxoutsetinfo` RPC. That call is expensive (full chainstate scan) so the API caches it for 30 minutes; concentration values can therefore lag the chain tip by up to that long.
+- `pagination.total` is `pg_class.reltuples` for the matview — an approximate row count, not exact.
+
+**Caveats.**
+- These are *address*-level shares, not *holder*-level. HD wallets spread one user across many addresses (understates concentration); exchange omnibus addresses pool many users into one (overstates concentration).
+- Because the supply denominator comes from RPC (which counts UTXOs that have no parseable address — OP_RETURN, multisig, etc.) and the matview filters those out, the per-address numerators slightly underrepresent total chain supply. The `"others"` row absorbs this gap, so the page still sums to 100%.
+
+---
+
 ### GET /transactions/chart
 
 Returns a time series of transaction counts over a configurable time range, with optional running total.
