@@ -42,7 +42,7 @@ function buildStatsUrl(path: string, params: FetchStatsInput) {
 }
 
 async function getTransactionsStats(params: FetchStatsInput) {
-  const url = buildStatsUrl("/transactions/stats", params);
+  const url = buildStatsUrl("/transactions/chart", params);
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
@@ -68,7 +68,7 @@ export function transactionsStatsQueryOptions(params: FetchStatsInput) {
 }
 
 async function getBlockTransactionsStats(params: FetchStatsInput) {
-  const url = buildStatsUrl("/blocks/transactions/stats", params);
+  const url = buildStatsUrl("/blocks/transactions/chart", params);
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
