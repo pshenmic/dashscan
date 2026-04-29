@@ -94,6 +94,34 @@ export default class BlocksDAO {
     ));
   }
 
+  getChainStats = async (blocksForHashRate: number, blocksForBlockTime: number) => {
+    const topBlocks = this.knex('blocks')
+      .select('height', 'timestamp', 'difficulty', 'tx_count')
+      .orderBy('height', 'desc')
+      .limit(blocksForHashRate)
+      .as('top_blocks');
+
+    const recentCTE = this.knex
+      .select('height', 'timestamp', 'difficulty', 'tx_count')
+      .select(this.knex.raw('ROW_NUMBER() OVER (ORDER BY height DESC) AS rn'))
+      .select(this.knex.raw('COUNT(*) OVER () AS total'))
+      .from(topBlocks);
+
+    const [row] = await this.knex
+      .with('recent', recentCTE)
+      .select(this.knex.raw('MAX(CASE WHEN rn = 1 THEN height END) AS latest_height'))
+      .select(this.knex.raw('MAX(CASE WHEN rn = 1 THEN timestamp END) AS last_timestamp'))
+      .select(this.knex.raw('MAX(CASE WHEN rn = total THEN timestamp END) AS first_timestamp'))
+      .select(this.knex.raw('SUM(difficulty) AS work_sum'))
+      .select(this.knex.raw('MAX(CASE WHEN rn = LEAST(?, total) THEN timestamp END) AS bt_first_timestamp', [blocksForBlockTime]))
+      .select(this.knex.raw('SUM(CASE WHEN rn <= ? THEN tx_count ELSE 0 END)::bigint AS bt_tx_count', [blocksForBlockTime]))
+      .select(this.knex.raw('LEAST(MAX(total), ?) AS bt_sample_size', [blocksForBlockTime]))
+      .select(this.knex.raw('(SELECT COUNT(*) FROM transactions WHERE block_height IS NULL)::bigint AS mempool_size'))
+      .from('recent');
+
+    return row;
+  };
+
   getBlockByHash = async (hash: string): Promise<Block | null> => {
     const rows = await this.knex('blocks')
       .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.superblock',

@@ -1140,7 +1140,7 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
 
 ### GET /chain/stats
 
-Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics computed from the 20 most recently indexed blocks.
+Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics from the last 20 indexed blocks, network hash rate from the last 120 indexed blocks, and the current indexed mempool size.
 
 **Response `200`**
 
@@ -1152,18 +1152,22 @@ Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics
   "blockTime": 154321,
   "transactionsPerSecond": 1.23,
   "transactionsPerMinute": 73.8,
-  "latestHeight": 2100000
+  "latestHeight": 2100000,
+  "hashRate": "2482447954304473",
+  "mempoolSize": 5
 }
 ```
 
 #### ChainStats Object
 
-| Field                   | Type           | Description                                                                   |
-|-------------------------|----------------|-------------------------------------------------------------------------------|
-| `chain`                 | string \| null | Network name (e.g. `main`, `test`)                                            |
-| `sizeOnDisk`            | number \| null | Size of the block storage on the Dash Core node in bytes                      |
-| `difficulty`            | number \| null | Current mining difficulty                                                     |
-| `blockTime`             | number \| null | Average time between blocks in milliseconds, over the last 20 indexed blocks  |
-| `transactionsPerSecond` | number \| null | Average transactions per second over the last 20 indexed blocks               |
-| `transactionsPerMinute` | number \| null | Average transactions per minute over the last 20 indexed blocks               |
-| `latestHeight`          | number \| null | Height of the most recently indexed block                                     |
+| Field                   | Type           | Description                                                                                                  |
+|-------------------------|----------------|--------------------------------------------------------------------------------------------------------------|
+| `chain`                 | string \| null | Network name (e.g. `main`, `test`)                                                                           |
+| `sizeOnDisk`            | number \| null | Size of the block storage on the Dash Core node in bytes                                                     |
+| `difficulty`            | number \| null | Current mining difficulty                                                                                    |
+| `blockTime`             | number \| null | Average time between blocks in milliseconds, over the last 20 indexed blocks                                 |
+| `transactionsPerSecond` | number \| null | Average transactions per second over the last 20 indexed blocks                                              |
+| `transactionsPerMinute` | number \| null | Average transactions per minute over the last 20 indexed blocks                                              |
+| `latestHeight`          | number \| null | Height of the most recently indexed block                                                                    |
+| `hashRate`              | string \| null | Estimated network hash rate in H/s over the last 120 indexed blocks. Returned as a string (may exceed JS safe-integer range) |
+| `mempoolSize`           | number \| null | Number of pending (unconfirmed) transactions currently indexed (`block_height IS NULL`)                      |

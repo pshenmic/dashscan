@@ -30,29 +30,49 @@ export default class MainController {
   };
 
   getChainStats = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
-    const chainInfoResponse = await this.dashcoreRPC.getChainInfo();
-    const chainStats = ChainStats.fromRpcResponse(chainInfoResponse)
+    const [chainInfoResponse, stats] = await Promise.all([
+      this.dashcoreRPC.getChainInfo(),
+      this.blocksDAO.getChainStats(120, 20),
+    ]);
 
-    const {resultSet} = await this.blocksDAO.getBlocks(1, 20, 'desc');
+    const chainStats = ChainStats.fromRpcResponse(chainInfoResponse);
 
-    const [lastBlock] = resultSet;
-    const [firstBlock] = resultSet.reverse();
+    const lastTs = new Date(stats.last_timestamp).getTime();
+    const firstTs = new Date(stats.first_timestamp).getTime();
+    const btFirstTs = new Date(stats.bt_first_timestamp).getTime();
 
-    const timeSpanMSec = lastBlock.timestamp.getTime() - firstBlock.timestamp.getTime();
-    const timeSpanSec = timeSpanMSec / 1000;
+    const btTimeSpanMSec = lastTs - btFirstTs;
+    const btTimeSpanSec = btTimeSpanMSec / 1000;
+    const btSampleSize = Number(stats.bt_sample_size);
 
-    const blockTime = Math.floor((timeSpanMSec / (resultSet.length - 1)));
+    const blockTime = btSampleSize > 1
+      ? Math.floor(btTimeSpanMSec / (btSampleSize - 1))
+      : null;
 
-    const transactionsCount = resultSet.reduce((acc, curr) => acc+curr.txCount, 0)
-    const transactionsPerSecond = Number((transactionsCount / timeSpanSec).toFixed(2))
-    const transactionsPerMinute = Number((transactionsCount / (timeSpanSec / 60)).toFixed(2))
+    const transactionsCount = Number(stats.bt_tx_count);
+    const transactionsPerSecond = btTimeSpanSec > 0
+      ? Number((transactionsCount / btTimeSpanSec).toFixed(2))
+      : null;
+    const transactionsPerMinute = btTimeSpanSec > 0
+      ? Number((transactionsCount / (btTimeSpanSec / 60)).toFixed(2))
+      : null;
+
+    // TODO: Indexer contain chainwork field which at this moment empty (P2P doesn't return)
+    const hrTimeSpanMs = BigInt(lastTs - firstTs);
+    const difficultySum = Number(stats.work_sum);
+    // can be more than safe number range
+    const hashRate = hrTimeSpanMs > 0n && difficultySum > 0
+      ? ((BigInt(Math.floor(difficultySum)) * (1n << 32n) * 1000n) / hrTimeSpanMs).toString()
+      : null;
 
     response.send(ChainStats.fromObject({
       ...chainStats,
-      blockTime,
-      transactionsPerSecond,
-      transactionsPerMinute,
-      latestHeight: lastBlock.height
-    }))
+      blockTime: blockTime ?? undefined,
+      transactionsPerSecond: transactionsPerSecond ?? undefined,
+      transactionsPerMinute: transactionsPerMinute ?? undefined,
+      latestHeight: Number(stats.latest_height),
+      hashRate: hashRate ?? undefined,
+      mempoolSize: Number(stats.mempool_size),
+    }));
   }
 }
