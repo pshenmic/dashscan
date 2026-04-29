@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import {GEOIP_PROVIDER} from "../constants";
+import {GEOIP_PROVIDER, GEOIP_TABLE_NAME} from "../constants";
 
 interface IPv4Range {
   start: number;
@@ -15,7 +15,7 @@ export default class GeoIPService {
     const csvPath = resolve(
       require.resolve(`${GEOIP_PROVIDER}/package.json`),
       '..',
-      '',
+      GEOIP_TABLE_NAME,
     );
 
     const data = readFileSync(csvPath, 'utf8');
