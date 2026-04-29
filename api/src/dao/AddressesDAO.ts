@@ -3,6 +3,7 @@ import Address from '../models/Address';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
 import VIn from "../models/VIn";
+import AddressBalance from "../models/AddressBalance";
 
 export default class AddressesDAO {
   private knex: Knex;
@@ -205,5 +206,27 @@ export default class AddressesDAO {
       limit,
       row?.total_count ?? -1,
     );
+  }
+
+  getBalancesInfo = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<AddressBalance>> => {
+    const fromRank = (page - 1) * limit;
+
+    const subquery = this.knex('pg_class')
+      .select(this.knex.raw('reltuples::bigint'))
+      .whereRaw(`relname='address_balances'`)
+      .limit(1)
+      .as('total_count')
+
+    const rows = await this.knex('address_balances')
+      .select('balance', 'address')
+      .select(this.knex(subquery).as('total_count'))
+      .orderBy('balance', order)
+      .leftJoin('addresses', 'addresses.id', 'address_id')
+      .limit(limit)
+      .offset(fromRank);
+
+    const [row] = rows;
+
+    return new PaginatedResultSet(rows, page, limit, row?.total_count ?? -1);
   }
 }

@@ -307,6 +307,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       }
     },
     {
+      path: '/addresses/rich-list',
+      method: 'get',
+      handler: addressesController.getBalancesInfo,
+      schema: {
+        querystring: { $ref: 'paginationOptions#' },
+      }
+    },
+    {
       path: '/governance/budget',
       method: 'get',
       handler: governanceController.getBudgetInfo,
