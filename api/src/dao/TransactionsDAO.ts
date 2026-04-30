@@ -1,5 +1,6 @@
 import {Knex} from 'knex';
 import Transaction from '../models/Transaction';
+import TransactionStats from '../models/TransactionStats';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
 import {TransactionType} from "../enums/TransactionType";
@@ -459,5 +460,28 @@ export default class TransactionsDAO {
     const [row] = rows;
 
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
+  }
+
+  getTransactionStats24h = async (): Promise<TransactionStats | null> => {
+    const minHeightSubquery = this.knex('blocks')
+      .min('height')
+      .where('timestamp', '>', this.knex.raw("NOW() - INTERVAL '24 hours'"));
+
+    const [row] = await this.knex
+      .select(
+        this.knex.raw('COUNT(*) FILTER (WHERE type > 0)::bigint AS special'),
+        this.knex.raw('COUNT(*) FILTER (WHERE coinjoin)::bigint AS coinjoin'),
+        this.knex.raw('COUNT(*) FILTER (WHERE multisig)::bigint AS multisig'),
+        this.knex.raw('COUNT(*) FILTER (WHERE type = 0 AND NOT coinjoin AND NOT multisig)::bigint AS normal')
+      )
+      .where('block_height', '>=', minHeightSubquery)
+      .limit(1)
+      .from('transactions');
+
+    if (row == null) {
+      return null;
+    }
+
+    return TransactionStats.fromRow(row);
   }
 }

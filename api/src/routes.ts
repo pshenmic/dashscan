@@ -65,6 +65,11 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/transactions/stats',
+      method: 'get',
+      handler: transactionsController.getTransactionStats,
+    },
+    {
       path: '/transactions/chart',
       method: 'get',
       handler: transactionsController.getTransactionCountSeries,

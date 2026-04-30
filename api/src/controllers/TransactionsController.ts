@@ -31,7 +31,7 @@ export default class TransactionsController {
     const transaction = await this.transactionsDAO.getTransactionByHash(hash);
 
     if (!transaction) {
-      return response.status(404).send('Transaction not found');
+      return response.status(404).send({error: 'Transaction not found'});
     }
 
     response.send(transaction);
@@ -42,7 +42,7 @@ export default class TransactionsController {
     const { height = 1 } = request.params;
 
     if (!height || height < 1) {
-      return response.status(400).send('Invalid height');
+      return response.status(400).send({error: 'Invalid height'});
     }
 
     const transactions = await this.transactionsDAO.getTransactionsByBlockHeight(height, page, limit, order);
@@ -72,7 +72,7 @@ export default class TransactionsController {
     } = request.query;
 
     if (new Date(start).getTime() > new Date(end).getTime()) {
-      return response.status(400).send({ message: 'start timestamp cannot be more than end timestamp' });
+      return response.status(400).send({ error: 'start timestamp cannot be more than end timestamp' });
     }
 
     const intervalInMs =
@@ -93,6 +93,16 @@ export default class TransactionsController {
     );
 
     response.send(series);
+  }
+
+  getTransactionStats = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
+    const stats = await this.transactionsDAO.getTransactionStats24h();
+
+    if(stats==null) {
+      return response.status(500).send({error: "No indexed transactions"})
+    }
+
+    response.send(stats);
   }
 
   getAddressTransactions = async (request: FastifyRequest<{ Params: {address: string}, Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
