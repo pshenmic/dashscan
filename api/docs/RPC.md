@@ -1202,27 +1202,31 @@ Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics
 ```json
 {
   "chain": "main",
-  "sizeOnDisk": 12345678901,
-  "difficulty": 123456.789,
-  "blockTime": 154321,
-  "transactionsPerSecond": 1.23,
-  "transactionsPerMinute": 73.8,
-  "latestHeight": 2100000,
-  "hashRate": "2482447954304473",
-  "mempoolSize": 5
+  "sizeOnDisk": 48569836318,
+  "difficulty": 91484871.8130485,
+  "blockTime": 111105,
+  "transactionsPerSecond": 0.2,
+  "transactionsPerMinute": 12.22,
+  "latestHeight": 2463770,
+  "hashRate": "2383959789491355",
+  "mempoolSize": 3,
+  "nextSuperblockHeight": 2475784,
+  "latestSuperblockHeight": 2459168
 }
 ```
 
 #### ChainStats Object
 
-| Field                   | Type           | Description                                                                                                  |
-|-------------------------|----------------|--------------------------------------------------------------------------------------------------------------|
-| `chain`                 | string \| null | Network name (e.g. `main`, `test`)                                                                           |
-| `sizeOnDisk`            | number \| null | Size of the block storage on the Dash Core node in bytes                                                     |
-| `difficulty`            | number \| null | Current mining difficulty                                                                                    |
-| `blockTime`             | number \| null | Average time between blocks in milliseconds, over the last 20 indexed blocks                                 |
-| `transactionsPerSecond` | number \| null | Average transactions per second over the last 20 indexed blocks                                              |
-| `transactionsPerMinute` | number \| null | Average transactions per minute over the last 20 indexed blocks                                              |
-| `latestHeight`          | number \| null | Height of the most recently indexed block                                                                    |
-| `hashRate`              | string \| null | Estimated network hash rate in H/s over the last 120 indexed blocks. Returned as a string (may exceed JS safe-integer range) |
-| `mempoolSize`           | number \| null | Number of pending (unconfirmed) transactions currently indexed (`block_height IS NULL`)                      |
+| Field                    | Type           | Description                                                                                                                  |
+|--------------------------|----------------|------------------------------------------------------------------------------------------------------------------------------|
+| `chain`                  | string \| null | Network name (e.g. `main`, `test`)                                                                                           |
+| `sizeOnDisk`             | number \| null | Size of the block storage on the Dash Core node in bytes                                                                     |
+| `difficulty`             | number \| null | Current mining difficulty                                                                                                    |
+| `blockTime`              | number \| null | Average time between blocks in milliseconds, over the last 20 indexed blocks                                                 |
+| `transactionsPerSecond`  | number \| null | Average transactions per second over the last 20 indexed blocks                                                              |
+| `transactionsPerMinute`  | number \| null | Average transactions per minute over the last 20 indexed blocks                                                              |
+| `latestHeight`           | number \| null | Height of the most recently indexed block                                                                                    |
+| `hashRate`               | string \| null | Estimated network hash rate in H/s over the last 120 indexed blocks. Returned as a string (may exceed JS safe-integer range) |
+| `mempoolSize`            | number \| null | Number of pending (unconfirmed) transactions currently indexed (`block_height IS NULL`)                                      |
+| `nextSuperblockHeight`   | number \| null | Height of next superblock                                                                                                    |
+| `latestSuperblockHeight` | number \| null | Height of previous superblock (mined)                                                                                        |

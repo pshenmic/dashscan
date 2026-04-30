@@ -10,6 +10,8 @@ interface ChainStatsObject {
   latestHeight?: number;
   hashRate?: string;
   mempoolSize?: number;
+  latestSuperblockHeight?: number;
+  nextSuperblockHeight?: number;
 }
 
 interface ChainStatsRow {
@@ -21,6 +23,7 @@ interface ChainStatsRow {
   bt_sample_size: string | number | null;
   work_sum: string | number | null;
   mempool_size: string | number | null;
+  latest_superblock_height: string | number | null;
 }
 
 export default class ChainStats {
@@ -33,8 +36,10 @@ export default class ChainStats {
   latestHeight: number | null;
   hashRate: string | null;
   mempoolSize: number | null;
+  nextSuperblockHeight: number | null;
+  latestSuperblockHeight: number | null;
 
-  constructor(chain?: string, sizeOnDisk?: number, difficulty?: number, blockTime?: number, transactionsPerSecond?: number, transactionsPerMinute?: number, latestHeight?: number, hashRate?: string, mempoolSize?: number) {
+  constructor(chain?: string, sizeOnDisk?: number, difficulty?: number, blockTime?: number, transactionsPerSecond?: number, transactionsPerMinute?: number, latestHeight?: number, hashRate?: string, mempoolSize?: number, latestSuperblockHeight?: number, nextSuperblockHeight?: number) {
     this.chain = chain ?? null;
     this.sizeOnDisk = sizeOnDisk ?? null;
     this.difficulty = difficulty ?? null;
@@ -44,6 +49,8 @@ export default class ChainStats {
     this.latestHeight = latestHeight ?? null;
     this.hashRate = hashRate ?? null;
     this.mempoolSize = mempoolSize ?? null;
+    this.latestSuperblockHeight = latestSuperblockHeight ?? null;
+    this.nextSuperblockHeight = nextSuperblockHeight ?? null;
   }
 
   static fromRpcResponse({chain, size_on_disk, difficulty}: BlockchainInfoRPC): ChainStats {
@@ -88,10 +95,11 @@ export default class ChainStats {
       latestHeight,
       hashRate,
       mempoolSize,
+      Number(row.latest_superblock_height)
     );
   }
 
-  static fromObject({chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight, hashRate, mempoolSize}: ChainStatsObject): ChainStats {
-    return new ChainStats(chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight, hashRate, mempoolSize);
+  static fromObject({chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight, hashRate, mempoolSize, latestSuperblockHeight, nextSuperblockHeight}: ChainStatsObject): ChainStats {
+    return new ChainStats(chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight, hashRate, mempoolSize, latestSuperblockHeight, nextSuperblockHeight);
   }
 }

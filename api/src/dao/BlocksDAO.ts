@@ -3,6 +3,7 @@ import Block from '../models/Block';
 import ChainStats from '../models/ChainStats';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
+import {NETWORK, SUPERBLOCK_INTERVALS} from "../constants";
 
 export default class BlocksDAO {
   private knex: Knex;
@@ -118,9 +119,25 @@ export default class BlocksDAO {
       .select(this.knex.raw('SUM(CASE WHEN rn <= ? THEN tx_count ELSE 0 END)::bigint AS bt_tx_count', [blocksForBlockTime]))
       .select(this.knex.raw('LEAST(MAX(total), ?) AS bt_sample_size', [blocksForBlockTime]))
       .select(this.knex.raw('(SELECT COUNT(*) FROM transactions WHERE block_height IS NULL)::bigint AS mempool_size'))
+      .select(
+        this.knex('blocks')
+          .select('height')
+          .where(this.knex.raw('superblock=true'))
+          .orderBy('height', 'desc')
+          .limit(1)
+          .as('latest_superblock_height')
+      )
       .from('recent');
 
-    return ChainStats.fromRow(row);
+    const stats = ChainStats.fromRow(row);
+
+    const superblockInterval = SUPERBLOCK_INTERVALS[NETWORK];
+    const nextSuperblockHeight = row.latest_superblock_height + superblockInterval;
+
+    return ChainStats.fromObject({
+      ...stats,
+      nextSuperblockHeight: nextSuperblockHeight
+    });
   };
 
   getBlockByHash = async (hash: string): Promise<Block | null> => {
