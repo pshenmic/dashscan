@@ -26,8 +26,8 @@ impl Database {
 
         let rows = client
             .query(
-                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, coinbase_amount, transfer_amount, coinjoin) \
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) \
+                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, coinbase_amount, transfer_amount, coinjoin, multisig) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) \
                  ON CONFLICT (hash) DO NOTHING \
                  RETURNING id",
                 &[
@@ -41,6 +41,7 @@ impl Database {
                     &coinbase_amount,
                     &transaction_amount,
                     &coinjoin,
+                    &tx.multisig,
                 ],
             )
             .await?;
@@ -62,28 +63,29 @@ impl Database {
             return Ok(tx_map);
         }
 
-        // type, size, coinbase, coinbase amount, transfer amount, coinjoin
-        let tx_infos: Vec<(i16, i32, bool, Option<i64>, i64, bool)> = tx_meta.iter().map(|(tx, _, _)| {
+        // type, size, coinbase, coinbase amount, transfer amount, coinjoin, multisig
+        let tx_infos: Vec<(i16, i32, bool, Option<i64>, i64, bool, bool)> = tx_meta.iter().map(|(tx, _, _)| {
             (
                 tx.tx_type.unwrap_or(0),
                 tx.size as i32,
                 tx.vin.first().map_or(false, |v| v.coinbase.is_some()),
                 tx.get_coinbase_tx_value(),
                 tx.get_transaction_amount(),
-                tx.check_coinjoin()
+                tx.check_coinjoin(),
+                tx.multisig,
             )
         }).collect();
 
         for (chunk_idx, chunk) in tx_meta.chunks(BATCH_SIZE).enumerate() {
             let base = chunk_idx * BATCH_SIZE;
             let query = format!(
-                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, coinbase_amount, chain_locked, transfer_amount, coinjoin) VALUES {} \
+                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, coinbase_amount, chain_locked, transfer_amount, coinjoin, multisig) VALUES {} \
                  ON CONFLICT (hash) DO UPDATE SET block_height = COALESCE(transactions.block_height, EXCLUDED.block_height) \
                  RETURNING id, hash",
-                build_placeholders(chunk.len(), 11)
+                build_placeholders(chunk.len(), 12)
             );
 
-            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 8);
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 12);
             for (i, (tx, height, chain_locked)) in chunk.iter().enumerate() {
                 let abs = base + i;
 
@@ -100,6 +102,7 @@ impl Database {
                 params.push(chain_locked);
                 params.push(&tx_info.4);
                 params.push(&tx_info.5);
+                params.push(&tx_info.6);
             }
 
             let rows = client.query(query.as_str(), &params).await?;

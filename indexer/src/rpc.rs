@@ -107,6 +107,8 @@ pub struct Transaction {
     pub locktime: i64,
     pub vin: Vec<Vin>,
     pub vout: Vec<Vout>,
+    #[serde(default)]
+    pub multisig: bool,
     #[allow(dead_code)]
     #[serde(rename = "extraPayloadSize")]
     pub extra_payload_size: Option<i32>,
