@@ -64,7 +64,7 @@ impl Config {
                 .parse()
                 .expect("P2P_BATCH_SIZE must be a number"),
             address_balances_refresh_blocks: env::var("ADDRESS_BALANCES_REFRESH_BLOCKS")
-                .unwrap_or_else(|_| "1".to_string())
+                .unwrap_or_else(|_| "5".to_string())
                 .parse()
                 .expect("ADDRESS_BALANCES_REFRESH_BLOCKS must be a number"),
         }
