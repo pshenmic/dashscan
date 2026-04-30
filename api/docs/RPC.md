@@ -460,15 +460,17 @@ Returns a single address with aggregated balance and activity stats.
 
 ```json
 {
-  "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
-  "firstSeenBlock": "000000000000abcd1234...",
-  "firstSeenTx": "abcdef1234...",
-  "lastSeenBlock": "000000000000efgh5678...",
-  "lastSeenTx": "fedcba4321...",
-  "txCount": "42",
-  "received": "100000000",
-  "sent": "25000000",
-  "balance": "75000000"
+  "address": "XwykuvxKBWT2dGN2Q9Y4Dqwo5riyf3C2At",
+  "firstSeenBlock": "0000000000000011c157d5c2bcea7a435370f6675b306f34c1b6084df32ce4c0",
+  "firstSeenBlockTimestamp": "2026-04-24T15:30:24.000Z",
+  "firstSeenTx": "c895cb8dbc81821c2ae5d79b4697527d9e8c4ae84e568adaa768f84fb9db094f",
+  "lastSeenBlock": "0000000000000011c157d5c2bcea7a435370f6675b306f34c1b6084df32ce4c0",
+  "lastSeenBlockTimestamp": "2026-04-24T15:30:24.000Z",
+  "lastSeenTx": "c895cb8dbc81821c2ae5d79b4697527d9e8c4ae84e568adaa768f84fb9db094f",
+  "txCount": 2,
+  "received": "950718575",
+  "sent": "950718575",
+  "balance": "0"
 }
 ```
 
