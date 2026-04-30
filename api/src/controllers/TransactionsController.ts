@@ -17,10 +17,11 @@ export default class TransactionsController {
     const {
       page = 1, limit = 10, order = 'asc',
       coinjoin,
+      multisig,
       transaction_type: transactionType,
       block_height: blockHeight } = request.query;
 
-    const transactions = await this.transactionsDAO.getTransactions(page, limit, order, TransactionType[transactionType], coinjoin, blockHeight);
+    const transactions = await this.transactionsDAO.getTransactions(page, limit, order, TransactionType[transactionType], coinjoin, multisig, blockHeight);
 
     response.send(transactions);
   };

@@ -200,6 +200,7 @@ Returns a paginated list of transactions. Include pending transactions
 |--------------------|---------|----------------------------------------------|----------------------------------------------------------------------------|
 | `transaction_type` | string  | one of the [transaction type](#transaction-types) names (e.g. `CLASSIC`, `COINBASE`) | Filter by transaction type                                                 |
 | `coinjoin`         | boolean |                                              | Filter to (`true`) or exclude (`false`) CoinJoin-pattern transactions      |
+| `multisig`         | boolean |                                              | Filter to (`true`) or exclude (`false`) transactions with multisig outputs |
 | `block_height`     | integer | minimum: 1                                   | Filter to transactions in a specific block height                          |
 
 **Response `200`**
@@ -236,7 +237,8 @@ Returns a paginated list of transactions. Include pending transactions
       "instantLock": "0102375e39652fee756b492762510aea4087d57b486a89f2f78f52c840f02079052f000000007652da0e18a07bcde5a2205ff041dd0b14b4b7a81b2e0ccaf5118dfe79e56aba00000000f274ca0dd6640a9236dc987e5f09db412ed2bc37806ae90bc6f34f9fd36a7a28da45b260ae37978f3a8fb973c48418a92f41e1e2b77a9d720400000000000000abc1c3d6ddaccf322f655f59979d037badc840328b0da023f70d9d1adea046f9b4486c929ff0c15f2c9036d757ca44ae168e315ba07c19269d7b44c2bf722b811aa9ab0c978198ef3637d4b20e3e316e3459ed3d75dbbafd4966a4d571d32a0a",
       "chainLocked": true,
       "coinbaseAmount": null,
-      "coinjoin": false
+      "coinjoin": false,
+      "multisig": false
     }
   ],
   "pagination": {
@@ -293,7 +295,8 @@ Returns a single transaction by its hash.
   "instantLock": "0102375e39652fee756b...d571d32a0a",
   "chainLocked": true,
   "coinbaseAmount": null,
-  "coinjoin": false
+  "coinjoin": false,
+  "multisig": false
 }
 ```
 
@@ -318,6 +321,7 @@ Returns a single transaction by its hash.
 | `chainLocked`    | boolean        | Whether the transaction's block has a ChainLock                                              |
 | `coinbaseAmount` | string \| null | Coinbase reward in duffs for coinbase transactions, `null` for non-coinbase                  |
 | `coinjoin`       | boolean        | Whether this transaction matches the CoinJoin (mixing) pattern                               |
+| `multisig`       | boolean        | Whether this transaction has any multisig outputs (bare multisig or P2SH-wrapped multisig)   |
 
 #### Transaction Types
 
@@ -387,7 +391,8 @@ Returns a paginated list of transactions for a specific block height.
       "instantLock": "0102375e...d571d32a0a",
       "chainLocked": true,
       "coinbaseAmount": null,
-      "coinjoin": false
+      "coinjoin": false,
+      "multisig": false
     }
   ],
   "pagination": {
@@ -518,7 +523,8 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
       "instantLock": "0102375e...d571d32a0a",
       "chainLocked": true,
       "coinbaseAmount": null,
-      "coinjoin": false
+      "coinjoin": false,
+      "multisig": false
     }
   ],
   "pagination": {
@@ -667,6 +673,53 @@ Returns a time series of transaction counts over a configurable time range, with
 ```json
 { "message": "start timestamp cannot be more than end timestamp" }
 ```
+
+---
+
+### GET /transactions/stats
+
+Returns counts of confirmed transactions over the last 24 hours, partitioned into mutually exclusive categories.
+
+**Categorization (in priority order):**
+
+1. **Special** — `type > 0` (Dash special transactions: ProRegTx, ProUpServTx, etc.)
+2. **CoinJoin** — `type = 0 AND coinjoin = TRUE`
+3. **Multisig** — `type = 0 AND coinjoin = FALSE AND multisig = TRUE` (bare multisig outputs or P2SH-wrapped multisig redeem scripts)
+4. **Normal** — `type = 0 AND coinjoin = FALSE AND multisig = FALSE`
+
+Each transaction falls into exactly one bucket; counts sum to `total`.
+
+Pending (mempool) transactions are excluded.
+
+**Response `200`**
+
+```json
+{
+  "total": 1362,
+  "special": 5,
+  "coinjoin": 123,
+  "multisig": 0,
+  "normal": 1234
+}
+```
+
+| Field      | Type           | Description                                                                          |
+|------------|----------------|--------------------------------------------------------------------------------------|
+| `total`    | number \| null | Sum of `special + coinjoin + multisig + normal`                                      |
+| `special`  | number \| null | Confirmed special transactions (`type > 0`) in the last 24h                          |
+| `coinjoin` | number \| null | Confirmed CoinJoin transactions in the last 24h (excludes special)                   |
+| `multisig` | number \| null | Confirmed multisig transactions in the last 24h (excludes special and CoinJoin)      |
+| `normal`   | number \| null | Confirmed transactions that are none of the above in the last 24h                    |
+
+> All fields are `null` when no rows can be derived (e.g. no indexed blocks). Otherwise counts are `0` or positive integers.
+
+**Response `404`**
+
+```json
+{ "error": "stats not available" }
+```
+
+Returned when the underlying query yields no result row.
 
 ---
 

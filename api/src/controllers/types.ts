@@ -7,5 +7,6 @@ export interface PaginatedQuery {
   superblock?: boolean
   transaction_type?: keyof typeof TransactionType
   coinjoin?: boolean
+  multisig?: boolean
   block_height?: number
 }

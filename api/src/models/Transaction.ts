@@ -19,6 +19,7 @@ interface TransactionRow {
   coinbase_amount: string | null;
   transfer_amount: string | null;
   coinjoin: boolean;
+  multisig: boolean;
 }
 
 interface TransactionObject {
@@ -37,6 +38,7 @@ interface TransactionObject {
   size?: number;
   coinbaseAmount?: string | null;
   coinjoin?: boolean;
+  multisig?: boolean;
 }
 
 export default class Transaction {
@@ -55,6 +57,7 @@ export default class Transaction {
   size: number | null;
   coinbaseAmount: string | null;
   coinjoin: boolean | null;
+  multisig: boolean | null;
   constructor(
     hash?: string,
     type?: string,
@@ -71,6 +74,7 @@ export default class Transaction {
     size?: number,
     coinbaseAmount?: string | null,
     coinjoin?: boolean,
+    multisig?: boolean,
 ) {
     this.hash = hash ?? null;
     this.type = type ?? null;
@@ -87,9 +91,10 @@ export default class Transaction {
     this.size = size ?? null;
     this.coinbaseAmount = coinbaseAmount ?? null;
     this.coinjoin = coinjoin ?? null;
+    this.multisig = multisig ?? null;
   }
 
-  static fromRow({hash, type, block_height, block_hash, timestamp, version, confirmations, instant_lock, chain_locked, size, inputs, outputs, coinbase_amount, transfer_amount, coinjoin}: TransactionRow): Transaction {
+  static fromRow({hash, type, block_height, block_hash, timestamp, version, confirmations, instant_lock, chain_locked, size, inputs, outputs, coinbase_amount, transfer_amount, coinjoin, multisig}: TransactionRow): Transaction {
     let normalVOut: VOut[] | null = null;
     let normalVIn: VIn[] | null = null;
 
@@ -103,7 +108,7 @@ export default class Transaction {
 
     const typeText = type != null ? TransactionType[type] : null;
 
-    return new Transaction(hash, typeText, block_height, block_hash, transfer_amount, version, normalVIn, normalVOut, confirmations, instant_lock, timestamp, chain_locked, size, coinbase_amount, coinjoin);
+    return new Transaction(hash, typeText, block_height, block_hash, transfer_amount, version, normalVIn, normalVOut, confirmations, instant_lock, timestamp, chain_locked, size, coinbase_amount, coinjoin, multisig);
   }
 
   static fromObject({
@@ -122,6 +127,7 @@ export default class Transaction {
                       size,
                       coinbaseAmount,
                       coinjoin,
+                      multisig,
                     }: TransactionObject): Transaction {
     let normalVIn: VIn[] | undefined;
     let normalVOut: VOut[] | undefined;
@@ -156,6 +162,6 @@ export default class Transaction {
       });
     }
 
-    return new Transaction(hash, type, blockHeight, blockHash, amount, version, normalVIn, normalVOut, confirmations, instantLock, timestamp, chainLocked, size, coinbaseAmount, coinjoin);
+    return new Transaction(hash, type, blockHeight, blockHash, amount, version, normalVIn, normalVOut, confirmations, instantLock, timestamp, chainLocked, size, coinbaseAmount, coinjoin, multisig);
   }
 }

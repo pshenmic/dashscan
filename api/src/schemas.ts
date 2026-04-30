@@ -49,6 +49,7 @@ const schemas = [
         ],
       },
       coinjoin: { type: ['boolean', 'null'] },
+      multisig: { type: ['boolean', 'null'] },
       block_height: { type: ['integer', 'null'], minimum: 1 },
     },
   },
