@@ -30,29 +30,16 @@ export default class MainController {
   };
 
   getChainStats = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
-    const chainInfoResponse = await this.dashcoreRPC.getChainInfo();
-    const chainStats = ChainStats.fromRpcResponse(chainInfoResponse)
-
-    const {resultSet} = await this.blocksDAO.getBlocks(1, 20, 'desc');
-
-    const [lastBlock] = resultSet;
-    const [firstBlock] = resultSet.reverse();
-
-    const timeSpanMSec = lastBlock.timestamp.getTime() - firstBlock.timestamp.getTime();
-    const timeSpanSec = timeSpanMSec / 1000;
-
-    const blockTime = Math.floor((timeSpanMSec / (resultSet.length - 1)));
-
-    const transactionsCount = resultSet.reduce((acc, curr) => acc+curr.txCount, 0)
-    const transactionsPerSecond = Number((transactionsCount / timeSpanSec).toFixed(2))
-    const transactionsPerMinute = Number((transactionsCount / (timeSpanSec / 60)).toFixed(2))
+    const [chainInfoResponse, dbStats] = await Promise.all([
+      this.dashcoreRPC.getChainInfo(),
+      this.blocksDAO.getChainStats(120, 20),
+    ]);
 
     response.send(ChainStats.fromObject({
-      ...chainStats,
-      blockTime,
-      transactionsPerSecond,
-      transactionsPerMinute,
-      latestHeight: lastBlock.height
-    }))
+      ...dbStats,
+      chain: chainInfoResponse.chain,
+      sizeOnDisk: chainInfoResponse.size_on_disk,
+      difficulty: chainInfoResponse.difficulty,
+    }));
   }
 }

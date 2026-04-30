@@ -194,7 +194,14 @@ Returns a single block by its hash.
 
 Returns a paginated list of transactions. Include pending transactions
 
-**Query Parameters:** [Pagination](#pagination-query-parameters)
+**Query Parameters:** [Pagination](#pagination-query-parameters), plus optional filters:
+
+| Parameter          | Type    | Constraints                                  | Description                                                                |
+|--------------------|---------|----------------------------------------------|----------------------------------------------------------------------------|
+| `transaction_type` | string  | one of the [transaction type](#transaction-types) names (e.g. `CLASSIC`, `COINBASE`) | Filter by transaction type                                                 |
+| `coinjoin`         | boolean |                                              | Filter to (`true`) or exclude (`false`) CoinJoin-pattern transactions      |
+| `multisig`         | boolean |                                              | Filter to (`true`) or exclude (`false`) transactions with multisig outputs |
+| `block_height`     | integer | minimum: 1                                   | Filter to transactions in a specific block height                          |
 
 **Response `200`**
 
@@ -203,10 +210,10 @@ Returns a paginated list of transactions. Include pending transactions
   "resultSet": [
     {
       "hash": "abcdef1234...",
-      "type": 0,
+      "type": "CLASSIC",
       "blockHeight": 100000,
       "blockHash": "000000000000abcd1234...",
-      "amount": 100000000,
+      "amount": "100000000",
       "version": 3,
       "vIn": [
         {
@@ -228,7 +235,10 @@ Returns a paginated list of transactions. Include pending transactions
       ],
       "confirmations": 10,
       "instantLock": "0102375e39652fee756b492762510aea4087d57b486a89f2f78f52c840f02079052f000000007652da0e18a07bcde5a2205ff041dd0b14b4b7a81b2e0ccaf5118dfe79e56aba00000000f274ca0dd6640a9236dc987e5f09db412ed2bc37806ae90bc6f34f9fd36a7a28da45b260ae37978f3a8fb973c48418a92f41e1e2b77a9d720400000000000000abc1c3d6ddaccf322f655f59979d037badc840328b0da023f70d9d1adea046f9b4486c929ff0c15f2c9036d757ca44ae168e315ba07c19269d7b44c2bf722b811aa9ab0c978198ef3637d4b20e3e316e3459ed3d75dbbafd4966a4d571d32a0a",
-      "chainLocked": true
+      "chainLocked": true,
+      "coinbaseAmount": null,
+      "coinjoin": false,
+      "multisig": false
     }
   ],
   "pagination": {
@@ -256,11 +266,11 @@ Returns a single transaction by its hash.
 ```json
 {
   "hash": "abcdef1234...",
-  "type": 0,
+  "type": "CLASSIC",
   "blockHeight": 100000,
   "blockHash": "000000000000abcd1234...",
   "timestamp": "2023-01-01T00:00:00.000Z",
-  "amount": null,
+  "amount": "100000000",
   "version": 3,
   "size": 226,
   "vIn": [
@@ -283,7 +293,10 @@ Returns a single transaction by its hash.
   ],
   "confirmations": 10,
   "instantLock": "0102375e39652fee756b...d571d32a0a",
-  "chainLocked": true
+  "chainLocked": true,
+  "coinbaseAmount": null,
+  "coinjoin": false,
+  "multisig": false
 }
 ```
 
@@ -291,21 +304,41 @@ Returns a single transaction by its hash.
 
 #### Transaction Object
 
-| Field           | Type           | Description                                                      |
-|-----------------|----------------|------------------------------------------------------------------|
-| `hash`          | string         | Transaction hash (64-char hex)                                   |
-| `type`          | number         | Transaction type                                                 |
-| `blockHeight`   | number \| null | Height of the block containing this transaction                  |
-| `blockHash`     | string \| null | Hash of the block containing this transaction                    |
-| `timestamp`     | string \| null | ISO 8601 block timestamp, or `null` for pending transactions     |
-| `amount`        | number \| null | Transaction amount in duffs                                      |
-| `version`       | number \| null | Transaction version (only populated on single-tx endpoint)       |
-| `size`          | number \| null | Transaction size in bytes (only populated on single-tx endpoint) |
-| `vIn`           | VIn[]          | Array of transaction inputs                                      |
-| `vOut`          | VOut[]         | Array of transaction outputs                                     |
-| `confirmations` | number \| null | Number of confirmations                                          |
-| `instantLock`   | string \| null | Raw InstantSend lock hex (ISLOCK), or `null` if not IS-locked    |
-| `chainLocked`   | boolean        | Whether the transaction's block has a ChainLock                  |
+| Field            | Type           | Description                                                                                  |
+|------------------|----------------|----------------------------------------------------------------------------------------------|
+| `hash`           | string         | Transaction hash (64-char hex)                                                               |
+| `type`           | string \| null | [Transaction type](#transaction-types) name (e.g. `CLASSIC`, `COINBASE`)                     |
+| `blockHeight`    | number \| null | Height of the block containing this transaction                                              |
+| `blockHash`      | string \| null | Hash of the block containing this transaction                                                |
+| `timestamp`      | string \| null | ISO 8601 block timestamp, or `null` for pending transactions                                 |
+| `amount`         | string \| null | Transferred value in duffs (sum of outputs less change), `null` if unavailable               |
+| `version`        | number \| null | Transaction version (only populated on single-tx endpoint)                                   |
+| `size`           | number \| null | Transaction size in bytes (only populated on single-tx endpoint)                             |
+| `vIn`            | VIn[]          | Array of transaction inputs                                                                  |
+| `vOut`           | VOut[]         | Array of transaction outputs                                                                 |
+| `confirmations`  | number \| null | Number of confirmations                                                                      |
+| `instantLock`    | string \| null | Raw InstantSend lock hex (ISLOCK), or `null` if not IS-locked                                |
+| `chainLocked`    | boolean        | Whether the transaction's block has a ChainLock                                              |
+| `coinbaseAmount` | string \| null | Coinbase reward in duffs for coinbase transactions, `null` for non-coinbase                  |
+| `coinjoin`       | boolean        | Whether this transaction matches the CoinJoin (mixing) pattern                               |
+| `multisig`       | boolean        | Whether this transaction has any multisig outputs (bare multisig or P2SH-wrapped multisig)   |
+
+#### Transaction Types
+
+DIP-2 special-transaction type values. The numeric value is returned in the `type` field of the [Transaction Object](#transaction-object); the string name is what the `transaction_type` query filter on `GET /transactions` accepts.
+
+| Value | Name                          | Description                       |
+|-------|-------------------------------|-----------------------------------|
+| `0`   | `CLASSIC`                     | Standard transaction              |
+| `1`   | `PROVIDER_REGISTRATION`       | Masternode registration           |
+| `2`   | `PROVIDER_UPDATE_SERVICE`     | Masternode service update         |
+| `3`   | `PROVIDER_UPDATE_REGISTRAR`   | Masternode registrar update       |
+| `4`   | `PROVIDER_UPDATE_REVOCATION`  | Masternode revocation             |
+| `5`   | `COINBASE`                    | Coinbase transaction              |
+| `6`   | `QUORUM_COMMITMENT`           | LLMQ commitment                   |
+| `7`   | `MASTERNODE_HARD_FORK_SIGNAL` | Masternode hard-fork signal       |
+| `8`   | `ASSET_LOCK`                  | Asset lock (Platform credit)      |
+| `9`   | `ASSET_UNLOCK`                | Asset unlock (Platform withdraw)  |
 
 #### VIn Object
 
@@ -347,16 +380,19 @@ Returns a paginated list of transactions for a specific block height.
   "resultSet": [
     {
       "hash": "abcdef1234...",
-      "type": 0,
+      "type": "CLASSIC",
       "blockHeight": 100000,
       "blockHash": "000000000000abcd1234...",
-      "amount": 100000000,
+      "amount": "100000000",
       "version": 3,
       "vIn": [...],
       "vOut": [...],
       "confirmations": 10,
       "instantLock": "0102375e...d571d32a0a",
-      "chainLocked": true
+      "chainLocked": true,
+      "coinbaseAmount": null,
+      "coinjoin": false,
+      "multisig": false
     }
   ],
   "pagination": {
@@ -424,15 +460,17 @@ Returns a single address with aggregated balance and activity stats.
 
 ```json
 {
-  "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
-  "firstSeenBlock": "000000000000abcd1234...",
-  "firstSeenTx": "abcdef1234...",
-  "lastSeenBlock": "000000000000efgh5678...",
-  "lastSeenTx": "fedcba4321...",
-  "txCount": "42",
-  "received": "100000000",
-  "sent": "25000000",
-  "balance": "75000000"
+  "address": "XwykuvxKBWT2dGN2Q9Y4Dqwo5riyf3C2At",
+  "firstSeenBlock": "0000000000000011c157d5c2bcea7a435370f6675b306f34c1b6084df32ce4c0",
+  "firstSeenBlockTimestamp": "2026-04-24T15:30:24.000Z",
+  "firstSeenTx": "c895cb8dbc81821c2ae5d79b4697527d9e8c4ae84e568adaa768f84fb9db094f",
+  "lastSeenBlock": "0000000000000011c157d5c2bcea7a435370f6675b306f34c1b6084df32ce4c0",
+  "lastSeenBlockTimestamp": "2026-04-24T15:30:24.000Z",
+  "lastSeenTx": "c895cb8dbc81821c2ae5d79b4697527d9e8c4ae84e568adaa768f84fb9db094f",
+  "txCount": 2,
+  "received": "950718575",
+  "sent": "950718575",
+  "balance": "0"
 }
 ```
 
@@ -475,17 +513,20 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
   "resultSet": [
     {
       "hash": "abcdef1234...",
-      "type": 0,
+      "type": "CLASSIC",
       "blockHeight": 100000,
       "blockHash": "000000000000abcd1234...",
       "timestamp": "2023-01-01T00:00:00.000Z",
-      "amount": null,
+      "amount": "100000000",
       "version": 3,
       "vIn": [...],
       "vOut": [...],
       "confirmations": 10,
       "instantLock": "0102375e...d571d32a0a",
-      "chainLocked": true
+      "chainLocked": true,
+      "coinbaseAmount": null,
+      "coinjoin": false,
+      "multisig": false
     }
   ],
   "pagination": {
@@ -497,6 +538,100 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
 ```
 
 Entries use the [Transaction Object](#transaction-object) shape. `total` reflects the distinct count of transactions the address appears in. Pending transactions (no block) are included with `blockHeight`, `blockHash`, `timestamp`, and `confirmations` set to `null`.
+
+---
+
+### GET /address/:address/utxo
+
+Returns a paginated list of unspent transaction outputs (UTXOs) for the given address, ordered by amount.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                                | Description  |
+|-----------|--------|--------------------------------------------|--------------|
+| `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
+
+**Query Parameters:** [Pagination](#pagination-query-parameters). `order` sorts by UTXO amount (`asc`/`desc`).
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "prevTxHash": "abcdef1234...",
+      "vOutIndex": 0,
+      "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+      "amount": "100000000",
+      "sequence": null,
+      "scriptSigASM": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 17
+  }
+}
+```
+
+Entries use the [VIn Object](#vin-object) shape. `prevTxHash` and `vOutIndex` identify the unspent output; `amount` is in duffs as a string. `sequence` and `scriptSigASM` are always `null` for UTXOs (they apply only to inputs that have spent the output).
+
+---
+
+### GET /addresses/rich-list
+
+Returns a paginated rich-list view: addresses sorted by current UTXO balance, each annotated with the share of total chain supply they hold. Backed by a materialized view (`address_balances`) refreshed by the indexer every block, so values lag the chain tip by at most one block.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters). Use `order=desc` to get the largest holders first (the rich-list view).
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+      "balance": "543210000000000",
+      "concentration": "5.123456789012"
+    },
+    {
+      "address": "XfooBar...",
+      "balance": "100000000000",
+      "concentration": "0.000943217650"
+    },
+    {
+      "address": "others",
+      "balance": "<remaining duffs>",
+      "concentration": "<remaining percent>"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 1234567
+  }
+}
+```
+
+#### Address Balance Object
+
+| Field           | Type           | Description                                                                                          |
+|-----------------|----------------|------------------------------------------------------------------------------------------------------|
+| `address`       | string \| null | Dash address, or the literal `"others"` for the aggregate row (see below)                            |
+| `balance`       | string \| null | UTXO balance in duffs (1 DASH = 10⁸ duffs)                                                           |
+| `concentration` | string \| null | Share of total chain supply held by this address, in percent. Fixed-decimal string with 12 decimals. |
+
+**The `"others"` row.** The last entry in `resultSet` is always a synthetic row with `address: "others"` representing every address *not* on the current page. Its `balance` is `chain_supply_in_duffs − sum(balances on this page)` and its `concentration` is the matching percentage. As a result, the page is constructed so that the displayed rows + `"others"` sum to 100% of supply. `pagination.limit` reflects the requested limit; under the hood the DAO is queried with `limit − 1` to leave room for the `"others"` row.
+
+**Sources & freshness.**
+- `address`/`balance` come from the `address_balances` materialized view (UTXO sums grouped by address). The indexer refreshes it `CONCURRENTLY` after every live block.
+- `concentration` is computed against the chain's total UTXO supply returned by Dash Core's `gettxoutsetinfo` RPC. That call is expensive (full chainstate scan) so the API caches it for 30 minutes; concentration values can therefore lag the chain tip by up to that long.
+- `pagination.total` is `pg_class.reltuples` for the matview — an approximate row count, not exact.
+
+**Caveats.**
+- These are *address*-level shares, not *holder*-level. HD wallets spread one user across many addresses (understates concentration); exchange omnibus addresses pool many users into one (overstates concentration).
+- Because the supply denominator comes from RPC (which counts UTXOs that have no parseable address — OP_RETURN, multisig, etc.) and the matview filters those out, the per-address numerators slightly underrepresent total chain supply. The `"others"` row absorbs this gap, so the page still sums to 100%.
 
 ---
 
@@ -540,6 +675,53 @@ Returns a time series of transaction counts over a configurable time range, with
 ```json
 { "message": "start timestamp cannot be more than end timestamp" }
 ```
+
+---
+
+### GET /transactions/stats
+
+Returns counts of confirmed transactions over the last 24 hours, partitioned into mutually exclusive categories.
+
+**Categorization (in priority order):**
+
+1. **Special** — `type > 0` (Dash special transactions: ProRegTx, ProUpServTx, etc.)
+2. **CoinJoin** — `type = 0 AND coinjoin = TRUE`
+3. **Multisig** — `type = 0 AND coinjoin = FALSE AND multisig = TRUE` (bare multisig outputs or P2SH-wrapped multisig redeem scripts)
+4. **Normal** — `type = 0 AND coinjoin = FALSE AND multisig = FALSE`
+
+Each transaction falls into exactly one bucket; counts sum to `total`.
+
+Pending (mempool) transactions are excluded.
+
+**Response `200`**
+
+```json
+{
+  "total": 1362,
+  "special": 5,
+  "coinjoin": 123,
+  "multisig": 0,
+  "normal": 1234
+}
+```
+
+| Field      | Type           | Description                                                                          |
+|------------|----------------|--------------------------------------------------------------------------------------|
+| `total`    | number \| null | Sum of `special + coinjoin + multisig + normal`                                      |
+| `special`  | number \| null | Confirmed special transactions (`type > 0`) in the last 24h                          |
+| `coinjoin` | number \| null | Confirmed CoinJoin transactions in the last 24h (excludes special)                   |
+| `multisig` | number \| null | Confirmed multisig transactions in the last 24h (excludes special and CoinJoin)      |
+| `normal`   | number \| null | Confirmed transactions that are none of the above in the last 24h                    |
+
+> All fields are `null` when no rows can be derived (e.g. no indexed blocks). Otherwise counts are `0` or positive integers.
+
+**Response `404`**
+
+```json
+{ "error": "stats not available" }
+```
+
+Returned when the underlying query yields no result row.
 
 ---
 
@@ -923,7 +1105,7 @@ Returns a list of pending transactions.
   "resultSet": [
     {
       "hash": "4b82593225c75ad9566fe2938291edc53afc3eb9e61ced51a47bb98264dc1cb4",
-      "type": 0,
+      "type": "CLASSIC",
       "blockHeight": null,
       "blockHash": null,
       "timestamp": null,
@@ -1013,7 +1195,7 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
 
 ### GET /chain/stats
 
-Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics computed from the 20 most recently indexed blocks.
+Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics from the last 20 indexed blocks, network hash rate from the last 120 indexed blocks, and the current indexed mempool size.
 
 **Response `200`**
 
@@ -1025,18 +1207,22 @@ Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics
   "blockTime": 154321,
   "transactionsPerSecond": 1.23,
   "transactionsPerMinute": 73.8,
-  "latestHeight": 2100000
+  "latestHeight": 2100000,
+  "hashRate": "2482447954304473",
+  "mempoolSize": 5
 }
 ```
 
 #### ChainStats Object
 
-| Field                   | Type           | Description                                                                   |
-|-------------------------|----------------|-------------------------------------------------------------------------------|
-| `chain`                 | string \| null | Network name (e.g. `main`, `test`)                                            |
-| `sizeOnDisk`            | number \| null | Size of the block storage on the Dash Core node in bytes                      |
-| `difficulty`            | number \| null | Current mining difficulty                                                     |
-| `blockTime`             | number \| null | Average time between blocks in milliseconds, over the last 20 indexed blocks  |
-| `transactionsPerSecond` | number \| null | Average transactions per second over the last 20 indexed blocks               |
-| `transactionsPerMinute` | number \| null | Average transactions per minute over the last 20 indexed blocks               |
-| `latestHeight`          | number \| null | Height of the most recently indexed block                                     |
+| Field                   | Type           | Description                                                                                                  |
+|-------------------------|----------------|--------------------------------------------------------------------------------------------------------------|
+| `chain`                 | string \| null | Network name (e.g. `main`, `test`)                                                                           |
+| `sizeOnDisk`            | number \| null | Size of the block storage on the Dash Core node in bytes                                                     |
+| `difficulty`            | number \| null | Current mining difficulty                                                                                    |
+| `blockTime`             | number \| null | Average time between blocks in milliseconds, over the last 20 indexed blocks                                 |
+| `transactionsPerSecond` | number \| null | Average transactions per second over the last 20 indexed blocks                                              |
+| `transactionsPerMinute` | number \| null | Average transactions per minute over the last 20 indexed blocks                                              |
+| `latestHeight`          | number \| null | Height of the most recently indexed block                                                                    |
+| `hashRate`              | string \| null | Estimated network hash rate in H/s over the last 120 indexed blocks. Returned as a string (may exceed JS safe-integer range) |
+| `mempoolSize`           | number \| null | Number of pending (unconfirmed) transactions currently indexed (`block_height IS NULL`)                      |

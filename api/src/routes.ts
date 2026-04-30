@@ -65,6 +65,11 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/transactions/stats',
+      method: 'get',
+      handler: transactionsController.getTransactionStats,
+    },
+    {
       path: '/transactions/chart',
       method: 'get',
       handler: transactionsController.getTransactionCountSeries,
@@ -291,6 +296,28 @@ export default function Routes({ fastify, mainController, blocksController, tran
         },
         querystring: { $ref: 'timeInterval#' },
       },
+    },
+    {
+      path: '/address/:address/utxo',
+      method: 'get',
+      handler: addressesController.getAddressUtxo,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            address: { $ref: 'address#' },
+          },
+        },
+        querystring: { $ref: 'paginationOptions#' },
+      }
+    },
+    {
+      path: '/addresses/rich-list',
+      method: 'get',
+      handler: addressesController.getBalancesInfo,
+      schema: {
+        querystring: { $ref: 'paginationOptions#' },
+      }
     },
     {
       path: '/governance/budget',
