@@ -1,5 +1,6 @@
 import {Knex} from 'knex';
 import Block from '../models/Block';
+import ChainStats from '../models/ChainStats';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
 
@@ -94,7 +95,7 @@ export default class BlocksDAO {
     ));
   }
 
-  getChainStats = async (blocksForHashRate: number, blocksForBlockTime: number) => {
+  getChainStats = async (blocksForHashRate: number, blocksForBlockTime: number): Promise<ChainStats> => {
     const topBlocks = this.knex('blocks')
       .select('height', 'timestamp', 'difficulty', 'tx_count')
       .orderBy('height', 'desc')
@@ -119,7 +120,7 @@ export default class BlocksDAO {
       .select(this.knex.raw('(SELECT COUNT(*) FROM transactions WHERE block_height IS NULL)::bigint AS mempool_size'))
       .from('recent');
 
-    return row;
+    return ChainStats.fromRow(row);
   };
 
   getBlockByHash = async (hash: string): Promise<Block | null> => {
