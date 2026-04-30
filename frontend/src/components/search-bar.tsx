@@ -88,7 +88,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
         category: "Address",
         label: data.address.address,
         icon: Wallet,
-        to: `/wallet/${data.address.address}`,
+        to: `/address/${data.address.address}`,
       });
     }
 

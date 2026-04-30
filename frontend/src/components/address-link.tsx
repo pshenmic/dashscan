@@ -13,7 +13,7 @@ export function AddressLink({
     return <span className="font-mono text-muted-foreground">—</span>;
   }
   return (
-    <Link to="/wallet/$address" params={{ address }} className={className}>
+    <Link to="/address/$address" params={{ address }} className={className}>
       {address}
     </Link>
   );
