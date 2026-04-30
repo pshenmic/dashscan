@@ -236,7 +236,6 @@ Returns a paginated list of transactions. Include pending transactions
       "confirmations": 10,
       "instantLock": "0102375e39652fee756b492762510aea4087d57b486a89f2f78f52c840f02079052f000000007652da0e18a07bcde5a2205ff041dd0b14b4b7a81b2e0ccaf5118dfe79e56aba00000000f274ca0dd6640a9236dc987e5f09db412ed2bc37806ae90bc6f34f9fd36a7a28da45b260ae37978f3a8fb973c48418a92f41e1e2b77a9d720400000000000000abc1c3d6ddaccf322f655f59979d037badc840328b0da023f70d9d1adea046f9b4486c929ff0c15f2c9036d757ca44ae168e315ba07c19269d7b44c2bf722b811aa9ab0c978198ef3637d4b20e3e316e3459ed3d75dbbafd4966a4d571d32a0a",
       "chainLocked": true,
-      "coinbaseAmount": null,
       "coinjoin": false,
       "multisig": false
     }
@@ -294,7 +293,6 @@ Returns a single transaction by its hash.
   "confirmations": 10,
   "instantLock": "0102375e39652fee756b...d571d32a0a",
   "chainLocked": true,
-  "coinbaseAmount": null,
   "coinjoin": false,
   "multisig": false
 }
@@ -319,7 +317,6 @@ Returns a single transaction by its hash.
 | `confirmations`  | number \| null | Number of confirmations                                                                      |
 | `instantLock`    | string \| null | Raw InstantSend lock hex (ISLOCK), or `null` if not IS-locked                                |
 | `chainLocked`    | boolean        | Whether the transaction's block has a ChainLock                                              |
-| `coinbaseAmount` | string \| null | Coinbase reward in duffs for coinbase transactions, `null` for non-coinbase                  |
 | `coinjoin`       | boolean        | Whether this transaction matches the CoinJoin (mixing) pattern                               |
 | `multisig`       | boolean        | Whether this transaction has any multisig outputs (bare multisig or P2SH-wrapped multisig)   |
 
@@ -390,7 +387,6 @@ Returns a paginated list of transactions for a specific block height.
       "confirmations": 10,
       "instantLock": "0102375e...d571d32a0a",
       "chainLocked": true,
-      "coinbaseAmount": null,
       "coinjoin": false,
       "multisig": false
     }
@@ -524,7 +520,6 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
       "confirmations": 10,
       "instantLock": "0102375e...d571d32a0a",
       "chainLocked": true,
-      "coinbaseAmount": null,
       "coinjoin": false,
       "multisig": false
     }

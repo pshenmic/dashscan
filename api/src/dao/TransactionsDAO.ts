@@ -46,7 +46,6 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.id',
         'transactions.version',
-        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin',
         'transactions.multisig'
@@ -99,7 +98,7 @@ export default class TransactionsDAO {
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
-        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
+        'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -164,7 +163,6 @@ export default class TransactionsDAO {
         'subquery.chain_locked',
         'blocks.hash as block_hash',
         'blocks.timestamp as timestamp',
-        this.knex.raw('subquery.coinbase_amount::text as coinbase_amount'),
         this.knex.raw('subquery.transfer_amount::text as transfer_amount'),
         'subquery.coinjoin',
         'subquery.multisig',
@@ -199,7 +197,6 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.id',
         'transactions.version',
-        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin',
         'transactions.multisig',
@@ -251,7 +248,7 @@ export default class TransactionsDAO {
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
-        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
+        'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -279,7 +276,6 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.id',
         'transactions.version',
-        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin',
         'transactions.multisig'
@@ -324,7 +320,7 @@ export default class TransactionsDAO {
       .select(
         'subquery.hash', 'type', 'chain_locked', 'instant_lock',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
-        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
+        'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -407,7 +403,6 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.version',
         'transactions.id',
-        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin',
         'transactions.multisig',
@@ -456,7 +451,7 @@ export default class TransactionsDAO {
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
-        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
+        'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
