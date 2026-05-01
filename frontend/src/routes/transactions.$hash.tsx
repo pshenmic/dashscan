@@ -3,28 +3,45 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
   ArrowDown,
-  ArrowLeftRight,
   ArrowUp,
   CheckCircle2,
   Clock,
-  Lock,
-  ShieldCheck,
+  Coins,
+  FileText,
 } from "lucide-react";
-import type { ComponentType, ReactNode, SVGProps } from "react";
-import { AddressLink } from "@/components/address-link";
 import { CopyButton } from "@/components/copy-button";
-import { HashCell } from "@/components/hash-cell";
-import { PageStatus } from "@/components/page-status";
+import {
+  type DescriptionItem,
+  DescriptionList,
+} from "@/components/description-list";
+import { EmptyState } from "@/components/empty-state";
+import { HashDisplay } from "@/components/hash-display";
+import { PageHeader } from "@/components/page-header";
+import {
+  ChainLockBadge,
+  ConfirmationsBadge,
+  InstantLockBadge,
+  TxTypeBadge,
+} from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
 import {
   DUFFS_PER_DASH,
-  formatDuffs,
   formatRelativeTime,
-  getTxTypeBadgeStyle,
-  getTxTypeLabel,
+  highlightJson,
 } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 
@@ -40,8 +57,6 @@ export const Route = createFileRoute("/transactions/$hash")({
     );
   },
 });
-
-type IconType = ComponentType<SVGProps<SVGSVGElement>>;
 
 function sumInputs(vIn: ApiVIn[] | null | undefined): number | null {
   if (!vIn || vIn.length === 0) return null;
@@ -66,23 +81,19 @@ function sumOutputs(vOut: ApiVOut[] | null | undefined): number | null {
   return total;
 }
 
-function deriveStatus(tx: ApiTransaction): {
-  label: string;
-  tone: "success" | "warning";
-  icon: IconType;
-} {
-  if (tx.chainLocked) {
-    return { label: "Chain Locked", tone: "success", icon: Lock };
-  }
-  if (tx.confirmations && tx.confirmations > 0) {
-    return { label: "Confirmed", tone: "success", icon: CheckCircle2 };
-  }
-  return { label: "Pending", tone: "warning", icon: Clock };
-}
-
 function formatDashAmount(value: number | null): string {
   if (value == null) return "—";
   return (value / DUFFS_PER_DASH).toFixed(8);
+}
+
+function DashAmount({ value }: { value: number | null }) {
+  if (value == null) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className="font-mono tabular-nums">
+      {formatDashAmount(value)}{" "}
+      <span className="text-muted-foreground">DASH</span>
+    </span>
+  );
 }
 
 function TransactionDetailPage() {
@@ -94,16 +105,23 @@ function TransactionDetailPage() {
   );
 
   if (isFetching && !tx) {
-    return <PageStatus message="Loading transaction..." />;
+    return (
+      <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
+        <Skeleton className="h-8 w-72" />
+        <Skeleton className="mt-4 h-64 w-full" />
+      </div>
+    );
   }
   if (!tx) {
-    return <PageStatus message="Transaction not found." />;
+    return (
+      <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
+        <EmptyState
+          title="Transaction not found"
+          description="We couldn't find a transaction with that hash on the current network."
+        />
+      </div>
+    );
   }
-
-  const status = deriveStatus(tx);
-  const StatusIcon = status.icon;
-  const typeLabel = getTxTypeLabel(tx.type);
-  const typeBadgeStyle = getTxTypeBadgeStyle(tx.type);
 
   const totalInput = sumInputs(tx.vIn);
   const totalOutput = sumOutputs(tx.vOut);
@@ -112,449 +130,295 @@ function TransactionDetailPage() {
       ? null
       : Math.max(0, totalInput - totalOutput);
 
-  const hasInputs = tx.vIn && tx.vIn.length > 0;
-  const hasOutputs = tx.vOut && tx.vOut.length > 0;
+  const isCoinbase = tx.type === 5;
+  const isQuorum = tx.type === 6;
+  const hasInputs = (tx.vIn?.length ?? 0) > 0;
+  const hasOutputs = (tx.vOut?.length ?? 0) > 0;
 
-  return (
-    <main className="mx-auto max-w-[1440px] px-6 py-10">
-      <h1 className="mb-8 text-4xl tracking-tight animate-fade-in-up">
-        Transaction Details
-      </h1>
+  const statusBadge =
+    tx.confirmations > 0 ? (
+      <Badge variant="soft-success">
+        <CheckCircle2 className="size-3" /> Confirmed
+      </Badge>
+    ) : (
+      <Badge variant="soft">
+        <Clock className="size-3" /> Pending
+      </Badge>
+    );
 
-      <div
-        className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up"
-        style={{ animationDelay: "100ms" }}
-      >
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <IconTile
-              icon={StatusIcon}
-              label="Status"
-              tone={status.tone}
-              value={
-                <Badge
-                  className={
-                    status.tone === "success"
-                      ? "bg-accent/12 font-bold text-accent"
-                      : "bg-amber-500/12 font-bold text-amber-500"
-                  }
-                >
-                  {status.label}
-                </Badge>
-              }
-            />
-            <IconTile
-              icon={ShieldCheck}
-              label="Confirmations"
-              value={
-                <p className="text-3xl font-extrabold">
-                  {(tx.confirmations ?? 0).toLocaleString()}
-                </p>
-              }
-            />
-          </div>
-
-          <Card className="flex flex-row items-center gap-6 rounded-2xl border-0 px-5 py-4 sm:px-6 sm:py-[22px]">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-full border border-accent/12 text-accent">
-              <ArrowLeftRight className="size-7" />
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-sm text-muted-foreground">Transaction Type</p>
-              <Badge
-                className={`h-7 w-fit whitespace-nowrap border px-3 font-medium ${typeBadgeStyle}`}
-              >
-                {typeLabel}
-              </Badge>
-            </div>
-          </Card>
-
-          <Card className="border-0 px-6 py-4">
-            <div className="flex flex-col">
-              <DetailRow label="Transaction Hash">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <HashCell hash={tx.hash} />
-                  <CopyButton value={tx.hash} />
-                </div>
-              </DetailRow>
-              <DetailRow label="Block">
-                {tx.blockHeight != null ? (
-                  <div className="flex items-center gap-1.5">
-                    <Link
-                      to="/blocks/$hashOrHeight"
-                      params={{ hashOrHeight: String(tx.blockHeight) }}
-                      className="font-mono text-accent hover:underline"
-                    >
-                      #{tx.blockHeight}
-                    </Link>
-                    {tx.blockHash ? <CopyButton value={tx.blockHash} /> : null}
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">Mempool</span>
-                )}
-              </DetailRow>
-              <DetailRow label="Timestamp">
-                {tx.timestamp ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span>{new Date(tx.timestamp).toLocaleString()}</span>
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-border text-xs font-medium"
-                    >
-                      {formatRelativeTime(tx.timestamp)}
-                    </Badge>
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </DetailRow>
-              {tx.type === 5 ? (
-                <DetailRow label="Block Reward">
-                  <AmountValue value={totalOutput} />
-                </DetailRow>
-              ) : tx.type !== 6 ? (
-                <>
-                  <DetailRow label="Total Input">
-                    <AmountValue value={totalInput} />
-                  </DetailRow>
-                  <DetailRow label="Total Output">
-                    <AmountValue value={totalOutput} />
-                  </DetailRow>
-                  <DetailRow label="Fee">
-                    <AmountValue value={fee} muted />
-                  </DetailRow>
-                </>
-              ) : null}
-              {tx.size != null ? (
-                <DetailRow label="Size">
-                  <span>
-                    <span className="font-bold">{tx.size}</span> bytes
-                  </span>
-                </DetailRow>
-              ) : null}
-            </div>
-          </Card>
-        </div>
-
-        <Card className="flex flex-col gap-3 border-0 px-6 py-5">
-          <h2 className="text-sm text-foreground">Extra Payload</h2>
-          <div className="flex flex-col">
-            <DetailRow label="Version">
-              <span className="font-bold">{tx.version ?? "—"}</span>
-            </DetailRow>
-            <DetailRow label="Type">
-              <span className="font-bold">
-                {tx.type} <span className="text-muted-foreground">·</span>{" "}
-                {typeLabel}
-              </span>
-            </DetailRow>
-            {tx.size != null ? (
-              <DetailRow label="Size">
-                <span>
-                  <span className="font-bold">{tx.size}</span> bytes
-                </span>
-              </DetailRow>
-            ) : null}
-            <DetailRow label="Confirmations">
-              <span className="font-bold">
-                {(tx.confirmations ?? 0).toLocaleString()}
-              </span>
-            </DetailRow>
-            <DetailRow label="Chain Locked">
-              <span className="font-bold">{tx.chainLocked ? "Yes" : "No"}</span>
-            </DetailRow>
-            {tx.blockHash ? (
-              <DetailRow label="Block Hash">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <HashCell hash={tx.blockHash} />
-                  <CopyButton value={tx.blockHash} />
-                </div>
-              </DetailRow>
-            ) : null}
-            {tx.instantLock ? (
-              <DetailRow label="InstantSend Lock">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <HashCell hash={tx.instantLock} />
-                  <CopyButton value={tx.instantLock} />
-                </div>
-              </DetailRow>
-            ) : null}
-          </div>
-        </Card>
-      </div>
-
-      <div
-        className="grid gap-6 lg:grid-cols-2 animate-fade-in-up"
-        style={{ animationDelay: "200ms" }}
-      >
-        <IoSection
-          title="Inputs"
-          icon={ArrowDown}
-          count={tx.vIn?.length ?? 0}
-          total={totalInput}
-        >
-          {hasInputs ? (
-            <InputsTable vIn={tx.vIn ?? []} />
-          ) : (
-            <EmptyIo
-              message={
-                tx.type === 5
-                  ? "No inputs (coinbase transaction)."
-                  : tx.type === 6
-                    ? "Not applicable for quorum commitment."
-                    : "No inputs."
-              }
-            />
-          )}
-        </IoSection>
-
-        <IoSection
-          title="Outputs"
-          icon={ArrowUp}
-          count={tx.vOut?.length ?? 0}
-          total={totalOutput}
-        >
-          {hasOutputs ? (
-            <OutputsTable vOut={tx.vOut ?? []} />
-          ) : (
-            <EmptyIo
-              message={
-                tx.type === 6
-                  ? "Not applicable for quorum commitment."
-                  : "No outputs."
-              }
-            />
-          )}
-        </IoSection>
-      </div>
-    </main>
-  );
-}
-
-function IconTile({
-  icon: Icon,
-  label,
-  value,
-  tone = "default",
-}: {
-  icon: IconType;
-  label: string;
-  value: ReactNode;
-  tone?: "default" | "success" | "warning";
-}) {
-  const ringClass =
-    tone === "warning"
-      ? "border-amber-500/20 text-amber-500"
-      : "border-accent/12 text-accent";
-  return (
-    <Card className="flex flex-row items-center gap-4 rounded-2xl border-0 px-5 py-4 sm:px-6 sm:py-[22px]">
-      <div
-        className={`flex size-14 shrink-0 items-center justify-center rounded-full border ${ringClass}`}
-      >
-        <Icon className="size-7" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <div className="mt-1">{value}</div>
-      </div>
-    </Card>
-  );
-}
-
-function DetailRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-6 py-3">
-      <span className="min-w-24 shrink-0 text-xs text-muted-foreground">
-        {label}
-      </span>
-      <div className="flex min-w-0 items-center text-xs">{children}</div>
-    </div>
-  );
-}
-
-function AmountValue({
-  value,
-  muted = false,
-}: {
-  value: number | null;
-  muted?: boolean;
-}) {
-  const amount = formatDashAmount(value);
-  return (
-    <span className={muted ? "text-muted-foreground" : undefined}>
-      <span className="font-bold">{amount}</span>{" "}
-      <span className="text-muted-foreground">DASH</span>
-    </span>
-  );
-}
-
-function IoSection({
-  title,
-  icon: Icon,
-  count,
-  total,
-  children,
-}: {
-  title: string;
-  icon: IconType;
-  count: number;
-  total: number | null;
-  children: ReactNode;
-}) {
-  return (
-    <Card className="border-0 px-5 py-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-full border border-accent/12 text-accent">
-            <Icon className="size-4" />
-          </div>
-          <h2 className="text-lg">{title}</h2>
-          <Badge
-            variant="outline"
-            className="rounded-full border-border text-xs font-medium"
+  const items: DescriptionItem[] = [
+    {
+      label: "Hash",
+      value: <HashDisplay value={tx.hash} variant="full" />,
+    },
+    {
+      label: "Block",
+      value:
+        tx.blockHeight != null ? (
+          <Link
+            to="/blocks/$hashOrHeight"
+            params={{ hashOrHeight: tx.blockHash }}
+            className="font-mono text-sm text-accent no-underline hover:underline"
           >
-            {count}
+            #{tx.blockHeight.toLocaleString()}
+          </Link>
+        ) : (
+          <span className="text-muted-foreground">Mempool</span>
+        ),
+    },
+    {
+      label: "Timestamp",
+      value: tx.timestamp ? (
+        <span className="flex flex-wrap items-center gap-2">
+          <span>{new Date(tx.timestamp).toLocaleString()}</span>
+          <Badge variant="outline" className="text-xs">
+            {formatRelativeTime(tx.timestamp)}
           </Badge>
-        </div>
-        {total != null ? <DashAmountBadge value={total} /> : null}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+    },
+    {
+      label: "Confirmations",
+      value: (tx.confirmations ?? 0).toLocaleString(),
+    },
+    ...(isCoinbase
+      ? [
+          {
+            label: "Block Reward",
+            value: <DashAmount value={totalOutput} />,
+          },
+        ]
+      : isQuorum
+        ? []
+        : [
+            {
+              label: "Total Input",
+              value: <DashAmount value={totalInput} />,
+            },
+            {
+              label: "Total Output",
+              value: <DashAmount value={totalOutput} />,
+            },
+            {
+              label: "Fee",
+              value: <DashAmount value={fee} />,
+            },
+          ]),
+    {
+      label: "Size",
+      value:
+        tx.size != null ? (
+          <span className="font-mono text-sm tabular-nums">
+            {tx.size.toLocaleString()} bytes
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      label: "Version",
+      value: tx.version ?? "—",
+    },
+  ];
+
+  return (
+    <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-8">
+        <PageHeader
+          breadcrumb={[
+            { label: "Home", to: "/" },
+            { label: "Transactions", to: "/transactions" },
+            { label: `${tx.hash.slice(0, 10)}…` },
+          ]}
+          title="Transaction"
+          subtitle={
+            <span className="font-mono text-xs sm:text-sm">{tx.hash}</span>
+          }
+          actions={<CopyButton value={tx.hash} label="Hash" size="md" />}
+          badges={
+            <>
+              {statusBadge}
+              <ConfirmationsBadge confirmations={tx.confirmations ?? 0} />
+              <ChainLockBadge locked={tx.chainLocked} />
+              <InstantLockBadge locked={tx.instantLock} />
+              <TxTypeBadge type={tx.type} />
+            </>
+          }
+        />
+
+        <Card className="p-6">
+          <DescriptionList items={items} />
+        </Card>
+
+        <Tabs defaultValue="inputs" className="gap-4">
+          <TabsList>
+            <TabsTrigger value="inputs" className="gap-1.5">
+              <ArrowDown className="size-3.5" /> Inputs
+              <span className="text-muted-foreground">
+                ({tx.vIn?.length ?? 0})
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="outputs" className="gap-1.5">
+              <ArrowUp className="size-3.5" /> Outputs
+              <span className="text-muted-foreground">
+                ({tx.vOut?.length ?? 0})
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="raw" className="gap-1.5">
+              <FileText className="size-3.5" /> Raw
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="inputs">
+            <Card className="overflow-hidden p-0">
+              {hasInputs ? (
+                <Table>
+                  <TableHeader className="bg-secondary/50">
+                    <TableRow>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Previous Output</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tx.vIn.map((input, idx) => (
+                      <TableRow
+                        key={`${input.prevTxHash ?? "coinbase"}-${
+                          input.vOutIndex ?? idx
+                        }`}
+                      >
+                        <TableCell className="text-muted-foreground">
+                          {idx}
+                        </TableCell>
+                        <TableCell>
+                          {input.address ? (
+                            <HashDisplay
+                              value={input.address}
+                              href="/address/$address"
+                              params={{ address: input.address }}
+                            />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {input.prevTxHash ? (
+                            <Link
+                              to="/transactions/$hash"
+                              params={{ hash: input.prevTxHash }}
+                              className="font-mono text-sm text-accent no-underline hover:underline"
+                            >
+                              {input.prevTxHash.slice(0, 10)}…:
+                              {input.vOutIndex ?? 0}
+                            </Link>
+                          ) : (
+                            <Badge variant="soft-accent">
+                              <Coins className="size-3" /> Coinbase
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {input.amount != null ? (
+                            <DashAmount value={Number(input.amount)} />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <EmptyState
+                  title={
+                    isCoinbase
+                      ? "Coinbase transaction"
+                      : isQuorum
+                        ? "Quorum commitment"
+                        : "No inputs"
+                  }
+                  description={
+                    isCoinbase
+                      ? "This transaction creates new coins from a mined block."
+                      : isQuorum
+                        ? "Quorum commitments do not consume inputs."
+                        : undefined
+                  }
+                />
+              )}
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="outputs">
+            <Card className="overflow-hidden p-0">
+              {hasOutputs ? (
+                <Table>
+                  <TableHeader className="bg-secondary/50">
+                    <TableRow>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Script</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tx.vOut.map((output) => (
+                      <TableRow key={output.number}>
+                        <TableCell className="text-muted-foreground">
+                          {output.number}
+                        </TableCell>
+                        <TableCell>
+                          {output.address ? (
+                            <HashDisplay
+                              value={output.address}
+                              href="/address/$address"
+                              params={{ address: output.address }}
+                            />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-[280px] truncate font-mono text-xs text-muted-foreground">
+                          {output.scriptPubKeyASM}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DashAmount value={output.value} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <EmptyState
+                  title={isQuorum ? "Quorum commitment" : "No outputs"}
+                  description={
+                    isQuorum
+                      ? "Quorum commitments do not produce outputs."
+                      : undefined
+                  }
+                />
+              )}
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="raw">
+            <Card className="overflow-hidden p-0">
+              <ScrollArea className="h-[480px]">
+                <pre
+                  className="p-4 font-mono text-xs leading-relaxed"
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: highlightJson escapes input
+                  dangerouslySetInnerHTML={{
+                    __html: highlightJson(tx as ApiTransaction),
+                  }}
+                />
+              </ScrollArea>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-      {children}
-    </Card>
-  );
-}
-
-function DashAmountBadge({ value }: { value: number }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-accent/12 px-2.5 py-1 text-xs text-accent">
-      <img src="/images/dash-logo.svg" alt="" className="size-3.5" />
-      <span className="font-bold">{formatDuffs(value)}</span>
-    </span>
-  );
-}
-
-function InputsTable({ vIn }: { vIn: ApiVIn[] }) {
-  return (
-    <div className="overflow-x-auto">
-      <table
-        className="w-full text-xs"
-        style={{ borderCollapse: "separate", borderSpacing: "0 6px" }}
-      >
-        <thead>
-          <tr>
-            <th className="px-3 pb-2 text-left text-muted-foreground">#</th>
-            <th className="px-3 pb-2 text-left text-muted-foreground">
-              Address
-            </th>
-            <th className="px-3 pb-2 text-left text-muted-foreground">
-              Previous Output
-            </th>
-            <th className="px-3 pb-2 text-right text-muted-foreground">
-              Amount
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {vIn.map((input, idx) => {
-            const { prevTxHash } = input;
-            return (
-              <tr
-                key={`${prevTxHash ?? "coinbase"}-${input.vOutIndex ?? idx}`}
-                className="group transition-colors"
-              >
-                <td className="rounded-l-xl bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                  {idx}
-                </td>
-                <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                  <AddressLink address={input.address} />
-                </td>
-                <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                  {prevTxHash ? (
-                    <Link
-                      to="/transactions/$hash"
-                      params={{ hash: prevTxHash }}
-                      className="font-mono text-accent hover:underline"
-                    >
-                      {prevTxHash.slice(0, 12)}…:{input.vOutIndex ?? 0}
-                    </Link>
-                  ) : (
-                    <span className="font-mono text-muted-foreground">
-                      Coinbase
-                    </span>
-                  )}
-                </td>
-                <td className="rounded-r-xl bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
-                  {input.amount != null ? (
-                    <DashAmountBadge value={Number(input.amount)} />
-                  ) : (
-                    "—"
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function OutputsTable({ vOut }: { vOut: ApiVOut[] }) {
-  return (
-    <div className="overflow-x-auto">
-      <table
-        className="w-full text-xs"
-        style={{ borderCollapse: "separate", borderSpacing: "0 6px" }}
-      >
-        <thead>
-          <tr>
-            <th className="px-3 pb-2 text-left text-muted-foreground">#</th>
-            <th className="px-3 pb-2 text-left text-muted-foreground">
-              Address
-            </th>
-            <th className="px-3 pb-2 text-left text-muted-foreground">
-              Script
-            </th>
-            <th className="px-3 pb-2 text-right text-muted-foreground">
-              Amount
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {vOut.map((output) => (
-            <tr key={output.number} className="group transition-colors">
-              <td className="rounded-l-xl bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                {output.number}
-              </td>
-              <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                <AddressLink address={output.address} />
-              </td>
-              <td className="max-w-[140px] truncate bg-secondary/50 px-3 py-2 font-mono text-muted-foreground transition-colors group-hover:bg-accent/10">
-                {output.scriptPubKeyASM}
-              </td>
-              <td className="rounded-r-xl bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
-                {output.value != null ? (
-                  <DashAmountBadge value={output.value} />
-                ) : (
-                  "—"
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function EmptyIo({ message }: { message: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground">
-      {message}
     </div>
   );
 }

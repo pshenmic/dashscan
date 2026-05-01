@@ -24,26 +24,11 @@ export function formatCompactUsd(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
-export function getMnTypeBadgeStyle(type: string): string {
-  const t = type.toLowerCase();
-  if (t === "evo" || t === "evolution" || t === "highperformance") {
-    return "border-accent bg-[#4C7EFF1F] text-accent";
-  }
-  return "border-border bg-muted/50 text-muted-foreground";
-}
-
 export function getMnTypeLabel(type: string): string {
   const t = type.toLowerCase();
   if (t === "evo" || t === "highperformance") return "Evolution";
   if (t === "regular") return "Regular";
   return type;
-}
-
-export function getMnStatusBadgeStyle(status: string): string {
-  const s = status.toUpperCase();
-  if (s === "ENABLED") return "border-accent bg-[#4C7EFF1F] text-accent";
-  if (s.includes("BANNED")) return "border-red-500 bg-red-500/12 text-red-500";
-  return "border-border bg-muted/50 text-muted-foreground";
 }
 
 export function getMnStatusLabel(status: string): string {
@@ -91,25 +76,6 @@ const TX_TYPE_LABELS: Record<number, string> = {
 
 export function getTxTypeLabel(type: number): string {
   return TX_TYPE_LABELS[type] ?? `Type ${type}`;
-}
-
-const TX_TYPE_STYLES: Record<number, string> = {
-  0: "border-accent bg-[#4C7EFF1F] text-accent",
-  1: "border-violet-500 bg-violet-500/12 text-violet-500",
-  2: "border-violet-500 bg-violet-500/12 text-violet-500",
-  3: "border-violet-500 bg-violet-500/12 text-violet-500",
-  4: "border-red-500 bg-red-500/12 text-red-500",
-  5: "border-amber-500 bg-amber-500/12 text-amber-500",
-  6: "border-cyan-500 bg-cyan-500/12 text-cyan-500",
-  7: "border-slate-500 bg-slate-500/12 text-slate-500",
-  8: "border-emerald-500 bg-emerald-500/12 text-emerald-500",
-  9: "border-teal-500 bg-teal-500/12 text-teal-500",
-};
-
-export function getTxTypeBadgeStyle(type: number): string {
-  return (
-    TX_TYPE_STYLES[type] ?? "border-slate-500 bg-slate-500/12 text-slate-500"
-  );
 }
 
 export function formatRelativeTime(timestamp: string | number): string {

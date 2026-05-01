@@ -2,29 +2,32 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
-  type ColumnDef,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { Calendar, ChevronDown, ChevronUp, Minus } from "lucide-react";
+  CalendarClock,
+  Coins,
+  FileText,
+  Minus,
+  ThumbsDown,
+  ThumbsUp,
+  Wallet,
+} from "lucide-react";
 import { useMemo, useState } from "react";
-import { CopyButton } from "@/components/copy-button";
-import { DataTable } from "@/components/data-table";
-import { HashCell } from "@/components/hash-cell";
-import { Pagination } from "@/components/pagination";
-import { SearchInput } from "@/components/search-input";
-import { StatCard } from "@/components/stat-card";
-import { SuperblockFundingChart } from "@/components/superblock-funding-chart";
-import { Badge } from "@/components/ui/badge";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { DataTable, type DataTableColumn } from "@/components/data-table";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  type DescriptionItem,
+  DescriptionList,
+} from "@/components/description-list";
+import { HashDisplay } from "@/components/hash-display";
+import { KpiCard } from "@/components/kpi-card";
+import { PageHeader } from "@/components/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import {
   budgetQueryOptions,
@@ -40,11 +43,13 @@ import {
 } from "@/lib/governance";
 import { appStore, defaultNetwork } from "@/lib/store";
 
+const chartConfig: ChartConfig = {
+  value: { label: "Triggers", color: "var(--chart-1)" },
+};
+
 export const Route = createFileRoute("/dao")({
   component: DaoPage,
-  head: () => ({
-    meta: [{ title: "DAO | DashScan" }],
-  }),
+  head: () => ({ meta: [{ title: "DAO | DashScan" }] }),
   loader: ({ context }) => {
     if (typeof window !== "undefined") return;
     const network = defaultNetwork;
@@ -63,112 +68,19 @@ export const Route = createFileRoute("/dao")({
   },
 });
 
-const columns: ColumnDef<ApiGovernanceObject>[] = [
-  {
-    accessorKey: "creationTime",
-    header: "Creation Time",
-    cell: ({ getValue }) => (
-      <span className="text-muted-foreground">
-        {getValue<string | null>()
-          ? formatRelativeTime(getValue<string>())
-          : "—"}
-      </span>
-    ),
-  },
-  {
-    id: "name",
-    header: "Proposal Name",
-    accessorFn: (row) => row.data?.name ?? "",
-    cell: ({ row }) => {
-      const name = row.original.data?.name;
-      const url = row.original.data?.url;
-      if (!name) return <span className="text-muted-foreground">—</span>;
-      if (url) {
-        return (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-accent hover:underline"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {name}
-          </a>
-        );
-      }
-      return <span className="font-medium">{name}</span>;
-    },
-  },
-  {
-    id: "paymentAddress",
-    header: "Payment Address",
-    accessorFn: (row) => row.data?.paymentAddress ?? "",
-    cell: ({ row }) => {
-      const addr = row.original.data?.paymentAddress;
-      if (!addr) return <span className="text-muted-foreground">—</span>;
-      return (
-        <div className="flex items-center gap-1.5">
-          <HashCell hash={addr} />
-          <CopyButton value={addr} />
-        </div>
-      );
-    },
-  },
-  {
-    id: "votes",
-    header: "Votes",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-1.5">
-        <Badge className="h-6 gap-1 border-[#3EBF5A]/24 bg-[#3EBF5A]/12 text-[#3EBF5A]">
-          <ChevronUp className="size-3 opacity-64" />
-          {row.original.yesCount ?? 0}
-        </Badge>
-        <Badge className="h-6 gap-1 border-[#FF4C4C]/24 bg-[#FF4C4C]/12 text-[#FF4C4C]">
-          <ChevronDown className="size-3 opacity-64" />
-          {row.original.noCount ?? 0}
-        </Badge>
-        <Badge className="h-6 gap-1 border-[#FFA04C]/24 bg-[#FFA04C]/12 text-[#FFA04C]">
-          <Minus className="size-3 opacity-64" />
-          {row.original.abstainCount ?? 0}
-        </Badge>
-      </div>
-    ),
-  },
-  {
-    id: "funding",
-    header: "Funding",
-    accessorFn: (row) => row.data?.paymentAmount ?? 0,
-    cell: ({ row }) => {
-      const amount = row.original.data?.paymentAmount;
-      if (amount == null)
-        return <span className="text-muted-foreground">—</span>;
-      return (
-        <Badge className="h-6 gap-1 border-0 bg-accent/12 font-medium text-accent">
-          {amount.toLocaleString()}
-          <img src="/icons/dash.svg" alt="" className="size-3.5" />
-        </Badge>
-      );
-    },
-  },
-];
-
-const skeletonWidths = ["w-20", "w-40", "w-36", "w-36", "w-20"];
-
 function DaoPage() {
   const network = useStore(appStore, (state) => state.network);
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [search, setSearch] = useState("");
+  const [pageIndex, setPageIndex] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: allProposals, isFetching } = useQuery(
     proposalsQueryOptions({ network, proposalType: "all" }),
   );
-
   const { data: budget } = useQuery(budgetQueryOptions({ network }));
-
   const { data: blockData } = useQuery(
     blocksQueryOptions({ network, page: 1, limit: 1, order: "desc" }),
   );
-
   const { data: mnData } = useQuery(
     masternodesQueryOptions({ network, page: 1, limit: 1 }),
   );
@@ -181,6 +93,22 @@ function DaoPage() {
     [allProposals],
   );
 
+  const filteredProposals = useMemo(() => {
+    if (!search) return proposals;
+    const q = search.toLowerCase();
+    return proposals.filter(
+      (p) =>
+        p.data?.name?.toLowerCase().includes(q) ||
+        p.data?.paymentAddress?.toLowerCase().includes(q) ||
+        p.hash?.toLowerCase().includes(q),
+    );
+  }, [proposals, search]);
+
+  const paged = useMemo(() => {
+    const start = (pageIndex - 1) * pageSize;
+    return filteredProposals.slice(start, start + pageSize);
+  }, [filteredProposals, pageIndex, pageSize]);
+
   const currentHeight = blockData?.resultSet?.[0]?.height ?? 0;
   const masternodeCount = mnData?.pagination?.total ?? 0;
 
@@ -188,7 +116,6 @@ function DaoPage() {
   const proposalCount = budget?.totalProposals ?? proposals.length;
   const fundedAmount = budget?.enoughFundsTotal ?? 0;
   const fundedProposalCount = budget?.enoughFundsCount ?? 0;
-  const remainingBudget = Math.max(0, availableBudget - fundedAmount);
   const totalRequested = budget?.totalRequested ?? 0;
   const unfundedAmount = Math.max(0, totalRequested - fundedAmount);
   const unfundedProposalCount = Math.max(
@@ -218,197 +145,259 @@ function DaoPage() {
       .slice(-12);
   }, [allProposals]);
 
-  const table = useReactTable({
-    data: proposals,
-    columns,
-    state: { globalFilter, pagination },
-    onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination,
-    globalFilterFn: "includesString",
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-  });
+  const fundingItems: DescriptionItem[] = [
+    {
+      label: "Required Votes",
+      value: (
+        <span className="font-mono text-sm tabular-nums">
+          {requiredVotes.toLocaleString()} Yes
+        </span>
+      ),
+    },
+    {
+      label: "Voting Deadline",
+      value: (
+        <span className="flex flex-wrap items-center gap-2">
+          <span>
+            {votingDeadline.toLocaleString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+          {nextPaymentDays > 0 && (
+            <Badge variant="soft-accent">in {nextPaymentDays}d</Badge>
+          )}
+        </span>
+      ),
+    },
+    {
+      label: "With Enough Votes",
+      value: (
+        <span className="font-mono text-sm tabular-nums">
+          {fundedProposalCount} proposals ·{" "}
+          {Math.round(fundedAmount).toLocaleString()} DASH
+        </span>
+      ),
+    },
+    {
+      label: "Without Enough Funds",
+      value: (
+        <span className="font-mono text-sm tabular-nums">
+          {unfundedProposalCount} proposals ·{" "}
+          {Math.round(unfundedAmount).toLocaleString()} DASH
+        </span>
+      ),
+    },
+  ];
 
-  const pageCount = table.getPageCount();
+  const columns: DataTableColumn<ApiGovernanceObject>[] = [
+    {
+      id: "time",
+      header: "Created",
+      cell: (row) => (
+        <span className="whitespace-nowrap text-sm text-muted-foreground">
+          {row.creationTime ? formatRelativeTime(row.creationTime) : "—"}
+        </span>
+      ),
+    },
+    {
+      id: "name",
+      header: "Proposal",
+      cell: (row) => {
+        const name = row.data?.name;
+        const url = row.data?.url;
+        if (!name) return <span className="text-muted-foreground">—</span>;
+        if (url) {
+          return (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-accent no-underline hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {name}
+            </a>
+          );
+        }
+        return <span className="text-sm font-medium">{name}</span>;
+      },
+    },
+    {
+      id: "address",
+      header: "Payment Address",
+      cell: (row) => {
+        const addr = row.data?.paymentAddress;
+        if (!addr) return <span className="text-muted-foreground">—</span>;
+        return (
+          <HashDisplay
+            value={addr}
+            href="/address/$address"
+            params={{ address: addr }}
+          />
+        );
+      },
+    },
+    {
+      id: "votes",
+      header: "Votes",
+      cell: (row) => (
+        <div className="flex items-center gap-1.5">
+          <Badge variant="soft-success">
+            <ThumbsUp className="size-3" /> {row.yesCount ?? 0}
+          </Badge>
+          <Badge variant="soft-destructive">
+            <ThumbsDown className="size-3" /> {row.noCount ?? 0}
+          </Badge>
+          <Badge variant="soft">
+            <Minus className="size-3" /> {row.abstainCount ?? 0}
+          </Badge>
+        </div>
+      ),
+    },
+    {
+      id: "funding",
+      header: "Funding",
+      align: "right",
+      cell: (row) => {
+        const amount = row.data?.paymentAmount;
+        if (amount == null)
+          return <span className="text-muted-foreground">—</span>;
+        return (
+          <span className="font-mono text-sm tabular-nums">
+            {amount.toLocaleString()}{" "}
+            <span className="text-muted-foreground">DASH</span>
+          </span>
+        );
+      },
+    },
+  ];
 
   return (
-    <main className="mx-auto max-w-[1440px] px-6 py-10">
-      <h1 className="mb-6 text-[28px] font-bold tracking-tight text-[#10213f] sm:text-[34px]">
-        Decentralized Autonomous Organization
-      </h1>
+    <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-8">
+        <PageHeader
+          title="Governance"
+          subtitle="Decentralized proposals and superblock funding."
+        />
 
-      <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
-        <div>
-          <div className="grid gap-4 grid-cols-2 auto-rows-fr [&>*]:min-w-0">
-            <StatCard
-              icon={
-                <img src="/icons/chart-pie.svg" alt="" className="size-5" />
-              }
-              label="Available Budget"
-              bgImage="/images/dao/available-budget.png"
-              value={
-                <span className="inline-flex items-center gap-2">
-                  {availableBudget.toLocaleString()}
-                  <img src="/icons/dash.svg" alt="" className="size-5" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Available Budget"
+            value={
+              <span>
+                {availableBudget.toLocaleString()}{" "}
+                <span className="text-muted-foreground text-base">DASH</span>
+              </span>
+            }
+            icon={<Wallet />}
+          />
+          <KpiCard
+            label="Proposals"
+            value={proposalCount.toLocaleString()}
+            icon={<FileText />}
+          />
+          <KpiCard
+            label="Funded"
+            value={
+              <span>
+                {fundedProposalCount}{" "}
+                <span className="text-muted-foreground text-base">
+                  / {Math.round(fundedAmount).toLocaleString()} DASH
                 </span>
-              }
-            />
-            <StatCard
-              icon={
-                <img src="/icons/superblock.svg" alt="" className="size-5" />
-              }
-              label="Proposals Count"
-              bgImage="/images/dao/proposal-count.png"
-              value={String(proposalCount)}
-            />
-            <StatCard
-              icon={<img src="/icons/dash.svg" alt="" className="size-5" />}
-              label="Remaining Budget"
-              bgImage="/images/dao/remaining-budget.png"
-              value={
-                <span className="inline-flex items-center gap-2">
-                  {Math.round(remainingBudget).toLocaleString()}
-                  <img src="/icons/dash.svg" alt="" className="size-5" />
-                </span>
-              }
-            />
-            <StatCard
-              icon={
-                <img src="/icons/sandglass.svg" alt="" className="size-5" />
-              }
-              label="Next Payment"
-              bgImage="/images/dao/next-payment.png"
-              value={nextPaymentDays > 0 ? `${nextPaymentDays} Days` : "—"}
-            />
-          </div>
-
-          <div className="mt-5 space-y-2 px-5 pb-5 text-[13px] text-muted-foreground">
-            <div className="flex items-center gap-6">
-              <span className="w-[200px] shrink-0 text-muted-foreground/60">
-                Required votes:
               </span>
-              <span className="font-medium text-[#10213f]">
-                {requiredVotes} <em>Yes</em>
-              </span>
-            </div>
-            <div className="flex items-center gap-6">
-              <span className="w-[200px] shrink-0 text-muted-foreground/60">
-                Voting Deadline:
-              </span>
-              <span className="flex items-center gap-2 font-medium text-[#10213f]">
-                {votingDeadline.toLocaleString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}
-                <Badge className="h-5 border-0 bg-muted px-2 text-[11px] font-medium text-foreground">
-                  in {nextPaymentDays}d
-                </Badge>
-              </span>
-            </div>
-            <div className="flex items-center gap-6">
-              <span className="w-[200px] shrink-0 text-muted-foreground/60">
-                {fundedProposalCount} proposals with enough votes:
-              </span>
-              <span className="font-medium text-[#10213f]">
-                {Math.round(fundedAmount)} Dash
-              </span>
-            </div>
-            <div className="flex items-center gap-6">
-              <span className="w-[200px] shrink-0 text-muted-foreground/60">
-                {unfundedProposalCount} proposals without enough funds:
-              </span>
-              <span className="font-medium text-[#10213f]">
-                {Math.round(unfundedAmount)} Dash
-              </span>
-            </div>
-          </div>
+            }
+            icon={<Coins />}
+          />
+          <KpiCard
+            label="Next Superblock"
+            value={nextPaymentDays > 0 ? `${nextPaymentDays} days` : "—"}
+            icon={<CalendarClock />}
+          />
         </div>
 
-        <Card className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
-          <CardHeader className="relative px-5 pb-2 sm:px-6">
-            <div className="flex items-start gap-4">
-              <div className="flex size-16 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
-                <img src="/icons/dash.svg" alt="" className="size-7" />
-              </div>
-              <div>
-                <p className="text-[15px] font-medium text-muted-foreground">
-                  Superblock Funding Chart
-                </p>
-                <CardTitle className="mt-1 flex flex-wrap items-baseline gap-2 tracking-[-0.03em]">
-                  <span className="text-[32px] font-extrabold text-[#21314d]">
-                    {Math.round(fundedAmount).toLocaleString()}
-                  </span>
-                  <span className="text-[24px] font-medium text-muted-foreground">
-                    / {availableBudget.toLocaleString()} DASH
-                  </span>
-                </CardTitle>
-              </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="p-6">
+            <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Voting Status
+            </h2>
+            <DescriptionList items={fundingItems} columns={1} />
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+                Superblock Activity
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                Triggers per month
+              </span>
             </div>
-            <CardAction>
-              <Badge className="h-7 gap-1.5 whitespace-nowrap rounded-full border-0 bg-[#EAF0FF] px-2.5 text-[11px] font-medium text-accent">
-                <Calendar className="size-3 shrink-0" />1 Month
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="relative flex flex-1 items-end px-3 pb-3 sm:px-4 sm:pb-4">
             {chartData.length > 0 ? (
-              <SuperblockFundingChart
-                className="rounded-[20px]"
-                data={chartData}
-              />
+              <ChartContainer
+                config={chartConfig}
+                className="mt-4 aspect-auto h-[260px] w-full"
+              >
+                <BarChart data={chartData}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    width={40}
+                    allowDecimals={false}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar
+                    dataKey="value"
+                    fill="var(--color-value)"
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-                No historical data available
+              <div className="mt-4 flex h-[260px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+                No historical superblock triggers available.
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </Card>
+        </div>
 
-      <Card
-        className="border-0 shadow-none animate-fade-in-up"
-        style={{ animationDelay: "150ms" }}
-      >
-        <CardHeader className="px-0">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Proposals ({proposals.length})
-          </CardTitle>
-          <CardAction>
-            <SearchInput
-              value={globalFilter}
-              onChange={setGlobalFilter}
-              placeholder="Search..."
-            />
-          </CardAction>
-        </CardHeader>
-        <CardContent className="overflow-x-auto px-3">
-          <DataTable
-            table={table}
-            isFetching={isFetching}
-            isEmpty={proposals.length === 0}
-            skeletonWidths={skeletonWidths}
-            skeletonRows={pagination.pageSize}
-            emptyMessage="No proposals found."
-            borderless
-          />
-        </CardContent>
-        <Pagination
-          page={pagination.pageIndex + 1}
-          pageCount={pageCount}
-          onPageChange={(p) =>
-            setPagination((prev) => ({ ...prev, pageIndex: p - 1 }))
-          }
-          pageSize={pagination.pageSize}
-          onPageSizeChange={(size) =>
-            setPagination({ pageIndex: 0, pageSize: size })
-          }
+        <DataTable
+          columns={columns}
+          data={paged}
+          isLoading={isFetching}
+          rowKey={(row, idx) => row.hash ?? `proposal-${idx}`}
+          search={{
+            value: search,
+            onChange: (v) => {
+              setSearch(v);
+              setPageIndex(1);
+            },
+            placeholder: "Search proposals…",
+          }}
+          emptyTitle="No proposals"
+          pagination={{
+            pageIndex,
+            pageSize,
+            total: filteredProposals.length,
+            onPageChange: setPageIndex,
+            onPageSizeChange: (size) => {
+              setPageSize(size);
+              setPageIndex(1);
+            },
+          }}
         />
-      </Card>
-    </main>
+      </div>
+    </div>
   );
 }

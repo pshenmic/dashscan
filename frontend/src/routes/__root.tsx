@@ -7,8 +7,9 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { ErrorFallback } from "../components/error-fallback";
-import Footer from "../components/footer";
-import Header from "../components/header";
+import SiteFooter from "../components/site-footer";
+import SiteHeader from "../components/site-header";
+import { Toaster } from "../components/ui/sonner";
 
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import TanStackQueryProvider from "../integrations/tanstack-query/root-provider";
@@ -55,9 +56,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="font-sans antialiased">
         <TanStackQueryProvider>
-          <Header />
-          {children}
-          <Footer />
+          <div className="flex min-h-screen flex-col">
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+          </div>
+          <Toaster />
           <TanStackDevtools
             config={{
               position: "bottom-right",
