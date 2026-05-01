@@ -4,6 +4,7 @@ use dashcore::consensus::encode;
 use dashcore::Network;
 
 use crate::rpc::{Block, CbTx, ScriptPubKey, ScriptSig, Transaction, Vin, Vout};
+use crate::utils::script::ScriptUtils;
 
 pub fn convert_block(
     raw: &dashcore::block::Block,
@@ -95,6 +96,8 @@ pub fn convert_transaction(
                 Some("pubkeyhash".to_string())
             } else if output.script_pubkey.is_p2sh() {
                 Some("scripthash".to_string())
+            } else if output.script_pubkey.is_multisig() {
+                Some("multisig".to_string())
             } else if output.script_pubkey.is_op_return() {
                 Some("nulldata".to_string())
             } else {
@@ -125,6 +128,9 @@ pub fn convert_transaction(
         .as_ref()
         .map(|p| p.len() as i32);
 
+    let multisig = tx.output.iter().any(|o| o.script_pubkey.is_multisig())
+        || tx.input.iter().any(|i| i.script_sig.is_multisig());
+
     Transaction {
         txid,
         version: tx.version as i32,
@@ -137,6 +143,7 @@ pub fn convert_transaction(
         locktime: tx.lock_time as i64,
         vin,
         vout,
+        multisig,
         extra_payload_size,
         extra_payload,
         extra: serde_json::Map::new(),

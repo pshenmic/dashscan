@@ -200,6 +200,7 @@ Returns a paginated list of transactions. Include pending transactions
 |--------------------|---------|----------------------------------------------|----------------------------------------------------------------------------|
 | `transaction_type` | string  | one of the [transaction type](#transaction-types) names (e.g. `CLASSIC`, `COINBASE`) | Filter by transaction type                                                 |
 | `coinjoin`         | boolean |                                              | Filter to (`true`) or exclude (`false`) CoinJoin-pattern transactions      |
+| `multisig`         | boolean |                                              | Filter to (`true`) or exclude (`false`) transactions with multisig outputs |
 | `block_height`     | integer | minimum: 1                                   | Filter to transactions in a specific block height                          |
 
 **Response `200`**
@@ -235,8 +236,8 @@ Returns a paginated list of transactions. Include pending transactions
       "confirmations": 10,
       "instantLock": "0102375e39652fee756b492762510aea4087d57b486a89f2f78f52c840f02079052f000000007652da0e18a07bcde5a2205ff041dd0b14b4b7a81b2e0ccaf5118dfe79e56aba00000000f274ca0dd6640a9236dc987e5f09db412ed2bc37806ae90bc6f34f9fd36a7a28da45b260ae37978f3a8fb973c48418a92f41e1e2b77a9d720400000000000000abc1c3d6ddaccf322f655f59979d037badc840328b0da023f70d9d1adea046f9b4486c929ff0c15f2c9036d757ca44ae168e315ba07c19269d7b44c2bf722b811aa9ab0c978198ef3637d4b20e3e316e3459ed3d75dbbafd4966a4d571d32a0a",
       "chainLocked": true,
-      "coinbaseAmount": null,
-      "coinjoin": false
+      "coinjoin": false,
+      "multisig": false
     }
   ],
   "pagination": {
@@ -292,8 +293,8 @@ Returns a single transaction by its hash.
   "confirmations": 10,
   "instantLock": "0102375e39652fee756b...d571d32a0a",
   "chainLocked": true,
-  "coinbaseAmount": null,
-  "coinjoin": false
+  "coinjoin": false,
+  "multisig": false
 }
 ```
 
@@ -316,8 +317,8 @@ Returns a single transaction by its hash.
 | `confirmations`  | number \| null | Number of confirmations                                                                      |
 | `instantLock`    | string \| null | Raw InstantSend lock hex (ISLOCK), or `null` if not IS-locked                                |
 | `chainLocked`    | boolean        | Whether the transaction's block has a ChainLock                                              |
-| `coinbaseAmount` | string \| null | Coinbase reward in duffs for coinbase transactions, `null` for non-coinbase                  |
 | `coinjoin`       | boolean        | Whether this transaction matches the CoinJoin (mixing) pattern                               |
+| `multisig`       | boolean        | Whether this transaction has any multisig outputs (bare multisig or P2SH-wrapped multisig)   |
 
 #### Transaction Types
 
@@ -386,8 +387,8 @@ Returns a paginated list of transactions for a specific block height.
       "confirmations": 10,
       "instantLock": "0102375e...d571d32a0a",
       "chainLocked": true,
-      "coinbaseAmount": null,
-      "coinjoin": false
+      "coinjoin": false,
+      "multisig": false
     }
   ],
   "pagination": {
@@ -455,15 +456,17 @@ Returns a single address with aggregated balance and activity stats.
 
 ```json
 {
-  "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
-  "firstSeenBlock": "000000000000abcd1234...",
-  "firstSeenTx": "abcdef1234...",
-  "lastSeenBlock": "000000000000efgh5678...",
-  "lastSeenTx": "fedcba4321...",
-  "txCount": "42",
-  "received": "100000000",
-  "sent": "25000000",
-  "balance": "75000000"
+  "address": "XwykuvxKBWT2dGN2Q9Y4Dqwo5riyf3C2At",
+  "firstSeenBlock": "0000000000000011c157d5c2bcea7a435370f6675b306f34c1b6084df32ce4c0",
+  "firstSeenBlockTimestamp": "2026-04-24T15:30:24.000Z",
+  "firstSeenTx": "c895cb8dbc81821c2ae5d79b4697527d9e8c4ae84e568adaa768f84fb9db094f",
+  "lastSeenBlock": "0000000000000011c157d5c2bcea7a435370f6675b306f34c1b6084df32ce4c0",
+  "lastSeenBlockTimestamp": "2026-04-24T15:30:24.000Z",
+  "lastSeenTx": "c895cb8dbc81821c2ae5d79b4697527d9e8c4ae84e568adaa768f84fb9db094f",
+  "txCount": 2,
+  "received": "950718575",
+  "sent": "950718575",
+  "balance": "0"
 }
 ```
 
@@ -517,8 +520,8 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
       "confirmations": 10,
       "instantLock": "0102375e...d571d32a0a",
       "chainLocked": true,
-      "coinbaseAmount": null,
-      "coinjoin": false
+      "coinjoin": false,
+      "multisig": false
     }
   ],
   "pagination": {
@@ -667,6 +670,53 @@ Returns a time series of transaction counts over a configurable time range, with
 ```json
 { "message": "start timestamp cannot be more than end timestamp" }
 ```
+
+---
+
+### GET /transactions/stats
+
+Returns counts of confirmed transactions over the last 24 hours, partitioned into mutually exclusive categories.
+
+**Categorization (in priority order):**
+
+1. **Special** — `type > 0` (Dash special transactions: ProRegTx, ProUpServTx, etc.)
+2. **CoinJoin** — `type = 0 AND coinjoin = TRUE`
+3. **Multisig** — `type = 0 AND coinjoin = FALSE AND multisig = TRUE` (bare multisig outputs or P2SH-wrapped multisig redeem scripts)
+4. **Normal** — `type = 0 AND coinjoin = FALSE AND multisig = FALSE`
+
+Each transaction falls into exactly one bucket; counts sum to `total`.
+
+Pending (mempool) transactions are excluded.
+
+**Response `200`**
+
+```json
+{
+  "total": 1362,
+  "special": 5,
+  "coinjoin": 123,
+  "multisig": 0,
+  "normal": 1234
+}
+```
+
+| Field      | Type           | Description                                                                          |
+|------------|----------------|--------------------------------------------------------------------------------------|
+| `total`    | number \| null | Sum of `special + coinjoin + multisig + normal`                                      |
+| `special`  | number \| null | Confirmed special transactions (`type > 0`) in the last 24h                          |
+| `coinjoin` | number \| null | Confirmed CoinJoin transactions in the last 24h (excludes special)                   |
+| `multisig` | number \| null | Confirmed multisig transactions in the last 24h (excludes special and CoinJoin)      |
+| `normal`   | number \| null | Confirmed transactions that are none of the above in the last 24h                    |
+
+> All fields are `null` when no rows can be derived (e.g. no indexed blocks). Otherwise counts are `0` or positive integers.
+
+**Response `404`**
+
+```json
+{ "error": "stats not available" }
+```
+
+Returned when the underlying query yields no result row.
 
 ---
 
@@ -1140,30 +1190,38 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
 
 ### GET /chain/stats
 
-Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics computed from the 20 most recently indexed blocks.
+Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics from the last 20 indexed blocks, network hash rate from the last 120 indexed blocks, and the current indexed mempool size.
 
 **Response `200`**
 
 ```json
 {
   "chain": "main",
-  "sizeOnDisk": 12345678901,
-  "difficulty": 123456.789,
-  "blockTime": 154321,
-  "transactionsPerSecond": 1.23,
-  "transactionsPerMinute": 73.8,
-  "latestHeight": 2100000
+  "sizeOnDisk": 48569836318,
+  "difficulty": 91484871.8130485,
+  "blockTime": 111105,
+  "transactionsPerSecond": 0.2,
+  "transactionsPerMinute": 12.22,
+  "latestHeight": 2463770,
+  "hashRate": "2383959789491355",
+  "mempoolSize": 3,
+  "nextSuperblockHeight": 2475784,
+  "latestSuperblockHeight": 2459168
 }
 ```
 
 #### ChainStats Object
 
-| Field                   | Type           | Description                                                                   |
-|-------------------------|----------------|-------------------------------------------------------------------------------|
-| `chain`                 | string \| null | Network name (e.g. `main`, `test`)                                            |
-| `sizeOnDisk`            | number \| null | Size of the block storage on the Dash Core node in bytes                      |
-| `difficulty`            | number \| null | Current mining difficulty                                                     |
-| `blockTime`             | number \| null | Average time between blocks in milliseconds, over the last 20 indexed blocks  |
-| `transactionsPerSecond` | number \| null | Average transactions per second over the last 20 indexed blocks               |
-| `transactionsPerMinute` | number \| null | Average transactions per minute over the last 20 indexed blocks               |
-| `latestHeight`          | number \| null | Height of the most recently indexed block                                     |
+| Field                    | Type           | Description                                                                                                                  |
+|--------------------------|----------------|------------------------------------------------------------------------------------------------------------------------------|
+| `chain`                  | string \| null | Network name (e.g. `main`, `test`)                                                                                           |
+| `sizeOnDisk`             | number \| null | Size of the block storage on the Dash Core node in bytes                                                                     |
+| `difficulty`             | number \| null | Current mining difficulty                                                                                                    |
+| `blockTime`              | number \| null | Average time between blocks in milliseconds, over the last 20 indexed blocks                                                 |
+| `transactionsPerSecond`  | number \| null | Average transactions per second over the last 20 indexed blocks                                                              |
+| `transactionsPerMinute`  | number \| null | Average transactions per minute over the last 20 indexed blocks                                                              |
+| `latestHeight`           | number \| null | Height of the most recently indexed block                                                                                    |
+| `hashRate`               | string \| null | Estimated network hash rate in H/s over the last 120 indexed blocks. Returned as a string (may exceed JS safe-integer range) |
+| `mempoolSize`            | number \| null | Number of pending (unconfirmed) transactions currently indexed (`block_height IS NULL`)                                      |
+| `nextSuperblockHeight`   | number \| null | Height of next superblock                                                                                                    |
+| `latestSuperblockHeight` | number \| null | Height of previous superblock (mined)                                                                                        |

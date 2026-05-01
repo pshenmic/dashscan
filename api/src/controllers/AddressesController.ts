@@ -60,11 +60,11 @@ export default class AddressesController {
     } = request.query;
 
     if (!start || !end) {
-      return response.status(400).send({message: 'start and end must be set'})
+      return response.status(400).send({error: 'start and end must be set'})
     }
 
     if (new Date(start).getTime() > new Date(end).getTime()) {
-      return response.status(400).send({message: 'start timestamp cannot be more than end timestamp'})
+      return response.status(400).send({error: 'start timestamp cannot be more than end timestamp'})
     }
 
     const intervalInMs =

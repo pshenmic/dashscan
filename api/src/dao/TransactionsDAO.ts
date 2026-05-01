@@ -1,5 +1,6 @@
 import {Knex} from 'knex';
 import Transaction from '../models/Transaction';
+import TransactionStats from '../models/TransactionStats';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
 import {TransactionType} from "../enums/TransactionType";
@@ -11,10 +12,10 @@ export default class TransactionsDAO {
     this.knex = knex;
   }
 
-  getTransactions = async (page: number, limit: number, order: string, transactionType?: TransactionType, coinjoin?: boolean, blockHeight?: number): Promise<PaginatedResultSet<Transaction>> => {
+  getTransactions = async (page: number, limit: number, order: string, transactionType?: TransactionType, coinjoin?: boolean, multisig?: boolean, blockHeight?: number): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
-    const filtered = transactionType != null || coinjoin != null || blockHeight != null;
+    const filtered = transactionType != null || coinjoin != null || multisig != null || blockHeight != null;
 
     // TODO: Slow on pages like 10000000, maybe we need to add cursor
     //  or something what can improve performance
@@ -24,6 +25,7 @@ export default class TransactionsDAO {
           .modify((builder) => {
             if (transactionType != null) builder.where('type', transactionType);
             if (coinjoin != null) builder.where('coinjoin', coinjoin);
+            if (multisig != null) builder.where('multisig', multisig);
             if (blockHeight != null) builder.where('block_height', blockHeight);
           })
       : this.knex('pg_class')
@@ -44,13 +46,14 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.id',
         'transactions.version',
-        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
-        'transactions.coinjoin'
+        'transactions.coinjoin',
+        'transactions.multisig'
       )
       .modify((builder) => {
         if (transactionType != null) builder.where('transactions.type', transactionType);
         if (coinjoin != null) builder.where('transactions.coinjoin', coinjoin);
+        if (multisig != null) builder.where('transactions.multisig', multisig);
         if (blockHeight != null) builder.where('transactions.block_height', blockHeight);
       })
       .orderBy('transactions.block_height', order)
@@ -95,7 +98,7 @@ export default class TransactionsDAO {
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
-        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin'
+        'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -160,9 +163,9 @@ export default class TransactionsDAO {
         'subquery.chain_locked',
         'blocks.hash as block_hash',
         'blocks.timestamp as timestamp',
-        this.knex.raw('subquery.coinbase_amount::text as coinbase_amount'),
         this.knex.raw('subquery.transfer_amount::text as transfer_amount'),
         'subquery.coinjoin',
+        'subquery.multisig',
       )
       .select(this.knex.raw('max_height - block_height + 1 AS confirmations'))
       .select('agg_inputs.inputs', 'agg_outputs.outputs')
@@ -194,9 +197,9 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.id',
         'transactions.version',
-        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin',
+        'transactions.multisig',
       )
       .where('transactions.block_height', height)
       .orderBy('transactions.id', order)
@@ -245,7 +248,7 @@ export default class TransactionsDAO {
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
-        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin'
+        'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -273,9 +276,9 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.id',
         'transactions.version',
-        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
-        'transactions.coinjoin'
+        'transactions.coinjoin',
+        'transactions.multisig'
       )
       .whereNull('block_height')
       .orderBy('id', order)
@@ -317,7 +320,7 @@ export default class TransactionsDAO {
       .select(
         'subquery.hash', 'type', 'chain_locked', 'instant_lock',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
-        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin'
+        'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -400,9 +403,9 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.version',
         'transactions.id',
-        this.knex.raw('transactions.coinbase_amount::text as coinbase_amount'),
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin',
+        'transactions.multisig',
       )
       .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'))
       .orderBy('transactions.block_height', order)
@@ -448,7 +451,7 @@ export default class TransactionsDAO {
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
-        'subquery.coinbase_amount', 'subquery.transfer_amount', 'subquery.coinjoin'
+        'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
@@ -459,5 +462,28 @@ export default class TransactionsDAO {
     const [row] = rows;
 
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
+  }
+
+  getTransactionStats24h = async (): Promise<TransactionStats | null> => {
+    const minHeightSubquery = this.knex('blocks')
+      .min('height')
+      .where('timestamp', '>', this.knex.raw("NOW() - INTERVAL '24 hours'"));
+
+    const [row] = await this.knex
+      .select(
+        this.knex.raw('COUNT(*) FILTER (WHERE type > 0)::bigint AS special'),
+        this.knex.raw('COUNT(*) FILTER (WHERE coinjoin)::bigint AS coinjoin'),
+        this.knex.raw('COUNT(*) FILTER (WHERE multisig)::bigint AS multisig'),
+        this.knex.raw('COUNT(*) FILTER (WHERE type = 0 AND NOT coinjoin AND NOT multisig)::bigint AS normal')
+      )
+      .where('block_height', '>=', minHeightSubquery)
+      .limit(1)
+      .from('transactions');
+
+    if (row == null) {
+      return null;
+    }
+
+    return TransactionStats.fromRow(row);
   }
 }
