@@ -1,7 +1,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { AlertTriangle, RotateCcw } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 interface ErrorFallbackProps {
   error: Error;
@@ -11,15 +11,13 @@ export function ErrorFallback({ error }: ErrorFallbackProps) {
   const router = useRouter();
 
   return (
-    <main className="mx-auto max-w-[1440px] px-6 py-10">
-      <Card className="mx-auto max-w-lg">
-        <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-          <div className="flex size-14 items-center justify-center rounded-full border border-destructive/20 text-destructive">
-            <AlertTriangle className="size-7" />
-          </div>
-          <h2 className="text-xl font-bold">Something went wrong</h2>
-          <p className="text-sm text-muted-foreground">{error.message}</p>
-          <div className="flex gap-3">
+    <main className="mx-auto max-w-screen-2xl px-4 py-10 sm:px-6 lg:px-8">
+      <Alert variant="destructive" className="mx-auto max-w-lg">
+        <AlertTriangle />
+        <AlertTitle>Something went wrong</AlertTitle>
+        <AlertDescription>
+          <p>{error.message}</p>
+          <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => router.invalidate()}>
               <RotateCcw className="size-4" />
               Retry
@@ -28,8 +26,8 @@ export function ErrorFallback({ error }: ErrorFallbackProps) {
               <Link to="/">Go Home</Link>
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </AlertDescription>
+      </Alert>
     </main>
   );
 }

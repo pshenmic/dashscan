@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { useState } from "react";
-import NetworkSelector from "@/components/network-selector";
 import { SpotlightSearch } from "@/components/spotlight-search";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,7 +52,6 @@ export default function SiteHeader() {
 
         <div className="ml-auto hidden items-center gap-3 md:flex">
           <SpotlightSearch />
-          <NetworkSelector />
         </div>
 
         <Sheet open={open} onOpenChange={setOpen}>
@@ -93,10 +91,6 @@ export default function SiteHeader() {
                   </Link>
                 ))}
               </nav>
-
-              <div className="border-t border-border pt-4">
-                <NetworkSelector className="w-full" />
-              </div>
             </div>
           </SheetContent>
         </Sheet>

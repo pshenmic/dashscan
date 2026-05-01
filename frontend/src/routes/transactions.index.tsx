@@ -7,6 +7,7 @@ import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { HashDisplay } from "@/components/hash-display";
 import { InstantLockBadge, TxTypeBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -127,15 +128,15 @@ function TransactionsPage() {
       id: "block",
       header: "Block",
       cell: (row) => (
-        <Link
-          to="/blocks/$hashOrHeight"
-          params={{ hashOrHeight: row.blockHash }}
-          onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center gap-1.5 text-accent no-underline hover:underline"
-        >
-          <Box className="size-3.5" />
-          <span className="font-mono text-sm">#{row.blockHeight}</span>
-        </Link>
+        <Button asChild variant="link" className="h-auto gap-1.5 p-0 font-mono">
+          <Link
+            to="/blocks/$hashOrHeight"
+            params={{ hashOrHeight: row.blockHash }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Box className="size-3.5" />#{row.blockHeight}
+          </Link>
+        </Button>
       ),
     },
     {

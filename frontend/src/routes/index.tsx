@@ -20,8 +20,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
 import { InstantLockBadge, TxTypeBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,6 +40,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import {
@@ -276,11 +279,9 @@ function Dashboard() {
             </CardHeader>
             <CardContent className="flex items-center justify-between gap-3">
               {priceChange != null ? (
-                <span
-                  className={
-                    priceChange >= 0
-                      ? "inline-flex items-center gap-1 text-xs font-medium text-success"
-                      : "inline-flex items-center gap-1 text-xs font-medium text-destructive"
+                <Badge
+                  variant={
+                    priceChange >= 0 ? "soft-success" : "soft-destructive"
                   }
                 >
                   {priceChange >= 0 ? (
@@ -289,7 +290,7 @@ function Dashboard() {
                     <ArrowDown className="size-3" />
                   )}
                   {Math.abs(priceChange).toFixed(2)}%
-                </span>
+                </Badge>
               ) : (
                 <span />
               )}
@@ -376,12 +377,8 @@ function Dashboard() {
             </CardHeader>
             {txChange != null && (
               <CardContent>
-                <span
-                  className={
-                    txChange >= 0
-                      ? "inline-flex items-center gap-1 text-xs font-medium text-success"
-                      : "inline-flex items-center gap-1 text-xs font-medium text-destructive"
-                  }
+                <Badge
+                  variant={txChange >= 0 ? "soft-success" : "soft-destructive"}
                 >
                   {txChange >= 0 ? (
                     <ArrowUp className="size-3" />
@@ -389,7 +386,7 @@ function Dashboard() {
                     <ArrowDown className="size-3" />
                   )}
                   {Math.abs(txChange).toFixed(2)}%
-                </span>
+                </Badge>
               </CardContent>
             )}
           </Card>
@@ -411,48 +408,52 @@ function Dashboard() {
               </CardAction>
             </CardHeader>
             <CardContent>
-              <ul className="flex flex-col">
-                {blocks.length === 0 &&
-                  Array.from({ length: 6 }, (_, i) => `b-${i}`).map((k) => (
-                    <li
-                      key={k}
-                      className="flex items-center justify-between border-b py-3 last:border-0"
-                    >
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-4 w-16" />
-                    </li>
+              <Table>
+                <TableBody>
+                  {blocks.length === 0 &&
+                    Array.from({ length: 6 }, (_, i) => `b-${i}`).map((k) => (
+                      <TableRow key={k} className="hover:bg-transparent">
+                        <TableCell>
+                          <Skeleton className="h-4 w-32" />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Skeleton className="ml-auto h-4 w-16" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  {blocks.slice(0, 8).map((block) => (
+                    <TableRow key={block.hash}>
+                      <TableCell>
+                        <Link
+                          to="/blocks/$hashOrHeight"
+                          params={{ hashOrHeight: block.hash }}
+                          className="flex min-w-0 items-center gap-3 no-underline"
+                        >
+                          <Boxes className="size-4 shrink-0 text-muted-foreground" />
+                          <div className="flex min-w-0 flex-col">
+                            <span className="font-mono text-sm font-medium text-accent">
+                              #{block.height.toLocaleString()}
+                            </span>
+                            <span className="truncate font-mono text-xs text-muted-foreground">
+                              {block.hash.slice(0, 18)}…{block.hash.slice(-6)}
+                            </span>
+                          </div>
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="text-sm font-medium tabular-nums">
+                            {block.txCount} txs
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatRelativeTime(block.timestamp)}
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                {blocks.slice(0, 8).map((block) => (
-                  <li
-                    key={block.hash}
-                    className="flex items-center justify-between border-b py-3 last:border-0"
-                  >
-                    <Link
-                      to="/blocks/$hashOrHeight"
-                      params={{ hashOrHeight: block.hash }}
-                      className="flex min-w-0 items-center gap-3 no-underline"
-                    >
-                      <Boxes className="size-4 shrink-0 text-muted-foreground" />
-                      <div className="flex min-w-0 flex-col">
-                        <span className="font-mono text-sm font-medium text-accent">
-                          #{block.height.toLocaleString()}
-                        </span>
-                        <span className="truncate font-mono text-xs text-muted-foreground">
-                          {block.hash.slice(0, 18)}…{block.hash.slice(-6)}
-                        </span>
-                      </div>
-                    </Link>
-                    <div className="flex flex-col items-end gap-0.5">
-                      <span className="text-sm font-medium tabular-nums">
-                        {block.txCount} txs
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatRelativeTime(block.timestamp)}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
 
@@ -471,51 +472,57 @@ function Dashboard() {
               </CardAction>
             </CardHeader>
             <CardContent>
-              <ul className="flex flex-col">
-                {txs.length === 0 &&
-                  Array.from({ length: 6 }, (_, i) => `t-${i}`).map((k) => (
-                    <li
-                      key={k}
-                      className="flex items-center justify-between border-b border-border/60 py-3 last:border-0"
-                    >
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-4 w-16" />
-                    </li>
-                  ))}
-                {txs.slice(0, 8).map((tx) => (
-                  <li
-                    key={tx.hash}
-                    className="flex items-center justify-between gap-3 border-b py-3 last:border-0"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
-                      <div className="flex min-w-0 flex-col gap-1">
-                        <HashDisplay
-                          value={tx.hash}
-                          href="/transactions/$hash"
-                          params={{ hash: tx.hash }}
-                          copy={false}
-                        />
-                        <div className="flex items-center gap-1.5">
-                          <TxTypeBadge type={tx.type} />
-                          <InstantLockBadge locked={tx.instantLock} />
+              <Table>
+                <TableBody>
+                  {txs.length === 0 &&
+                    Array.from({ length: 6 }, (_, i) => `t-${i}`).map((k) => (
+                      <TableRow key={k} className="hover:bg-transparent">
+                        <TableCell>
+                          <Skeleton className="h-4 w-32" />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Skeleton className="ml-auto h-4 w-16" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  {txs.slice(0, 8).map((tx) => (
+                    <TableRow key={tx.hash}>
+                      <TableCell>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <HashDisplay
+                              value={tx.hash}
+                              href="/transactions/$hash"
+                              params={{ hash: tx.hash }}
+                              copy={false}
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <TxTypeBadge type={tx.type} />
+                              <InstantLockBadge locked={tx.instantLock} />
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-0.5">
-                      <span className="font-mono text-sm tabular-nums">
-                        {formatDuffs(sumVOut(tx.vOut))}{" "}
-                        <span className="text-muted-foreground text-xs">
-                          DASH
-                        </span>
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {tx.timestamp ? formatRelativeTime(tx.timestamp) : "—"}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="font-mono text-sm tabular-nums">
+                            {formatDuffs(sumVOut(tx.vOut))}{" "}
+                            <span className="text-muted-foreground text-xs">
+                              DASH
+                            </span>
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {tx.timestamp
+                              ? formatRelativeTime(tx.timestamp)
+                              : "—"}
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </div>
@@ -534,16 +541,15 @@ function Dashboard() {
             <CardTitle className="flex flex-wrap items-baseline gap-3 text-3xl tabular-nums">
               {heroValue != null ? formatHero(heroValue) : "—"}
               {heroChange != null && (
-                <span
-                  className={
-                    heroChange >= 0
-                      ? "text-sm font-medium text-success"
-                      : "text-sm font-medium text-destructive"
+                <Badge
+                  variant={
+                    heroChange >= 0 ? "soft-success" : "soft-destructive"
                   }
+                  className="text-sm"
                 >
                   {heroChange >= 0 ? "+" : ""}
                   {heroChange.toFixed(2)}%
-                </span>
+                </Badge>
               )}
               {chartMetric === "mcap" && marketCap?.usd != null && (
                 <span className="text-sm font-normal text-muted-foreground">
@@ -682,9 +688,7 @@ function Dashboard() {
                 )}
               </ChartContainer>
             ) : (
-              <div className="flex h-[320px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-                No data available
-              </div>
+              <EmptyState title="No data available" className="h-[320px]" />
             )}
           </CardContent>
         </Card>

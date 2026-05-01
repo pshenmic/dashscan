@@ -9,8 +9,8 @@ import {
   Coins,
   FileText,
 } from "lucide-react";
-import type { ReactNode } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { DetailRow } from "@/components/detail-row";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
 import {
@@ -28,6 +28,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,17 +49,6 @@ import {
   highlightJson,
 } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
-
-function Item({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="flex flex-wrap items-center gap-2 text-sm">{children}</dd>
-    </div>
-  );
-}
 
 export const Route = createFileRoute("/transactions/$hash")({
   component: TransactionDetailPage,
@@ -209,23 +199,28 @@ function TransactionDetailPage() {
         <Card>
           <CardContent>
             <dl className="grid gap-y-4 gap-x-8 sm:grid-cols-2">
-              <Item label="Hash">
+              <DetailRow label="Hash">
                 <HashDisplay value={tx.hash} variant="full" />
-              </Item>
-              <Item label="Block">
+              </DetailRow>
+              <DetailRow label="Block">
                 {tx.blockHeight != null ? (
-                  <Link
-                    to="/blocks/$hashOrHeight"
-                    params={{ hashOrHeight: tx.blockHash }}
-                    className="font-mono text-sm text-accent no-underline hover:underline"
+                  <Button
+                    asChild
+                    variant="link"
+                    className="h-auto p-0 font-mono"
                   >
-                    #{tx.blockHeight.toLocaleString()}
-                  </Link>
+                    <Link
+                      to="/blocks/$hashOrHeight"
+                      params={{ hashOrHeight: tx.blockHash }}
+                    >
+                      #{tx.blockHeight.toLocaleString()}
+                    </Link>
+                  </Button>
                 ) : (
                   <span className="text-muted-foreground">Mempool</span>
                 )}
-              </Item>
-              <Item label="Timestamp">
+              </DetailRow>
+              <DetailRow label="Timestamp">
                 {tx.timestamp ? (
                   <>
                     <span>{new Date(tx.timestamp).toLocaleString()}</span>
@@ -236,28 +231,28 @@ function TransactionDetailPage() {
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}
-              </Item>
-              <Item label="Confirmations">
+              </DetailRow>
+              <DetailRow label="Confirmations">
                 {(tx.confirmations ?? 0).toLocaleString()}
-              </Item>
+              </DetailRow>
               {isCoinbase ? (
-                <Item label="Block Reward">
+                <DetailRow label="Block Reward">
                   <DashAmount value={totalOutput} />
-                </Item>
+                </DetailRow>
               ) : isQuorum ? null : (
                 <>
-                  <Item label="Total Input">
+                  <DetailRow label="Total Input">
                     <DashAmount value={totalInput} />
-                  </Item>
-                  <Item label="Total Output">
+                  </DetailRow>
+                  <DetailRow label="Total Output">
                     <DashAmount value={totalOutput} />
-                  </Item>
-                  <Item label="Fee">
+                  </DetailRow>
+                  <DetailRow label="Fee">
                     <DashAmount value={fee} />
-                  </Item>
+                  </DetailRow>
                 </>
               )}
-              <Item label="Size">
+              <DetailRow label="Size">
                 {tx.size != null ? (
                   <span className="font-mono text-sm tabular-nums">
                     {tx.size.toLocaleString()} bytes
@@ -265,8 +260,8 @@ function TransactionDetailPage() {
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}
-              </Item>
-              <Item label="Version">{tx.version ?? "—"}</Item>
+              </DetailRow>
+              <DetailRow label="Version">{tx.version ?? "—"}</DetailRow>
             </dl>
           </CardContent>
         </Card>
@@ -324,14 +319,19 @@ function TransactionDetailPage() {
                       </TableCell>
                       <TableCell>
                         {input.prevTxHash ? (
-                          <Link
-                            to="/transactions/$hash"
-                            params={{ hash: input.prevTxHash }}
-                            className="font-mono text-sm text-accent no-underline hover:underline"
+                          <Button
+                            asChild
+                            variant="link"
+                            className="h-auto p-0 font-mono"
                           >
-                            {input.prevTxHash.slice(0, 10)}…:
-                            {input.vOutIndex ?? 0}
-                          </Link>
+                            <Link
+                              to="/transactions/$hash"
+                              params={{ hash: input.prevTxHash }}
+                            >
+                              {input.prevTxHash.slice(0, 10)}…:
+                              {input.vOutIndex ?? 0}
+                            </Link>
+                          </Button>
                         ) : (
                           <Badge variant="soft-accent">
                             <Coins className="size-3" /> Coinbase

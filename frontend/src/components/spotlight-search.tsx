@@ -10,6 +10,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -118,21 +119,22 @@ export function SpotlightSearch({ className }: SpotlightSearchProps) {
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={() => setOpen(true)}
         className={cn(
-          "group inline-flex h-9 w-full items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground transition-colors hover:border-ring hover:text-foreground sm:w-[280px]",
+          "h-9 w-full justify-start gap-2 px-3 font-normal text-muted-foreground hover:text-foreground sm:w-[280px]",
           className,
         )}
         aria-label="Open search"
       >
         <Search className="size-4 shrink-0" />
-        <span className="flex-1 text-left">Search blocks, txs, addresses…</span>
-        <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+        <span className="flex-1 truncate text-left">Search…</span>
+        <kbd className="pointer-events-none ml-auto inline-flex h-5 shrink-0 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
           <span className="text-xs">⌘</span>K
         </kbd>
-      </button>
+      </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
@@ -147,7 +149,7 @@ export function SpotlightSearch({ className }: SpotlightSearchProps) {
             className="[&_[cmdk-input-wrapper]]:border-b"
           >
             <CommandInput
-              placeholder="Search by block height, tx hash, address, or masternode…"
+              placeholder="Block height, tx hash, address, masternode…"
               value={query}
               onValueChange={setQuery}
             />

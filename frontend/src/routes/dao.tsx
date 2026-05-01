@@ -13,8 +13,11 @@ import {
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
+import { DetailRow } from "@/components/detail-row";
+import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -165,15 +168,20 @@ function DaoPage() {
         if (!name) return <span className="text-muted-foreground">—</span>;
         if (url) {
           return (
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-accent no-underline hover:underline"
-              onClick={(e) => e.stopPropagation()}
+            <Button
+              asChild
+              variant="link"
+              className="h-auto p-0 text-sm font-medium"
             >
-              {name}
-            </a>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {name}
+              </a>
+            </Button>
           );
         }
         return <span className="text-sm font-medium">{name}</span>;
@@ -302,51 +310,43 @@ function DaoPage() {
             </CardHeader>
             <CardContent>
               <dl className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Required Votes
-                  </dt>
-                  <dd className="font-mono text-sm tabular-nums">
+                <DetailRow label="Required Votes" className="border-b-0 pb-0">
+                  <span className="font-mono tabular-nums">
                     {requiredVotes.toLocaleString()} Yes
-                  </dd>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Voting Deadline
-                  </dt>
-                  <dd className="flex flex-wrap items-center gap-2 text-sm">
-                    <span>
-                      {votingDeadline.toLocaleString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                    {nextPaymentDays > 0 && (
-                      <Badge variant="soft-accent">in {nextPaymentDays}d</Badge>
-                    )}
-                  </dd>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    With Enough Votes
-                  </dt>
-                  <dd className="font-mono text-sm tabular-nums">
+                  </span>
+                </DetailRow>
+                <DetailRow label="Voting Deadline" className="border-b-0 pb-0">
+                  <span>
+                    {votingDeadline.toLocaleString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  {nextPaymentDays > 0 && (
+                    <Badge variant="soft-accent">in {nextPaymentDays}d</Badge>
+                  )}
+                </DetailRow>
+                <DetailRow
+                  label="With Enough Votes"
+                  className="border-b-0 pb-0"
+                >
+                  <span className="font-mono tabular-nums">
                     {fundedProposalCount} proposals ·{" "}
                     {Math.round(fundedAmount).toLocaleString()} DASH
-                  </dd>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Without Enough Funds
-                  </dt>
-                  <dd className="font-mono text-sm tabular-nums">
+                  </span>
+                </DetailRow>
+                <DetailRow
+                  label="Without Enough Funds"
+                  className="border-b-0 pb-0"
+                >
+                  <span className="font-mono tabular-nums">
                     {unfundedProposalCount} proposals ·{" "}
                     {Math.round(unfundedAmount).toLocaleString()} DASH
-                  </dd>
-                </div>
+                  </span>
+                </DetailRow>
               </dl>
             </CardContent>
           </Card>
@@ -386,9 +386,10 @@ function DaoPage() {
                   </BarChart>
                 </ChartContainer>
               ) : (
-                <div className="flex h-[260px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-                  No historical superblock triggers available.
-                </div>
+                <EmptyState
+                  title="No historical superblock triggers available"
+                  className="h-[260px]"
+                />
               )}
             </CardContent>
           </Card>

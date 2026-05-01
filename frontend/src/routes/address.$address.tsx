@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
 import { ArrowLeftRight, MoveDown, MoveUp, Wallet } from "lucide-react";
@@ -10,6 +10,7 @@ import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
 import { InstantLockBadge, TxTypeBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -217,20 +218,20 @@ function AddressDetailsPage() {
         const dir = direction(row);
         if (dir === "in")
           return (
-            <span className="inline-flex items-center gap-1 text-success">
-              <MoveDown className="size-3.5" /> Received
-            </span>
+            <Badge variant="soft-success">
+              <MoveDown className="size-3" /> Received
+            </Badge>
           );
         if (dir === "out")
           return (
-            <span className="inline-flex items-center gap-1 text-destructive">
-              <MoveUp className="size-3.5" /> Sent
-            </span>
+            <Badge variant="soft-destructive">
+              <MoveUp className="size-3" /> Sent
+            </Badge>
           );
         return (
-          <span className="inline-flex items-center gap-1 text-muted-foreground">
-            <ArrowLeftRight className="size-3.5" /> Self
-          </span>
+          <Badge variant="soft">
+            <ArrowLeftRight className="size-3" /> Self
+          </Badge>
         );
       },
     },
@@ -435,9 +436,10 @@ function AddressDetailsPage() {
                 </AreaChart>
               </ChartContainer>
             ) : (
-              <div className="flex h-[280px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-                No balance data for this range.
-              </div>
+              <EmptyState
+                title="No balance data for this range"
+                className="h-[280px]"
+              />
             )}
           </CardContent>
         </Card>

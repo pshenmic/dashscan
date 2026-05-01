@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { HashDisplay } from "@/components/hash-display";
 import { MnStatusBadge, MnTypeBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardAction,
@@ -19,7 +20,6 @@ import type { ApiMasternode } from "@/lib/api/types";
 import { formatCompact, formatRelativeTime, getIp } from "@/lib/format";
 import { paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/masternodes/")({
   validateSearch: paginationSearchSchema,
@@ -122,14 +122,14 @@ function MasternodesPage() {
       header: "PoSe Score",
       align: "right",
       cell: (row) => (
-        <span
-          className={cn(
-            "font-mono text-sm tabular-nums",
-            row.posPenaltyScore === 0 ? "text-success" : "text-destructive",
-          )}
+        <Badge
+          variant={
+            row.posPenaltyScore === 0 ? "soft-success" : "soft-destructive"
+          }
+          className="font-mono tabular-nums"
         >
           {row.posPenaltyScore}
-        </span>
+        </Badge>
       ),
     },
     {

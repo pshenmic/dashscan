@@ -3,11 +3,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
 import { Boxes, Vote } from "lucide-react";
-import type { ReactNode } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { DetailRow } from "@/components/detail-row";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
 import { MnStatusBadge, MnTypeBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -23,17 +24,6 @@ import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import { formatRelativeTime } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 import { cn } from "@/lib/utils";
-
-function Item({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="flex flex-wrap items-center gap-2 text-sm">{children}</dd>
-    </div>
-  );
-}
 
 function AddressOrDash({ value }: { value?: string | null }) {
   if (!value) return <span className="text-muted-foreground">—</span>;
@@ -153,28 +143,28 @@ function MasternodeDetailPage() {
         <Card>
           <CardContent>
             <dl className="grid gap-y-4 gap-x-8 sm:grid-cols-2">
-              <Item label="ProTx Hash">
+              <DetailRow label="ProTx Hash">
                 <HashDisplay value={mn.proTxHash} variant="full" />
-              </Item>
-              <Item label="Network Address">
+              </DetailRow>
+              <DetailRow label="Network Address">
                 <span className="flex items-center gap-2 font-mono text-sm">
                   <LiveDot active={isEnabled} />
                   {mn.address}
                 </span>
-              </Item>
-              <Item label="PoSe Score">
-                <span
-                  className={cn(
-                    "font-mono text-sm tabular-nums",
+              </DetailRow>
+              <DetailRow label="PoSe Score">
+                <Badge
+                  variant={
                     mn.posPenaltyScore === 0
-                      ? "text-success"
-                      : "text-destructive",
-                  )}
+                      ? "soft-success"
+                      : "soft-destructive"
+                  }
+                  className="font-mono tabular-nums"
                 >
                   {mn.posPenaltyScore}
-                </span>
-              </Item>
-              <Item label="Last Paid">
+                </Badge>
+              </DetailRow>
+              <DetailRow label="Last Paid">
                 {mn.lastPaidTime ? (
                   <>
                     <span>
@@ -187,8 +177,8 @@ function MasternodeDetailPage() {
                 ) : (
                   <span className="text-muted-foreground">Never</span>
                 )}
-              </Item>
-              <Item label="Last Paid Block">
+              </DetailRow>
+              <DetailRow label="Last Paid Block">
                 {mn.lastPaidBlock ? (
                   <span className="font-mono text-sm tabular-nums">
                     #{mn.lastPaidBlock.toLocaleString()}
@@ -196,35 +186,35 @@ function MasternodeDetailPage() {
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}
-              </Item>
-              <Item label="Consecutive Payments">
+              </DetailRow>
+              <DetailRow label="Consecutive Payments">
                 {mn.consecutivePayments?.toLocaleString() ?? "0"}
-              </Item>
-              <Item label="Registered">
+              </DetailRow>
+              <DetailRow label="Registered">
                 <span>{new Date(mn.createdAt).toLocaleString()}</span>
                 <span className="text-xs text-muted-foreground">
                   ({formatRelativeTime(mn.createdAt)})
                 </span>
-              </Item>
-              <Item label="Owner Address">
+              </DetailRow>
+              <DetailRow label="Owner Address">
                 <AddressOrDash value={mn.ownerAddress} />
-              </Item>
-              <Item label="Voting Address">
+              </DetailRow>
+              <DetailRow label="Voting Address">
                 <AddressOrDash value={mn.votingAddress} />
-              </Item>
-              <Item label="Collateral Address">
+              </DetailRow>
+              <DetailRow label="Collateral Address">
                 <AddressOrDash value={mn.collateralAddress} />
-              </Item>
-              <Item label="Payout Address">
+              </DetailRow>
+              <DetailRow label="Payout Address">
                 <AddressOrDash value={mn.payee} />
-              </Item>
-              <Item label="Operator PubKey">
+              </DetailRow>
+              <DetailRow label="Operator PubKey">
                 {mn.pubKeyOperator ? (
                   <HashDisplay value={mn.pubKeyOperator} variant="compact" />
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}
-              </Item>
+              </DetailRow>
             </dl>
           </CardContent>
         </Card>

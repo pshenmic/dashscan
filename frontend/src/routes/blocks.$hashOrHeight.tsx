@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, FileText, Hash } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
+import { DetailRow } from "@/components/detail-row";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
 import { ConfirmationsBadge, TxTypeBadge } from "@/components/status-badge";
@@ -210,96 +211,55 @@ function BlockDetailPage() {
         <Card>
           <CardContent>
             <dl className="grid gap-y-4 gap-x-8 sm:grid-cols-2">
-              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Block Hash
-                </dt>
-                <dd className="text-sm">
-                  <HashDisplay value={block.hash} variant="full" />
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Merkle Root
-                </dt>
-                <dd className="text-sm">
-                  <HashDisplay value={block.merkleRoot} variant="full" />
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Previous Block
-                </dt>
-                <dd className="text-sm">
+              <DetailRow label="Block Hash">
+                <HashDisplay value={block.hash} variant="full" />
+              </DetailRow>
+              <DetailRow label="Merkle Root">
+                <HashDisplay value={block.merkleRoot} variant="full" />
+              </DetailRow>
+              <DetailRow label="Previous Block">
+                <Button asChild variant="link" className="h-auto p-0 font-mono">
                   <Link
                     to="/blocks/$hashOrHeight"
                     params={{ hashOrHeight: block.previousBlockHash }}
-                    className="font-mono text-sm text-accent no-underline hover:underline"
                   >
                     #{(block.height - 1).toLocaleString()}
                   </Link>
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Timestamp
-                </dt>
-                <dd className="flex flex-wrap items-center gap-2 text-sm">
-                  <span>{new Date(block.timestamp).toLocaleString()}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatRelativeTime(block.timestamp)}
-                  </span>
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Confirmations
-                </dt>
-                <dd className="text-sm">
-                  {block.confirmations.toLocaleString()}
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Size
-                </dt>
-                <dd className="font-mono text-sm tabular-nums">
+                </Button>
+              </DetailRow>
+              <DetailRow label="Timestamp">
+                <span>{new Date(block.timestamp).toLocaleString()}</span>
+                <span className="text-xs text-muted-foreground">
+                  {formatRelativeTime(block.timestamp)}
+                </span>
+              </DetailRow>
+              <DetailRow label="Confirmations">
+                {block.confirmations.toLocaleString()}
+              </DetailRow>
+              <DetailRow label="Size">
+                <span className="font-mono tabular-nums">
                   {(block.size / 1024).toFixed(2)} KB
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    ({block.size.toLocaleString()} bytes)
-                  </span>
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Difficulty
-                </dt>
-                <dd className="font-mono text-sm tabular-nums">
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({block.size.toLocaleString()} bytes)
+                </span>
+              </DetailRow>
+              <DetailRow label="Difficulty">
+                <span className="font-mono tabular-nums">
                   {block.difficulty.toFixed(4)}
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Nonce
-                </dt>
-                <dd className="font-mono text-sm tabular-nums">
+                </span>
+              </DetailRow>
+              <DetailRow label="Nonce">
+                <span className="font-mono tabular-nums">
                   {block.nonce.toLocaleString()}
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Version
-                </dt>
-                <dd className="text-sm">{block.version}</dd>
-              </div>
-              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Credit Pool
-                </dt>
-                <dd className="font-mono text-sm tabular-nums">
+                </span>
+              </DetailRow>
+              <DetailRow label="Version">{block.version}</DetailRow>
+              <DetailRow label="Credit Pool">
+                <span className="font-mono tabular-nums">
                   {formatDuffs(block.creditPoolBalance)} DASH
-                </dd>
-              </div>
+                </span>
+              </DetailRow>
             </dl>
           </CardContent>
         </Card>
