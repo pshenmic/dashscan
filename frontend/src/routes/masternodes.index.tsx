@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { CircleCheck, Server, ServerCrash } from "lucide-react";
@@ -23,7 +23,10 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { masternodesQueryOptions } from "@/lib/api/masternodes";
+import {
+  masternodesInfiniteQueryOptions,
+  masternodesQueryOptions,
+} from "@/lib/api/masternodes";
 import type { ApiMasternode } from "@/lib/api/types";
 import {
   formatCompact,
@@ -31,8 +34,11 @@ import {
   getIp,
   getMnTypeLabel,
 } from "@/lib/format";
-import { paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
+import { useTableViewMode } from "@/lib/use-table-view-mode";
+
+const INFINITE_PAGE_SIZE = 25;
+const PAGINATION_PAGE_SIZE = 25;
 
 const statusConfig: ChartConfig = {
   value: { label: "Nodes", color: "var(--chart-1)" },
@@ -43,16 +49,18 @@ const typeConfig: ChartConfig = {
 };
 
 export const Route = createFileRoute("/masternodes/")({
-  validateSearch: paginationSearchSchema,
-  loaderDeps: ({ search: { page, limit } }) => ({ page, limit }),
   component: MasternodesPage,
   head: () => ({ meta: [{ title: "Masternodes | DashScan" }] }),
-  loader: ({ context, deps: { page, limit } }) => {
+  loader: ({ context }) => {
     if (typeof window !== "undefined") return;
     const network = defaultNetwork;
     return Promise.all([
-      context.queryClient.prefetchQuery(
-        masternodesQueryOptions({ network, page, limit, order: "desc" }),
+      context.queryClient.prefetchInfiniteQuery(
+        masternodesInfiniteQueryOptions({
+          network,
+          limit: INFINITE_PAGE_SIZE,
+          order: "desc",
+        }),
       ),
       context.queryClient.prefetchQuery(
         masternodesQueryOptions({
@@ -68,22 +76,50 @@ export const Route = createFileRoute("/masternodes/")({
 
 function MasternodesPage() {
   const network = useStore(appStore, (state) => state.network);
-  const { page, limit } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useTableViewMode("masternodes");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
   const statusGradId = useId();
   const typeGradId = useId();
 
-  const { data, isFetching } = useQuery(
-    masternodesQueryOptions({ network, page, limit, order: "desc" }),
-  );
+  const isInfinite = viewMode === "infinite";
+
+  const { data, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useInfiniteQuery({
+      ...masternodesInfiniteQueryOptions({
+        network,
+        limit: INFINITE_PAGE_SIZE,
+        order: "desc",
+      }),
+      enabled: isInfinite,
+    });
+
+  const { data: pagedData, isFetching: isPagedFetching } = useQuery({
+    ...masternodesQueryOptions({
+      network,
+      page,
+      limit: pageSize,
+      order: "desc",
+    }),
+    enabled: !isInfinite,
+  });
 
   const { data: statsData } = useQuery(
     masternodesQueryOptions({ network, page: 1, limit: 100, order: "desc" }),
   );
 
-  const masternodes = data?.resultSet ?? [];
-  const total = data?.pagination?.total ?? 0;
+  const infiniteMasternodes = useMemo(
+    () => data?.pages.flatMap((p) => p.resultSet) ?? [],
+    [data],
+  );
+  const masternodes = isInfinite
+    ? infiniteMasternodes
+    : (pagedData?.resultSet ?? []);
+  const total = isInfinite
+    ? (data?.pages[0]?.pagination?.total ?? 0)
+    : (pagedData?.pagination?.total ?? 0);
 
   const filtered = useMemo(() => {
     if (!search) return masternodes;
@@ -384,7 +420,10 @@ function MasternodesPage() {
         <DataTable
           columns={columns}
           data={filtered}
-          isLoading={isFetching}
+          isLoading={
+            (isInfinite ? isFetching : isPagedFetching) &&
+            masternodes.length === 0
+          }
           rowKey={(row) => row.proTxHash}
           onRowClick={(node) =>
             navigate({
@@ -395,19 +434,29 @@ function MasternodesPage() {
           search={{
             value: search,
             onChange: setSearch,
-            placeholder: "Filter visible page by IP or ProTx hash…",
+            placeholder: isInfinite
+              ? "Filter loaded masternodes by IP or ProTx hash…"
+              : "Filter visible page by IP or ProTx hash…",
           }}
           emptyTitle="No masternodes"
+          viewMode={{ value: viewMode, onChange: setViewMode }}
+          infiniteScroll={{
+            hasNextPage,
+            isFetchingNextPage,
+            onLoadMore: () => fetchNextPage(),
+            total,
+            loaded: masternodes.length,
+            skeletonRows: 5,
+          }}
           pagination={{
             pageIndex: page,
-            pageSize: limit,
+            pageSize,
             total,
-            onPageChange: (p) => navigate({ search: { page: p, limit } }),
-            onPageSizeChange: (size) =>
-              navigate({
-                // biome-ignore lint/suspicious/noExplicitAny: pagination size literal
-                search: { page: 1, limit: size as any },
-              }),
+            onPageChange: setPage,
+            onPageSizeChange: (size) => {
+              setPageSize(size);
+              setPage(1);
+            },
           }}
         />
       </div>

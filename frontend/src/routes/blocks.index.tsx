@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Activity, Boxes, Clock, Gauge, Layers } from "lucide-react";
@@ -29,13 +29,19 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { blocksQueryOptions } from "@/lib/api/blocks";
+import {
+  blocksInfiniteQueryOptions,
+  blocksQueryOptions,
+} from "@/lib/api/blocks";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import { blockTransactionsStatsQueryOptions } from "@/lib/api/stats";
 import type { ApiBlock } from "@/lib/api/types";
 import { formatCompact, formatRelativeTime } from "@/lib/format";
-import { paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
+import { useTableViewMode } from "@/lib/use-table-view-mode";
+
+const INFINITE_PAGE_SIZE = 25;
+const PAGINATION_PAGE_SIZE = 25;
 
 const chartConfig: ChartConfig = {
   value: { label: "Avg tx", color: "var(--chart-1)" },
@@ -56,16 +62,26 @@ function dayRange() {
 }
 
 export const Route = createFileRoute("/blocks/")({
-  validateSearch: paginationSearchSchema,
-  loaderDeps: ({ search: { page, limit } }) => ({ page, limit }),
   component: BlocksPage,
   head: () => ({ meta: [{ title: "Blocks | DashScan" }] }),
-  loader: ({ context, deps: { page, limit } }) => {
+  loader: ({ context }) => {
     if (typeof window !== "undefined") return;
     const network = defaultNetwork;
     return Promise.all([
+      context.queryClient.prefetchInfiniteQuery(
+        blocksInfiniteQueryOptions({
+          network,
+          limit: INFINITE_PAGE_SIZE,
+          order: "desc",
+        }),
+      ),
       context.queryClient.prefetchQuery(
-        blocksQueryOptions({ network, page, limit, order: "desc" }),
+        blocksQueryOptions({
+          network,
+          page: 1,
+          limit: 1,
+          order: "desc",
+        }),
       ),
       context.queryClient.prefetchQuery(
         blockTransactionsStatsQueryOptions({
@@ -81,15 +97,34 @@ export const Route = createFileRoute("/blocks/")({
 
 function BlocksPage() {
   const network = useStore(appStore, (state) => state.network);
-  const { page, limit } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useTableViewMode("blocks");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
   const txGradId = useId();
   const sizeGradId = useId();
 
-  const { data, isFetching } = useQuery(
-    blocksQueryOptions({ network, page, limit, order: "desc" }),
-  );
+  const isInfinite = viewMode === "infinite";
+
+  const { data, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useInfiniteQuery({
+      ...blocksInfiniteQueryOptions({
+        network,
+        limit: INFINITE_PAGE_SIZE,
+        order: "desc",
+      }),
+      enabled: isInfinite,
+    });
+  const { data: pagedData, isFetching: isPagedFetching } = useQuery({
+    ...blocksQueryOptions({
+      network,
+      page,
+      limit: pageSize,
+      order: "desc",
+    }),
+    enabled: !isInfinite,
+  });
   const { data: blockTxStats } = useQuery(
     blockTransactionsStatsQueryOptions({
       network,
@@ -99,8 +134,14 @@ function BlocksPage() {
   );
   const { data: chainStats } = useQuery(chainStatsQueryOptions({ network }));
 
-  const blocks = data?.resultSet ?? [];
-  const total = data?.pagination?.total ?? 0;
+  const infiniteBlocks = useMemo(
+    () => data?.pages.flatMap((p) => p.resultSet) ?? [],
+    [data],
+  );
+  const blocks = isInfinite ? infiniteBlocks : (pagedData?.resultSet ?? []);
+  const total = isInfinite
+    ? (data?.pages[0]?.pagination?.total ?? 0)
+    : (pagedData?.pagination?.total ?? 0);
 
   const filtered = useMemo(() => {
     if (!search) return blocks;
@@ -440,7 +481,9 @@ function BlocksPage() {
         <DataTable
           columns={columns}
           data={filtered}
-          isLoading={isFetching}
+          isLoading={
+            (isInfinite ? isFetching : isPagedFetching) && blocks.length === 0
+          }
           rowKey={(row) => row.hash}
           onRowClick={(block) =>
             navigate({
@@ -451,19 +494,29 @@ function BlocksPage() {
           search={{
             value: search,
             onChange: setSearch,
-            placeholder: "Filter visible page by hash or height…",
+            placeholder: isInfinite
+              ? "Filter loaded blocks by hash or height…"
+              : "Filter visible page by hash or height…",
           }}
           emptyTitle="No blocks"
+          viewMode={{ value: viewMode, onChange: setViewMode }}
+          infiniteScroll={{
+            hasNextPage,
+            isFetchingNextPage,
+            onLoadMore: () => fetchNextPage(),
+            total,
+            loaded: blocks.length,
+            skeletonRows: 5,
+          }}
           pagination={{
             pageIndex: page,
-            pageSize: limit,
+            pageSize,
             total,
-            onPageChange: (p) => navigate({ search: { page: p, limit } }),
-            onPageSizeChange: (size) =>
-              navigate({
-                // biome-ignore lint/suspicious/noExplicitAny: pagination size literal
-                search: { page: 1, limit: size as any },
-              }),
+            onPageChange: setPage,
+            onPageSizeChange: (size) => {
+              setPageSize(size);
+              setPage(1);
+            },
           }}
         />
       </div>

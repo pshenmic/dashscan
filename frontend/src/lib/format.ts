@@ -24,6 +24,14 @@ export function formatCompactUsd(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
+export function formatCompactUsdShort(value: number): string {
+  if (value >= 1_000_000_000)
+    return `$${Math.round(value / 1_000_000_000)}B`;
+  if (value >= 1_000_000) return `$${Math.round(value / 1_000_000)}M`;
+  if (value >= 1_000) return `$${Math.round(value / 1_000)}K`;
+  return `$${Math.round(value)}`;
+}
+
 export function getMnTypeLabel(type: string): string {
   const t = type.toLowerCase();
   if (t === "evo" || t === "highperformance") return "Evolution";

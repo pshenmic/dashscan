@@ -82,6 +82,7 @@ import {
 import {
   formatCompact,
   formatCompactUsd,
+  formatCompactUsdShort,
   formatDuffs,
   formatRelativeTime,
   sumVOut,
@@ -711,7 +712,7 @@ function Dashboard() {
               <ChartArea
                 data={mcapData}
                 gradientId={mcapAreaId}
-                yFormat={(v) => formatCompactUsd(Number(v))}
+                yFormat={(v) => formatCompactUsdShort(Number(v))}
                 height={140}
               />
             </CardContent>
@@ -728,7 +729,7 @@ function Dashboard() {
               <ChartBar
                 data={volumeData}
                 gradientId={volumeBarId}
-                yFormat={(v) => formatCompactUsd(Number(v))}
+                yFormat={(v) => formatCompactUsdShort(Number(v))}
                 height={140}
               />
             </CardContent>

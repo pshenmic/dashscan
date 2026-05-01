@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Activity, ArrowLeftRight, Box, Database } from "lucide-react";
@@ -30,7 +30,10 @@ import {
   monthStatsRange,
   transactionsStatsQueryOptions,
 } from "@/lib/api/stats";
-import { transactionsQueryOptions } from "@/lib/api/transactions";
+import {
+  transactionsInfiniteQueryOptions,
+  transactionsQueryOptions,
+} from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
 import {
   formatCompact,
@@ -38,24 +41,32 @@ import {
   formatRelativeTime,
   sumVOut,
 } from "@/lib/format";
-import { paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
+import { useTableViewMode } from "@/lib/use-table-view-mode";
+
+const INFINITE_PAGE_SIZE = 25;
+const PAGINATION_PAGE_SIZE = 25;
 
 const chartConfig: ChartConfig = {
   value: { label: "Transactions", color: "var(--chart-1)" },
 };
 
 export const Route = createFileRoute("/transactions/")({
-  validateSearch: paginationSearchSchema,
-  loaderDeps: ({ search: { page, limit } }) => ({ page, limit }),
   component: TransactionsPage,
   head: () => ({ meta: [{ title: "Transactions | DashScan" }] }),
-  loader: ({ context, deps: { page, limit } }) => {
+  loader: ({ context }) => {
     if (typeof window !== "undefined") return;
     const network = defaultNetwork;
     return Promise.all([
+      context.queryClient.prefetchInfiniteQuery(
+        transactionsInfiniteQueryOptions({
+          network,
+          limit: INFINITE_PAGE_SIZE,
+          order: "desc",
+        }),
+      ),
       context.queryClient.prefetchQuery(
-        transactionsQueryOptions({ network, page, limit, order: "desc" }),
+        transactionsQueryOptions({ network, page: 1, limit: 1, order: "desc" }),
       ),
       context.queryClient.prefetchQuery(
         transactionsStatsQueryOptions({
@@ -74,14 +85,33 @@ export const Route = createFileRoute("/transactions/")({
 
 function TransactionsPage() {
   const network = useStore(appStore, (state) => state.network);
-  const { page, limit } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useTableViewMode("transactions");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
   const barGradId = useId();
 
-  const { data, isFetching } = useQuery(
-    transactionsQueryOptions({ network, page, limit, order: "desc" }),
-  );
+  const isInfinite = viewMode === "infinite";
+
+  const { data, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useInfiniteQuery({
+      ...transactionsInfiniteQueryOptions({
+        network,
+        limit: INFINITE_PAGE_SIZE,
+        order: "desc",
+      }),
+      enabled: isInfinite,
+    });
+  const { data: pagedData, isFetching: isPagedFetching } = useQuery({
+    ...transactionsQueryOptions({
+      network,
+      page,
+      limit: pageSize,
+      order: "desc",
+    }),
+    enabled: !isInfinite,
+  });
 
   const { data: txStats } = useQuery(
     transactionsStatsQueryOptions({
@@ -95,8 +125,16 @@ function TransactionsPage() {
     mempoolQueryOptions({ network, page: 1, limit: 1 }),
   );
 
-  const transactions = data?.resultSet ?? [];
-  const total = data?.pagination?.total ?? 0;
+  const infiniteTransactions = useMemo(
+    () => data?.pages.flatMap((p) => p.resultSet) ?? [],
+    [data],
+  );
+  const transactions = isInfinite
+    ? infiniteTransactions
+    : (pagedData?.resultSet ?? []);
+  const total = isInfinite
+    ? (data?.pages[0]?.pagination?.total ?? 0)
+    : (pagedData?.pagination?.total ?? 0);
   const rawMempoolTotal = mempoolData?.pagination?.total ?? null;
   const mempoolCount =
     rawMempoolTotal != null && rawMempoolTotal >= 0 ? rawMempoolTotal : 0;
@@ -362,7 +400,10 @@ function TransactionsPage() {
         <DataTable
           columns={columns}
           data={filtered}
-          isLoading={isFetching}
+          isLoading={
+            (isInfinite ? isFetching : isPagedFetching) &&
+            transactions.length === 0
+          }
           rowKey={(row) => row.hash}
           onRowClick={(tx) =>
             navigate({ to: "/transactions/$hash", params: { hash: tx.hash } })
@@ -370,19 +411,29 @@ function TransactionsPage() {
           search={{
             value: search,
             onChange: setSearch,
-            placeholder: "Filter visible page by hash or block…",
+            placeholder: isInfinite
+              ? "Filter loaded transactions by hash or block…"
+              : "Filter visible page by hash or block…",
           }}
           emptyTitle="No transactions"
+          viewMode={{ value: viewMode, onChange: setViewMode }}
+          infiniteScroll={{
+            hasNextPage,
+            isFetchingNextPage,
+            onLoadMore: () => fetchNextPage(),
+            total,
+            loaded: transactions.length,
+            skeletonRows: 5,
+          }}
           pagination={{
             pageIndex: page,
-            pageSize: limit,
+            pageSize,
             total,
-            onPageChange: (p) => navigate({ search: { page: p, limit } }),
-            onPageSizeChange: (size) =>
-              navigate({
-                // biome-ignore lint/suspicious/noExplicitAny: pagination size literal
-                search: { page: 1, limit: size as any },
-              }),
+            onPageChange: setPage,
+            onPageSizeChange: (size) => {
+              setPageSize(size);
+              setPage(1);
+            },
           }}
         />
       </div>

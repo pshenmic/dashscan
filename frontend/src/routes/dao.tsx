@@ -46,6 +46,7 @@ import {
   getVotingDeadline,
 } from "@/lib/governance";
 import { appStore, defaultNetwork } from "@/lib/store";
+import { useTableViewMode } from "@/lib/use-table-view-mode";
 
 const chartConfig: ChartConfig = {
   value: { label: "Triggers", color: "var(--chart-1)" },
@@ -72,11 +73,23 @@ export const Route = createFileRoute("/dao")({
   },
 });
 
+const PROPOSALS_PAGE_SIZE = 25;
+
 function DaoPage() {
   const network = useStore(appStore, (state) => state.network);
   const [search, setSearch] = useState("");
-  const [pageIndex, setPageIndex] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [visibleCount, setVisibleCount] = useState(PROPOSALS_PAGE_SIZE);
+  const [viewMode, setViewMode] = useTableViewMode("dao");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PROPOSALS_PAGE_SIZE);
+
+  const isInfinite = viewMode === "infinite";
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setVisibleCount(PROPOSALS_PAGE_SIZE);
+    setPage(1);
+  };
 
   const { data: allProposals, isFetching } = useQuery(
     proposalsQueryOptions({ network, proposalType: "all" }),
@@ -109,9 +122,13 @@ function DaoPage() {
   }, [proposals, search]);
 
   const paged = useMemo(() => {
-    const start = (pageIndex - 1) * pageSize;
+    if (isInfinite) {
+      return filteredProposals.slice(0, visibleCount);
+    }
+    const start = (page - 1) * pageSize;
     return filteredProposals.slice(start, start + pageSize);
-  }, [filteredProposals, pageIndex, pageSize]);
+  }, [filteredProposals, visibleCount, isInfinite, page, pageSize]);
+  const hasNextPage = visibleCount < filteredProposals.length;
 
   const currentHeight = blockData?.resultSet?.[0]?.height ?? 0;
   const masternodeCount = mnData?.pagination?.total ?? 0;
@@ -398,25 +415,31 @@ function DaoPage() {
         <DataTable
           columns={columns}
           data={paged}
-          isLoading={isFetching}
+          isLoading={isFetching && filteredProposals.length === 0}
           rowKey={(row, idx) => row.hash ?? `proposal-${idx}`}
           search={{
             value: search,
-            onChange: (v) => {
-              setSearch(v);
-              setPageIndex(1);
-            },
+            onChange: handleSearchChange,
             placeholder: "Search proposals…",
           }}
           emptyTitle="No proposals"
+          viewMode={{ value: viewMode, onChange: setViewMode }}
+          infiniteScroll={{
+            hasNextPage,
+            isFetchingNextPage: false,
+            onLoadMore: () => setVisibleCount((c) => c + PROPOSALS_PAGE_SIZE),
+            total: filteredProposals.length,
+            loaded: paged.length,
+            skeletonRows: 5,
+          }}
           pagination={{
-            pageIndex,
+            pageIndex: page,
             pageSize,
             total: filteredProposals.length,
-            onPageChange: setPageIndex,
+            onPageChange: setPage,
             onPageSizeChange: (size) => {
               setPageSize(size);
-              setPageIndex(1);
+              setPage(1);
             },
           }}
         />

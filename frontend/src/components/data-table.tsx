@@ -1,5 +1,5 @@
-import { Search } from "lucide-react";
-import { Fragment, type ReactNode } from "react";
+import { ListOrdered, Loader2, MousePointerClick, Search } from "lucide-react";
+import { Fragment, type ReactNode, useEffect, useRef } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +27,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +68,18 @@ interface DataTableProps<T> {
     onPageChange: (page: number) => void;
     onPageSizeChange?: (size: number) => void;
   };
+  infiniteScroll?: {
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+    onLoadMore: () => void;
+    total?: number;
+    loaded?: number;
+    skeletonRows?: number;
+  };
+  viewMode?: {
+    value: "infinite" | "pagination";
+    onChange: (mode: "infinite" | "pagination") => void;
+  };
   className?: string;
   rowClassName?: (row: T) => string;
 }
@@ -91,9 +109,16 @@ export function DataTable<T>({
   search,
   toolbar,
   pagination,
+  infiniteScroll,
+  viewMode,
   className,
   rowClassName,
 }: DataTableProps<T>) {
+  const activeMode: "infinite" | "pagination" =
+    viewMode?.value ??
+    (infiniteScroll ? "infinite" : pagination ? "pagination" : "infinite");
+  const showInfinite = !!infiniteScroll && activeMode === "infinite";
+  const showPagination = !!pagination && activeMode === "pagination";
   const totalPages = pagination
     ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize))
     : 0;
@@ -101,9 +126,34 @@ export function DataTable<T>({
     ? buildPageList(pagination.pageIndex, totalPages)
     : [];
 
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const onLoadMoreRef = useRef(infiniteScroll?.onLoadMore);
+  onLoadMoreRef.current = infiniteScroll?.onLoadMore;
+  const hasNextPage = infiniteScroll?.hasNextPage ?? false;
+  const isFetchingNextPage = infiniteScroll?.isFetchingNextPage ?? false;
+
+  useEffect(() => {
+    if (!showInfinite) return;
+    if (!hasNextPage) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !isFetchingNextPage) {
+            onLoadMoreRef.current?.();
+          }
+        }
+      },
+      { rootMargin: "320px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [showInfinite, hasNextPage, isFetchingNextPage]);
+
   return (
     <div className={cn("flex flex-col gap-4", className)}>
-      {(search || toolbar) && (
+      {(search || toolbar || viewMode) && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           {search ? (
             <div className="relative w-full sm:max-w-sm">
@@ -118,7 +168,42 @@ export function DataTable<T>({
           ) : (
             <div />
           )}
-          {toolbar && <div className="flex items-center gap-2">{toolbar}</div>}
+          <div className="flex items-center gap-2">
+            {toolbar}
+            {viewMode && (
+              <ToggleGroup
+                type="single"
+                size="sm"
+                value={viewMode.value}
+                onValueChange={(v) => {
+                  if (v === "infinite" || v === "pagination") {
+                    viewMode.onChange(v);
+                  }
+                }}
+                aria-label="Table view mode"
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ToggleGroupItem
+                      value="infinite"
+                      aria-label="Infinite scroll"
+                    >
+                      <MousePointerClick className="size-4" />
+                    </ToggleGroupItem>
+                  </TooltipTrigger>
+                  <TooltipContent>Infinite scroll</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ToggleGroupItem value="pagination" aria-label="Pagination">
+                      <ListOrdered className="size-4" />
+                    </ToggleGroupItem>
+                  </TooltipTrigger>
+                  <TooltipContent>Pagination</TooltipContent>
+                </Tooltip>
+              </ToggleGroup>
+            )}
+          </div>
         </div>
       )}
 
@@ -143,7 +228,11 @@ export function DataTable<T>({
         <TableBody>
           {isLoading && data.length === 0 ? (
             Array.from(
-              { length: pagination?.pageSize ?? 10 },
+              {
+                length: showPagination
+                  ? (pagination?.pageSize ?? 10)
+                  : (infiniteScroll?.skeletonRows ?? 10),
+              },
               (_, i) => `skeleton-${i}`,
             ).map((key) => (
               <TableRow key={key} className="hover:bg-transparent">
@@ -165,34 +254,74 @@ export function DataTable<T>({
               </TableCell>
             </TableRow>
           ) : (
-            data.map((row, index) => (
-              <TableRow
-                key={rowKey(row, index)}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={cn(
-                  onRowClick && "cursor-pointer",
-                  rowClassName?.(row),
-                )}
-              >
-                {columns.map((col) => (
-                  <TableCell
-                    key={col.id}
-                    className={cn(
-                      col.align === "right" && "text-right",
-                      col.align === "center" && "text-center",
-                      col.className,
-                    )}
-                  >
-                    {col.cell(row, index)}
-                  </TableCell>
+            <>
+              {data.map((row, index) => (
+                <TableRow
+                  key={rowKey(row, index)}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  className={cn(
+                    onRowClick && "cursor-pointer",
+                    rowClassName?.(row),
+                  )}
+                >
+                  {columns.map((col) => (
+                    <TableCell
+                      key={col.id}
+                      className={cn(
+                        col.align === "right" && "text-right",
+                        col.align === "center" && "text-center",
+                        col.className,
+                      )}
+                    >
+                      {col.cell(row, index)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+              {showInfinite &&
+                isFetchingNextPage &&
+                Array.from(
+                  { length: infiniteScroll?.skeletonRows ?? 5 },
+                  (_, i) => `next-skeleton-${i}`,
+                ).map((key) => (
+                  <TableRow key={key} className="hover:bg-transparent">
+                    {columns.map((col) => (
+                      <TableCell key={col.id}>
+                        <Skeleton className="h-4 w-full max-w-[140px]" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-              </TableRow>
-            ))
+            </>
           )}
         </TableBody>
       </Table>
 
-      {pagination && pagination.total > 0 && (
+      {showInfinite && infiniteScroll && (
+        <>
+          <div ref={sentinelRef} aria-hidden className="h-px w-full" />
+          <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+            {hasNextPage ? (
+              isFetchingNextPage ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading more…
+                </span>
+              ) : (
+                <span className="text-xs">Scroll to load more</span>
+              )
+            ) : data.length > 0 ? (
+              <span className="text-xs">
+                {infiniteScroll.total != null
+                  ? `Showing ${(infiniteScroll.loaded ?? data.length).toLocaleString()} of ${infiniteScroll.total.toLocaleString()}`
+                  : "End of results"}
+              </span>
+            ) : null}
+          </div>
+        </>
+      )}
+
+      {showPagination && pagination && pagination.total > 0 && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span>

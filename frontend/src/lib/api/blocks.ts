@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
 import { getBaseUrl } from "./client";
@@ -37,6 +37,27 @@ export function blocksQueryOptions(params: FetchBlocksInput) {
       params.order,
     ],
     queryFn: () => getBlocks(params),
+  });
+}
+
+interface InfiniteBlocksInput {
+  network: Network;
+  limit?: number;
+  order?: "asc" | "desc";
+}
+
+export function blocksInfiniteQueryOptions(params: InfiniteBlocksInput) {
+  const limit = params.limit ?? 25;
+  const order = params.order ?? "desc";
+  return infiniteQueryOptions({
+    queryKey: ["blocks-infinite", params.network, limit, order],
+    queryFn: ({ pageParam }) =>
+      getBlocks({ network: params.network, page: pageParam, limit, order }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const { page, limit: pageLimit, total } = lastPage.pagination;
+      return page * pageLimit < total ? page + 1 : undefined;
+    },
   });
 }
 
