@@ -149,6 +149,16 @@ export interface ApiGovernanceBudget {
   remainingEnoughVotes: number;
 }
 
+export interface ApiChainStats {
+  chain: string | null;
+  sizeOnDisk: number | null;
+  difficulty: number | null;
+  blockTime: number | null;
+  transactionsPerSecond: number | null;
+  transactionsPerMinute: number | null;
+  latestHeight: number | null;
+}
+
 export interface ApiGovernanceObject {
   dataHex: string | null;
   data: ApiProposalData | null;

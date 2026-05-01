@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { CircleCheck, Server, ServerCrash } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
+import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
 import { MnStatusBadge, MnTypeBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -15,11 +17,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiMasternode } from "@/lib/api/types";
-import { formatCompact, formatRelativeTime, getIp } from "@/lib/format";
+import {
+  formatCompact,
+  formatRelativeTime,
+  getIp,
+  getMnTypeLabel,
+} from "@/lib/format";
 import { paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
+
+const statusConfig: ChartConfig = {
+  value: { label: "Nodes", color: "var(--chart-1)" },
+};
+
+const typeConfig: ChartConfig = {
+  value: { label: "Nodes", color: "var(--chart-2)" },
+};
 
 export const Route = createFileRoute("/masternodes/")({
   validateSearch: paginationSearchSchema,
@@ -50,6 +71,8 @@ function MasternodesPage() {
   const { page, limit } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [search, setSearch] = useState("");
+  const statusGradId = useId();
+  const typeGradId = useId();
 
   const { data, isFetching } = useQuery(
     masternodesQueryOptions({ network, page, limit, order: "desc" }),
@@ -82,7 +105,32 @@ function MasternodesPage() {
     const enabled = sample.filter(
       (n) => n.status.toUpperCase() === "ENABLED",
     ).length;
-    return { totalAll, banned, enabled, sampled: sample.length };
+    const other = sample.length - banned - enabled;
+
+    const typeCounts = sample.reduce<Record<string, number>>((acc, n) => {
+      const key = getMnTypeLabel(n.type);
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+    const typeChart = Object.entries(typeCounts).map(([type, count]) => ({
+      type,
+      value: count,
+    }));
+
+    const statusChart = [
+      { status: "Enabled", value: enabled },
+      { status: "Banned", value: banned },
+      ...(other > 0 ? [{ status: "Other", value: other }] : []),
+    ];
+
+    return {
+      totalAll,
+      banned,
+      enabled,
+      sampled: sample.length,
+      typeChart,
+      statusChart,
+    };
   }, [statsData]);
 
   const columns: DataTableColumn<ApiMasternode>[] = [
@@ -146,7 +194,7 @@ function MasternodesPage() {
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <header className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Masternodes
@@ -194,6 +242,141 @@ function MasternodesPage() {
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">
               In latest {stats.sampled} nodes
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardDescription>Status Distribution</CardDescription>
+              <CardTitle className="text-xl tabular-nums">
+                {stats.sampled} nodes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stats.statusChart.length > 0 ? (
+                <ChartContainer
+                  config={statusConfig}
+                  className="aspect-auto h-[180px] w-full"
+                >
+                  <BarChart
+                    data={stats.statusChart}
+                    layout="vertical"
+                    margin={{ left: 16, right: 16 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id={statusGradId}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="0"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="var(--color-value)"
+                          stopOpacity={0.9}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="var(--color-value)"
+                          stopOpacity={0.4}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                    <XAxis
+                      type="number"
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => Number(v).toFixed(0)}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="status"
+                      tickLine={false}
+                      axisLine={false}
+                      width={80}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="value"
+                      fill={`url(#${statusGradId})`}
+                      radius={[0, 4, 4, 0]}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <EmptyState title="No data" className="h-[180px]" />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Type Distribution</CardDescription>
+              <CardTitle className="text-xl tabular-nums">
+                {stats.typeChart.length}{" "}
+                {stats.typeChart.length === 1 ? "type" : "types"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stats.typeChart.length > 0 ? (
+                <ChartContainer
+                  config={typeConfig}
+                  className="aspect-auto h-[180px] w-full"
+                >
+                  <BarChart
+                    data={stats.typeChart}
+                    layout="vertical"
+                    margin={{ left: 16, right: 16 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id={typeGradId}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="0"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="var(--color-value)"
+                          stopOpacity={0.9}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="var(--color-value)"
+                          stopOpacity={0.4}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                    <XAxis
+                      type="number"
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => Number(v).toFixed(0)}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="type"
+                      tickLine={false}
+                      axisLine={false}
+                      width={80}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="value"
+                      fill={`url(#${typeGradId})`}
+                      radius={[0, 4, 4, 0]}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <EmptyState title="No data" className="h-[180px]" />
+              )}
             </CardContent>
           </Card>
         </div>

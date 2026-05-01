@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { ArrowLeftRight, Box } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Activity, ArrowLeftRight, Box, Database } from "lucide-react";
+import { useId, useMemo, useState } from "react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
+import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
 import { InstantLockBadge, TxTypeBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +18,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { chainStatsQueryOptions } from "@/lib/api/chain";
+import { mempoolQueryOptions } from "@/lib/api/mempool";
 import {
   monthStatsRange,
   transactionsStatsQueryOptions,
@@ -30,6 +40,10 @@ import {
 } from "@/lib/format";
 import { paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
+
+const chartConfig: ChartConfig = {
+  value: { label: "Transactions", color: "var(--chart-1)" },
+};
 
 export const Route = createFileRoute("/transactions/")({
   validateSearch: paginationSearchSchema,
@@ -50,6 +64,10 @@ export const Route = createFileRoute("/transactions/")({
           intervalsCount: 30,
         }),
       ),
+      context.queryClient.prefetchQuery(chainStatsQueryOptions({ network })),
+      context.queryClient.prefetchQuery(
+        mempoolQueryOptions({ network, page: 1, limit: 1 }),
+      ),
     ]);
   },
 });
@@ -59,6 +77,7 @@ function TransactionsPage() {
   const { page, limit } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [search, setSearch] = useState("");
+  const barGradId = useId();
 
   const { data, isFetching } = useQuery(
     transactionsQueryOptions({ network, page, limit, order: "desc" }),
@@ -71,9 +90,16 @@ function TransactionsPage() {
       intervalsCount: 30,
     }),
   );
+  const { data: chainStats } = useQuery(chainStatsQueryOptions({ network }));
+  const { data: mempoolData } = useQuery(
+    mempoolQueryOptions({ network, page: 1, limit: 1 }),
+  );
 
   const transactions = data?.resultSet ?? [];
   const total = data?.pagination?.total ?? 0;
+  const rawMempoolTotal = mempoolData?.pagination?.total ?? null;
+  const mempoolCount =
+    rawMempoolTotal != null && rawMempoolTotal >= 0 ? rawMempoolTotal : 0;
 
   const filtered = useMemo(() => {
     if (!search) return transactions;
@@ -106,6 +132,15 @@ function TransactionsPage() {
       firstHalf > 0 ? ((secondHalf - firstHalf) / firstHalf) * 100 : null;
     return { count30d: total30d, tps, change };
   }, [txStats]);
+
+  const chartData = useMemo(
+    () =>
+      (txStats ?? []).map((p) => ({
+        timestamp: new Date(p.timestamp).getTime(),
+        value: p.data.count,
+      })),
+    [txStats],
+  );
 
   const columns: DataTableColumn<ApiTransaction>[] = [
     {
@@ -179,7 +214,7 @@ function TransactionsPage() {
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <header className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Transactions
@@ -189,57 +224,139 @@ function TransactionsPage() {
           </p>
         </header>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Card>
+        <div className="grid gap-4 lg:grid-cols-12">
+          <Card className="lg:col-span-8">
             <CardHeader>
-              <CardDescription>Transactions (30d)</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardDescription>Transactions · 30 days</CardDescription>
+              <CardTitle className="flex flex-wrap items-baseline gap-3 text-2xl tabular-nums">
                 {stats.count30d != null ? formatCompact(stats.count30d) : "—"}
+                {stats.change != null && (
+                  <Badge
+                    variant={
+                      stats.change >= 0 ? "soft-success" : "soft-destructive"
+                    }
+                  >
+                    {stats.change >= 0 ? "+" : ""}
+                    {stats.change.toFixed(2)}%
+                  </Badge>
+                )}
               </CardTitle>
               <CardAction>
-                <ArrowLeftRight className="size-4 text-muted-foreground" />
+                <Activity className="size-4 text-muted-foreground" />
               </CardAction>
             </CardHeader>
-            <CardContent className="flex items-center gap-2 text-xs text-muted-foreground">
-              {stats.change != null && (
-                <Badge
-                  variant={
-                    stats.change >= 0 ? "soft-success" : "soft-destructive"
-                  }
-                  className="font-medium"
+            <CardContent>
+              {chartData.length > 0 ? (
+                <ChartContainer
+                  config={chartConfig}
+                  className="aspect-auto h-[200px] w-full"
                 >
-                  {stats.change >= 0 ? "+" : ""}
-                  {stats.change.toFixed(2)}%
-                </Badge>
+                  <BarChart data={chartData}>
+                    <defs>
+                      <linearGradient
+                        id={barGradId}
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="var(--color-value)"
+                          stopOpacity={0.9}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="var(--color-value)"
+                          stopOpacity={0.4}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      minTickGap={32}
+                      tickFormatter={(v) =>
+                        new Date(v).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      }
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      width={48}
+                      tickFormatter={(v) => formatCompact(Number(v))}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="value"
+                      fill={`url(#${barGradId})`}
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <EmptyState title="No data" className="h-[200px]" />
               )}
-              vs prior 15 days
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Average TPS</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
-                {stats.tps != null ? stats.tps.toFixed(2) : "—"}
-              </CardTitle>
-              <CardAction>
-                <ArrowLeftRight className="size-4 text-muted-foreground" />
-              </CardAction>
-            </CardHeader>
-            <CardContent className="text-xs text-muted-foreground">
-              Transactions per second (30d window)
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Total</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
-                {total > 0 ? formatCompact(total) : "—"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs text-muted-foreground">
-              All-time transactions indexed
-            </CardContent>
-          </Card>
+
+          <div className="lg:col-span-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <Card>
+              <CardHeader>
+                <CardDescription>Live TPS</CardDescription>
+                <CardTitle className="text-xl tabular-nums">
+                  {chainStats?.transactionsPerSecond != null
+                    ? chainStats.transactionsPerSecond.toFixed(2)
+                    : stats.tps != null
+                      ? stats.tps.toFixed(2)
+                      : "—"}
+                </CardTitle>
+                <CardAction>
+                  <ArrowLeftRight className="size-4 text-muted-foreground" />
+                </CardAction>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                {chainStats?.transactionsPerMinute != null
+                  ? `${chainStats.transactionsPerMinute.toFixed(1)} /min`
+                  : "Per second"}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Mempool</CardDescription>
+                <CardTitle className="text-xl tabular-nums">
+                  {formatCompact(mempoolCount)}
+                </CardTitle>
+                <CardAction>
+                  <Database className="size-4 text-muted-foreground" />
+                </CardAction>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                Pending transactions
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Total Indexed</CardDescription>
+                <CardTitle className="text-xl tabular-nums">
+                  {total > 0 ? formatCompact(total) : "—"}
+                </CardTitle>
+                <CardAction>
+                  <ArrowLeftRight className="size-4 text-muted-foreground" />
+                </CardAction>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                All-time transactions
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <DataTable

@@ -2,15 +2,26 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
+  Activity,
   ArrowDown,
   ArrowLeftRight,
   ArrowRight,
   ArrowUp,
   Boxes,
+  Coins,
+  Database,
   DollarSign,
+  Gauge,
+  HardDrive,
+  Hourglass,
+  Layers,
+  PieChart,
   Server,
+  TrendingUp,
+  Vote,
+  Wallet,
 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo } from "react";
 import {
   Area,
   AreaChart,
@@ -39,25 +50,35 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { blocksQueryOptions } from "@/lib/api/blocks";
+import { chainStatsQueryOptions } from "@/lib/api/chain";
+import {
+  budgetQueryOptions,
+  proposalsQueryOptions,
+} from "@/lib/api/governance";
 import {
   marketCapHistoricalQueryOptions,
   marketCapQueryOptions,
 } from "@/lib/api/marketcap";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
+import { mempoolQueryOptions } from "@/lib/api/mempool";
 import {
   priceHistoricalQueryOptions,
   priceQueryOptions,
 } from "@/lib/api/price";
 import {
+  blockTransactionsStatsQueryOptions,
   monthStatsRange,
   transactionsStatsQueryOptions,
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
-import { volumeHistoricalQueryOptions } from "@/lib/api/volume";
+import {
+  volumeHistoricalQueryOptions,
+  volumeQueryOptions,
+} from "@/lib/api/volume";
 import {
   formatCompact,
   formatCompactUsd,
@@ -67,12 +88,19 @@ import {
 } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 
-type ChartMetric = "price" | "volume" | "mcap" | "txs";
-type Currency = "usd" | "btc";
-
 const chartConfig: ChartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
 };
+
+function dayStatsRange() {
+  const end = new Date();
+  end.setUTCMinutes(0, 0, 0);
+  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+  return {
+    timestampStart: start.toISOString(),
+    timestampEnd: end.toISOString(),
+  };
+}
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -105,11 +133,33 @@ export const Route = createFileRoute("/")({
         marketCapQueryOptions({ network, currency: "usd" }),
       ),
       context.queryClient.prefetchQuery(
+        marketCapHistoricalQueryOptions({ network, currency: "usd" }),
+      ),
+      context.queryClient.prefetchQuery(
+        volumeQueryOptions({ network, currency: "usd" }),
+      ),
+      context.queryClient.prefetchQuery(
+        volumeHistoricalQueryOptions({ network, currency: "usd" }),
+      ),
+      context.queryClient.prefetchQuery(
         transactionsStatsQueryOptions({
           network,
           ...monthStatsRange(),
           intervalsCount: 30,
         }),
+      ),
+      context.queryClient.prefetchQuery(
+        blockTransactionsStatsQueryOptions({
+          network,
+          ...dayStatsRange(),
+          intervalsCount: 24,
+        }),
+      ),
+      context.queryClient.prefetchQuery(chainStatsQueryOptions({ network })),
+      context.queryClient.prefetchQuery(budgetQueryOptions({ network })),
+      context.queryClient.prefetchQuery(proposalsQueryOptions({ network })),
+      context.queryClient.prefetchQuery(
+        mempoolQueryOptions({ network, page: 1, limit: 1 }),
       ),
     ]);
   },
@@ -117,10 +167,11 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const network = useStore(appStore, (state) => state.network);
-  const [chartMetric, setChartMetric] = useState<ChartMetric>("price");
-  const [currency, setCurrency] = useState<Currency>("usd");
-  const sparkGradientId = useId();
-  const heroGradientId = useId();
+  const priceSparkId = useId();
+  const mcapAreaId = useId();
+  const txsAreaId = useId();
+  const blockTxAreaId = useId();
+  const volumeBarId = useId();
 
   const { data: blocksData } = useQuery(
     blocksQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
@@ -137,20 +188,14 @@ function Dashboard() {
   const { data: priceHistoryUsd } = useQuery(
     priceHistoricalQueryOptions({ network, currency: "usd" }),
   );
-  const { data: priceHistoryBtc } = useQuery(
-    priceHistoricalQueryOptions({ network, currency: "btc" }),
+  const { data: volumeUsd } = useQuery(
+    volumeQueryOptions({ network, currency: "usd" }),
   );
   const { data: volumeHistoryUsd } = useQuery(
     volumeHistoricalQueryOptions({ network, currency: "usd" }),
   );
-  const { data: volumeHistoryBtc } = useQuery(
-    volumeHistoricalQueryOptions({ network, currency: "btc" }),
-  );
   const { data: mcapHistoryUsd } = useQuery(
     marketCapHistoricalQueryOptions({ network, currency: "usd" }),
-  );
-  const { data: mcapHistoryBtc } = useQuery(
-    marketCapHistoricalQueryOptions({ network, currency: "btc" }),
   );
   const { data: marketCap } = useQuery(
     marketCapQueryOptions({ network, currency: "usd" }),
@@ -162,12 +207,29 @@ function Dashboard() {
       intervalsCount: 30,
     }),
   );
+  const { data: blockTxStats } = useQuery(
+    blockTransactionsStatsQueryOptions({
+      network,
+      ...dayStatsRange(),
+      intervalsCount: 24,
+    }),
+  );
+  const { data: chainStats } = useQuery(chainStatsQueryOptions({ network }));
+  const { data: budget } = useQuery(budgetQueryOptions({ network }));
+  const { data: proposals } = useQuery(proposalsQueryOptions({ network }));
+  const { data: mempoolData } = useQuery(
+    mempoolQueryOptions({ network, page: 1, limit: 1 }),
+  );
 
   const blocks = blocksData?.resultSet ?? [];
   const txs = txData?.resultSet ?? [];
-
   const latestBlock = blocks[0];
   const masternodeCount = mnData?.pagination?.total ?? null;
+  const rawMempoolTotal = mempoolData?.pagination?.total ?? null;
+  const mempoolCount =
+    rawMempoolTotal != null && rawMempoolTotal >= 0 ? rawMempoolTotal : 0;
+  const txsTotal = txData?.pagination?.total ?? null;
+  const blocksTotal = blocksData?.pagination?.total ?? null;
 
   const txCount30d = useMemo(
     () => txStats?.reduce((s, e) => s + e.data.count, 0) ?? 0,
@@ -187,7 +249,7 @@ function Dashboard() {
 
   const priceSparkline = useMemo(
     () =>
-      (priceHistoryUsd ?? []).slice(-24).map((p, i) => ({
+      (priceHistoryUsd ?? []).map((p, i) => ({
         i,
         value: p.value,
       })),
@@ -201,62 +263,89 @@ function Dashboard() {
         100
       : null;
 
-  const heroData = useMemo(() => {
-    if (chartMetric === "txs") {
-      return (
-        txStats?.map((e) => ({
-          timestamp: new Date(e.timestamp).getTime(),
-          value: e.data.count,
-        })) ?? []
-      );
-    }
-    const series =
-      chartMetric === "volume"
-        ? currency === "usd"
-          ? volumeHistoryUsd
-          : volumeHistoryBtc
-        : chartMetric === "mcap"
-          ? currency === "usd"
-            ? mcapHistoryUsd
-            : mcapHistoryBtc
-          : currency === "usd"
-            ? priceHistoryUsd
-            : priceHistoryBtc;
-    return (series ?? []).map((p) => ({
-      timestamp: p.timestamp * 1000,
-      value: p.value,
-    }));
-  }, [
-    chartMetric,
-    currency,
-    priceHistoryUsd,
-    priceHistoryBtc,
-    volumeHistoryUsd,
-    volumeHistoryBtc,
-    mcapHistoryUsd,
-    mcapHistoryBtc,
-    txStats,
-  ]);
-
-  const heroValue = heroData[heroData.length - 1]?.value ?? null;
-  const heroChange =
-    heroData.length >= 2
-      ? ((heroData[heroData.length - 1].value - heroData[0].value) /
-          heroData[0].value) *
+  const mcapChange =
+    mcapHistoryUsd && mcapHistoryUsd.length >= 2
+      ? ((mcapHistoryUsd[mcapHistoryUsd.length - 1].value -
+          mcapHistoryUsd[0].value) /
+          mcapHistoryUsd[0].value) *
         100
       : null;
 
-  const formatHero = (v: number) => {
-    if (chartMetric === "txs") return formatCompact(v);
-    if (chartMetric === "price") {
-      return currency === "usd" ? `$${v.toFixed(2)}` : `${v.toFixed(6)} BTC`;
-    }
-    return currency === "usd" ? formatCompactUsd(v) : `${v.toFixed(2)} BTC`;
-  };
+  const volumeChange =
+    volumeHistoryUsd && volumeHistoryUsd.length >= 2
+      ? ((volumeHistoryUsd[volumeHistoryUsd.length - 1].value -
+          volumeHistoryUsd[0].value) /
+          Math.max(volumeHistoryUsd[0].value, 0.0001)) *
+        100
+      : null;
+
+  const circulatingSupply =
+    marketCap?.usd != null && usdPrice?.usd != null && usdPrice.usd > 0
+      ? marketCap.usd / usdPrice.usd
+      : null;
+
+  const avgBlockSize = useMemo(() => {
+    if (blocks.length === 0) return null;
+    return blocks.reduce((s, b) => s + b.size, 0) / blocks.length;
+  }, [blocks]);
+
+  const avgTxAmount = useMemo(() => {
+    if (txs.length === 0) return null;
+    const totals = txs.map((t) => sumVOut(t.vOut));
+    return totals.reduce((s, v) => s + v, 0) / totals.length;
+  }, [txs]);
+
+  const priceData = useMemo(
+    () =>
+      (priceHistoryUsd ?? []).map((p) => ({
+        timestamp: p.timestamp * 1000,
+        value: p.value,
+      })),
+    [priceHistoryUsd],
+  );
+  const mcapData = useMemo(
+    () =>
+      (mcapHistoryUsd ?? []).map((p) => ({
+        timestamp: p.timestamp * 1000,
+        value: p.value,
+      })),
+    [mcapHistoryUsd],
+  );
+  const volumeData = useMemo(
+    () =>
+      (volumeHistoryUsd ?? []).map((p) => ({
+        timestamp: p.timestamp * 1000,
+        value: p.value,
+      })),
+    [volumeHistoryUsd],
+  );
+  const txsData = useMemo(
+    () =>
+      (txStats ?? []).map((p) => ({
+        timestamp: new Date(p.timestamp).getTime(),
+        value: p.data.count,
+      })),
+    [txStats],
+  );
+  const blockTxData = useMemo(
+    () =>
+      (blockTxStats ?? []).map((p) => ({
+        timestamp: new Date(p.timestamp).getTime(),
+        value: p.data.avg ?? 0,
+      })),
+    [blockTxStats],
+  );
+
+  const proposalCount = proposals?.length ?? null;
+
+  const budgetUsedPct =
+    budget?.totalBudget && budget.totalBudget > 0
+      ? Math.min(100, (budget.totalRequested / budget.totalBudget) * 100)
+      : 0;
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <header className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Dash Network Explorer
@@ -267,132 +356,376 @@ function Dashboard() {
         </header>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <KpiCard
+            label="Dash Price"
+            value={usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(2)}` : "—"}
+            change={priceChange}
+            icon={<DollarSign className="size-4 text-muted-foreground" />}
+            sparkline={priceSparkline}
+            sparkId={priceSparkId}
+          />
+          <KpiCard
+            label="Market Cap"
+            value={
+              marketCap?.usd != null ? formatCompactUsd(marketCap.usd) : "—"
+            }
+            change={mcapChange}
+            icon={<PieChart className="size-4 text-muted-foreground" />}
+          />
+          <KpiCard
+            label="24h Volume"
+            value={
+              volumeUsd?.usd != null ? formatCompactUsd(volumeUsd.usd) : "—"
+            }
+            change={volumeChange}
+            icon={<TrendingUp className="size-4 text-muted-foreground" />}
+          />
+          <KpiCard
+            label="Circulating Supply"
+            value={
+              circulatingSupply != null
+                ? `${formatCompact(circulatingSupply)} DASH`
+                : "—"
+            }
+            icon={<Coins className="size-4 text-muted-foreground" />}
+            sublabel="vs 18.9M cap"
+          />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-12">
+          <Card className="lg:col-span-8">
             <CardHeader>
-              <CardDescription>Dash Price</CardDescription>
+              <CardDescription>DASH Price · 24h</CardDescription>
               <CardTitle className="text-2xl tabular-nums">
-                {usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(2)}` : "—"}
+                {usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(4)}` : "—"}
+                {priceChange != null && (
+                  <Badge
+                    variant={
+                      priceChange >= 0 ? "soft-success" : "soft-destructive"
+                    }
+                    className="ml-3"
+                  >
+                    {priceChange >= 0 ? (
+                      <ArrowUp className="size-3" />
+                    ) : (
+                      <ArrowDown className="size-3" />
+                    )}
+                    {Math.abs(priceChange).toFixed(2)}%
+                  </Badge>
+                )}
               </CardTitle>
-              <CardAction>
-                <DollarSign className="size-4 text-muted-foreground" />
-              </CardAction>
             </CardHeader>
-            <CardContent className="flex items-center justify-between gap-3">
-              {priceChange != null ? (
-                <Badge
-                  variant={
-                    priceChange >= 0 ? "soft-success" : "soft-destructive"
-                  }
-                >
-                  {priceChange >= 0 ? (
-                    <ArrowUp className="size-3" />
-                  ) : (
-                    <ArrowDown className="size-3" />
-                  )}
-                  {Math.abs(priceChange).toFixed(2)}%
-                </Badge>
-              ) : (
-                <span />
-              )}
-              {priceSparkline.length > 1 && (
-                <ChartContainer
-                  config={chartConfig}
-                  className="aspect-auto h-8 w-24"
-                >
-                  <AreaChart data={priceSparkline}>
-                    <defs>
-                      <linearGradient
-                        id={sparkGradientId}
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="var(--color-value)"
-                          stopOpacity={0.4}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="var(--color-value)"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <Area
-                      dataKey="value"
-                      type="monotone"
-                      stroke="var(--color-value)"
-                      fill={`url(#${sparkGradientId})`}
-                      strokeWidth={1.5}
-                      isAnimationActive={false}
-                    />
-                  </AreaChart>
-                </ChartContainer>
-              )}
+            <CardContent>
+              <ChartArea
+                data={priceData}
+                gradientId={`${priceSparkId}-hero`}
+                yFormat={(v) => `$${Number(v).toFixed(0)}`}
+                height={220}
+              />
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardDescription>Latest Block</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
-                {latestBlock != null
+          <div className="lg:col-span-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <StatTile
+              icon={<Layers className="size-4 text-muted-foreground" />}
+              label="Latest Block"
+              value={
+                latestBlock != null
                   ? `#${latestBlock.height.toLocaleString()}`
-                  : "—"}
-              </CardTitle>
-              <CardAction>
-                <Boxes className="size-4 text-muted-foreground" />
-              </CardAction>
-            </CardHeader>
-            {latestBlock?.timestamp && (
-              <CardContent className="text-xs text-muted-foreground">
-                Mined {formatRelativeTime(latestBlock.timestamp)}
-              </CardContent>
-            )}
-          </Card>
+                  : "—"
+              }
+              hint={
+                latestBlock?.timestamp
+                  ? formatRelativeTime(latestBlock.timestamp)
+                  : undefined
+              }
+            />
+            <StatTile
+              icon={<Server className="size-4 text-muted-foreground" />}
+              label="Masternodes"
+              value={
+                masternodeCount != null ? formatCompact(masternodeCount) : "—"
+              }
+              hint="Securing the network"
+            />
+            <StatTile
+              icon={<Gauge className="size-4 text-muted-foreground" />}
+              label="Difficulty"
+              value={
+                chainStats?.difficulty != null
+                  ? chainStats.difficulty.toFixed(4)
+                  : "—"
+              }
+              hint="Current PoW"
+            />
+            <StatTile
+              icon={<HardDrive className="size-4 text-muted-foreground" />}
+              label="Blockchain Size"
+              value={
+                chainStats?.sizeOnDisk != null
+                  ? formatBytes(chainStats.sizeOnDisk)
+                  : "—"
+              }
+              hint="On-disk data"
+            />
+          </div>
+        </div>
 
-          <Card>
-            <CardHeader>
-              <CardDescription>Masternodes</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
-                {masternodeCount != null ? formatCompact(masternodeCount) : "—"}
-              </CardTitle>
-              <CardAction>
-                <Server className="size-4 text-muted-foreground" />
-              </CardAction>
-            </CardHeader>
-          </Card>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatTile
+            icon={<Activity className="size-4 text-muted-foreground" />}
+            label="Live TPS"
+            value={
+              chainStats?.transactionsPerSecond != null
+                ? chainStats.transactionsPerSecond.toFixed(2)
+                : "—"
+            }
+            hint={
+              chainStats?.transactionsPerMinute != null
+                ? `${chainStats.transactionsPerMinute.toFixed(1)} /min`
+                : "Avg over 20 blocks"
+            }
+            tone="accent"
+          />
+          <StatTile
+            icon={<Hourglass className="size-4 text-muted-foreground" />}
+            label="Avg Block Time"
+            value={
+              chainStats?.blockTime != null
+                ? `${(chainStats.blockTime / 1000).toFixed(0)}s`
+                : "—"
+            }
+            hint="Across last 20 blocks"
+            tone="accent"
+          />
+          <StatTile
+            icon={<Database className="size-4 text-muted-foreground" />}
+            label="Mempool"
+            value={formatCompact(mempoolCount)}
+            hint="Pending tx"
+            tone="accent"
+          />
+          <StatTile
+            icon={<Boxes className="size-4 text-muted-foreground" />}
+            label="Avg Block Size"
+            value={avgBlockSize != null ? formatBytes(avgBlockSize) : "—"}
+            hint={`Last ${blocks.length || 0} blocks`}
+            tone="accent"
+          />
+        </div>
 
-          <Card>
+        <div className="grid gap-4 lg:grid-cols-12">
+          <Card className="lg:col-span-7">
             <CardHeader>
-              <CardDescription>Tx Volume (30d)</CardDescription>
+              <CardDescription>Transactions · 30 days</CardDescription>
               <CardTitle className="text-2xl tabular-nums">
                 {txCount30d > 0 ? formatCompact(txCount30d) : "—"}
+                {txChange != null && (
+                  <Badge
+                    variant={
+                      txChange >= 0 ? "soft-success" : "soft-destructive"
+                    }
+                    className="ml-3"
+                  >
+                    {txChange >= 0 ? (
+                      <ArrowUp className="size-3" />
+                    ) : (
+                      <ArrowDown className="size-3" />
+                    )}
+                    {Math.abs(txChange).toFixed(1)}%
+                  </Badge>
+                )}
               </CardTitle>
               <CardAction>
-                <ArrowLeftRight className="size-4 text-muted-foreground" />
+                <Button asChild variant="ghost" size="sm" className="h-8">
+                  <Link to="/transactions" search={{ page: 1, limit: 10 }}>
+                    View all <ArrowRight className="size-3.5" />
+                  </Link>
+                </Button>
               </CardAction>
             </CardHeader>
-            {txChange != null && (
-              <CardContent>
-                <Badge
-                  variant={txChange >= 0 ? "soft-success" : "soft-destructive"}
-                >
-                  {txChange >= 0 ? (
-                    <ArrowUp className="size-3" />
-                  ) : (
-                    <ArrowDown className="size-3" />
-                  )}
-                  {Math.abs(txChange).toFixed(2)}%
-                </Badge>
-              </CardContent>
-            )}
+            <CardContent>
+              <ChartArea
+                data={txsData}
+                gradientId={txsAreaId}
+                yFormat={(v) => formatCompact(Number(v))}
+                height={200}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-5 bg-gradient-to-br from-card to-secondary/40">
+            <CardHeader>
+              <CardDescription>DAO Treasury · Next Superblock</CardDescription>
+              <CardTitle className="flex items-baseline gap-3 text-2xl tabular-nums">
+                {budget?.totalBudget != null
+                  ? `${budget.totalBudget.toFixed(2)} DASH`
+                  : "—"}
+                {usdPrice?.usd != null && budget?.totalBudget != null && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ≈ {formatCompactUsd(budget.totalBudget * usdPrice.usd)}
+                  </span>
+                )}
+              </CardTitle>
+              <CardAction>
+                <Vote className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+                  <span>Requested</span>
+                  <span className="font-mono tabular-nums">
+                    {budget?.totalRequested != null
+                      ? `${budget.totalRequested.toFixed(2)} DASH`
+                      : "—"}
+                  </span>
+                </div>
+                <Progress value={budgetUsedPct} className="h-2" />
+                <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+                  <span>Remaining</span>
+                  <span
+                    className={
+                      budget && budget.remainingAllPass < 0
+                        ? "font-mono tabular-nums text-destructive"
+                        : "font-mono tabular-nums text-success"
+                    }
+                  >
+                    {budget?.remainingAllPass != null
+                      ? `${budget.remainingAllPass.toFixed(2)} DASH`
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60">
+                <MiniStat
+                  label="Proposals"
+                  value={proposalCount != null ? proposalCount.toString() : "—"}
+                />
+                <MiniStat
+                  label="Funded"
+                  value={
+                    budget?.enoughFundsCount != null
+                      ? budget.enoughFundsCount.toString()
+                      : "—"
+                  }
+                />
+                <MiniStat
+                  label="Quorum"
+                  value={
+                    budget?.enoughVotesCount != null
+                      ? budget.enoughVotesCount.toString()
+                      : "—"
+                  }
+                />
+              </div>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="self-start"
+              >
+                <Link to="/dao">
+                  Governance <ArrowRight className="size-3.5" />
+                </Link>
+              </Button>
+            </CardContent>
           </Card>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-12">
+          <Card className="lg:col-span-4">
+            <CardHeader>
+              <CardDescription>Market Cap · 24h</CardDescription>
+              <CardTitle className="text-xl tabular-nums">
+                {marketCap?.usd != null ? formatCompactUsd(marketCap.usd) : "—"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartArea
+                data={mcapData}
+                gradientId={mcapAreaId}
+                yFormat={(v) => formatCompactUsd(Number(v))}
+                height={140}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-4">
+            <CardHeader>
+              <CardDescription>Trading Volume · 24h</CardDescription>
+              <CardTitle className="text-xl tabular-nums">
+                {volumeUsd?.usd != null ? formatCompactUsd(volumeUsd.usd) : "—"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartBar
+                data={volumeData}
+                gradientId={volumeBarId}
+                yFormat={(v) => formatCompactUsd(Number(v))}
+                height={140}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-4">
+            <CardHeader>
+              <CardDescription>Avg Tx per Block · 24h</CardDescription>
+              <CardTitle className="text-xl tabular-nums">
+                {blockTxData.length > 0
+                  ? (
+                      blockTxData.reduce((s, p) => s + p.value, 0) /
+                      blockTxData.length
+                    ).toFixed(2)
+                  : "—"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartArea
+                data={blockTxData}
+                gradientId={blockTxAreaId}
+                yFormat={(v) => Number(v).toFixed(0)}
+                height={140}
+                color="var(--chart-2)"
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatTile
+            icon={<Boxes className="size-4 text-muted-foreground" />}
+            label="Total Blocks"
+            value={blocksTotal != null ? formatCompact(blocksTotal) : "—"}
+            hint="Indexed"
+          />
+          <StatTile
+            icon={<ArrowLeftRight className="size-4 text-muted-foreground" />}
+            label="Total Tx"
+            value={txsTotal != null ? formatCompact(txsTotal) : "—"}
+            hint="All-time"
+          />
+          <StatTile
+            icon={<Wallet className="size-4 text-muted-foreground" />}
+            label="Avg Tx Amount"
+            value={
+              avgTxAmount != null ? `${formatDuffs(avgTxAmount, 4)} DASH` : "—"
+            }
+            hint="Last 10 tx"
+          />
+          <StatTile
+            icon={<Vote className="size-4 text-muted-foreground" />}
+            label="Active Proposals"
+            value={proposalCount != null ? proposalCount.toString() : "—"}
+            hint={
+              budget?.enoughVotesCount != null
+                ? `${budget.enoughVotesCount} pass quorum`
+                : "Pending votes"
+            }
+          />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Latest Blocks</CardTitle>
@@ -526,173 +859,242 @@ function Dashboard() {
             </CardContent>
           </Card>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardDescription>
-              {chartMetric === "price"
-                ? "Dash Price"
-                : chartMetric === "volume"
-                  ? "Trading Volume"
-                  : chartMetric === "mcap"
-                    ? "Market Cap"
-                    : "Transactions per Day"}
-            </CardDescription>
-            <CardTitle className="flex flex-wrap items-baseline gap-3 text-3xl tabular-nums">
-              {heroValue != null ? formatHero(heroValue) : "—"}
-              {heroChange != null && (
-                <Badge
-                  variant={
-                    heroChange >= 0 ? "soft-success" : "soft-destructive"
-                  }
-                  className="text-sm"
-                >
-                  {heroChange >= 0 ? "+" : ""}
-                  {heroChange.toFixed(2)}%
-                </Badge>
-              )}
-              {chartMetric === "mcap" && marketCap?.usd != null && (
-                <span className="text-sm font-normal text-muted-foreground">
-                  Market Cap: {formatCompactUsd(marketCap.usd)}
-                </span>
-              )}
-            </CardTitle>
-            <CardAction>
-              <div className="flex flex-col items-end gap-2">
-                <Tabs
-                  value={chartMetric}
-                  onValueChange={(v) => setChartMetric(v as ChartMetric)}
-                >
-                  <TabsList>
-                    <TabsTrigger value="price">Price</TabsTrigger>
-                    <TabsTrigger value="volume">Volume</TabsTrigger>
-                    <TabsTrigger value="mcap">M.Cap</TabsTrigger>
-                    <TabsTrigger value="txs">TX Count</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                {chartMetric !== "txs" && (
-                  <Tabs
-                    value={currency}
-                    onValueChange={(v) => setCurrency(v as Currency)}
-                  >
-                    <TabsList>
-                      <TabsTrigger value="usd">USD</TabsTrigger>
-                      <TabsTrigger value="btc">BTC</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                )}
-              </div>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            {heroData.length > 0 ? (
-              <ChartContainer
-                config={chartConfig}
-                className="aspect-auto h-[320px] w-full"
-              >
-                {chartMetric === "volume" ? (
-                  <BarChart data={heroData}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="timestamp"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tickFormatter={(v) =>
-                        new Date(v).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      }
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      width={64}
-                      tickFormatter={(v) =>
-                        currency === "usd"
-                          ? formatCompactUsd(Number(v))
-                          : Number(v).toFixed(2)
-                      }
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar
-                      dataKey="value"
-                      fill="var(--color-value)"
-                      radius={[6, 6, 0, 0]}
-                    />
-                  </BarChart>
-                ) : (
-                  <AreaChart data={heroData}>
-                    <defs>
-                      <linearGradient
-                        id={heroGradientId}
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="var(--color-value)"
-                          stopOpacity={0.3}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="var(--color-value)"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="timestamp"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tickFormatter={(v) =>
-                        new Date(v).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      }
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      width={64}
-                      tickFormatter={(v) => {
-                        if (chartMetric === "txs")
-                          return formatCompact(Number(v));
-                        if (chartMetric === "price") {
-                          return currency === "usd"
-                            ? `$${Number(v).toFixed(0)}`
-                            : Number(v).toFixed(5);
-                        }
-                        return currency === "usd"
-                          ? formatCompactUsd(Number(v))
-                          : Number(v).toFixed(2);
-                      }}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Area
-                      dataKey="value"
-                      type="monotone"
-                      stroke="var(--color-value)"
-                      fill={`url(#${heroGradientId})`}
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                )}
-              </ChartContainer>
-            ) : (
-              <EmptyState title="No data available" className="h-[320px]" />
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
+}
+
+function KpiCard({
+  label,
+  value,
+  change,
+  icon,
+  sparkline,
+  sparkId,
+  sublabel,
+}: {
+  label: string;
+  value: string;
+  change?: number | null;
+  icon: React.ReactNode;
+  sparkline?: { i: number; value: number }[];
+  sparkId?: string;
+  sublabel?: string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+        <CardTitle className="text-2xl tabular-nums">{value}</CardTitle>
+        <CardAction>{icon}</CardAction>
+      </CardHeader>
+      <CardContent className="flex items-center justify-between gap-3">
+        {change != null ? (
+          <Badge variant={change >= 0 ? "soft-success" : "soft-destructive"}>
+            {change >= 0 ? (
+              <ArrowUp className="size-3" />
+            ) : (
+              <ArrowDown className="size-3" />
+            )}
+            {Math.abs(change).toFixed(2)}%
+          </Badge>
+        ) : sublabel ? (
+          <span className="text-xs text-muted-foreground">{sublabel}</span>
+        ) : (
+          <span />
+        )}
+        {sparkline && sparkline.length > 1 && sparkId && (
+          <ChartContainer config={chartConfig} className="aspect-auto h-8 w-24">
+            <AreaChart data={sparkline}>
+              <defs>
+                <linearGradient id={sparkId} x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="0%"
+                    stopColor="var(--color-value)"
+                    stopOpacity={0.4}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor="var(--color-value)"
+                    stopOpacity={0}
+                  />
+                </linearGradient>
+              </defs>
+              <Area
+                dataKey="value"
+                type="monotone"
+                stroke="var(--color-value)"
+                fill={`url(#${sparkId})`}
+                strokeWidth={1.5}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ChartContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatTile({
+  icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "accent";
+}) {
+  return (
+    <Card className={tone === "accent" ? "bg-accent/5 border-accent/20" : ""}>
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+        <CardTitle className="text-xl tabular-nums">{value}</CardTitle>
+        <CardAction>{icon}</CardAction>
+      </CardHeader>
+      {hint && (
+        <CardContent className="text-xs text-muted-foreground -mt-2">
+          {hint}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-base font-semibold tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+function ChartArea({
+  data,
+  gradientId,
+  yFormat,
+  height,
+  color,
+}: {
+  data: { timestamp: number; value: number }[];
+  gradientId: string;
+  yFormat: (v: number | string) => string;
+  height: number;
+  color?: string;
+}) {
+  if (data.length === 0) {
+    return (
+      <EmptyState title="No data available" className={`h-[${height}px]`} />
+    );
+  }
+  const stroke = color ?? "var(--color-value)";
+  return (
+    <ChartContainer
+      config={chartConfig}
+      className="aspect-auto w-full"
+      style={{ height: `${height}px` }}
+    >
+      <AreaChart data={data}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={stroke} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={stroke} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis
+          dataKey="timestamp"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={32}
+          tickFormatter={(v) =>
+            new Date(v).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })
+          }
+        />
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          width={56}
+          tickFormatter={yFormat}
+        />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Area
+          dataKey="value"
+          type="monotone"
+          stroke={stroke}
+          fill={`url(#${gradientId})`}
+          strokeWidth={2}
+        />
+      </AreaChart>
+    </ChartContainer>
+  );
+}
+
+function ChartBar({
+  data,
+  gradientId: _gradientId,
+  yFormat,
+  height,
+}: {
+  data: { timestamp: number; value: number }[];
+  gradientId: string;
+  yFormat: (v: number | string) => string;
+  height: number;
+}) {
+  if (data.length === 0) {
+    return (
+      <EmptyState title="No data available" className={`h-[${height}px]`} />
+    );
+  }
+  return (
+    <ChartContainer
+      config={chartConfig}
+      className="aspect-auto w-full"
+      style={{ height: `${height}px` }}
+    >
+      <BarChart data={data}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis
+          dataKey="timestamp"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={32}
+          tickFormatter={(v) =>
+            new Date(v).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })
+          }
+        />
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          width={56}
+          tickFormatter={yFormat}
+        />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ChartContainer>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 ** 4) return `${(bytes / 1024 ** 4).toFixed(2)} TB`;
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  return `${bytes} B`;
 }
