@@ -1,5 +1,5 @@
 // TODO: FIX dashcore-sdk
-import {Script} from 'dash-core-sdk/dist/src/types/Script';
+import {Script} from 'dash-core-sdk';
 import {NETWORK} from "../constants";
 
 interface VOutObject {

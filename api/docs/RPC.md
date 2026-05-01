@@ -33,6 +33,150 @@ All list endpoints return this wrapper:
 
 > `total` is `-1` when the result set is empty.
 
+### Transaction Extra Payload
+Extra payload may vary depending on transaction type:
+- ProRegTX
+- ProUpServTx
+- ProUpRegTx
+- ProUpRevTx
+- CbTx
+- QcTx
+- MnHfTx
+- AssetLockTx
+- AssetUnlockTx
+
+#### ProRegTX
+| Field              | Type     |
+|--------------------|----------|
+| version            | number   |
+| type               | number   |
+| mode               | number   |
+| collateralOutpoint | OutPoint |
+| ipAddress          | string   |
+| port               | number   |
+| keyIdOwner         | string   |
+| keyIdVoting        | string   |
+| pubKeyOperator     | string   |
+| operatorReward     | number   |
+| scriptPayout       | string   |
+| inputsHash         | string   |
+| platformNodeID     | string   |
+| platformP2PPort    | number   |
+| platformHTTPPort   | number   |
+| payloadSig         | string   |
+
+#### ProUpServTx
+| Field                | Type   |
+|----------------------|--------|
+| version              | number |
+| type                 | number |
+| proTxHash            | string |
+| ipAddress            | string |
+| port                 | number |
+| scriptOperatorPayout | string |
+| inputsHash           | string |
+| platformNodeID       | string |
+| platformP2PPort      | number |
+| platformHTTPPort     | number |
+| payloadSig           | string |
+
+#### ProUpRegTx
+| Field          | Type   |
+|----------------|--------|
+| version        | number |
+| proTxHash      | string |
+| mode           | number |
+| keyIdVoting    | string |
+| pubKeyOperator | string |
+| scriptPayout   | string |
+| inputsHash     | string |
+| payloadSig     | string |
+
+#### ProUpRevTx
+| Field      | Type   |
+|------------|--------|
+| version    | number |
+| proTxHash  | string |
+| reason     | number |
+| inputsHash | string |
+| payloadSig | string |
+
+#### CbTx
+| Field             | Type           |
+|-------------------|----------------|
+| version           | number         |
+| height            | number         |
+| merkleRootMNList  | string         |
+| merkleRootQuorums | string \| null |
+| bestCLHeightDiff  | string \| null |
+| bestCLSignature   | string \| null |
+| creditPoolBalance | string \| null |
+
+#### QcTx
+| Field      | Type     |
+|------------|----------|
+| version    | number   |
+| height     | number   |
+| commitment | QfCommit |
+
+#### MnHfTxJSON
+| Field      | Type       |
+|------------|------------|
+| version    | number     |
+| commitment | MnHfSignal |
+
+#### AssetLockTx
+| Field   | Type     |
+|---------|----------|
+| version | number   |
+| count   | number   |
+| outputs | Output[] |
+
+#### AssetUnlockTx
+| Field           | Type   |
+|-----------------|--------|
+| version         | number |
+| index           | string |
+| fee             | number |
+| requestedHeight | number |
+| quorumHash      | string |
+| quorumSig       | string |
+
+
+#### OutPoint
+| Field | Type   |
+|-------|--------|
+| txId  | string |
+| vOut  | number |
+
+#### QfCommit
+| Field           | Type           |
+|-----------------|----------------|
+| version         | number         |
+| llmqType        | number         |
+| quorumHash      | string         |
+| quorumIndex     | number \| null |
+| signers         | string         |
+| validMembers    | string         |
+| quorumPublicKey | string         |
+| quorumVvecHash  | string         |
+| quorumSig       | string         |
+| sig             | string         |
+
+#### MnHfSignal
+| Field      | Type   |
+|------------|--------|
+| versionBit | number |
+| quorumHash | string |
+| sig        | string |
+
+#### Output
+| Field    | Type   |
+|----------|--------|
+| satoshis | string |
+| script   | string |
+
+
 ---
 
 ## Endpoints
@@ -237,7 +381,8 @@ Returns a paginated list of transactions. Include pending transactions
       "instantLock": "0102375e39652fee756b492762510aea4087d57b486a89f2f78f52c840f02079052f000000007652da0e18a07bcde5a2205ff041dd0b14b4b7a81b2e0ccaf5118dfe79e56aba00000000f274ca0dd6640a9236dc987e5f09db412ed2bc37806ae90bc6f34f9fd36a7a28da45b260ae37978f3a8fb973c48418a92f41e1e2b77a9d720400000000000000abc1c3d6ddaccf322f655f59979d037badc840328b0da023f70d9d1adea046f9b4486c929ff0c15f2c9036d757ca44ae168e315ba07c19269d7b44c2bf722b811aa9ab0c978198ef3637d4b20e3e316e3459ed3d75dbbafd4966a4d571d32a0a",
       "chainLocked": true,
       "coinjoin": false,
-      "multisig": false
+      "multisig": false,
+      "extraPayload": null
     }
   ],
   "pagination": {
@@ -294,7 +439,8 @@ Returns a single transaction by its hash.
   "instantLock": "0102375e39652fee756b...d571d32a0a",
   "chainLocked": true,
   "coinjoin": false,
-  "multisig": false
+  "multisig": false,
+  "extraPayload": null
 }
 ```
 
@@ -388,7 +534,8 @@ Returns a paginated list of transactions for a specific block height.
       "instantLock": "0102375e...d571d32a0a",
       "chainLocked": true,
       "coinjoin": false,
-      "multisig": false
+      "multisig": false,
+      "extraPayload": null
     }
   ],
   "pagination": {
@@ -521,7 +668,8 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
       "instantLock": "0102375e...d571d32a0a",
       "chainLocked": true,
       "coinjoin": false,
-      "multisig": false
+      "multisig": false,
+      "extraPayload": null
     }
   ],
   "pagination": {
@@ -1106,7 +1254,7 @@ Returns a list of pending transactions.
       "timestamp": null,
       "amount": null,
       "version": null,
-      "size": null,
+      "size": 100,
       "vIn": [
         {
           "prevTxHash": "prevtxhash...",
@@ -1127,7 +1275,10 @@ Returns a list of pending transactions.
       ],
       "confirmations": null,
       "instantLock": "0102375e39652fee756b...d571d32a0a",
-      "chainLocked": false
+      "chainLocked": false,
+      "coinjoin": false,
+      "multisig": false,
+      "extraPayload": null
     }
   ],
   "pagination": {
