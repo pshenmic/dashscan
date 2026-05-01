@@ -48,7 +48,8 @@ export default class TransactionsDAO {
         'transactions.version',
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin',
-        'transactions.multisig'
+        'transactions.multisig',
+        'transactions.size'
       )
       .modify((builder) => {
         if (transactionType != null) builder.where('transactions.type', transactionType);
@@ -96,7 +97,7 @@ export default class TransactionsDAO {
       .select(
         'subquery.hash', 'type', 'block_height',
         'blocks.timestamp as timestamp', 'chain_locked',
-        'blocks.hash as block_hash', 'instant_lock',
+        'blocks.hash as block_hash', 'instant_lock', 'subquery.size',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
         'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
@@ -161,11 +162,12 @@ export default class TransactionsDAO {
         'subquery.block_height',
         'subquery.instant_lock',
         'subquery.chain_locked',
-        'blocks.hash as block_hash',
-        'blocks.timestamp as timestamp',
         this.knex.raw('subquery.transfer_amount::text as transfer_amount'),
         'subquery.coinjoin',
         'subquery.multisig',
+        'special_transactions.payload as extra_payload',
+        'blocks.hash as block_hash',
+        'blocks.timestamp as timestamp',
       )
       .select(this.knex.raw('max_height - block_height + 1 AS confirmations'))
       .select('agg_inputs.inputs', 'agg_outputs.outputs')
@@ -173,6 +175,7 @@ export default class TransactionsDAO {
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .leftJoin('blocks', 'blocks.height', 'subquery.block_height')
+      .leftJoin('special_transactions', 'special_transactions.tx_id', 'subquery.id')
       .first()
       .from('subquery');
 
@@ -197,6 +200,7 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.id',
         'transactions.version',
+        'transactions.size',
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin',
         'transactions.multisig',
@@ -246,7 +250,8 @@ export default class TransactionsDAO {
       .select(
         'subquery.hash', 'type', 'block_height',
         'blocks.timestamp as timestamp', 'chain_locked',
-        'blocks.hash as block_hash', 'instant_lock',
+        'blocks.hash as block_hash', 'instant_lock', 'subquery.size',
+        'special_transactions.payload as extra_payload',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
         'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
@@ -254,6 +259,7 @@ export default class TransactionsDAO {
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .leftJoin('blocks', 'blocks.height', 'block_height')
+      .leftJoin('special_transactions', 'special_transactions.tx_id', 'subquery.id')
       .from('subquery')
 
     const [row] = rows;
@@ -276,6 +282,7 @@ export default class TransactionsDAO {
         'transactions.instant_lock',
         'transactions.id',
         'transactions.version',
+        'transactions.size',
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin',
         'transactions.multisig'
@@ -318,7 +325,7 @@ export default class TransactionsDAO {
       .with('total_count', countSubquery)
       .select(this.knex('total_count').as('total_count'))
       .select(
-        'subquery.hash', 'type', 'chain_locked', 'instant_lock',
+        'subquery.hash', 'type', 'chain_locked', 'instant_lock','subquery.size',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
         'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
       )
@@ -402,6 +409,7 @@ export default class TransactionsDAO {
         'transactions.chain_locked',
         'transactions.instant_lock',
         'transactions.version',
+        'transactions.size',
         'transactions.id',
         this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
         'transactions.coinjoin',
@@ -451,12 +459,15 @@ export default class TransactionsDAO {
         'blocks.timestamp as timestamp', 'chain_locked',
         'blocks.hash as block_hash', 'instant_lock',
         'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
-        'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig'
+        'subquery.transfer_amount', 'subquery.coinjoin', 'subquery.multisig',
+        'special_transactions.payload as extra_payload', 'subquery.size'
       )
       .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
+      .leftJoin('special_transactions', 'special_transactions.tx_id', 'subquery.id')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .leftJoin('blocks', 'blocks.height', 'block_height')
+      .orderBy('subquery.id', order)
       .from('subquery')
 
     const [row] = rows;
