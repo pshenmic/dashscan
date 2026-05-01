@@ -225,7 +225,7 @@ function TransactionsPage() {
         </header>
 
         <div className="grid gap-4 lg:grid-cols-12">
-          <Card className="lg:col-span-8">
+          <Card className="lg:col-span-8 flex flex-col">
             <CardHeader>
               <CardDescription>Transactions · 30 days</CardDescription>
               <CardTitle className="flex flex-wrap items-baseline gap-3 text-2xl tabular-nums">
@@ -245,11 +245,11 @@ function TransactionsPage() {
                 <Activity className="size-4 text-muted-foreground" />
               </CardAction>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 flex flex-col">
               {chartData.length > 0 ? (
                 <ChartContainer
                   config={chartConfig}
-                  className="aspect-auto h-[200px] w-full"
+                  className="aspect-auto w-full flex-1 min-h-[200px]"
                 >
                   <BarChart data={chartData}>
                     <defs>

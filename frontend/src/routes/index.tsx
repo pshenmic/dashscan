@@ -395,33 +395,70 @@ function Dashboard() {
         <div className="grid gap-4 lg:grid-cols-12">
           <Card className="lg:col-span-8">
             <CardHeader>
-              <CardDescription>DASH Price · 24h</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
-                {usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(4)}` : "—"}
-                {priceChange != null && (
-                  <Badge
-                    variant={
-                      priceChange >= 0 ? "soft-success" : "soft-destructive"
-                    }
-                    className="ml-3"
-                  >
-                    {priceChange >= 0 ? (
-                      <ArrowUp className="size-3" />
-                    ) : (
-                      <ArrowDown className="size-3" />
-                    )}
-                    {Math.abs(priceChange).toFixed(2)}%
-                  </Badge>
-                )}
-              </CardTitle>
+              <CardTitle>Latest Transactions</CardTitle>
+              <CardDescription>
+                The most recent on-chain transactions.
+              </CardDescription>
+              <CardAction>
+                <Button asChild variant="ghost" size="sm" className="h-8">
+                  <Link to="/transactions" search={{ page: 1, limit: 10 }}>
+                    View all <ArrowRight className="size-3.5" />
+                  </Link>
+                </Button>
+              </CardAction>
             </CardHeader>
             <CardContent>
-              <ChartArea
-                data={priceData}
-                gradientId={`${priceSparkId}-hero`}
-                yFormat={(v) => `$${Number(v).toFixed(0)}`}
-                height={220}
-              />
+              <Table>
+                <TableBody>
+                  {txs.length === 0 &&
+                    Array.from({ length: 6 }, (_, i) => `t-${i}`).map((k) => (
+                      <TableRow key={k} className="hover:bg-transparent">
+                        <TableCell>
+                          <Skeleton className="h-4 w-32" />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Skeleton className="ml-auto h-4 w-16" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  {txs.slice(0, 8).map((tx) => (
+                    <TableRow key={tx.hash}>
+                      <TableCell>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <HashDisplay
+                              value={tx.hash}
+                              href="/transactions/$hash"
+                              params={{ hash: tx.hash }}
+                              copy={false}
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <TxTypeBadge type={tx.type} />
+                              <InstantLockBadge locked={tx.instantLock} />
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="font-mono text-sm tabular-nums">
+                            {formatDuffs(sumVOut(tx.vOut))}{" "}
+                            <span className="text-muted-foreground text-xs">
+                              DASH
+                            </span>
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {tx.timestamp
+                              ? formatRelativeTime(tx.timestamp)
+                              : "—"}
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
 
@@ -633,8 +670,37 @@ function Dashboard() {
           </Card>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-12">
-          <Card className="lg:col-span-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader>
+              <CardDescription>DASH Price · 24h</CardDescription>
+              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums">
+                {usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(2)}` : "—"}
+                {priceChange != null && (
+                  <span
+                    className={
+                      priceChange >= 0
+                        ? "text-xs font-medium text-success"
+                        : "text-xs font-medium text-destructive"
+                    }
+                  >
+                    {priceChange >= 0 ? "+" : ""}
+                    {priceChange.toFixed(2)}%
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartArea
+                data={priceData}
+                gradientId={`${priceSparkId}-hero`}
+                yFormat={(v) => `$${Number(v).toFixed(0)}`}
+                height={140}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader>
               <CardDescription>Market Cap · 24h</CardDescription>
               <CardTitle className="text-xl tabular-nums">
@@ -651,7 +717,7 @@ function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-4">
+          <Card>
             <CardHeader>
               <CardDescription>Trading Volume · 24h</CardDescription>
               <CardTitle className="text-xl tabular-nums">
@@ -668,7 +734,7 @@ function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-4">
+          <Card>
             <CardHeader>
               <CardDescription>Avg Tx per Block · 24h</CardDescription>
               <CardTitle className="text-xl tabular-nums">
@@ -725,140 +791,66 @@ function Dashboard() {
           />
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Latest Blocks</CardTitle>
-              <CardDescription>
-                The most recent blocks on chain.
-              </CardDescription>
-              <CardAction>
-                <Button asChild variant="ghost" size="sm" className="h-8">
-                  <Link to="/blocks" search={{ page: 1, limit: 10 }}>
-                    View all <ArrowRight className="size-3.5" />
-                  </Link>
-                </Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableBody>
-                  {blocks.length === 0 &&
-                    Array.from({ length: 6 }, (_, i) => `b-${i}`).map((k) => (
-                      <TableRow key={k} className="hover:bg-transparent">
-                        <TableCell>
-                          <Skeleton className="h-4 w-32" />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Skeleton className="ml-auto h-4 w-16" />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  {blocks.slice(0, 8).map((block) => (
-                    <TableRow key={block.hash}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Latest Blocks</CardTitle>
+            <CardDescription>The most recent blocks on chain.</CardDescription>
+            <CardAction>
+              <Button asChild variant="ghost" size="sm" className="h-8">
+                <Link to="/blocks" search={{ page: 1, limit: 10 }}>
+                  View all <ArrowRight className="size-3.5" />
+                </Link>
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableBody>
+                {blocks.length === 0 &&
+                  Array.from({ length: 6 }, (_, i) => `b-${i}`).map((k) => (
+                    <TableRow key={k} className="hover:bg-transparent">
                       <TableCell>
-                        <Link
-                          to="/blocks/$hashOrHeight"
-                          params={{ hashOrHeight: block.hash }}
-                          className="flex min-w-0 items-center gap-3 no-underline"
-                        >
-                          <Boxes className="size-4 shrink-0 text-muted-foreground" />
-                          <div className="flex min-w-0 flex-col">
-                            <span className="font-mono text-sm font-medium text-accent">
-                              #{block.height.toLocaleString()}
-                            </span>
-                            <span className="truncate font-mono text-xs text-muted-foreground">
-                              {block.hash.slice(0, 18)}…{block.hash.slice(-6)}
-                            </span>
-                          </div>
-                        </Link>
+                        <Skeleton className="h-4 w-32" />
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className="text-sm font-medium tabular-nums">
-                            {block.txCount} txs
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatRelativeTime(block.timestamp)}
-                          </span>
-                        </div>
+                        <Skeleton className="ml-auto h-4 w-16" />
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Latest Transactions</CardTitle>
-              <CardDescription>
-                The most recent on-chain transactions.
-              </CardDescription>
-              <CardAction>
-                <Button asChild variant="ghost" size="sm" className="h-8">
-                  <Link to="/transactions" search={{ page: 1, limit: 10 }}>
-                    View all <ArrowRight className="size-3.5" />
-                  </Link>
-                </Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableBody>
-                  {txs.length === 0 &&
-                    Array.from({ length: 6 }, (_, i) => `t-${i}`).map((k) => (
-                      <TableRow key={k} className="hover:bg-transparent">
-                        <TableCell>
-                          <Skeleton className="h-4 w-32" />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Skeleton className="ml-auto h-4 w-16" />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  {txs.slice(0, 8).map((tx) => (
-                    <TableRow key={tx.hash}>
-                      <TableCell>
-                        <div className="flex min-w-0 items-center gap-3">
-                          <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
-                          <div className="flex min-w-0 flex-col gap-1">
-                            <HashDisplay
-                              value={tx.hash}
-                              href="/transactions/$hash"
-                              params={{ hash: tx.hash }}
-                              copy={false}
-                            />
-                            <div className="flex items-center gap-1.5">
-                              <TxTypeBadge type={tx.type} />
-                              <InstantLockBadge locked={tx.instantLock} />
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className="font-mono text-sm tabular-nums">
-                            {formatDuffs(sumVOut(tx.vOut))}{" "}
-                            <span className="text-muted-foreground text-xs">
-                              DASH
-                            </span>
+                {blocks.slice(0, 10).map((block) => (
+                  <TableRow key={block.hash}>
+                    <TableCell>
+                      <Link
+                        to="/blocks/$hashOrHeight"
+                        params={{ hashOrHeight: block.hash }}
+                        className="flex min-w-0 items-center gap-3 no-underline"
+                      >
+                        <Boxes className="size-4 shrink-0 text-muted-foreground" />
+                        <div className="flex min-w-0 flex-col">
+                          <span className="font-mono text-sm font-medium text-accent">
+                            #{block.height.toLocaleString()}
                           </span>
-                          <span className="text-xs text-muted-foreground">
-                            {tx.timestamp
-                              ? formatRelativeTime(tx.timestamp)
-                              : "—"}
+                          <span className="truncate font-mono text-xs text-muted-foreground">
+                            {block.hash.slice(0, 18)}…{block.hash.slice(-6)}
                           </span>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums">
+                      {block.txCount} txs
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                      {(block.size / 1024).toFixed(2)} KB
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">
+                      {formatRelativeTime(block.timestamp)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
