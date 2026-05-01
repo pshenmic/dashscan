@@ -780,7 +780,14 @@ Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
       "collateralAddress": "XcBC...",
       "pubKeyOperator": "abc123...",
       "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "ipInfo": {
+        "ipv4": "1.2.3.4",
+        "countryCode": "NL",
+        "city": "Amsterdam",
+        "latitude": 12.3456789101112131,
+        "longitude": 12.3456789101112131
+      }
     }
   ],
   "pagination": {
@@ -793,23 +800,37 @@ Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
 
 #### Masternode Object
 
-| Field                 | Type    | Description                                      |
-|-----------------------|---------|--------------------------------------------------|
-| `proTxHash`           | string  | Provider transaction hash                        |
-| `address`             | string  | IP address and port                              |
-| `payee`               | string  | Payout address                                   |
-| `status`              | string  | Masternode status (e.g. `ENABLED`)               |
-| `type`                | string  | Masternode type (e.g. `Regular`, `Evo`)          |
-| `posPenaltyScore`     | number  | Proof-of-service penalty score                   |
-| `consecutivePayments` | number  | Number of consecutive payments received          |
-| `lastPaidTime`        | number  | Unix timestamp of last payment                   |
-| `lastPaidBlock`       | number  | Block height of last payment                     |
-| `ownerAddress`        | string  | Owner address                                    |
-| `votingAddress`       | string  | Voting address                                   |
-| `collateralAddress`   | string  | Collateral address                               |
-| `pubKeyOperator`      | string  | Operator public key                              |
-| `createdAt`           | string  | ISO 8601 timestamp when first indexed            |
-| `updatedAt`           | string  | ISO 8601 timestamp of last update                |
+| Field                 | Type   | Description                                |
+|-----------------------|--------|--------------------------------------------|
+| `proTxHash`           | string | Provider transaction hash                  |
+| `address`             | string | IP address and port                        |
+| `payee`               | string | Payout address                             |
+| `status`              | string | Masternode status (e.g. `ENABLED`)         |
+| `type`                | string | Masternode type (e.g. `Regular`, `Evo`)    |
+| `posPenaltyScore`     | number | Proof-of-service penalty score             |
+| `consecutivePayments` | number | Number of consecutive payments received    |
+| `lastPaidTime`        | number | Unix timestamp of last payment             |
+| `lastPaidBlock`       | number | Block height of last payment               |
+| `ownerAddress`        | string | Owner address                              |
+| `votingAddress`       | string | Voting address                             |
+| `collateralAddress`   | string | Collateral address                         |
+| `pubKeyOperator`      | string | Operator public key                        |
+| `createdAt`           | string | ISO 8601 timestamp when first indexed      |
+| `updatedAt`           | string | ISO 8601 timestamp of last update          |
+| `ipInfo`              | IpInfo | Information about node ip with coordinates |
+
+
+### ipInfo Object
+
+| Field       | Type   | Description                                      |
+|-------------|--------|--------------------------------------------------|
+| ipv4        | string | IPv4 address                                     |
+| countryCode | string | Country code in ISO 3166 A-2 (US, GB, KZ, RU...) |
+| city        | string | City name                                        |
+| latitude    | number | Latitude on global map of ip address             |
+| longitude   | number | Longitude on global map of ip address            |
+
+
 
 ---
 
