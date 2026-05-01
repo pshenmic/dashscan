@@ -9,10 +9,23 @@ import { CopyButton } from "@/components/copy-button";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
-import { KpiCard } from "@/components/kpi-card";
-import { PageHeader } from "@/components/page-header";
 import { InstantLockBadge, TxTypeBadge } from "@/components/status-badge";
-import { Card } from "@/components/ui/card";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   type ChartConfig,
   ChartContainer,
@@ -246,168 +259,187 @@ function AddressDetailsPage() {
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8">
-        <PageHeader
-          breadcrumb={[{ label: "Home", to: "/" }, { label: "Address" }]}
-          title={
-            <span className="flex items-center gap-3">
-              <Avatar username={detail.address} className="size-9" />
-              <span>Address</span>
-            </span>
-          }
-          subtitle={
-            <span className="font-mono text-xs sm:text-sm break-all">
-              {detail.address}
-            </span>
-          }
-          actions={
+        <header className="flex flex-col gap-4">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to="/">Home</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Address</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-2 min-w-0">
+              <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+                <Avatar username={detail.address} className="size-9" />
+                <span>Address</span>
+              </h1>
+              <p className="font-mono text-xs sm:text-sm break-all text-muted-foreground">
+                {detail.address}
+              </p>
+            </div>
             <CopyButton value={detail.address} label="Address" size="md" />
-          }
-        />
+          </div>
+        </header>
 
         <div className="grid gap-4 lg:grid-cols-3">
-          <KpiCard
-            label="Balance"
-            value={
-              <span>
+          <Card>
+            <CardHeader>
+              <CardDescription>Balance</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
                 {balanceDash != null
                   ? balanceDash.toLocaleString(undefined, {
                       maximumFractionDigits: 4,
                     })
                   : "—"}{" "}
                 <span className="text-muted-foreground text-base">DASH</span>
-              </span>
-            }
-            icon={<Wallet />}
-          />
-          <KpiCard
-            label="Total Received"
-            value={
-              <span>
+              </CardTitle>
+              <CardAction>
+                <Wallet className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Total Received</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
                 {receivedDash != null
                   ? receivedDash.toLocaleString(undefined, {
                       maximumFractionDigits: 4,
                     })
                   : "—"}{" "}
                 <span className="text-muted-foreground text-base">DASH</span>
-              </span>
-            }
-            icon={<MoveDown />}
-          />
-          <KpiCard
-            label="Transactions"
-            value={Number(detail.txCount).toLocaleString()}
-            icon={<ArrowLeftRight />}
-          />
+              </CardTitle>
+              <CardAction>
+                <MoveDown className="size-4 text-success" />
+              </CardAction>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Transactions</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {Number(detail.txCount).toLocaleString()}
+              </CardTitle>
+              <CardAction>
+                <ArrowLeftRight className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+          </Card>
         </div>
 
-        <Card className="p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Balance over time
-              </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums">
-                {balanceDash != null
-                  ? `${balanceDash.toLocaleString(undefined, {
-                      maximumFractionDigits: 4,
-                    })} DASH`
-                  : "—"}
-              </p>
-            </div>
-            <Tabs
-              value={range}
-              onValueChange={(v) => setRange(v as ChartRange)}
-            >
-              <TabsList>
-                {RANGE_OPTIONS.map((opt) => (
-                  <TabsTrigger key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-          </div>
-
-          {chartPoints.length > 0 ? (
-            <ChartContainer
-              config={chartConfig}
-              className={cn("mt-4 aspect-auto h-[280px] w-full")}
-            >
-              <AreaChart data={chartPoints}>
-                <defs>
-                  <linearGradient
-                    id={balanceGradientId}
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor="var(--color-balance)"
-                      stopOpacity={0.3}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--color-balance)"
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="timestamp"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tickFormatter={(v) => {
-                    const date = new Date(v);
-                    if (range === "1d") {
-                      return date.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      });
-                    }
-                    return date.toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    });
-                  }}
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  width={60}
-                  tickFormatter={(v) => v.toLocaleString()}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={(_, payload) =>
-                        payload?.[0]?.payload?.timestampLabel
-                          ? new Date(
-                              payload[0].payload.timestampLabel,
-                            ).toLocaleString()
-                          : ""
+        <Card>
+          <CardHeader>
+            <CardDescription>Balance over time</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {balanceDash != null
+                ? `${balanceDash.toLocaleString(undefined, {
+                    maximumFractionDigits: 4,
+                  })} DASH`
+                : "—"}
+            </CardTitle>
+            <CardAction>
+              <Tabs
+                value={range}
+                onValueChange={(v) => setRange(v as ChartRange)}
+              >
+                <TabsList>
+                  {RANGE_OPTIONS.map((opt) => (
+                    <TabsTrigger key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            {chartPoints.length > 0 ? (
+              <ChartContainer
+                config={chartConfig}
+                className={cn("aspect-auto h-[280px] w-full")}
+              >
+                <AreaChart data={chartPoints}>
+                  <defs>
+                    <linearGradient
+                      id={balanceGradientId}
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="5%"
+                        stopColor="var(--color-balance)"
+                        stopOpacity={0.3}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="var(--color-balance)"
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="timestamp"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    tickFormatter={(v) => {
+                      const date = new Date(v);
+                      if (range === "1d") {
+                        return date.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        });
                       }
-                    />
-                  }
-                />
-                <Area
-                  dataKey="balance"
-                  type="monotone"
-                  stroke="var(--color-balance)"
-                  fill={`url(#${balanceGradientId})`}
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ChartContainer>
-          ) : (
-            <div className="mt-4 flex h-[280px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-              No balance data for this range.
-            </div>
-          )}
+                      return date.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      });
+                    }}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    width={60}
+                    tickFormatter={(v) => v.toLocaleString()}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={(_, payload) =>
+                          payload?.[0]?.payload?.timestampLabel
+                            ? new Date(
+                                payload[0].payload.timestampLabel,
+                              ).toLocaleString()
+                            : ""
+                        }
+                      />
+                    }
+                  />
+                  <Area
+                    dataKey="balance"
+                    type="monotone"
+                    stroke="var(--color-balance)"
+                    fill={`url(#${balanceGradientId})`}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex h-[280px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+                No balance data for this range.
+              </div>
+            )}
+          </CardContent>
         </Card>
 
         <DataTable

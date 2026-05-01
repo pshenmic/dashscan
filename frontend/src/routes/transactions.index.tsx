@@ -5,9 +5,16 @@ import { ArrowLeftRight, Box } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { HashDisplay } from "@/components/hash-display";
-import { KpiCard } from "@/components/kpi-card";
-import { PageHeader } from "@/components/page-header";
 import { InstantLockBadge, TxTypeBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   monthStatsRange,
   transactionsStatsQueryOptions,
@@ -172,30 +179,66 @@ function TransactionsPage() {
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8">
-        <PageHeader
-          title="Transactions"
-          subtitle="All on-chain transactions across the Dash network."
-        />
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Transactions
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            All on-chain transactions across the Dash network.
+          </p>
+        </header>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiCard
-            label="Transactions (30d)"
-            value={stats.count30d != null ? formatCompact(stats.count30d) : "—"}
-            icon={<ArrowLeftRight />}
-            delta={stats.change != null ? { value: stats.change } : null}
-            hint={<span>vs prior 15 days</span>}
-          />
-          <KpiCard
-            label="Average TPS"
-            value={stats.tps != null ? stats.tps.toFixed(2) : "—"}
-            icon={<ArrowLeftRight />}
-            hint="Transactions per second (30d window)"
-          />
-          <KpiCard
-            label="Total"
-            value={total > 0 ? formatCompact(total) : "—"}
-            hint="All-time transactions indexed"
-          />
+          <Card>
+            <CardHeader>
+              <CardDescription>Transactions (30d)</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {stats.count30d != null ? formatCompact(stats.count30d) : "—"}
+              </CardTitle>
+              <CardAction>
+                <ArrowLeftRight className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex items-center gap-2 text-xs text-muted-foreground">
+              {stats.change != null && (
+                <Badge
+                  variant={
+                    stats.change >= 0 ? "soft-success" : "soft-destructive"
+                  }
+                  className="font-medium"
+                >
+                  {stats.change >= 0 ? "+" : ""}
+                  {stats.change.toFixed(2)}%
+                </Badge>
+              )}
+              vs prior 15 days
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Average TPS</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {stats.tps != null ? stats.tps.toFixed(2) : "—"}
+              </CardTitle>
+              <CardAction>
+                <ArrowLeftRight className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="text-xs text-muted-foreground">
+              Transactions per second (30d window)
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Total</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {total > 0 ? formatCompact(total) : "—"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs text-muted-foreground">
+              All-time transactions indexed
+            </CardContent>
+          </Card>
         </div>
 
         <DataTable

@@ -1,24 +1,50 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
 import { Boxes, Vote } from "lucide-react";
+import type { ReactNode } from "react";
 import { CopyButton } from "@/components/copy-button";
-import {
-  type DescriptionItem,
-  DescriptionList,
-} from "@/components/description-list";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
-import { PageHeader } from "@/components/page-header";
 import { MnStatusBadge, MnTypeBadge } from "@/components/status-badge";
-import { Card } from "@/components/ui/card";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import { formatRelativeTime } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 import { cn } from "@/lib/utils";
+
+function Item({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="flex flex-wrap items-center gap-2 text-sm">{children}</dd>
+    </div>
+  );
+}
+
+function AddressOrDash({ value }: { value?: string | null }) {
+  if (!value) return <span className="text-muted-foreground">—</span>;
+  return (
+    <HashDisplay
+      value={value}
+      href="/address/$address"
+      params={{ address: value }}
+    />
+  );
+}
 
 export const Route = createFileRoute("/masternodes/$hash")({
   component: MasternodeDetailPage,
@@ -81,160 +107,126 @@ function MasternodeDetailPage() {
 
   const isEnabled = mn.status.toUpperCase() === "ENABLED";
 
-  const items: DescriptionItem[] = [
-    {
-      label: "ProTx Hash",
-      value: <HashDisplay value={mn.proTxHash} variant="full" />,
-    },
-    {
-      label: "Network Address",
-      value: (
-        <span className="flex items-center gap-2 font-mono text-sm">
-          <LiveDot active={isEnabled} />
-          {mn.address}
-        </span>
-      ),
-    },
-    {
-      label: "PoSe Score",
-      value: (
-        <span
-          className={cn(
-            "font-mono text-sm tabular-nums",
-            mn.posPenaltyScore === 0 ? "text-success" : "text-destructive",
-          )}
-        >
-          {mn.posPenaltyScore}
-        </span>
-      ),
-    },
-    {
-      label: "Last Paid",
-      value: mn.lastPaidTime ? (
-        <span className="flex flex-wrap items-center gap-2">
-          <span>{new Date(mn.lastPaidTime * 1000).toLocaleString()}</span>
-          <span className="text-xs text-muted-foreground">
-            ({formatRelativeTime(mn.lastPaidTime)})
-          </span>
-        </span>
-      ) : (
-        <span className="text-muted-foreground">Never</span>
-      ),
-    },
-    {
-      label: "Last Paid Block",
-      value: mn.lastPaidBlock ? (
-        <span className="font-mono text-sm tabular-nums">
-          #{mn.lastPaidBlock.toLocaleString()}
-        </span>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-    },
-    {
-      label: "Consecutive Payments",
-      value: mn.consecutivePayments?.toLocaleString() ?? "0",
-    },
-    {
-      label: "Registered",
-      value: (
-        <span className="flex flex-wrap items-center gap-2">
-          <span>{new Date(mn.createdAt).toLocaleString()}</span>
-          <span className="text-xs text-muted-foreground">
-            ({formatRelativeTime(mn.createdAt)})
-          </span>
-        </span>
-      ),
-    },
-    {
-      label: "Owner Address",
-      value: mn.ownerAddress ? (
-        <HashDisplay
-          value={mn.ownerAddress}
-          href="/address/$address"
-          params={{ address: mn.ownerAddress }}
-        />
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-    },
-    {
-      label: "Voting Address",
-      value: mn.votingAddress ? (
-        <HashDisplay
-          value={mn.votingAddress}
-          href="/address/$address"
-          params={{ address: mn.votingAddress }}
-        />
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-    },
-    {
-      label: "Collateral Address",
-      value: mn.collateralAddress ? (
-        <HashDisplay
-          value={mn.collateralAddress}
-          href="/address/$address"
-          params={{ address: mn.collateralAddress }}
-        />
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-    },
-    {
-      label: "Payout Address",
-      value: mn.payee ? (
-        <HashDisplay
-          value={mn.payee}
-          href="/address/$address"
-          params={{ address: mn.payee }}
-        />
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-    },
-    {
-      label: "Operator PubKey",
-      value: mn.pubKeyOperator ? (
-        <HashDisplay value={mn.pubKeyOperator} variant="compact" />
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-    },
-  ];
-
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8">
-        <PageHeader
-          breadcrumb={[
-            { label: "Home", to: "/" },
-            { label: "Masternodes", to: "/masternodes" },
-            { label: `${mn.proTxHash.slice(0, 10)}…` },
-          ]}
-          title={
-            <span className="flex items-center gap-3">
-              <Avatar username={mn.proTxHash} className="size-9" />
-              <span>Masternode</span>
-            </span>
-          }
-          subtitle={
-            <span className="font-mono text-xs sm:text-sm">{mn.proTxHash}</span>
-          }
-          actions={
+        <header className="flex flex-col gap-4">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to="/">Home</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to="/masternodes" search={{ page: 1, limit: 10 }}>
+                    Masternodes
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{mn.proTxHash.slice(0, 10)}…</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-2 min-w-0">
+              <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+                <Avatar username={mn.proTxHash} className="size-9" />
+                <span>Masternode</span>
+              </h1>
+              <p className="font-mono text-xs sm:text-sm break-all text-muted-foreground">
+                {mn.proTxHash}
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <MnStatusBadge status={mn.status} />
+                <MnTypeBadge type={mn.type} />
+              </div>
+            </div>
             <CopyButton value={mn.proTxHash} label="ProTx Hash" size="md" />
-          }
-          badges={
-            <>
-              <MnStatusBadge status={mn.status} />
-              <MnTypeBadge type={mn.type} />
-            </>
-          }
-        />
+          </div>
+        </header>
 
-        <Card className="p-6">
-          <DescriptionList items={items} />
+        <Card>
+          <CardContent>
+            <dl className="grid gap-y-4 gap-x-8 sm:grid-cols-2">
+              <Item label="ProTx Hash">
+                <HashDisplay value={mn.proTxHash} variant="full" />
+              </Item>
+              <Item label="Network Address">
+                <span className="flex items-center gap-2 font-mono text-sm">
+                  <LiveDot active={isEnabled} />
+                  {mn.address}
+                </span>
+              </Item>
+              <Item label="PoSe Score">
+                <span
+                  className={cn(
+                    "font-mono text-sm tabular-nums",
+                    mn.posPenaltyScore === 0
+                      ? "text-success"
+                      : "text-destructive",
+                  )}
+                >
+                  {mn.posPenaltyScore}
+                </span>
+              </Item>
+              <Item label="Last Paid">
+                {mn.lastPaidTime ? (
+                  <>
+                    <span>
+                      {new Date(mn.lastPaidTime * 1000).toLocaleString()}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({formatRelativeTime(mn.lastPaidTime)})
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">Never</span>
+                )}
+              </Item>
+              <Item label="Last Paid Block">
+                {mn.lastPaidBlock ? (
+                  <span className="font-mono text-sm tabular-nums">
+                    #{mn.lastPaidBlock.toLocaleString()}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </Item>
+              <Item label="Consecutive Payments">
+                {mn.consecutivePayments?.toLocaleString() ?? "0"}
+              </Item>
+              <Item label="Registered">
+                <span>{new Date(mn.createdAt).toLocaleString()}</span>
+                <span className="text-xs text-muted-foreground">
+                  ({formatRelativeTime(mn.createdAt)})
+                </span>
+              </Item>
+              <Item label="Owner Address">
+                <AddressOrDash value={mn.ownerAddress} />
+              </Item>
+              <Item label="Voting Address">
+                <AddressOrDash value={mn.votingAddress} />
+              </Item>
+              <Item label="Collateral Address">
+                <AddressOrDash value={mn.collateralAddress} />
+              </Item>
+              <Item label="Payout Address">
+                <AddressOrDash value={mn.payee} />
+              </Item>
+              <Item label="Operator PubKey">
+                {mn.pubKeyOperator ? (
+                  <HashDisplay value={mn.pubKeyOperator} variant="compact" />
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </Item>
+            </dl>
+          </CardContent>
         </Card>
 
         <Tabs defaultValue="blocks" className="gap-4">
@@ -248,21 +240,17 @@ function MasternodeDetailPage() {
           </TabsList>
 
           <TabsContent value="blocks">
-            <Card className="overflow-hidden p-0">
-              <EmptyState
-                title="No data available"
-                description="Masternode block proposal history is not yet exposed by the API."
-              />
-            </Card>
+            <EmptyState
+              title="No data available"
+              description="Masternode block proposal history is not yet exposed by the API."
+            />
           </TabsContent>
 
           <TabsContent value="votes">
-            <Card className="overflow-hidden p-0">
-              <EmptyState
-                title="No data available"
-                description="Per-masternode DAO vote history is not yet exposed by the API."
-              />
-            </Card>
+            <EmptyState
+              title="No data available"
+              description="Per-masternode DAO vote history is not yet exposed by the API."
+            />
           </TabsContent>
         </Tabs>
       </div>

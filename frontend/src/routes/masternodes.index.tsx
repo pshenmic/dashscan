@@ -5,9 +5,15 @@ import { CircleCheck, Server, ServerCrash } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { HashDisplay } from "@/components/hash-display";
-import { KpiCard } from "@/components/kpi-card";
-import { PageHeader } from "@/components/page-header";
 import { MnStatusBadge, MnTypeBadge } from "@/components/status-badge";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiMasternode } from "@/lib/api/types";
 import { formatCompact, formatRelativeTime, getIp } from "@/lib/format";
@@ -141,29 +147,55 @@ function MasternodesPage() {
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8">
-        <PageHeader
-          title="Masternodes"
-          subtitle="Active and banned masternodes securing the Dash network."
-        />
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Masternodes
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Active and banned masternodes securing the Dash network.
+          </p>
+        </header>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <KpiCard
-            label="Total Masternodes"
-            value={stats.totalAll != null ? formatCompact(stats.totalAll) : "—"}
-            icon={<Server />}
-          />
-          <KpiCard
-            label="Enabled (sampled)"
-            value={stats.sampled > 0 ? stats.enabled.toLocaleString() : "—"}
-            icon={<CircleCheck />}
-            hint={`In latest ${stats.sampled} nodes`}
-          />
-          <KpiCard
-            label="Banned (sampled)"
-            value={stats.sampled > 0 ? stats.banned.toLocaleString() : "—"}
-            icon={<ServerCrash />}
-            hint={`In latest ${stats.sampled} nodes`}
-          />
+          <Card>
+            <CardHeader>
+              <CardDescription>Total Masternodes</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {stats.totalAll != null ? formatCompact(stats.totalAll) : "—"}
+              </CardTitle>
+              <CardAction>
+                <Server className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Enabled (sampled)</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {stats.sampled > 0 ? stats.enabled.toLocaleString() : "—"}
+              </CardTitle>
+              <CardAction>
+                <CircleCheck className="size-4 text-success" />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="text-xs text-muted-foreground">
+              In latest {stats.sampled} nodes
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Banned (sampled)</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {stats.sampled > 0 ? stats.banned.toLocaleString() : "—"}
+              </CardTitle>
+              <CardAction>
+                <ServerCrash className="size-4 text-destructive" />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="text-xs text-muted-foreground">
+              In latest {stats.sampled} nodes
+            </CardContent>
+          </Card>
         </div>
 
         <DataTable

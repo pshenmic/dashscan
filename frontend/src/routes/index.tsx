@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
+  ArrowDown,
   ArrowLeftRight,
   ArrowRight,
+  ArrowUp,
   Boxes,
   DollarSign,
   Server,
@@ -19,11 +21,16 @@ import {
   YAxis,
 } from "recharts";
 import { HashDisplay } from "@/components/hash-display";
-import { KpiCard } from "@/components/kpi-card";
-import { PageHeader } from "@/components/page-header";
 import { InstantLockBadge, TxTypeBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   type ChartConfig,
   ChartContainer,
@@ -247,28 +254,49 @@ function Dashboard() {
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8">
-        <PageHeader
-          title="Dash Network Explorer"
-          subtitle="Real-time blocks, transactions, and governance on the Dash chain."
-        />
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Dash Network Explorer
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Real-time blocks, transactions, and governance on the Dash chain.
+          </p>
+        </header>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard
-            label="Dash Price"
-            value={
-              usdPrice?.usd != null ? (
-                <span>${usdPrice.usd.toFixed(2)}</span>
+          <Card>
+            <CardHeader>
+              <CardDescription>Dash Price</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(2)}` : "—"}
+              </CardTitle>
+              <CardAction>
+                <DollarSign className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between gap-3">
+              {priceChange != null ? (
+                <span
+                  className={
+                    priceChange >= 0
+                      ? "inline-flex items-center gap-1 text-xs font-medium text-success"
+                      : "inline-flex items-center gap-1 text-xs font-medium text-destructive"
+                  }
+                >
+                  {priceChange >= 0 ? (
+                    <ArrowUp className="size-3" />
+                  ) : (
+                    <ArrowDown className="size-3" />
+                  )}
+                  {Math.abs(priceChange).toFixed(2)}%
+                </span>
               ) : (
-                "—"
-              )
-            }
-            icon={<DollarSign />}
-            delta={priceChange != null ? { value: priceChange } : null}
-            hint={
-              priceSparkline.length > 1 ? (
+                <span />
+              )}
+              {priceSparkline.length > 1 && (
                 <ChartContainer
                   config={chartConfig}
-                  className="aspect-auto h-7 w-20"
+                  className="aspect-auto h-8 w-24"
                 >
                   <AreaChart data={priceSparkline}>
                     <defs>
@@ -301,321 +329,364 @@ function Dashboard() {
                     />
                   </AreaChart>
                 </ChartContainer>
-              ) : undefined
-            }
-          />
-          <KpiCard
-            label="Latest Block"
-            value={
-              latestBlock != null
-                ? `#${latestBlock.height.toLocaleString()}`
-                : "—"
-            }
-            icon={<Boxes />}
-            hint={
-              latestBlock?.timestamp
-                ? `Mined ${formatRelativeTime(latestBlock.timestamp)}`
-                : undefined
-            }
-          />
-          <KpiCard
-            label="Masternodes"
-            value={
-              masternodeCount != null ? formatCompact(masternodeCount) : "—"
-            }
-            icon={<Server />}
-          />
-          <KpiCard
-            label="Tx Volume (30d)"
-            value={txCount30d > 0 ? formatCompact(txCount30d) : "—"}
-            icon={<ArrowLeftRight />}
-            delta={txChange != null ? { value: txChange } : null}
-          />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Latest Block</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {latestBlock != null
+                  ? `#${latestBlock.height.toLocaleString()}`
+                  : "—"}
+              </CardTitle>
+              <CardAction>
+                <Boxes className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+            {latestBlock?.timestamp && (
+              <CardContent className="text-xs text-muted-foreground">
+                Mined {formatRelativeTime(latestBlock.timestamp)}
+              </CardContent>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Masternodes</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {masternodeCount != null ? formatCompact(masternodeCount) : "—"}
+              </CardTitle>
+              <CardAction>
+                <Server className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Tx Volume (30d)</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {txCount30d > 0 ? formatCompact(txCount30d) : "—"}
+              </CardTitle>
+              <CardAction>
+                <ArrowLeftRight className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+            {txChange != null && (
+              <CardContent>
+                <span
+                  className={
+                    txChange >= 0
+                      ? "inline-flex items-center gap-1 text-xs font-medium text-success"
+                      : "inline-flex items-center gap-1 text-xs font-medium text-destructive"
+                  }
+                >
+                  {txChange >= 0 ? (
+                    <ArrowUp className="size-3" />
+                  ) : (
+                    <ArrowDown className="size-3" />
+                  )}
+                  {Math.abs(txChange).toFixed(2)}%
+                </span>
+              </CardContent>
+            )}
+          </Card>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="p-6 gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-                Latest Blocks
-              </h2>
-              <Button asChild variant="ghost" size="sm" className="h-8">
-                <Link to="/blocks" search={{ page: 1, limit: 10 }}>
-                  View all <ArrowRight className="size-3.5" />
-                </Link>
-              </Button>
-            </div>
-            <ul className="flex flex-col">
-              {blocks.length === 0 &&
-                Array.from({ length: 6 }, (_, i) => `b-${i}`).map((k) => (
+          <Card>
+            <CardHeader>
+              <CardTitle>Latest Blocks</CardTitle>
+              <CardDescription>
+                The most recent blocks on chain.
+              </CardDescription>
+              <CardAction>
+                <Button asChild variant="ghost" size="sm" className="h-8">
+                  <Link to="/blocks" search={{ page: 1, limit: 10 }}>
+                    View all <ArrowRight className="size-3.5" />
+                  </Link>
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              <ul className="flex flex-col">
+                {blocks.length === 0 &&
+                  Array.from({ length: 6 }, (_, i) => `b-${i}`).map((k) => (
+                    <li
+                      key={k}
+                      className="flex items-center justify-between border-b py-3 last:border-0"
+                    >
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-16" />
+                    </li>
+                  ))}
+                {blocks.slice(0, 8).map((block) => (
                   <li
-                    key={k}
-                    className="flex items-center justify-between border-b border-border/60 py-3 last:border-0"
+                    key={block.hash}
+                    className="flex items-center justify-between border-b py-3 last:border-0"
                   >
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-4 w-16" />
-                  </li>
-                ))}
-              {blocks.slice(0, 8).map((block) => (
-                <li
-                  key={block.hash}
-                  className="flex items-center justify-between border-b border-border/60 py-3 last:border-0"
-                >
-                  <Link
-                    to="/blocks/$hashOrHeight"
-                    params={{ hashOrHeight: block.hash }}
-                    className="flex min-w-0 items-center gap-3 no-underline"
-                  >
-                    <Boxes className="size-4 shrink-0 text-muted-foreground" />
-                    <div className="flex min-w-0 flex-col">
-                      <span className="font-mono text-sm font-medium text-accent">
-                        #{block.height.toLocaleString()}
+                    <Link
+                      to="/blocks/$hashOrHeight"
+                      params={{ hashOrHeight: block.hash }}
+                      className="flex min-w-0 items-center gap-3 no-underline"
+                    >
+                      <Boxes className="size-4 shrink-0 text-muted-foreground" />
+                      <div className="flex min-w-0 flex-col">
+                        <span className="font-mono text-sm font-medium text-accent">
+                          #{block.height.toLocaleString()}
+                        </span>
+                        <span className="truncate font-mono text-xs text-muted-foreground">
+                          {block.hash.slice(0, 18)}…{block.hash.slice(-6)}
+                        </span>
+                      </div>
+                    </Link>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className="text-sm font-medium tabular-nums">
+                        {block.txCount} txs
                       </span>
-                      <span className="truncate font-mono text-xs text-muted-foreground">
-                        {block.hash.slice(0, 18)}…{block.hash.slice(-6)}
+                      <span className="text-xs text-muted-foreground">
+                        {formatRelativeTime(block.timestamp)}
                       </span>
                     </div>
-                  </Link>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <span className="text-sm font-medium tabular-nums">
-                      {block.txCount} txs
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatRelativeTime(block.timestamp)}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
           </Card>
 
-          <Card className="p-6 gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-                Latest Transactions
-              </h2>
-              <Button asChild variant="ghost" size="sm" className="h-8">
-                <Link to="/transactions" search={{ page: 1, limit: 10 }}>
-                  View all <ArrowRight className="size-3.5" />
-                </Link>
-              </Button>
-            </div>
-            <ul className="flex flex-col">
-              {txs.length === 0 &&
-                Array.from({ length: 6 }, (_, i) => `t-${i}`).map((k) => (
+          <Card>
+            <CardHeader>
+              <CardTitle>Latest Transactions</CardTitle>
+              <CardDescription>
+                The most recent on-chain transactions.
+              </CardDescription>
+              <CardAction>
+                <Button asChild variant="ghost" size="sm" className="h-8">
+                  <Link to="/transactions" search={{ page: 1, limit: 10 }}>
+                    View all <ArrowRight className="size-3.5" />
+                  </Link>
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              <ul className="flex flex-col">
+                {txs.length === 0 &&
+                  Array.from({ length: 6 }, (_, i) => `t-${i}`).map((k) => (
+                    <li
+                      key={k}
+                      className="flex items-center justify-between border-b border-border/60 py-3 last:border-0"
+                    >
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-16" />
+                    </li>
+                  ))}
+                {txs.slice(0, 8).map((tx) => (
                   <li
-                    key={k}
-                    className="flex items-center justify-between border-b border-border/60 py-3 last:border-0"
+                    key={tx.hash}
+                    className="flex items-center justify-between gap-3 border-b py-3 last:border-0"
                   >
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-4 w-16" />
-                  </li>
-                ))}
-              {txs.slice(0, 8).map((tx) => (
-                <li
-                  key={tx.hash}
-                  className="flex items-center justify-between gap-3 border-b border-border/60 py-3 last:border-0"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
-                    <div className="flex min-w-0 flex-col gap-1">
-                      <HashDisplay
-                        value={tx.hash}
-                        href="/transactions/$hash"
-                        params={{ hash: tx.hash }}
-                        copy={false}
-                      />
-                      <div className="flex items-center gap-1.5">
-                        <TxTypeBadge type={tx.type} />
-                        <InstantLockBadge locked={tx.instantLock} />
+                    <div className="flex min-w-0 items-center gap-3">
+                      <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <HashDisplay
+                          value={tx.hash}
+                          href="/transactions/$hash"
+                          params={{ hash: tx.hash }}
+                          copy={false}
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <TxTypeBadge type={tx.type} />
+                          <InstantLockBadge locked={tx.instantLock} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <span className="font-mono text-sm tabular-nums">
-                      {formatDuffs(sumVOut(tx.vOut))}{" "}
-                      <span className="text-muted-foreground text-xs">
-                        DASH
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className="font-mono text-sm tabular-nums">
+                        {formatDuffs(sumVOut(tx.vOut))}{" "}
+                        <span className="text-muted-foreground text-xs">
+                          DASH
+                        </span>
                       </span>
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {tx.timestamp ? formatRelativeTime(tx.timestamp) : "—"}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      <span className="text-xs text-muted-foreground">
+                        {tx.timestamp ? formatRelativeTime(tx.timestamp) : "—"}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
           </Card>
         </div>
 
-        <Card className="p-6 gap-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-                {chartMetric === "price"
-                  ? "Dash Price"
-                  : chartMetric === "volume"
-                    ? "Trading Volume"
-                    : chartMetric === "mcap"
-                      ? "Market Cap"
-                      : "Transactions per Day"}
-              </h2>
-              <p className="mt-1 flex items-baseline gap-3">
-                <span className="text-3xl font-semibold tabular-nums">
-                  {heroValue != null ? formatHero(heroValue) : "—"}
+        <Card>
+          <CardHeader>
+            <CardDescription>
+              {chartMetric === "price"
+                ? "Dash Price"
+                : chartMetric === "volume"
+                  ? "Trading Volume"
+                  : chartMetric === "mcap"
+                    ? "Market Cap"
+                    : "Transactions per Day"}
+            </CardDescription>
+            <CardTitle className="flex flex-wrap items-baseline gap-3 text-3xl tabular-nums">
+              {heroValue != null ? formatHero(heroValue) : "—"}
+              {heroChange != null && (
+                <span
+                  className={
+                    heroChange >= 0
+                      ? "text-sm font-medium text-success"
+                      : "text-sm font-medium text-destructive"
+                  }
+                >
+                  {heroChange >= 0 ? "+" : ""}
+                  {heroChange.toFixed(2)}%
                 </span>
-                {heroChange != null && (
-                  <span
-                    className={
-                      heroChange >= 0
-                        ? "text-sm font-medium text-success"
-                        : "text-sm font-medium text-destructive"
-                    }
-                  >
-                    {heroChange >= 0 ? "+" : ""}
-                    {heroChange.toFixed(2)}%
-                  </span>
-                )}
-                {chartMetric === "mcap" && marketCap?.usd != null && (
-                  <span className="text-sm text-muted-foreground">
-                    Market Cap: {formatCompactUsd(marketCap.usd)}
-                  </span>
-                )}
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <Tabs
-                value={chartMetric}
-                onValueChange={(v) => setChartMetric(v as ChartMetric)}
-              >
-                <TabsList>
-                  <TabsTrigger value="price">Price</TabsTrigger>
-                  <TabsTrigger value="volume">Volume</TabsTrigger>
-                  <TabsTrigger value="mcap">M.Cap</TabsTrigger>
-                  <TabsTrigger value="txs">TX Count</TabsTrigger>
-                </TabsList>
-              </Tabs>
-              {chartMetric !== "txs" && (
+              )}
+              {chartMetric === "mcap" && marketCap?.usd != null && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  Market Cap: {formatCompactUsd(marketCap.usd)}
+                </span>
+              )}
+            </CardTitle>
+            <CardAction>
+              <div className="flex flex-col items-end gap-2">
                 <Tabs
-                  value={currency}
-                  onValueChange={(v) => setCurrency(v as Currency)}
+                  value={chartMetric}
+                  onValueChange={(v) => setChartMetric(v as ChartMetric)}
                 >
                   <TabsList>
-                    <TabsTrigger value="usd">USD</TabsTrigger>
-                    <TabsTrigger value="btc">BTC</TabsTrigger>
+                    <TabsTrigger value="price">Price</TabsTrigger>
+                    <TabsTrigger value="volume">Volume</TabsTrigger>
+                    <TabsTrigger value="mcap">M.Cap</TabsTrigger>
+                    <TabsTrigger value="txs">TX Count</TabsTrigger>
                   </TabsList>
                 </Tabs>
-              )}
-            </div>
-          </div>
-
-          {heroData.length > 0 ? (
-            <ChartContainer
-              config={chartConfig}
-              className="mt-2 aspect-auto h-[320px] w-full"
-            >
-              {chartMetric === "volume" ? (
-                <BarChart data={heroData}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(v) =>
-                      new Date(v).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })
-                    }
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    width={64}
-                    tickFormatter={(v) =>
-                      currency === "usd"
-                        ? formatCompactUsd(Number(v))
-                        : Number(v).toFixed(2)
-                    }
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar
-                    dataKey="value"
-                    fill="var(--color-value)"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              ) : (
-                <AreaChart data={heroData}>
-                  <defs>
-                    <linearGradient
-                      id={heroGradientId}
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="5%"
-                        stopColor="var(--color-value)"
-                        stopOpacity={0.3}
-                      />
-                      <stop
-                        offset="95%"
-                        stopColor="var(--color-value)"
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(v) =>
-                      new Date(v).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })
-                    }
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    width={64}
-                    tickFormatter={(v) => {
-                      if (chartMetric === "txs")
-                        return formatCompact(Number(v));
-                      if (chartMetric === "price") {
-                        return currency === "usd"
-                          ? `$${Number(v).toFixed(0)}`
-                          : Number(v).toFixed(5);
+                {chartMetric !== "txs" && (
+                  <Tabs
+                    value={currency}
+                    onValueChange={(v) => setCurrency(v as Currency)}
+                  >
+                    <TabsList>
+                      <TabsTrigger value="usd">USD</TabsTrigger>
+                      <TabsTrigger value="btc">BTC</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                )}
+              </div>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            {heroData.length > 0 ? (
+              <ChartContainer
+                config={chartConfig}
+                className="aspect-auto h-[320px] w-full"
+              >
+                {chartMetric === "volume" ? (
+                  <BarChart data={heroData}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      tickFormatter={(v) =>
+                        new Date(v).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })
                       }
-                      return currency === "usd"
-                        ? formatCompactUsd(Number(v))
-                        : Number(v).toFixed(2);
-                    }}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area
-                    dataKey="value"
-                    type="monotone"
-                    stroke="var(--color-value)"
-                    fill={`url(#${heroGradientId})`}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              )}
-            </ChartContainer>
-          ) : (
-            <div className="mt-2 flex h-[320px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-              No data available
-            </div>
-          )}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      width={64}
+                      tickFormatter={(v) =>
+                        currency === "usd"
+                          ? formatCompactUsd(Number(v))
+                          : Number(v).toFixed(2)
+                      }
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="value"
+                      fill="var(--color-value)"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                ) : (
+                  <AreaChart data={heroData}>
+                    <defs>
+                      <linearGradient
+                        id={heroGradientId}
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="var(--color-value)"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="var(--color-value)"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      tickFormatter={(v) =>
+                        new Date(v).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      }
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      width={64}
+                      tickFormatter={(v) => {
+                        if (chartMetric === "txs")
+                          return formatCompact(Number(v));
+                        if (chartMetric === "price") {
+                          return currency === "usd"
+                            ? `$${Number(v).toFixed(0)}`
+                            : Number(v).toFixed(5);
+                        }
+                        return currency === "usd"
+                          ? formatCompactUsd(Number(v))
+                          : Number(v).toFixed(2);
+                      }}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area
+                      dataKey="value"
+                      type="monotone"
+                      stroke="var(--color-value)"
+                      fill={`url(#${heroGradientId})`}
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                )}
+              </ChartContainer>
+            ) : (
+              <div className="flex h-[320px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+                No data available
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
     </div>

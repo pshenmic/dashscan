@@ -5,16 +5,19 @@ import { ChevronLeft, ChevronRight, FileText, Hash } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
-import {
-  type DescriptionItem,
-  DescriptionList,
-} from "@/components/description-list";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
-import { PageHeader } from "@/components/page-header";
 import { ConfirmationsBadge, TxTypeBadge } from "@/components/status-badge";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -102,83 +105,6 @@ function BlockDetailPage() {
   const transactions = txData?.resultSet ?? [];
   const total = txData?.pagination?.total ?? block.txCount ?? 0;
 
-  const items: DescriptionItem[] = [
-    {
-      label: "Block Hash",
-      value: <HashDisplay value={block.hash} variant="full" />,
-    },
-    {
-      label: "Merkle Root",
-      value: <HashDisplay value={block.merkleRoot} variant="full" />,
-    },
-    {
-      label: "Previous Block",
-      value: (
-        <Link
-          to="/blocks/$hashOrHeight"
-          params={{ hashOrHeight: block.previousBlockHash }}
-          className="font-mono text-sm text-accent no-underline hover:underline"
-        >
-          #{(block.height - 1).toLocaleString()}
-        </Link>
-      ),
-    },
-    {
-      label: "Timestamp",
-      value: (
-        <span className="flex flex-wrap items-center gap-2">
-          <span>{new Date(block.timestamp).toLocaleString()}</span>
-          <span className="text-xs text-muted-foreground">
-            {formatRelativeTime(block.timestamp)}
-          </span>
-        </span>
-      ),
-    },
-    {
-      label: "Confirmations",
-      value: block.confirmations.toLocaleString(),
-    },
-    {
-      label: "Size",
-      value: (
-        <span className="font-mono text-sm tabular-nums">
-          {(block.size / 1024).toFixed(2)} KB
-          <span className="ml-2 text-xs text-muted-foreground">
-            ({block.size.toLocaleString()} bytes)
-          </span>
-        </span>
-      ),
-    },
-    {
-      label: "Difficulty",
-      value: (
-        <span className="font-mono text-sm tabular-nums">
-          {block.difficulty.toFixed(4)}
-        </span>
-      ),
-    },
-    {
-      label: "Nonce",
-      value: (
-        <span className="font-mono text-sm tabular-nums">
-          {block.nonce.toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      label: "Version",
-      value: block.version,
-    },
-    {
-      label: "Credit Pool",
-      value: (
-        <span className="font-mono text-sm tabular-nums">
-          {formatDuffs(block.creditPoolBalance)} DASH
-        </span>
-      ),
-    },
-  ];
-
   const txColumns: DataTableColumn<ApiTransaction>[] = [
     {
       id: "hash",
@@ -220,25 +146,41 @@ function BlockDetailPage() {
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8">
-        <PageHeader
-          breadcrumb={[
-            { label: "Home", to: "/" },
-            { label: "Blocks", to: "/blocks" },
-            { label: `#${block.height}` },
-          ]}
-          title={
-            <span>
-              <span className="text-muted-foreground">Block</span>{" "}
-              <span className="font-mono">
-                #{block.height.toLocaleString()}
-              </span>
-            </span>
-          }
-          subtitle={
-            <span className="font-mono text-xs sm:text-sm">{block.hash}</span>
-          }
-          actions={
-            <div className="flex items-center gap-2">
+        <header className="flex flex-col gap-4">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to="/">Home</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to="/blocks" search={{ page: 1, limit: 10 }}>
+                    Blocks
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>#{block.height}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-2 min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                <span className="text-muted-foreground">Block</span>{" "}
+                <span className="font-mono">
+                  #{block.height.toLocaleString()}
+                </span>
+              </h1>
+              <p className="font-mono text-xs sm:text-sm break-all text-muted-foreground">
+                {block.hash}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <CopyButton value={block.hash} label="Hash" size="md" />
               <Button asChild variant="outline" size="sm">
                 <Link
@@ -262,11 +204,104 @@ function BlockDetailPage() {
                 Next <ChevronRight className="size-4" />
               </Button>
             </div>
-          }
-        />
+          </div>
+        </header>
 
-        <Card className="p-6">
-          <DescriptionList items={items} />
+        <Card>
+          <CardContent>
+            <dl className="grid gap-y-4 gap-x-8 sm:grid-cols-2">
+              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Block Hash
+                </dt>
+                <dd className="text-sm">
+                  <HashDisplay value={block.hash} variant="full" />
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Merkle Root
+                </dt>
+                <dd className="text-sm">
+                  <HashDisplay value={block.merkleRoot} variant="full" />
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Previous Block
+                </dt>
+                <dd className="text-sm">
+                  <Link
+                    to="/blocks/$hashOrHeight"
+                    params={{ hashOrHeight: block.previousBlockHash }}
+                    className="font-mono text-sm text-accent no-underline hover:underline"
+                  >
+                    #{(block.height - 1).toLocaleString()}
+                  </Link>
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Timestamp
+                </dt>
+                <dd className="flex flex-wrap items-center gap-2 text-sm">
+                  <span>{new Date(block.timestamp).toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatRelativeTime(block.timestamp)}
+                  </span>
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Confirmations
+                </dt>
+                <dd className="text-sm">
+                  {block.confirmations.toLocaleString()}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Size
+                </dt>
+                <dd className="font-mono text-sm tabular-nums">
+                  {(block.size / 1024).toFixed(2)} KB
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    ({block.size.toLocaleString()} bytes)
+                  </span>
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Difficulty
+                </dt>
+                <dd className="font-mono text-sm tabular-nums">
+                  {block.difficulty.toFixed(4)}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Nonce
+                </dt>
+                <dd className="font-mono text-sm tabular-nums">
+                  {block.nonce.toLocaleString()}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Version
+                </dt>
+                <dd className="text-sm">{block.version}</dd>
+              </div>
+              <div className="flex flex-col gap-1 border-b border-border/60 pb-3 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Credit Pool
+                </dt>
+                <dd className="font-mono text-sm tabular-nums">
+                  {formatDuffs(block.creditPoolBalance)} DASH
+                </dd>
+              </div>
+            </dl>
+          </CardContent>
         </Card>
 
         <Tabs defaultValue="transactions" className="gap-4">

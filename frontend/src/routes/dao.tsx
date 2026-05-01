@@ -13,15 +13,16 @@ import {
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
-import {
-  type DescriptionItem,
-  DescriptionList,
-} from "@/components/description-list";
 import { HashDisplay } from "@/components/hash-display";
-import { KpiCard } from "@/components/kpi-card";
-import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   type ChartConfig,
   ChartContainer,
@@ -145,54 +146,6 @@ function DaoPage() {
       .slice(-12);
   }, [allProposals]);
 
-  const fundingItems: DescriptionItem[] = [
-    {
-      label: "Required Votes",
-      value: (
-        <span className="font-mono text-sm tabular-nums">
-          {requiredVotes.toLocaleString()} Yes
-        </span>
-      ),
-    },
-    {
-      label: "Voting Deadline",
-      value: (
-        <span className="flex flex-wrap items-center gap-2">
-          <span>
-            {votingDeadline.toLocaleString("en-US", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-          {nextPaymentDays > 0 && (
-            <Badge variant="soft-accent">in {nextPaymentDays}d</Badge>
-          )}
-        </span>
-      ),
-    },
-    {
-      label: "With Enough Votes",
-      value: (
-        <span className="font-mono text-sm tabular-nums">
-          {fundedProposalCount} proposals ·{" "}
-          {Math.round(fundedAmount).toLocaleString()} DASH
-        </span>
-      ),
-    },
-    {
-      label: "Without Enough Funds",
-      value: (
-        <span className="font-mono text-sm tabular-nums">
-          {unfundedProposalCount} proposals ·{" "}
-          {Math.round(unfundedAmount).toLocaleString()} DASH
-        </span>
-      ),
-    },
-  ];
-
   const columns: DataTableColumn<ApiGovernanceObject>[] = [
     {
       id: "time",
@@ -279,96 +232,165 @@ function DaoPage() {
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8">
-        <PageHeader
-          title="Governance"
-          subtitle="Decentralized proposals and superblock funding."
-        />
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Governance
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Decentralized proposals and superblock funding.
+          </p>
+        </header>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard
-            label="Available Budget"
-            value={
-              <span>
+          <Card>
+            <CardHeader>
+              <CardDescription>Available Budget</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
                 {availableBudget.toLocaleString()}{" "}
                 <span className="text-muted-foreground text-base">DASH</span>
-              </span>
-            }
-            icon={<Wallet />}
-          />
-          <KpiCard
-            label="Proposals"
-            value={proposalCount.toLocaleString()}
-            icon={<FileText />}
-          />
-          <KpiCard
-            label="Funded"
-            value={
-              <span>
+              </CardTitle>
+              <CardAction>
+                <Wallet className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Proposals</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {proposalCount.toLocaleString()}
+              </CardTitle>
+              <CardAction>
+                <FileText className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Funded</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
                 {fundedProposalCount}{" "}
                 <span className="text-muted-foreground text-base">
                   / {Math.round(fundedAmount).toLocaleString()} DASH
                 </span>
-              </span>
-            }
-            icon={<Coins />}
-          />
-          <KpiCard
-            label="Next Superblock"
-            value={nextPaymentDays > 0 ? `${nextPaymentDays} days` : "—"}
-            icon={<CalendarClock />}
-          />
+              </CardTitle>
+              <CardAction>
+                <Coins className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Next Superblock</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {nextPaymentDays > 0 ? `${nextPaymentDays} days` : "—"}
+              </CardTitle>
+              <CardAction>
+                <CalendarClock className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+          </Card>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="p-6">
-            <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-muted-foreground">
-              Voting Status
-            </h2>
-            <DescriptionList items={fundingItems} columns={1} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Voting Status</CardTitle>
+              <CardDescription>
+                Funding requirements and current vote tally.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <dl className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Required Votes
+                  </dt>
+                  <dd className="font-mono text-sm tabular-nums">
+                    {requiredVotes.toLocaleString()} Yes
+                  </dd>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Voting Deadline
+                  </dt>
+                  <dd className="flex flex-wrap items-center gap-2 text-sm">
+                    <span>
+                      {votingDeadline.toLocaleString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    {nextPaymentDays > 0 && (
+                      <Badge variant="soft-accent">in {nextPaymentDays}d</Badge>
+                    )}
+                  </dd>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    With Enough Votes
+                  </dt>
+                  <dd className="font-mono text-sm tabular-nums">
+                    {fundedProposalCount} proposals ·{" "}
+                    {Math.round(fundedAmount).toLocaleString()} DASH
+                  </dd>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Without Enough Funds
+                  </dt>
+                  <dd className="font-mono text-sm tabular-nums">
+                    {unfundedProposalCount} proposals ·{" "}
+                    {Math.round(unfundedAmount).toLocaleString()} DASH
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
           </Card>
 
-          <Card className="p-6">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-                Superblock Activity
-              </h2>
-              <span className="text-xs text-muted-foreground">
-                Triggers per month
-              </span>
-            </div>
-            {chartData.length > 0 ? (
-              <ChartContainer
-                config={chartConfig}
-                className="mt-4 aspect-auto h-[260px] w-full"
-              >
-                <BarChart data={chartData}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="label"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    width={40}
-                    allowDecimals={false}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar
-                    dataKey="value"
-                    fill="var(--color-value)"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ChartContainer>
-            ) : (
-              <div className="mt-4 flex h-[260px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-                No historical superblock triggers available.
-              </div>
-            )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Superblock Activity</CardTitle>
+              <CardDescription>Triggers per month</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chartData.length > 0 ? (
+                <ChartContainer
+                  config={chartConfig}
+                  className="aspect-auto h-[260px] w-full"
+                >
+                  <BarChart data={chartData}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="label"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      width={40}
+                      allowDecimals={false}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="value"
+                      fill="var(--color-value)"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex h-[260px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+                  No historical superblock triggers available.
+                </div>
+              )}
+            </CardContent>
           </Card>
         </div>
 

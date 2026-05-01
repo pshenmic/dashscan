@@ -122,77 +122,75 @@ export function DataTable<T>({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border bg-card">
-        <Table>
-          <TableHeader className="bg-secondary/50">
-            <TableRow className="hover:bg-secondary/50">
-              {columns.map((col) => (
-                <TableHead
-                  key={col.id}
-                  className={cn(
-                    col.align === "right" && "text-right",
-                    col.align === "center" && "text-center",
-                    col.headClassName,
-                  )}
-                  style={col.width ? { width: col.width } : undefined}
-                >
-                  {col.header}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && data.length === 0 ? (
-              Array.from(
-                { length: pagination?.pageSize ?? 10 },
-                (_, i) => `skeleton-${i}`,
-              ).map((key) => (
-                <TableRow key={key} className="hover:bg-transparent">
-                  {columns.map((col) => (
-                    <TableCell key={col.id}>
-                      <Skeleton className="h-4 w-full max-w-[140px]" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : data.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={columns.length} className="p-0">
-                  <EmptyState
-                    title={emptyTitle}
-                    description={emptyDescription}
-                    icon={emptyIcon}
-                  />
-                </TableCell>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columns.map((col) => (
+              <TableHead
+                key={col.id}
+                className={cn(
+                  col.align === "right" && "text-right",
+                  col.align === "center" && "text-center",
+                  col.headClassName,
+                )}
+                style={col.width ? { width: col.width } : undefined}
+              >
+                {col.header}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading && data.length === 0 ? (
+            Array.from(
+              { length: pagination?.pageSize ?? 10 },
+              (_, i) => `skeleton-${i}`,
+            ).map((key) => (
+              <TableRow key={key} className="hover:bg-transparent">
+                {columns.map((col) => (
+                  <TableCell key={col.id}>
+                    <Skeleton className="h-4 w-full max-w-[140px]" />
+                  </TableCell>
+                ))}
               </TableRow>
-            ) : (
-              data.map((row, index) => (
-                <TableRow
-                  key={rowKey(row, index)}
-                  onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  className={cn(
-                    onRowClick && "cursor-pointer",
-                    rowClassName?.(row),
-                  )}
-                >
-                  {columns.map((col) => (
-                    <TableCell
-                      key={col.id}
-                      className={cn(
-                        col.align === "right" && "text-right",
-                        col.align === "center" && "text-center",
-                        col.className,
-                      )}
-                    >
-                      {col.cell(row, index)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+            ))
+          ) : data.length === 0 ? (
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={columns.length} className="p-0">
+                <EmptyState
+                  title={emptyTitle}
+                  description={emptyDescription}
+                  icon={emptyIcon}
+                />
+              </TableCell>
+            </TableRow>
+          ) : (
+            data.map((row, index) => (
+              <TableRow
+                key={rowKey(row, index)}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                className={cn(
+                  onRowClick && "cursor-pointer",
+                  rowClassName?.(row),
+                )}
+              >
+                {columns.map((col) => (
+                  <TableCell
+                    key={col.id}
+                    className={cn(
+                      col.align === "right" && "text-right",
+                      col.align === "center" && "text-center",
+                      col.className,
+                    )}
+                  >
+                    {col.cell(row, index)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
 
       {pagination && pagination.total > 0 && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

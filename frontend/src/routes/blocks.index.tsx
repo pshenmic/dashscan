@@ -5,8 +5,14 @@ import { Boxes, Clock, Layers } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { HashDisplay } from "@/components/hash-display";
-import { KpiCard } from "@/components/kpi-card";
-import { PageHeader } from "@/components/page-header";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import type { ApiBlock } from "@/lib/api/types";
 import { formatCompact, formatRelativeTime } from "@/lib/format";
@@ -129,36 +135,56 @@ function BlocksPage() {
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8">
-        <PageHeader
-          title="Blocks"
-          subtitle="Latest blocks on the Dash network."
-        />
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Blocks
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Latest blocks on the Dash network.
+          </p>
+        </header>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <KpiCard
-            label="Latest Block"
-            value={
-              stats.latestHeight != null
-                ? `#${stats.latestHeight.toLocaleString()}`
-                : "—"
-            }
-            icon={<Layers />}
-          />
-          <KpiCard
-            label="Avg Block Time"
-            value={
-              stats.avgBlockTime != null
-                ? `${stats.avgBlockTime.toFixed(0)}s`
-                : "—"
-            }
-            icon={<Clock />}
-            hint={`Across the latest ${blocks.length} blocks`}
-          />
-          <KpiCard
-            label="Total Blocks"
-            value={total > 0 ? formatCompact(total) : "—"}
-            icon={<Boxes />}
-          />
+          <Card>
+            <CardHeader>
+              <CardDescription>Latest Block</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {stats.latestHeight != null
+                  ? `#${stats.latestHeight.toLocaleString()}`
+                  : "—"}
+              </CardTitle>
+              <CardAction>
+                <Layers className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Avg Block Time</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {stats.avgBlockTime != null
+                  ? `${stats.avgBlockTime.toFixed(0)}s`
+                  : "—"}
+              </CardTitle>
+              <CardAction>
+                <Clock className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="text-xs text-muted-foreground">
+              Across the latest {blocks.length} blocks
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Total Blocks</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {total > 0 ? formatCompact(total) : "—"}
+              </CardTitle>
+              <CardAction>
+                <Boxes className="size-4 text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+          </Card>
         </div>
 
         <DataTable
