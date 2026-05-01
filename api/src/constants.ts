@@ -11,5 +11,5 @@ export const SUPERBLOCK_INTERVALS = {
   regtest: 20
 }
 
-export const GEOIP_PROVIDER = '@ip-location-db/geo-whois-asn-country'
-export const GEOIP_TABLE_NAME = 'geo-whois-asn-country-ipv4-num.csv'
+export const GEOIP_PROVIDER = '@ip-location-db/dbip-city-mmdb'
+export const GEOIP_TABLE_NAME = 'dbip-city-ipv4.mmdb'

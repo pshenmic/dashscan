@@ -1,15 +1,18 @@
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import {readFileSync} from 'fs';
+import {resolve} from 'path';
 import {GEOIP_PROVIDER, GEOIP_TABLE_NAME} from "../constants";
+import {CityResponse, CountryResponse, Reader} from "mmdb-lib";
 
-interface IPv4Range {
-  start: number;
-  end: number;
-  country: string;
+export interface IpInfo {
+  ipv4: string;
+  countryCode: string;
+  city: string;
+  latitude: number;
+  longitude: number;
 }
 
 export default class GeoIPService {
-  private ipv4Ranges: IPv4Range[] = [];
+  private reader: Reader<CountryResponse>
 
   constructor() {
     const csvPath = resolve(
@@ -18,52 +21,25 @@ export default class GeoIPService {
       GEOIP_TABLE_NAME,
     );
 
-    const data = readFileSync(csvPath, 'utf8');
-    const lines = data.split('\n');
+    const data = readFileSync(csvPath);
 
-    this.ipv4Ranges = new Array(lines.length);
-    let count = 0;
-
-    for (const line of lines) {
-      if (!line) continue;
-      const [start, end, country] = line.split(',');
-      this.ipv4Ranges[count++] = {
-        start: Number(start),
-        end: Number(end),
-        country,
-      };
-    }
-
-    this.ipv4Ranges.length = count;
+    this.reader = new Reader<CityResponse>(data)
   }
 
-  private ipv4ToInt = (ip: string): number | null => {
-    const parts = ip.split('.');
-    if (parts.length !== 4) return null;
-
-    let result = 0;
-    for (const part of parts) {
-      const n = Number(part);
-      if (!Number.isInteger(n) || n < 0 || n > 255) return null;
-      result = result * 256 + n;
+  lookup = (ipv4: string): IpInfo | null => {
+    if(!ipv4) {
+      throw new Error('you must specify a valid IP address');
     }
-    return result;
-  };
 
-  lookup = (ip: string): string | null => {
-    const num = this.ipv4ToInt(ip);
-    if (num === null) return null;
+    // incorrect typings in mmdb-lib. Using any
+    const response = this.reader.get(ipv4) as any
 
-    let lo = 0;
-    let hi = this.ipv4Ranges.length - 1;
-
-    while (lo <= hi) {
-      const mid = (lo + hi) >>> 1;
-      const range = this.ipv4Ranges[mid];
-      if (num < range.start) hi = mid - 1;
-      else if (num > range.end) lo = mid + 1;
-      else return range.country;
+    return {
+      ipv4,
+      countryCode: response.country_code ?? null,
+      city: response.city ?? null,
+      latitude: response.latitude ?? null,
+      longitude: response.longitude ?? null,
     }
-    return null;
   };
 }
