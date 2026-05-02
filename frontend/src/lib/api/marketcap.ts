@@ -34,7 +34,7 @@ export function marketCapQueryOptions(params: FetchMarketCapInput) {
 
 async function getMarketCapHistorical(params: FetchMarketCapInput) {
   const url = new URL(
-    `/marketcap/${params.currency}/historical`,
+    `/marketcap/${params.currency}/chart`,
     getBaseUrl(params.network),
   );
   const response = await fetch(url);

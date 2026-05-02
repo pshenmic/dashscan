@@ -33,7 +33,7 @@ export function priceQueryOptions(params: FetchPriceInput) {
 
 async function getPriceHistorical(params: FetchPriceInput) {
   const url = new URL(
-    `/price/${params.currency}/historical`,
+    `/price/${params.currency}/chart`,
     getBaseUrl(params.network),
   );
   const response = await fetch(url);

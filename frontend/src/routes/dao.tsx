@@ -26,11 +26,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { blocksQueryOptions } from "@/lib/api/blocks";
-import { proposalsQueryOptions } from "@/lib/api/governance";
+import {
+  budgetQueryOptions,
+  proposalsQueryOptions,
+} from "@/lib/api/governance";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiGovernanceObject } from "@/lib/api/types";
 import { formatRelativeTime } from "@/lib/format";
-import { computeBudgetStats } from "@/lib/governance";
+import {
+  getDaysUntilSuperblock,
+  getRequiredVotes,
+  getVotingDeadline,
+} from "@/lib/governance";
 import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/dao")({
@@ -45,6 +52,7 @@ export const Route = createFileRoute("/dao")({
       context.queryClient.prefetchQuery(
         proposalsQueryOptions({ network, proposalType: "all" }),
       ),
+      context.queryClient.prefetchQuery(budgetQueryOptions({ network })),
       context.queryClient.prefetchQuery(
         blocksQueryOptions({ network, page: 1, limit: 1, order: "desc" }),
       ),
@@ -155,6 +163,8 @@ function DaoPage() {
     proposalsQueryOptions({ network, proposalType: "all" }),
   );
 
+  const { data: budget } = useQuery(budgetQueryOptions({ network }));
+
   const { data: blockData } = useQuery(
     blocksQueryOptions({ network, page: 1, limit: 1, order: "desc" }),
   );
@@ -174,10 +184,20 @@ function DaoPage() {
   const currentHeight = blockData?.resultSet?.[0]?.height ?? 0;
   const masternodeCount = mnData?.pagination?.total ?? 0;
 
-  const stats = useMemo(
-    () => computeBudgetStats(proposals, masternodeCount, currentHeight),
-    [proposals, masternodeCount, currentHeight],
+  const availableBudget = budget?.totalBudget ?? 0;
+  const proposalCount = budget?.totalProposals ?? proposals.length;
+  const fundedAmount = budget?.enoughFundsTotal ?? 0;
+  const fundedProposalCount = budget?.enoughFundsCount ?? 0;
+  const remainingBudget = Math.max(0, availableBudget - fundedAmount);
+  const totalRequested = budget?.totalRequested ?? 0;
+  const unfundedAmount = Math.max(0, totalRequested - fundedAmount);
+  const unfundedProposalCount = Math.max(
+    0,
+    proposalCount - fundedProposalCount,
   );
+  const requiredVotes = getRequiredVotes(masternodeCount);
+  const nextPaymentDays = getDaysUntilSuperblock(currentHeight);
+  const votingDeadline = getVotingDeadline(currentHeight);
 
   const chartData = useMemo(() => {
     const triggers = (allProposals ?? []).filter(
@@ -229,7 +249,7 @@ function DaoPage() {
               bgImage="/images/dao/available-budget.png"
               value={
                 <span className="inline-flex items-center gap-2">
-                  {stats.availableBudget.toLocaleString()}
+                  {availableBudget.toLocaleString()}
                   <img src="/icons/dash.svg" alt="" className="size-5" />
                 </span>
               }
@@ -240,7 +260,7 @@ function DaoPage() {
               }
               label="Proposals Count"
               bgImage="/images/dao/proposal-count.png"
-              value={String(stats.proposalCount)}
+              value={String(proposalCount)}
             />
             <StatCard
               icon={<img src="/icons/dash.svg" alt="" className="size-5" />}
@@ -248,7 +268,7 @@ function DaoPage() {
               bgImage="/images/dao/remaining-budget.png"
               value={
                 <span className="inline-flex items-center gap-2">
-                  {Math.round(stats.remainingBudget).toLocaleString()}
+                  {Math.round(remainingBudget).toLocaleString()}
                   <img src="/icons/dash.svg" alt="" className="size-5" />
                 </span>
               }
@@ -259,11 +279,7 @@ function DaoPage() {
               }
               label="Next Payment"
               bgImage="/images/dao/next-payment.png"
-              value={
-                stats.nextPaymentDays > 0
-                  ? `${stats.nextPaymentDays} Days`
-                  : "—"
-              }
+              value={nextPaymentDays > 0 ? `${nextPaymentDays} Days` : "—"}
             />
           </div>
 
@@ -273,7 +289,7 @@ function DaoPage() {
                 Required votes:
               </span>
               <span className="font-medium text-[#10213f]">
-                {stats.requiredVotes} <em>Yes</em>
+                {requiredVotes} <em>Yes</em>
               </span>
             </div>
             <div className="flex items-center gap-6">
@@ -281,7 +297,7 @@ function DaoPage() {
                 Voting Deadline:
               </span>
               <span className="flex items-center gap-2 font-medium text-[#10213f]">
-                {stats.votingDeadline.toLocaleString("en-US", {
+                {votingDeadline.toLocaleString("en-US", {
                   year: "numeric",
                   month: "short",
                   day: "numeric",
@@ -290,24 +306,24 @@ function DaoPage() {
                   second: "2-digit",
                 })}
                 <Badge className="h-5 border-0 bg-muted px-2 text-[11px] font-medium text-foreground">
-                  in {stats.nextPaymentDays}d
+                  in {nextPaymentDays}d
                 </Badge>
               </span>
             </div>
             <div className="flex items-center gap-6">
               <span className="w-[200px] shrink-0 text-muted-foreground/60">
-                {stats.fundedProposalCount} proposals with enough votes:
+                {fundedProposalCount} proposals with enough votes:
               </span>
               <span className="font-medium text-[#10213f]">
-                {Math.round(stats.fundedAmount)} Dash
+                {Math.round(fundedAmount)} Dash
               </span>
             </div>
             <div className="flex items-center gap-6">
               <span className="w-[200px] shrink-0 text-muted-foreground/60">
-                {stats.unfundedProposalCount} proposals without enough funds:
+                {unfundedProposalCount} proposals without enough funds:
               </span>
               <span className="font-medium text-[#10213f]">
-                {Math.round(stats.unfundedAmount)} Dash
+                {Math.round(unfundedAmount)} Dash
               </span>
             </div>
           </div>
@@ -325,10 +341,10 @@ function DaoPage() {
                 </p>
                 <CardTitle className="mt-1 flex flex-wrap items-baseline gap-2 tracking-[-0.03em]">
                   <span className="text-[32px] font-extrabold text-[#21314d]">
-                    {Math.round(stats.fundedAmount).toLocaleString()}
+                    {Math.round(fundedAmount).toLocaleString()}
                   </span>
                   <span className="text-[24px] font-medium text-muted-foreground">
-                    / {stats.availableBudget.toLocaleString()} DASH
+                    / {availableBudget.toLocaleString()} DASH
                   </span>
                 </CardTitle>
               </div>
