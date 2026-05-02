@@ -26,7 +26,7 @@ interface TransactionRow {
   size: number;
   inputs: any[];
   outputs: any[];
-  transfer_amount: string | null;
+  amount: string | null;
   coinjoin: boolean;
   multisig: boolean;
   extra_payload?: any;
@@ -142,7 +142,7 @@ export default class Transaction {
                    size,
                    inputs,
                    outputs,
-                   transfer_amount,
+                   amount,
                    coinjoin,
                    multisig,
                    extra_payload
@@ -201,7 +201,7 @@ export default class Transaction {
 
     const typeText = type != null ? TransactionType[type] : null;
 
-    return new Transaction(hash, typeText, block_height, block_hash, transfer_amount, version, normalVIn, normalVOut, confirmations, instant_lock, timestamp, chain_locked, size, coinjoin, multisig, normalExtraPayload);
+    return new Transaction(hash, typeText, block_height, block_hash, amount, version, normalVIn, normalVOut, confirmations, instant_lock, timestamp, chain_locked, size, coinjoin, multisig, normalExtraPayload);
   }
 
   static fromObject({
