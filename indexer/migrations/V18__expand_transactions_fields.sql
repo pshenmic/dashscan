@@ -1,0 +1,3 @@
+ALTER TABLE transactions
+    ADD COLUMN amount BIGINT,
+    ADD COLUMN coinjoin BOOLEAN NOT NULL DEFAULT FALSE;

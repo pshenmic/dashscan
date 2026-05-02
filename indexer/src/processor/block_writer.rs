@@ -181,6 +181,22 @@ impl BlockProcessor {
             .insert_tx_outputs_batch(client, &flat_txs, &addresses_map, &tx_map)
             .await?;
 
+        // ── 5b. Insert every newly-created output into the live UTXO set,
+        // carrying address_id and value so address-scoped API queries hit
+        // this small hot table instead of joining tx_outputs.
+        let mut utxo_inserts: Vec<(i32, i32, Option<i32>, i64)> = Vec::new();
+        for tx in &flat_txs {
+            let tx_id = tx_map[&tx.txid];
+            for vout in &tx.vout {
+                let addr_id = addresses_map
+                    .get(&(vout.n, tx.txid.clone()))
+                    .copied();
+                let amount = (vout.value * 100_000_000.0).round() as i64;
+                utxo_inserts.push((tx_id, vout.n, addr_id, amount));
+            }
+        }
+        self.db.insert_utxo_batch(client, &utxo_inserts).await?;
+
         // In-memory output index for resolving in-batch inputs without a DB hit.
         // Same loop also feeds the persistent UtxoCache so the *next* batch's
         // Phase 6a-bis can hit on these outputs without a DB round-trip.
@@ -424,6 +440,20 @@ impl BlockProcessor {
         self.db
             .insert_tx_inputs_batch(client, &flat_txs, &tx_map, &input_address_ids, &prev_tx_id_map)
             .await?;
+
+        // ── 7b. Delete spent UTXOs. Skips coinbase (no prev) and prev txs that
+        // weren't in our index (nothing to delete — they were never inserted).
+        let mut utxo_deletes: Vec<(i32, i32)> = Vec::new();
+        for tx in &flat_txs {
+            for vin in &tx.vin {
+                if let (Some(h), Some(v)) = (&vin.txid, vin.vout) {
+                    if let Some(&prev_tx_id) = prev_tx_id_map.get(h) {
+                        utxo_deletes.push((prev_tx_id, v));
+                    }
+                }
+            }
+        }
+        self.db.delete_utxo_batch(client, &utxo_deletes).await?;
 
         // ── 8. Special transactions
         let mut special_records: Vec<(i32, i16, Value)> = Vec::new();

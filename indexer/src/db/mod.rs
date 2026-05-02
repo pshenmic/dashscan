@@ -4,6 +4,7 @@ mod inputs;
 mod masternodes;
 mod outputs;
 mod transactions;
+mod utxo;
 
 use deadpool_postgres::{Client, Pool, PoolError};
 

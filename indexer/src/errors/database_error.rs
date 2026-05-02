@@ -21,9 +21,11 @@ impl From<PoolError> for DatabaseError {
                 }   
             }
             PoolError::Backend(err) => {
-                DatabaseError {
-                    reason: format!("{}", err.as_db_error().unwrap()),
-                }
+                let reason = err
+                    .as_db_error()
+                    .map(|e| e.to_string())
+                    .unwrap_or_else(|| err.to_string());
+                DatabaseError { reason }
             }
             PoolError::Closed => {
                 DatabaseError {
