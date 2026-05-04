@@ -270,47 +270,55 @@ function DaoPage() {
           <Card>
             <CardHeader>
               <CardDescription>Available Budget</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {availableBudget.toLocaleString()} <DashIcon />
               </CardTitle>
               <CardAction>
-                <Wallet className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Wallet className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
               <CardDescription>Proposals</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {proposalCount.toLocaleString()}
               </CardTitle>
               <CardAction>
-                <FileText className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <FileText className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
               <CardDescription>Funded</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {fundedProposalCount}{" "}
                 <span className="text-muted-foreground text-base">
                   / {Math.round(fundedAmount).toLocaleString()} <DashIcon />
                 </span>
               </CardTitle>
               <CardAction>
-                <Coins className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Coins className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
               <CardDescription>Next Superblock</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {nextPaymentDays > 0 ? `${nextPaymentDays} days` : "—"}
               </CardTitle>
               <CardAction>
-                <CalendarClock className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <CalendarClock className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
           </Card>

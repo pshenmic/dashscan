@@ -244,22 +244,26 @@ function MasternodesPage() {
           <Card>
             <CardHeader>
               <CardDescription>Total Masternodes</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {stats.totalAll != null ? formatCompact(stats.totalAll) : "—"}
               </CardTitle>
               <CardAction>
-                <Server className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Server className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
               <CardDescription>Enabled (sampled)</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {stats.sampled > 0 ? stats.enabled.toLocaleString() : "—"}
               </CardTitle>
               <CardAction>
-                <CircleCheck className="size-4 text-success" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
+                  <CircleCheck className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">
@@ -269,11 +273,13 @@ function MasternodesPage() {
           <Card>
             <CardHeader>
               <CardDescription>Banned (sampled)</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {stats.sampled > 0 ? stats.banned.toLocaleString() : "—"}
               </CardTitle>
               <CardAction>
-                <ServerCrash className="size-4 text-destructive" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-destructive/12 [&_svg]:text-destructive">
+                  <ServerCrash className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">
@@ -286,7 +292,7 @@ function MasternodesPage() {
           <Card>
             <CardHeader>
               <CardDescription>Status Distribution</CardDescription>
-              <CardTitle className="text-xl tabular-nums">
+              <CardTitle className="text-xl tabular-nums text-accent">
                 {stats.sampled} nodes
               </CardTitle>
             </CardHeader>
@@ -352,7 +358,7 @@ function MasternodesPage() {
           <Card>
             <CardHeader>
               <CardDescription>Type Distribution</CardDescription>
-              <CardTitle className="text-xl tabular-nums">
+              <CardTitle className="text-xl tabular-nums text-accent">
                 {stats.typeChart.length}{" "}
                 {stats.typeChart.length === 1 ? "type" : "types"}
               </CardTitle>

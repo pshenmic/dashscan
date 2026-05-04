@@ -263,20 +263,22 @@ function BlocksPage() {
           <Card>
             <CardHeader>
               <CardDescription>Latest Block</CardDescription>
-              <CardTitle className="text-xl tabular-nums">
+              <CardTitle className="text-xl tabular-nums text-accent">
                 {stats.latestHeight != null
                   ? `#${stats.latestHeight.toLocaleString()}`
                   : "—"}
               </CardTitle>
               <CardAction>
-                <Layers className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Layers className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
               <CardDescription>Avg Block Time</CardDescription>
-              <CardTitle className="text-xl tabular-nums">
+              <CardTitle className="text-xl tabular-nums text-accent">
                 {stats.avgBlockTime != null
                   ? `${stats.avgBlockTime.toFixed(0)}s`
                   : chainStats?.blockTime != null
@@ -284,7 +286,9 @@ function BlocksPage() {
                     : "—"}
               </CardTitle>
               <CardAction>
-                <Clock className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Clock className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">
@@ -294,13 +298,15 @@ function BlocksPage() {
           <Card>
             <CardHeader>
               <CardDescription>Difficulty</CardDescription>
-              <CardTitle className="text-xl tabular-nums">
+              <CardTitle className="text-xl tabular-nums text-accent">
                 {chainStats?.difficulty != null
                   ? chainStats.difficulty.toFixed(4)
                   : "—"}
               </CardTitle>
               <CardAction>
-                <Gauge className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Gauge className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">
@@ -310,11 +316,13 @@ function BlocksPage() {
           <Card>
             <CardHeader>
               <CardDescription>Total Blocks</CardDescription>
-              <CardTitle className="text-xl tabular-nums">
+              <CardTitle className="text-xl tabular-nums text-accent">
                 {total > 0 ? formatCompact(total) : "—"}
               </CardTitle>
               <CardAction>
-                <Boxes className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Boxes className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">
@@ -329,7 +337,7 @@ function BlocksPage() {
               <CardDescription>
                 Avg Transactions per Block · 24h
               </CardDescription>
-              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums">
+              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums text-accent">
                 {txAvgChartData.length > 0
                   ? (
                       txAvgChartData.reduce((s, p) => s + p.value, 0) /
@@ -341,7 +349,9 @@ function BlocksPage() {
                 </span>
               </CardTitle>
               <CardAction>
-                <Activity className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Activity className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
             <CardContent>
@@ -405,7 +415,7 @@ function BlocksPage() {
           <Card>
             <CardHeader>
               <CardDescription>Block Size · Recent Blocks</CardDescription>
-              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums">
+              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums text-accent">
                 {sizeChartData.length > 0
                   ? (
                       sizeChartData.reduce((s, p) => s + p.value, 0) /
@@ -417,7 +427,9 @@ function BlocksPage() {
                 </span>
               </CardTitle>
               <CardAction>
-                <Boxes className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Boxes className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
             <CardContent>

@@ -327,7 +327,7 @@ function AddressDetailsPage() {
           <Card>
             <CardHeader>
               <CardDescription>Balance</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {balanceDash != null
                   ? balanceDash.toLocaleString(undefined, {
                       maximumFractionDigits: 4,
@@ -336,14 +336,16 @@ function AddressDetailsPage() {
                 <DashIcon />
               </CardTitle>
               <CardAction>
-                <Wallet className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Wallet className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
               <CardDescription>Total Received</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {receivedDash != null
                   ? receivedDash.toLocaleString(undefined, {
                       maximumFractionDigits: 4,
@@ -352,18 +354,22 @@ function AddressDetailsPage() {
                 <DashIcon />
               </CardTitle>
               <CardAction>
-                <MoveDown className="size-4 text-success" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
+                  <MoveDown className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
               <CardDescription>Transactions</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {Number(detail.txCount).toLocaleString()}
               </CardTitle>
               <CardAction>
-                <ArrowLeftRight className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <ArrowLeftRight className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
           </Card>
@@ -372,7 +378,7 @@ function AddressDetailsPage() {
         <Card>
           <CardHeader>
             <CardDescription>Balance over time</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
+            <CardTitle className="text-2xl tabular-nums text-accent">
               {balanceDash != null ? (
                 <>
                   {balanceDash.toLocaleString(undefined, {

@@ -266,7 +266,7 @@ function TransactionsPage() {
           <Card className="lg:col-span-8 flex flex-col">
             <CardHeader>
               <CardDescription>Transactions · 30 days</CardDescription>
-              <CardTitle className="flex flex-wrap items-baseline gap-3 text-2xl tabular-nums">
+              <CardTitle className="flex flex-wrap items-baseline gap-3 text-2xl tabular-nums text-accent">
                 {stats.count30d != null ? formatCompact(stats.count30d) : "—"}
                 {stats.change != null && (
                   <Badge
@@ -280,7 +280,9 @@ function TransactionsPage() {
                 )}
               </CardTitle>
               <CardAction>
-                <Activity className="size-4 text-muted-foreground" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Activity className="size-4" />
+                </div>
               </CardAction>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
@@ -349,7 +351,7 @@ function TransactionsPage() {
             <Card>
               <CardHeader>
                 <CardDescription>Live TPS</CardDescription>
-                <CardTitle className="text-xl tabular-nums">
+                <CardTitle className="text-xl tabular-nums text-accent">
                   {chainStats?.transactionsPerSecond != null
                     ? chainStats.transactionsPerSecond.toFixed(2)
                     : stats.tps != null
@@ -357,7 +359,9 @@ function TransactionsPage() {
                       : "—"}
                 </CardTitle>
                 <CardAction>
-                  <ArrowLeftRight className="size-4 text-muted-foreground" />
+                  <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                    <ArrowLeftRight className="size-4" />
+                  </div>
                 </CardAction>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
@@ -369,11 +373,13 @@ function TransactionsPage() {
             <Card>
               <CardHeader>
                 <CardDescription>Mempool</CardDescription>
-                <CardTitle className="text-xl tabular-nums">
+                <CardTitle className="text-xl tabular-nums text-accent">
                   {formatCompact(mempoolCount)}
                 </CardTitle>
                 <CardAction>
-                  <Database className="size-4 text-muted-foreground" />
+                  <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                    <Database className="size-4" />
+                  </div>
                 </CardAction>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
@@ -383,11 +389,13 @@ function TransactionsPage() {
             <Card>
               <CardHeader>
                 <CardDescription>Total Indexed</CardDescription>
-                <CardTitle className="text-xl tabular-nums">
+                <CardTitle className="text-xl tabular-nums text-accent">
                   {total > 0 ? formatCompact(total) : "—"}
                 </CardTitle>
                 <CardAction>
-                  <ArrowLeftRight className="size-4 text-muted-foreground" />
+                  <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                    <ArrowLeftRight className="size-4" />
+                  </div>
                 </CardAction>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
