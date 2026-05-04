@@ -7,6 +7,7 @@ import {
   ArrowLeftRight,
   ArrowRight,
   ArrowUp,
+  Box,
   Boxes,
   Coins,
   Database,
@@ -76,6 +77,7 @@ import {
   transactionsStatsQueryOptions,
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
+import type { ApiBlock } from "@/lib/api/types";
 import {
   volumeHistoricalQueryOptions,
   volumeQueryOptions,
@@ -89,6 +91,7 @@ import {
   sumVOut,
 } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 const chartConfig: ChartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
@@ -175,9 +178,11 @@ function Dashboard() {
   const blockTxAreaId = useId();
   const volumeBarId = useId();
 
-  const { data: blocksData } = useQuery(
-    blocksQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
-  );
+  const { data: blocksData } = useQuery({
+    ...blocksQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
   const { data: txData } = useQuery({
     ...transactionsQueryOptions({
       network,
@@ -266,6 +271,34 @@ function Dashboard() {
     const timer = setTimeout(() => setNewTxHashes(new Set()), 2400);
     return () => clearTimeout(timer);
   }, [txs]);
+
+  const seenBlockHeightsRef = useRef<Set<number> | null>(null);
+  const [newBlockHeights, setNewBlockHeights] = useState<Set<number>>(
+    new Set(),
+  );
+  useEffect(() => {
+    if (blocks.length === 0) return;
+    const currentHeights = new Set(blocks.map((b) => b.height));
+    if (seenBlockHeightsRef.current === null) {
+      seenBlockHeightsRef.current = currentHeights;
+      return;
+    }
+    const fresh = new Set<number>();
+    for (const h of currentHeights) {
+      if (!seenBlockHeightsRef.current.has(h)) fresh.add(h);
+    }
+    seenBlockHeightsRef.current = currentHeights;
+    if (fresh.size === 0) return;
+    setNewBlockHeights(fresh);
+    const timer = setTimeout(() => setNewBlockHeights(new Set()), 1200);
+    return () => clearTimeout(timer);
+  }, [blocks]);
+
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const latestBlock = blocks[0];
   const masternodeCount = mnData?.pagination?.total ?? null;
   const rawMempoolTotal = mempoolData?.pagination?.total ?? null;
@@ -395,6 +428,13 @@ function Dashboard() {
             <span className="text-accent">Dash</span> Network Explorer
           </h1>
         </header>
+
+        <BlockTimeline
+          blocks={blocks}
+          newHeights={newBlockHeights}
+          avgBlockTimeMs={chainStats?.blockTime ?? null}
+          nowTick={nowTick}
+        />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
@@ -868,67 +908,6 @@ function Dashboard() {
             }
           />
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Latest Blocks</CardTitle>
-            <CardDescription>The most recent blocks on chain.</CardDescription>
-            <CardAction>
-              <Button asChild variant="ghost" size="sm" className="h-8">
-                <Link to="/blocks" search={{ page: 1, limit: 10 }}>
-                  View all <ArrowRight className="size-3.5" />
-                </Link>
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableBody>
-                {blocks.length === 0 &&
-                  Array.from({ length: 6 }, (_, i) => `b-${i}`).map((k) => (
-                    <TableRow key={k} className="hover:bg-transparent">
-                      <TableCell>
-                        <Skeleton className="h-4 w-32" />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Skeleton className="ml-auto h-4 w-16" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                {blocks.slice(0, 10).map((block) => (
-                  <TableRow key={block.hash}>
-                    <TableCell>
-                      <Link
-                        to="/blocks/$hashOrHeight"
-                        params={{ hashOrHeight: block.hash }}
-                        className="flex min-w-0 items-center gap-3 no-underline"
-                      >
-                        <Boxes className="size-4 shrink-0 text-muted-foreground" />
-                        <div className="flex min-w-0 flex-col">
-                          <span className="font-mono text-sm font-medium text-accent">
-                            #{block.height.toLocaleString()}
-                          </span>
-                          <span className="truncate font-mono text-xs text-muted-foreground">
-                            {block.hash.slice(0, 18)}…{block.hash.slice(-6)}
-                          </span>
-                        </div>
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums">
-                      {block.txCount} txs
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                      {(block.size / 1024).toFixed(2)} KB
-                    </TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">
-                      {formatRelativeTime(block.timestamp)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
@@ -1208,4 +1187,177 @@ function formatBytes(bytes: number): string {
   if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KB`;
   return `${bytes} B`;
+}
+
+const PENDING_BLOCK_COUNT = 3;
+const FALLBACK_BLOCK_TIME_MS = 150_000;
+const MAX_MINED_BLOCKS = 7;
+
+function formatBlockEta(ms: number) {
+  if (ms <= 0) return "any moment";
+  const totalSeconds = Math.round(ms / 1000);
+  if (totalSeconds < 60) return `~ ${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes < 10 && seconds > 0) return `~ ${minutes}m ${seconds}s`;
+  return `~ ${minutes}m`;
+}
+
+function blockTimestampMs(timestamp: string): number {
+  if (/^\d+$/.test(timestamp)) return Number(timestamp) * 1000;
+  const ms = new Date(timestamp).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
+}
+
+function BlockTimeline({
+  blocks,
+  newHeights,
+  avgBlockTimeMs,
+  nowTick,
+}: {
+  blocks: ApiBlock[];
+  newHeights: Set<number>;
+  avgBlockTimeMs: number | null;
+  nowTick: number;
+}) {
+  const minedSorted = useMemo(
+    () =>
+      [...blocks]
+        .sort((a, b) => b.height - a.height)
+        .slice(0, MAX_MINED_BLOCKS),
+    [blocks],
+  );
+  const minedRendered = useMemo(
+    () => [...minedSorted].reverse(),
+    [minedSorted],
+  );
+
+  const latestBlock = minedSorted[0];
+  const blockTimeMs =
+    avgBlockTimeMs && avgBlockTimeMs > 0
+      ? avgBlockTimeMs
+      : FALLBACK_BLOCK_TIME_MS;
+  const lastMinedAtMs = latestBlock
+    ? blockTimestampMs(latestBlock.timestamp)
+    : null;
+
+  const pending = useMemo(() => {
+    if (!latestBlock || lastMinedAtMs == null) return [];
+    return Array.from({ length: PENDING_BLOCK_COUNT }, (_, i) => ({
+      height: latestBlock.height + i + 1,
+      etaAt: lastMinedAtMs + blockTimeMs * (i + 1),
+    }));
+  }, [latestBlock, lastMinedAtMs, blockTimeMs]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          Latest Blocks
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-70" />
+            <span className="relative inline-flex size-2 rounded-full bg-success" />
+          </span>
+        </CardTitle>
+        <CardDescription>
+          Recently mined blocks and upcoming mining slots.
+        </CardDescription>
+        <CardAction>
+          <Button asChild variant="ghost" size="sm" className="h-8">
+            <Link to="/blocks" search={{ page: 1, limit: 10 }}>
+              View all <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-stretch gap-3 sm:gap-4">
+          {minedRendered.length === 0
+            ? Array.from({ length: 5 }, (_, i) => `bs-${i}`).map((k) => (
+                <Skeleton key={k} className="h-24 flex-1 rounded-md" />
+              ))
+            : minedRendered.map((block) => (
+                <MinedBlockTile
+                  key={block.hash}
+                  block={block}
+                  isNew={newHeights.has(block.height)}
+                />
+              ))}
+
+          <div
+            aria-hidden
+            className="mx-1 self-stretch border-l border-dashed border-border"
+          />
+
+          {pending.map((p) => (
+            <PendingBlockTile
+              key={p.height}
+              height={p.height}
+              etaMs={Math.max(0, p.etaAt - nowTick)}
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MinedBlockTile({ block, isNew }: { block: ApiBlock; isNew: boolean }) {
+  return (
+    <Link
+      to="/blocks/$hashOrHeight"
+      params={{ hashOrHeight: block.hash }}
+      className={cn(
+        "group flex flex-1 min-w-0 flex-col items-stretch gap-1.5 no-underline",
+        isNew && "animate-block-mint",
+      )}
+    >
+      <div className="block-cube flex h-24 flex-col justify-between rounded-md p-3 transition-transform group-hover:-translate-y-0.5">
+        <span className="font-mono text-sm font-semibold tabular-nums">
+          #{block.height.toLocaleString()}
+        </span>
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-mono text-xl font-semibold tabular-nums leading-none">
+            {block.txCount}
+          </span>
+          <span className="text-[10px] uppercase tracking-wider opacity-70">
+            tx
+          </span>
+        </div>
+        <span className="font-mono text-[10px] tabular-nums opacity-70">
+          {(block.size / 1024).toFixed(2)} KB
+        </span>
+      </div>
+      <span className="text-center text-[10px] tabular-nums whitespace-nowrap text-muted-foreground">
+        {formatRelativeTime(block.timestamp)}
+      </span>
+    </Link>
+  );
+}
+
+function PendingBlockTile({
+  height,
+  etaMs,
+}: {
+  height: number;
+  etaMs: number;
+}) {
+  return (
+    <div className="flex flex-1 min-w-0 flex-col items-stretch gap-1.5">
+      <div className="block-cube-pending flex h-24 flex-col justify-between rounded-md p-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-mono text-sm font-semibold tabular-nums text-accent">
+            #{height.toLocaleString()}
+          </span>
+          <Box className="size-3.5 text-accent/70" />
+        </div>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-accent/70">
+          Pending
+        </span>
+      </div>
+      <span className="text-center text-[10px] tabular-nums whitespace-nowrap text-muted-foreground">
+        {formatBlockEta(etaMs)}
+      </span>
+    </div>
+  );
 }

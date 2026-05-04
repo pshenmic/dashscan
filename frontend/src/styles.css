@@ -120,6 +120,58 @@
   animation: tx-flash 2.4s ease-out;
 }
 
+@utility block-cube {
+  position: relative;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  box-shadow:
+    6px 6px 0 0 color-mix(in oklab, var(--accent) 22%, transparent),
+    12px 12px 0 0 color-mix(in oklab, var(--accent) 10%, transparent);
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease;
+}
+
+@utility block-cube-pending {
+  position: relative;
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+  color: var(--foreground);
+  border: 1px dashed color-mix(in oklab, var(--accent) 45%, transparent);
+  box-shadow:
+    6px 6px 0 0 color-mix(in oklab, var(--accent) 8%, transparent),
+    12px 12px 0 0 color-mix(in oklab, var(--accent) 4%, transparent);
+  animation: block-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes block-pulse {
+  0%,
+  100% {
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+  }
+  50% {
+    border-color: color-mix(in oklab, var(--accent) 80%, transparent);
+  }
+}
+
+@keyframes block-mint {
+  0% {
+    transform: translateX(30%) scale(0.9);
+    opacity: 0;
+  }
+  60% {
+    transform: translateX(0) scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@utility animate-block-mint {
+  animation: block-mint 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
