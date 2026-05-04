@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import { Avatar } from "dash-ui-kit/react";
 import {
   Activity,
   ArrowDown,
@@ -11,18 +12,18 @@ import {
   ArrowUp,
   Box,
   Boxes,
+  CheckCircle2,
   Coins,
+  Crown,
   Database,
-  DollarSign,
+  ExternalLink,
   Gauge,
   HardDrive,
   Hourglass,
   Layers,
-  PieChart,
   Server,
-  TrendingUp,
+  ShieldAlert,
   Vote,
-  Wallet,
 } from "lucide-react";
 import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
@@ -37,7 +38,12 @@ import {
 import { DashIcon } from "@/components/dash-icon";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
-import { InstantLockBadge, TxTypeBadge } from "@/components/status-badge";
+import {
+  InstantLockBadge,
+  MnStatusBadge,
+  MnTypeBadge,
+  TxTypeBadge,
+} from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -84,7 +90,11 @@ import {
   transactionsStatsQueryOptions,
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
-import type { ApiBlock } from "@/lib/api/types";
+import type {
+  ApiBlock,
+  ApiGovernanceObject,
+  ApiMasternode,
+} from "@/lib/api/types";
 import {
   volumeHistoricalQueryOptions,
   volumeQueryOptions,
@@ -95,6 +105,7 @@ import {
   formatCompactUsdShort,
   formatDuffs,
   formatRelativeTime,
+  getIp,
   sumVOut,
 } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
@@ -133,7 +144,7 @@ export const Route = createFileRoute("/")({
         }),
       ),
       context.queryClient.prefetchQuery(
-        masternodesQueryOptions({ network, page: 1, limit: 1 }),
+        masternodesQueryOptions({ network, page: 1, limit: 50 }),
       ),
       context.queryClient.prefetchQuery(
         priceQueryOptions({ network, currency: "usd" }),
@@ -179,7 +190,7 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const network = useStore(appStore, (state) => state.network);
-  const priceSparkId = useId();
+  const priceAreaId = useId();
   const mcapAreaId = useId();
   const txsAreaId = useId();
   const blockTxAreaId = useId();
@@ -201,7 +212,7 @@ function Dashboard() {
     refetchIntervalInBackground: false,
   });
   const { data: mnData } = useQuery(
-    masternodesQueryOptions({ network, page: 1, limit: 1 }),
+    masternodesQueryOptions({ network, page: 1, limit: 50 }),
   );
   const { data: usdPrice } = useQuery(
     priceQueryOptions({ network, currency: "usd" }),
@@ -325,14 +336,6 @@ function Dashboard() {
     return first > 0 ? ((second - first) / first) * 100 : null;
   }, [txStats]);
 
-  const priceSparkline = useMemo(
-    () =>
-      (priceHistoryUsd ?? []).map((p, i) => ({
-        i,
-        value: p.value,
-      })),
-    [priceHistoryUsd],
-  );
   const priceChange =
     priceHistoryUsd && priceHistoryUsd.length >= 2
       ? ((priceHistoryUsd[priceHistoryUsd.length - 1].value -
@@ -366,12 +369,6 @@ function Dashboard() {
     if (blocks.length === 0) return null;
     return blocks.reduce((s, b) => s + b.size, 0) / blocks.length;
   }, [blocks]);
-
-  const avgTxAmount = useMemo(() => {
-    if (txs.length === 0) return null;
-    const totals = txs.map((t) => sumVOut(t.vOut));
-    return totals.reduce((s, v) => s + v, 0) / totals.length;
-  }, [txs]);
 
   const priceData = useMemo(
     () =>
@@ -416,6 +413,25 @@ function Dashboard() {
 
   const proposalCount = proposals?.length ?? null;
 
+  const topMasternodes = useMemo(() => {
+    const list = mnData?.resultSet ?? [];
+    return [...list]
+      .sort((a, b) => {
+        const sa = getCollateral(a.type);
+        const sb = getCollateral(b.type);
+        if (sa !== sb) return sb - sa;
+        return (b.consecutivePayments ?? 0) - (a.consecutivePayments ?? 0);
+      })
+      .slice(0, 7);
+  }, [mnData]);
+
+  const topProposals = useMemo(() => {
+    if (!proposals) return [];
+    return [...proposals]
+      .sort((a, b) => (b.absoluteYesCount ?? 0) - (a.absoluteYesCount ?? 0))
+      .slice(0, 6);
+  }, [proposals]);
+
   const budgetUsedPct =
     budget?.totalBudget && budget.totalBudget > 0
       ? Math.min(100, (budget.totalRequested / budget.totalBudget) * 100)
@@ -438,44 +454,119 @@ function Dashboard() {
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard
-            label="Dash Price"
-            value={usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(2)}` : "—"}
-            change={priceChange}
-            icon={<DollarSign className="size-4 text-muted-foreground" />}
-            sparkline={priceSparkline}
-            sparkId={priceSparkId}
-          />
-          <KpiCard
-            label="Market Cap"
-            value={
-              marketCap?.usd != null ? formatCompactUsd(marketCap.usd) : "—"
-            }
-            change={mcapChange}
-            icon={<PieChart className="size-4 text-muted-foreground" />}
-          />
-          <KpiCard
-            label="24h Volume"
-            value={
-              volumeUsd?.usd != null ? formatCompactUsd(volumeUsd.usd) : "—"
-            }
-            change={volumeChange}
-            icon={<TrendingUp className="size-4 text-muted-foreground" />}
-          />
-          <KpiCard
-            label="Circulating Supply"
-            value={
-              circulatingSupply != null ? (
-                <>
-                  {formatCompact(circulatingSupply)} <DashIcon />
-                </>
-              ) : (
-                "—"
-              )
-            }
-            icon={<Coins className="size-4 text-muted-foreground" />}
-            sublabel="vs 18.9M cap"
-          />
+          <Card>
+            <CardHeader>
+              <CardDescription>
+                <DashIcon /> Price · 24h
+              </CardDescription>
+              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums text-accent">
+                {usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(2)}` : "—"}
+                {priceChange != null && (
+                  <span
+                    className={
+                      priceChange >= 0
+                        ? "text-xs font-medium text-success"
+                        : "text-xs font-medium text-destructive"
+                    }
+                  >
+                    {priceChange >= 0 ? "+" : ""}
+                    {priceChange.toFixed(2)}%
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartArea
+                data={priceData}
+                gradientId={priceAreaId}
+                yFormat={(v) => `$${Number(v).toFixed(0)}`}
+                height={140}
+                yDomain={["auto", "auto"]}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Market Cap · 24h</CardDescription>
+              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums text-accent">
+                {marketCap?.usd != null ? formatCompactUsd(marketCap.usd) : "—"}
+                {mcapChange != null && (
+                  <span
+                    className={
+                      mcapChange >= 0
+                        ? "text-xs font-medium text-success"
+                        : "text-xs font-medium text-destructive"
+                    }
+                  >
+                    {mcapChange >= 0 ? "+" : ""}
+                    {mcapChange.toFixed(2)}%
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartArea
+                data={mcapData}
+                gradientId={mcapAreaId}
+                yFormat={(v) => formatCompactUsdShort(Number(v))}
+                height={140}
+                yDomain={["auto", "auto"]}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Trading Volume · 24h</CardDescription>
+              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums text-accent">
+                {volumeUsd?.usd != null ? formatCompactUsd(volumeUsd.usd) : "—"}
+                {volumeChange != null && (
+                  <span
+                    className={
+                      volumeChange >= 0
+                        ? "text-xs font-medium text-success"
+                        : "text-xs font-medium text-destructive"
+                    }
+                  >
+                    {volumeChange >= 0 ? "+" : ""}
+                    {volumeChange.toFixed(2)}%
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartBar
+                data={volumeData}
+                gradientId={volumeBarId}
+                yFormat={(v) => formatCompactUsdShort(Number(v))}
+                height={140}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Avg Tx per Block · 24h</CardDescription>
+              <CardTitle className="text-xl tabular-nums text-accent">
+                {blockTxData.length > 0
+                  ? (
+                      blockTxData.reduce((s, p) => s + p.value, 0) /
+                      blockTxData.length
+                    ).toFixed(2)
+                  : "—"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartArea
+                data={blockTxData}
+                gradientId={blockTxAreaId}
+                yFormat={(v) => Number(v).toFixed(0)}
+                height={140}
+                color="var(--chart-2)"
+              />
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-12">
@@ -805,96 +896,18 @@ function Dashboard() {
           </Card>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader>
-              <CardDescription>
-                <DashIcon /> Price · 24h
-              </CardDescription>
-              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums text-accent">
-                {usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(2)}` : "—"}
-                {priceChange != null && (
-                  <span
-                    className={
-                      priceChange >= 0
-                        ? "text-xs font-medium text-success"
-                        : "text-xs font-medium text-destructive"
-                    }
-                  >
-                    {priceChange >= 0 ? "+" : ""}
-                    {priceChange.toFixed(2)}%
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartArea
-                data={priceData}
-                gradientId={`${priceSparkId}-hero`}
-                yFormat={(v) => `$${Number(v).toFixed(0)}`}
-                height={140}
-                yDomain={["auto", "auto"]}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardDescription>Market Cap · 24h</CardDescription>
-              <CardTitle className="text-xl tabular-nums text-accent">
-                {marketCap?.usd != null ? formatCompactUsd(marketCap.usd) : "—"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartArea
-                data={mcapData}
-                gradientId={mcapAreaId}
-                yFormat={(v) => formatCompactUsdShort(Number(v))}
-                height={140}
-                yDomain={["auto", "auto"]}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardDescription>Trading Volume · 24h</CardDescription>
-              <CardTitle className="text-xl tabular-nums text-accent">
-                {volumeUsd?.usd != null ? formatCompactUsd(volumeUsd.usd) : "—"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartBar
-                data={volumeData}
-                gradientId={volumeBarId}
-                yFormat={(v) => formatCompactUsdShort(Number(v))}
-                height={140}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardDescription>Avg Tx per Block · 24h</CardDescription>
-              <CardTitle className="text-xl tabular-nums text-accent">
-                {blockTxData.length > 0
-                  ? (
-                      blockTxData.reduce((s, p) => s + p.value, 0) /
-                      blockTxData.length
-                    ).toFixed(2)
-                  : "—"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartArea
-                data={blockTxData}
-                gradientId={blockTxAreaId}
-                yFormat={(v) => Number(v).toFixed(0)}
-                height={140}
-                color="var(--chart-2)"
-              />
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 lg:grid-cols-12">
+          <MasternodesListCard
+            masternodes={topMasternodes}
+            total={masternodeCount}
+            isLoading={mnData == null}
+          />
+          <ProposalsListCard
+            proposals={topProposals}
+            total={proposalCount}
+            usdPrice={usdPrice?.usd ?? null}
+            isLoading={proposals == null}
+          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -911,111 +924,36 @@ function Dashboard() {
             hint="All-time"
           />
           <StatTile
-            icon={<Wallet className="size-4 text-muted-foreground" />}
-            label="Avg Tx Amount"
+            icon={<Coins className="size-4 text-muted-foreground" />}
+            label="Circulating Supply"
             value={
-              avgTxAmount != null ? (
+              circulatingSupply != null ? (
                 <>
-                  {formatDuffs(avgTxAmount, 4)} <DashIcon />
+                  {formatCompact(circulatingSupply)} <DashIcon />
                 </>
               ) : (
                 "—"
               )
             }
-            hint="Last 10 tx"
+            hint="vs 18.9M cap"
           />
           <StatTile
-            icon={<Vote className="size-4 text-muted-foreground" />}
-            label="Active Proposals"
-            value={proposalCount != null ? proposalCount.toString() : "—"}
+            icon={<CheckCircle2 className="size-4 text-muted-foreground" />}
+            label="Funded Proposals"
+            value={
+              budget?.enoughFundsCount != null
+                ? budget.enoughFundsCount.toString()
+                : "—"
+            }
             hint={
-              budget?.enoughVotesCount != null
-                ? `${budget.enoughVotesCount} pass quorum`
-                : "Pending votes"
+              budget?.enoughFundsTotal != null
+                ? `${budget.enoughFundsTotal.toFixed(0)} DASH allocated`
+                : "Next superblock payout"
             }
           />
         </div>
       </div>
     </div>
-  );
-}
-
-function KpiCard({
-  label,
-  value,
-  change,
-  icon,
-  sparkline,
-  sparkId,
-  sublabel,
-}: {
-  label: string;
-  value: React.ReactNode;
-  change?: number | null;
-  icon: React.ReactNode;
-  sparkline?: { i: number; value: number }[];
-  sparkId?: string;
-  sublabel?: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl tabular-nums text-accent">
-          {value}
-        </CardTitle>
-        <CardAction>
-          <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
-            {icon}
-          </div>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="flex items-center justify-between gap-3">
-        {change != null ? (
-          <Badge variant={change >= 0 ? "soft-success" : "soft-destructive"}>
-            {change >= 0 ? (
-              <ArrowUp className="size-3" />
-            ) : (
-              <ArrowDown className="size-3" />
-            )}
-            {Math.abs(change).toFixed(2)}%
-          </Badge>
-        ) : sublabel ? (
-          <span className="text-xs text-accent/64">{sublabel}</span>
-        ) : (
-          <span />
-        )}
-        {sparkline && sparkline.length > 1 && sparkId && (
-          <ChartContainer config={chartConfig} className="aspect-auto h-8 w-24">
-            <AreaChart data={sparkline}>
-              <defs>
-                <linearGradient id={sparkId} x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0%"
-                    stopColor="var(--color-value)"
-                    stopOpacity={0.4}
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor="var(--color-value)"
-                    stopOpacity={0}
-                  />
-                </linearGradient>
-              </defs>
-              <YAxis hide domain={["dataMin", "dataMax"]} />
-              <Area
-                dataKey="value"
-                type="monotone"
-                stroke="var(--color-value)"
-                fill={`url(#${sparkId})`}
-                strokeWidth={1.5}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ChartContainer>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -1476,5 +1414,298 @@ function PendingBlockTile({
         {formatBlockEta(etaMs)}
       </span>
     </div>
+  );
+}
+
+function getCollateral(type: string): number {
+  const t = type.toLowerCase();
+  if (t === "evo" || t === "highperformance") return 4000;
+  return 1000;
+}
+
+function MasternodesListCard({
+  masternodes,
+  total,
+  isLoading,
+}: {
+  masternodes: ApiMasternode[];
+  total: number | null;
+  isLoading: boolean;
+}) {
+  return (
+    <Card className="lg:col-span-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          Top Masternodes
+          <Badge variant="soft-accent" className="font-mono">
+            <Crown className="size-3" />
+            Highest staked
+          </Badge>
+        </CardTitle>
+        <CardDescription>
+          {total != null
+            ? `Sample from ${formatCompact(total)} active nodes`
+            : "Active validators sorted by collateral"}
+        </CardDescription>
+        <CardAction>
+          <Button asChild variant="ghost" size="sm" className="h-8">
+            <Link to="/masternodes">
+              View all <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableBody>
+            {isLoading &&
+              Array.from({ length: 6 }, (_, i) => `mn-${i}`).map((k) => (
+                <TableRow key={k} className="hover:bg-transparent">
+                  <TableCell>
+                    <Skeleton className="h-4 w-40" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="ml-auto h-4 w-20" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            {!isLoading && masternodes.length === 0 && (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={2}>
+                  <EmptyState title="No masternodes" />
+                </TableCell>
+              </TableRow>
+            )}
+            {masternodes.map((mn) => {
+              const stake = getCollateral(mn.type);
+              const penalty = mn.posPenaltyScore ?? 0;
+              return (
+                <TableRow key={mn.proTxHash}>
+                  <TableCell>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar
+                        username={mn.proTxHash}
+                        className="size-9 shrink-0"
+                      />
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <Link
+                          to="/masternodes/$hash"
+                          params={{ hash: mn.proTxHash }}
+                          className="truncate font-mono text-sm font-medium hover:text-accent"
+                        >
+                          {getIp(mn.address)}
+                        </Link>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <MnTypeBadge type={mn.type} />
+                          <MnStatusBadge status={mn.status} />
+                          {penalty > 0 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="soft-destructive"
+                                  className="font-mono"
+                                >
+                                  <ShieldAlert className="size-3" />
+                                  {penalty}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                PoSe penalty score
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className="font-mono text-sm font-medium tabular-nums text-accent">
+                        {stake.toLocaleString()} <DashIcon />
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {mn.lastPaidTime
+                          ? `Paid ${formatRelativeTime(mn.lastPaidTime)}`
+                          : "Never paid"}
+                      </span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProposalsListCard({
+  proposals,
+  total,
+  usdPrice,
+  isLoading,
+}: {
+  proposals: ApiGovernanceObject[];
+  total: number | null;
+  usdPrice: number | null;
+  isLoading: boolean;
+}) {
+  return (
+    <Card className="lg:col-span-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          Active Proposals
+          {total != null && (
+            <Badge variant="soft" className="font-mono">
+              {total}
+            </Badge>
+          )}
+        </CardTitle>
+        <CardDescription>DAO governance · sorted by net votes</CardDescription>
+        <CardAction>
+          <Button asChild variant="ghost" size="sm" className="h-8">
+            <Link to="/dao">
+              View all <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableBody>
+            {isLoading &&
+              Array.from({ length: 5 }, (_, i) => `pr-${i}`).map((k) => (
+                <TableRow key={k} className="hover:bg-transparent">
+                  <TableCell>
+                    <Skeleton className="h-4 w-48" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-2 w-full" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="ml-auto h-4 w-20" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            {!isLoading && proposals.length === 0 && (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={3}>
+                  <EmptyState title="No proposals" />
+                </TableCell>
+              </TableRow>
+            )}
+            {proposals.map((p) => (
+              <ProposalRow
+                key={p.hash ?? p.collateralHash ?? p.data?.name ?? "p"}
+                proposal={p}
+                usdPrice={usdPrice}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProposalRow({
+  proposal,
+  usdPrice,
+}: {
+  proposal: ApiGovernanceObject;
+  usdPrice: number | null;
+}) {
+  const name = proposal.data?.name ?? "Untitled";
+  const url = proposal.data?.url ?? null;
+  const yes = proposal.yesCount ?? 0;
+  const no = proposal.noCount ?? 0;
+  const net = proposal.absoluteYesCount ?? yes - no;
+  const total = Math.max(yes + no, 1);
+  const yesPct = (yes / total) * 100;
+  const isPassing = net > 0;
+  const amount = proposal.data?.paymentAmount ?? null;
+  return (
+    <TableRow>
+      <TableCell className="max-w-[200px]">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+            <Vote className="size-4" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="truncate text-sm font-medium">{name}</span>
+                </TooltipTrigger>
+                <TooltipContent>{name}</TooltipContent>
+              </Tooltip>
+              {url && (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 text-muted-foreground hover:text-accent"
+                  aria-label="Proposal link"
+                >
+                  <ExternalLink className="size-3" />
+                </a>
+              )}
+            </div>
+            <Badge
+              variant={isPassing ? "soft-success" : "soft-destructive"}
+              className="w-fit font-mono"
+            >
+              {isPassing ? (
+                <CheckCircle2 className="size-3" />
+              ) : (
+                <ArrowDown className="size-3" />
+              )}
+              {isPassing ? "Passing" : "Failing"}
+            </Badge>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="min-w-[140px]">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex h-2 w-full overflow-hidden rounded-full bg-secondary">
+            <div
+              className="bg-success/70 transition-all"
+              style={{ width: `${yesPct}%` }}
+            />
+            <div
+              className="bg-destructive/40 transition-all"
+              style={{ width: `${100 - yesPct}%` }}
+            />
+          </div>
+          <div className="flex items-baseline justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
+            <span className="text-success/80">{yes.toLocaleString()}</span>
+            <span
+              className={
+                net >= 0
+                  ? "font-medium text-success"
+                  : "font-medium text-destructive"
+              }
+            >
+              {net >= 0 ? "+" : ""}
+              {net.toLocaleString()}
+            </span>
+            <span className="text-destructive/80">{no.toLocaleString()}</span>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex flex-col items-end gap-0.5">
+          <span className="font-mono text-sm font-medium tabular-nums text-accent">
+            {amount != null ? amount.toLocaleString() : "—"} <DashIcon />
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {amount != null && usdPrice != null
+              ? `≈ ${formatCompactUsd(amount * usdPrice)}`
+              : "—"}
+          </span>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
