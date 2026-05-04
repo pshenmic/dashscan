@@ -22,7 +22,7 @@ import {
   Vote,
   Wallet,
 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -294,11 +294,6 @@ function Dashboard() {
     return () => clearTimeout(timer);
   }, [blocks]);
 
-  const [nowTick, setNowTick] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowTick(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
   const latestBlock = blocks[0];
   const masternodeCount = mnData?.pagination?.total ?? null;
   const rawMempoolTotal = mempoolData?.pagination?.total ?? null;
@@ -433,7 +428,6 @@ function Dashboard() {
           blocks={blocks}
           newHeights={newBlockHeights}
           avgBlockTimeMs={chainStats?.blockTime ?? null}
-          nowTick={nowTick}
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -1213,12 +1207,10 @@ function BlockTimeline({
   blocks,
   newHeights,
   avgBlockTimeMs,
-  nowTick,
 }: {
   blocks: ApiBlock[];
   newHeights: Set<number>;
   avgBlockTimeMs: number | null;
-  nowTick: number;
 }) {
   const minedSorted = useMemo(
     () =>
@@ -1271,65 +1263,145 @@ function BlockTimeline({
         </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="flex items-stretch gap-3 sm:gap-4">
-          {minedRendered.length === 0
-            ? Array.from({ length: 5 }, (_, i) => `bs-${i}`).map((k) => (
-                <Skeleton key={k} className="h-24 flex-1 rounded-md" />
-              ))
-            : minedRendered.map((block) => (
-                <MinedBlockTile
-                  key={block.hash}
-                  block={block}
-                  isNew={newHeights.has(block.height)}
-                />
-              ))}
+        <div className="flex items-stretch">
+          <div
+            className="relative flex basis-0 items-stretch gap-3 sm:gap-4"
+            style={{ flexGrow: Math.max(MAX_MINED_BLOCKS, 1) }}
+          >
+            {minedRendered.length > 0 && (
+              <ChainOverlay count={minedRendered.length} />
+            )}
+            {minedRendered.length === 0
+              ? Array.from({ length: 5 }, (_, i) => `bs-${i}`).map((k) => (
+                  <Skeleton key={k} className="h-24 flex-1 rounded-md" />
+                ))
+              : minedRendered.map((block) => (
+                  <MinedBlockTile
+                    key={block.hash}
+                    hash={block.hash}
+                    height={block.height}
+                    txCount={block.txCount}
+                    size={block.size}
+                    timestamp={block.timestamp}
+                    isNew={newHeights.has(block.height)}
+                  />
+                ))}
+          </div>
 
           <div
             aria-hidden
-            className="mx-1 self-stretch border-l border-dashed border-border"
+            className="mx-3 self-stretch border-l border-dashed border-border sm:mx-4"
           />
 
-          {pending.map((p) => (
-            <PendingBlockTile
-              key={p.height}
-              height={p.height}
-              etaMs={Math.max(0, p.etaAt - nowTick)}
-            />
-          ))}
+          <div
+            className="flex basis-0 items-stretch gap-3 sm:gap-4"
+            style={{ flexGrow: PENDING_BLOCK_COUNT }}
+          >
+            {pending.map((p) => (
+              <PendingBlockTile
+                key={p.height}
+                height={p.height}
+                etaAt={p.etaAt}
+              />
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function MinedBlockTile({ block, isNew }: { block: ApiBlock; isNew: boolean }) {
+const ChainOverlay = memo(_ChainOverlay);
+function _ChainOverlay({ count }: { count: number }) {
+  if (count < 1) return null;
+  const nodes = Array.from(
+    { length: count },
+    (_, i) => `${((i + 0.5) / count) * 100}%`,
+  );
+  const lastNode = nodes[nodes.length - 1];
+  return (
+    <svg
+      aria-hidden
+      preserveAspectRatio="none"
+      className="pointer-events-none absolute inset-x-0 top-24 h-3 w-full overflow-visible"
+      style={{
+        maskImage:
+          "linear-gradient(to right, transparent 0%, black 6%, black 100%)",
+        WebkitMaskImage:
+          "linear-gradient(to right, transparent 0%, black 6%, black 100%)",
+      }}
+    >
+      <title>Block chain</title>
+      <g className="animate-chain-flow">
+        <line
+          x1="-8"
+          x2={lastNode}
+          y1="50%"
+          y2="50%"
+          stroke="var(--accent)"
+          strokeOpacity="0.55"
+          strokeWidth="1.25"
+          strokeDasharray="4 4"
+        />
+      </g>
+      {nodes.map((cx) => (
+        <g key={cx}>
+          <circle
+            cx={cx}
+            cy="50%"
+            r="5"
+            fill="color-mix(in oklab, var(--accent) 18%, transparent)"
+          />
+          <circle cx={cx} cy="50%" r="2.5" fill="var(--accent)" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+const MinedBlockTile = memo(_MinedBlockTile);
+function _MinedBlockTile({
+  hash,
+  height,
+  txCount,
+  size,
+  timestamp,
+  isNew,
+}: {
+  hash: string;
+  height: number;
+  txCount: number;
+  size: number;
+  timestamp: string;
+  isNew: boolean;
+}) {
   return (
     <Link
       to="/blocks/$hashOrHeight"
-      params={{ hashOrHeight: block.hash }}
+      params={{ hashOrHeight: hash }}
       className={cn(
-        "group flex flex-1 min-w-0 flex-col items-stretch gap-1.5 no-underline",
+        "group flex flex-1 min-w-0 flex-col items-stretch gap-3 no-underline",
         isNew && "animate-block-mint",
       )}
     >
       <div className="block-cube flex h-24 flex-col justify-between rounded-md p-3 transition-transform group-hover:-translate-y-0.5">
         <span className="font-mono text-sm font-semibold tabular-nums">
-          #{block.height.toLocaleString()}
+          #{height.toLocaleString()}
         </span>
         <div className="flex items-baseline gap-1.5">
           <span className="font-mono text-xl font-semibold tabular-nums leading-none">
-            {block.txCount}
+            {txCount}
           </span>
           <span className="text-[10px] uppercase tracking-wider opacity-70">
             tx
           </span>
         </div>
         <span className="font-mono text-[10px] tabular-nums opacity-70">
-          {(block.size / 1024).toFixed(2)} KB
+          {(size / 1024).toFixed(2)} KB
         </span>
       </div>
       <span className="text-center text-[10px] tabular-nums whitespace-nowrap text-muted-foreground">
-        {formatRelativeTime(block.timestamp)}
+        {formatRelativeTime(timestamp)}
       </span>
     </Link>
   );
@@ -1337,13 +1409,21 @@ function MinedBlockTile({ block, isNew }: { block: ApiBlock; isNew: boolean }) {
 
 function PendingBlockTile({
   height,
-  etaMs,
+  etaAt,
 }: {
   height: number;
-  etaMs: number;
+  etaAt: number;
 }) {
+  const [etaMs, setEtaMs] = useState(() => Math.max(0, etaAt - Date.now()));
+  useEffect(() => {
+    setEtaMs(Math.max(0, etaAt - Date.now()));
+    const id = setInterval(() => {
+      setEtaMs(Math.max(0, etaAt - Date.now()));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [etaAt]);
   return (
-    <div className="flex flex-1 min-w-0 flex-col items-stretch gap-1.5">
+    <div className="flex flex-1 min-w-0 flex-col items-stretch gap-3">
       <div className="block-cube-pending flex h-24 flex-col justify-between rounded-md p-3">
         <div className="flex items-baseline justify-between gap-2">
           <span className="font-mono text-sm font-semibold tabular-nums text-accent">
