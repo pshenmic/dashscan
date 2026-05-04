@@ -223,24 +223,49 @@ function AddressDetailsPage() {
 
   const txColumns: DataTableColumn<ApiTransaction>[] = [
     {
-      id: "time",
-      header: "Time",
-      cell: (row) => (
-        <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {row.timestamp ? formatRelativeTime(row.timestamp) : "Pending"}
-        </span>
-      ),
-    },
-    {
       id: "hash",
-      header: "Hash",
-      cell: (row) => (
-        <HashDisplay
-          value={row.hash}
-          href="/transactions/$hash"
-          params={{ hash: row.hash }}
-        />
-      ),
+      header: "Transaction",
+      cell: (row) => {
+        const dir = direction(row);
+        const dirIcon =
+          dir === "in" ? (
+            <MoveDown className="size-4" />
+          ) : dir === "out" ? (
+            <MoveUp className="size-4" />
+          ) : (
+            <ArrowLeftRight className="size-4" />
+          );
+        const dirClass =
+          dir === "in"
+            ? "bg-success/12 [&_svg]:text-success"
+            : dir === "out"
+              ? "bg-destructive/12 [&_svg]:text-destructive"
+              : "bg-accent/12 [&_svg]:text-accent";
+        return (
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className={cn(
+                "flex size-9 shrink-0 items-center justify-center rounded-full",
+                dirClass,
+              )}
+            >
+              {dirIcon}
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <HashDisplay
+                value={row.hash}
+                href="/transactions/$hash"
+                params={{ hash: row.hash }}
+                copy={false}
+              />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <TxTypeBadge type={row.type} />
+                <InstantLockBadge locked={row.instantLock} />
+              </div>
+            </div>
+          </div>
+        );
+      },
     },
     {
       id: "direction",
@@ -267,28 +292,35 @@ function AddressDetailsPage() {
       },
     },
     {
-      id: "type",
-      header: "Type",
-      cell: (row) => <TxTypeBadge type={row.type} />,
-    },
-    {
       id: "amount",
       header: "Amount",
       align: "right",
-      cell: (row) => (
-        <span className="font-mono text-sm tabular-nums">
-          {(() => {
-            const val = row.amount ?? sumVOut(row.vOut);
-            const dash = val / DUFFS_PER_DASH;
-            return dash >= 1 ? dash.toFixed(2) : dash.toFixed(4);
-          })()} <DashIcon />
-        </span>
-      ),
-    },
-    {
-      id: "instantlock",
-      header: "InstantSend",
-      cell: (row) => <InstantLockBadge locked={row.instantLock} />,
+      cell: (row) => {
+        const dir = direction(row);
+        const val = row.amount ?? sumVOut(row.vOut);
+        const dash = val / DUFFS_PER_DASH;
+        const formatted = dash >= 1 ? dash.toFixed(2) : dash.toFixed(4);
+        const tone =
+          dir === "in"
+            ? "text-success"
+            : dir === "out"
+              ? "text-destructive"
+              : "text-accent";
+        const sign = dir === "in" ? "+" : dir === "out" ? "−" : "";
+        return (
+          <div className="flex flex-col items-end gap-0.5">
+            <span
+              className={cn("font-mono text-sm font-medium tabular-nums", tone)}
+            >
+              {sign}
+              {formatted} <DashIcon />
+            </span>
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              {row.timestamp ? formatRelativeTime(row.timestamp) : "Pending"}
+            </span>
+          </div>
+        );
+      },
     },
   ];
 

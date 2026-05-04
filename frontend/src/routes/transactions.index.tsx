@@ -1,7 +1,14 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { Activity, ArrowLeftRight, Box, Database } from "lucide-react";
+import {
+  Activity,
+  ArrowLeftRight,
+  ArrowRightFromLine,
+  ArrowRightToLine,
+  Box,
+  Database,
+} from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
@@ -25,6 +32,11 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import { mempoolQueryOptions } from "@/lib/api/mempool";
 import {
@@ -184,19 +196,50 @@ function TransactionsPage() {
   const columns: DataTableColumn<ApiTransaction>[] = [
     {
       id: "hash",
-      header: "Hash",
+      header: "Transaction",
       cell: (row) => (
-        <HashDisplay
-          value={row.hash}
-          href="/transactions/$hash"
-          params={{ hash: row.hash }}
-        />
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+            <ArrowLeftRight className="size-4" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <HashDisplay
+              value={row.hash}
+              href="/transactions/$hash"
+              params={{ hash: row.hash }}
+              copy={false}
+            />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <TxTypeBadge type={row.type} />
+              <InstantLockBadge locked={row.instantLock} />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="soft" className="font-mono">
+                    <ArrowRightToLine className="size-3" />
+                    {row.vIn?.length ?? 0}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {row.vIn?.length ?? 0} input
+                  {(row.vIn?.length ?? 0) === 1 ? "" : "s"}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="soft" className="font-mono">
+                    <ArrowRightFromLine className="size-3" />
+                    {row.vOut?.length ?? 0}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {row.vOut?.length ?? 0} output
+                  {(row.vOut?.length ?? 0) === 1 ? "" : "s"}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+        </div>
       ),
-    },
-    {
-      id: "type",
-      header: "Type",
-      cell: (row) => <TxTypeBadge type={row.type} />,
     },
     {
       id: "block",
@@ -214,16 +257,6 @@ function TransactionsPage() {
       ),
     },
     {
-      id: "amount",
-      header: "Amount",
-      align: "right",
-      cell: (row) => (
-        <span className="font-mono tabular-nums">
-          {formatDuffs(sumVOut(row.vOut))} <DashIcon />
-        </span>
-      ),
-    },
-    {
       id: "confirmations",
       header: "Confirms",
       align: "right",
@@ -234,18 +267,18 @@ function TransactionsPage() {
       ),
     },
     {
-      id: "instantlock",
-      header: "InstantSend",
-      cell: (row) => <InstantLockBadge locked={row.instantLock} />,
-    },
-    {
-      id: "time",
-      header: "Age",
+      id: "amount",
+      header: "Amount",
       align: "right",
       cell: (row) => (
-        <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {formatRelativeTime(row.timestamp)}
-        </span>
+        <div className="flex flex-col items-end gap-0.5">
+          <span className="font-mono text-sm font-medium tabular-nums text-accent">
+            {formatDuffs(sumVOut(row.vOut))} <DashIcon />
+          </span>
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {row.timestamp ? formatRelativeTime(row.timestamp) : "—"}
+          </span>
+        </div>
       ),
     },
   ];

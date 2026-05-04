@@ -1,7 +1,14 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { Activity, Boxes, Clock, Gauge, Layers } from "lucide-react";
+import {
+  Activity,
+  ArrowLeftRight,
+  Boxes,
+  Clock,
+  Gauge,
+  Layers,
+} from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import {
   Area,
@@ -15,6 +22,7 @@ import {
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardAction,
@@ -187,32 +195,36 @@ function BlocksPage() {
 
   const columns: DataTableColumn<ApiBlock>[] = [
     {
-      id: "height",
-      header: "Height",
+      id: "block",
+      header: "Block",
       cell: (row) => (
-        <span className="font-mono text-sm font-medium tabular-nums">
-          #{row.height.toLocaleString()}
-        </span>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+            <Layers className="size-4" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="font-mono text-sm font-semibold tabular-nums text-accent">
+              #{row.height.toLocaleString()}
+            </span>
+            <HashDisplay
+              value={row.hash}
+              href="/blocks/$hashOrHeight"
+              params={{ hashOrHeight: row.hash }}
+              copy={false}
+            />
+          </div>
+        </div>
       ),
-      width: 140,
-    },
-    {
-      id: "hash",
-      header: "Block Hash",
-      cell: (row) => (
-        <HashDisplay
-          value={row.hash}
-          href="/blocks/$hashOrHeight"
-          params={{ hashOrHeight: row.hash }}
-        />
-      ),
+      width: 360,
     },
     {
       id: "txs",
       header: "Txs",
-      align: "right",
       cell: (row) => (
-        <span className="font-mono text-sm tabular-nums">{row.txCount}</span>
+        <Badge variant="soft" className="font-mono">
+          <ArrowLeftRight className="size-3" />
+          {row.txCount.toLocaleString()}
+        </Badge>
       ),
     },
     {

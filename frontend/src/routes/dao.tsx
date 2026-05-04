@@ -4,10 +4,12 @@ import { useStore } from "@tanstack/react-store";
 import {
   CalendarClock,
   Coins,
+  ExternalLink,
   FileText,
   Minus,
   ThumbsDown,
   ThumbsUp,
+  Vote,
   Wallet,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -48,6 +50,7 @@ import {
 } from "@/lib/governance";
 import { appStore, defaultNetwork } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
+import { cn } from "@/lib/utils";
 
 const chartConfig: ChartConfig = {
   value: { label: "Triggers", color: "var(--chart-1)" },
@@ -169,6 +172,70 @@ function DaoPage() {
 
   const columns: DataTableColumn<ApiGovernanceObject>[] = [
     {
+      id: "name",
+      header: "Proposal",
+      cell: (row) => {
+        const name = row.data?.name ?? "Untitled";
+        const url = row.data?.url;
+        const addr = row.data?.paymentAddress;
+        const yes = row.yesCount ?? 0;
+        const no = row.noCount ?? 0;
+        const net = (row.absoluteYesCount ?? yes - no) || 0;
+        const isPassing = net > 0;
+        return (
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className={cn(
+                "flex size-9 shrink-0 items-center justify-center rounded-full",
+                isPassing
+                  ? "bg-success/12 [&_svg]:text-success"
+                  : "bg-accent/12 [&_svg]:text-accent",
+              )}
+            >
+              <Vote className="size-4" />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex min-w-0 items-center gap-1.5">
+                {url ? (
+                  <Button
+                    asChild
+                    variant="link"
+                    className="h-auto truncate p-0 text-sm font-medium"
+                  >
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {name}
+                    </a>
+                  </Button>
+                ) : (
+                  <span className="truncate text-sm font-medium">{name}</span>
+                )}
+                {url && (
+                  <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
+                )}
+              </div>
+              {addr ? (
+                <HashDisplay
+                  value={addr}
+                  href="/address/$address"
+                  params={{ address: addr }}
+                  copy={false}
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  No payment address
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
       id: "time",
       header: "Created",
       cell: (row) => (
@@ -176,49 +243,6 @@ function DaoPage() {
           {row.creationTime ? formatRelativeTime(row.creationTime) : "—"}
         </span>
       ),
-    },
-    {
-      id: "name",
-      header: "Proposal",
-      cell: (row) => {
-        const name = row.data?.name;
-        const url = row.data?.url;
-        if (!name) return <span className="text-muted-foreground">—</span>;
-        if (url) {
-          return (
-            <Button
-              asChild
-              variant="link"
-              className="h-auto p-0 text-sm font-medium"
-            >
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {name}
-              </a>
-            </Button>
-          );
-        }
-        return <span className="text-sm font-medium">{name}</span>;
-      },
-    },
-    {
-      id: "address",
-      header: "Payment Address",
-      cell: (row) => {
-        const addr = row.data?.paymentAddress;
-        if (!addr) return <span className="text-muted-foreground">—</span>;
-        return (
-          <HashDisplay
-            value={addr}
-            href="/address/$address"
-            params={{ address: addr }}
-          />
-        );
-      },
     },
     {
       id: "votes",
@@ -246,7 +270,7 @@ function DaoPage() {
         if (amount == null)
           return <span className="text-muted-foreground">—</span>;
         return (
-          <span className="font-mono text-sm tabular-nums">
+          <span className="font-mono text-sm font-medium tabular-nums text-accent">
             {amount.toLocaleString()} <DashIcon />
           </span>
         );

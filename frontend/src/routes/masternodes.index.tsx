@@ -1,9 +1,11 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { CircleCheck, Server, ServerCrash } from "lucide-react";
+import { Avatar } from "dash-ui-kit/react";
+import { CircleCheck, Server, ServerCrash, ShieldAlert } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { DashIcon } from "@/components/dash-icon";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
@@ -24,6 +26,11 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   masternodesInfiniteQueryOptions,
   masternodesQueryOptions,
 } from "@/lib/api/masternodes";
@@ -36,6 +43,7 @@ import {
 } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
+import { cn } from "@/lib/utils";
 
 const INFINITE_PAGE_SIZE = 25;
 const PAGINATION_PAGE_SIZE = 25;
@@ -171,25 +179,26 @@ function MasternodesPage() {
 
   const columns: DataTableColumn<ApiMasternode>[] = [
     {
-      id: "ip",
-      header: "IP Address",
+      id: "node",
+      header: "Node",
       cell: (row) => (
-        <span className="inline-flex items-center gap-2 font-mono text-sm">
-          <Server className="size-3.5 text-muted-foreground" />
-          {getIp(row.address)}
-        </span>
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar username={row.proTxHash} className="size-9 shrink-0" />
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="inline-flex items-center gap-1.5 font-mono text-sm font-medium">
+              <Server className="size-3.5 text-muted-foreground" />
+              {getIp(row.address)}
+            </span>
+            <HashDisplay
+              value={row.proTxHash}
+              href="/masternodes/$hash"
+              params={{ hash: row.proTxHash }}
+              copy={false}
+            />
+          </div>
+        </div>
       ),
-    },
-    {
-      id: "protx",
-      header: "ProTx Hash",
-      cell: (row) => (
-        <HashDisplay
-          value={row.proTxHash}
-          href="/masternodes/$hash"
-          params={{ hash: row.proTxHash }}
-        />
-      ),
+      width: 360,
     },
     {
       id: "type",
@@ -203,18 +212,40 @@ function MasternodesPage() {
     },
     {
       id: "pose",
-      header: "PoSe Score",
+      header: "PoSe",
       align: "right",
       cell: (row) => (
-        <Badge
-          variant={
-            row.posPenaltyScore === 0 ? "soft-success" : "soft-destructive"
-          }
-          className="font-mono tabular-nums"
-        >
-          {row.posPenaltyScore}
-        </Badge>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge
+              variant={
+                row.posPenaltyScore === 0 ? "soft-success" : "soft-destructive"
+              }
+              className={cn(
+                "font-mono tabular-nums",
+                row.posPenaltyScore === 0 && "[&_svg]:hidden",
+              )}
+            >
+              <ShieldAlert className="size-3" />
+              {row.posPenaltyScore}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>PoSe penalty score</TooltipContent>
+        </Tooltip>
       ),
+    },
+    {
+      id: "stake",
+      header: "Stake",
+      align: "right",
+      cell: (row) => {
+        const stake = getMasternodeCollateral(row.type);
+        return (
+          <span className="font-mono text-sm font-medium tabular-nums text-accent">
+            {stake.toLocaleString()} <DashIcon />
+          </span>
+        );
+      },
     },
     {
       id: "lastpaid",
@@ -468,4 +499,10 @@ function MasternodesPage() {
       </div>
     </div>
   );
+}
+
+function getMasternodeCollateral(type: string): number {
+  const t = type.toLowerCase();
+  if (t === "evo" || t === "evolution" || t === "highperformance") return 4000;
+  return 1000;
 }
