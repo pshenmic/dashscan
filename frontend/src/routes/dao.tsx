@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { DashIcon } from "@/components/dash-icon";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { DetailRow } from "@/components/detail-row";
 import { EmptyState } from "@/components/empty-state";
@@ -246,8 +247,7 @@ function DaoPage() {
           return <span className="text-muted-foreground">—</span>;
         return (
           <span className="font-mono text-sm tabular-nums">
-            {amount.toLocaleString()}{" "}
-            <span className="text-muted-foreground">DASH</span>
+            {amount.toLocaleString()} <DashIcon />
           </span>
         );
       },
@@ -271,8 +271,7 @@ function DaoPage() {
             <CardHeader>
               <CardDescription>Available Budget</CardDescription>
               <CardTitle className="text-2xl tabular-nums">
-                {availableBudget.toLocaleString()}{" "}
-                <span className="text-muted-foreground text-base">DASH</span>
+                {availableBudget.toLocaleString()} <DashIcon />
               </CardTitle>
               <CardAction>
                 <Wallet className="size-4 text-muted-foreground" />
@@ -296,7 +295,7 @@ function DaoPage() {
               <CardTitle className="text-2xl tabular-nums">
                 {fundedProposalCount}{" "}
                 <span className="text-muted-foreground text-base">
-                  / {Math.round(fundedAmount).toLocaleString()} DASH
+                  / {Math.round(fundedAmount).toLocaleString()} <DashIcon />
                 </span>
               </CardTitle>
               <CardAction>
@@ -352,7 +351,7 @@ function DaoPage() {
                 >
                   <span className="font-mono tabular-nums">
                     {fundedProposalCount} proposals ·{" "}
-                    {Math.round(fundedAmount).toLocaleString()} DASH
+                    {Math.round(fundedAmount).toLocaleString()} <DashIcon />
                   </span>
                 </DetailRow>
                 <DetailRow
@@ -361,7 +360,7 @@ function DaoPage() {
                 >
                   <span className="font-mono tabular-nums">
                     {unfundedProposalCount} proposals ·{" "}
-                    {Math.round(unfundedAmount).toLocaleString()} DASH
+                    {Math.round(unfundedAmount).toLocaleString()} <DashIcon />
                   </span>
                 </DetailRow>
               </dl>

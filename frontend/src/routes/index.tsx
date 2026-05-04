@@ -31,6 +31,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { DashIcon } from "@/components/dash-icon";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
 import { InstantLockBadge, TxTypeBadge } from "@/components/status-badge";
@@ -384,9 +385,13 @@ function Dashboard() {
           <KpiCard
             label="Circulating Supply"
             value={
-              circulatingSupply != null
-                ? `${formatCompact(circulatingSupply)} DASH`
-                : "—"
+              circulatingSupply != null ? (
+                <>
+                  {formatCompact(circulatingSupply)} <DashIcon />
+                </>
+              ) : (
+                "—"
+              )
             }
             icon={<Coins className="size-4 text-muted-foreground" />}
             sublabel="vs 18.9M cap"
@@ -444,10 +449,7 @@ function Dashboard() {
                       <TableCell className="text-right">
                         <div className="flex flex-col items-end gap-0.5">
                           <span className="font-mono text-sm tabular-nums">
-                            {formatDuffs(sumVOut(tx.vOut))}{" "}
-                            <span className="text-muted-foreground text-xs">
-                              DASH
-                            </span>
+                            {formatDuffs(sumVOut(tx.vOut))} <DashIcon />
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {tx.timestamp
@@ -596,9 +598,13 @@ function Dashboard() {
             <CardHeader>
               <CardDescription>DAO Treasury · Next Superblock</CardDescription>
               <CardTitle className="flex items-baseline gap-3 text-2xl tabular-nums">
-                {budget?.totalBudget != null
-                  ? `${budget.totalBudget.toFixed(2)} DASH`
-                  : "—"}
+                {budget?.totalBudget != null ? (
+                  <span>
+                    {budget.totalBudget.toFixed(2)} <DashIcon />
+                  </span>
+                ) : (
+                  "—"
+                )}
                 {usdPrice?.usd != null && budget?.totalBudget != null && (
                   <span className="text-sm font-normal text-muted-foreground">
                     ≈ {formatCompactUsd(budget.totalBudget * usdPrice.usd)}
@@ -614,9 +620,13 @@ function Dashboard() {
                 <div className="flex items-baseline justify-between text-xs text-muted-foreground">
                   <span>Requested</span>
                   <span className="font-mono tabular-nums">
-                    {budget?.totalRequested != null
-                      ? `${budget.totalRequested.toFixed(2)} DASH`
-                      : "—"}
+                    {budget?.totalRequested != null ? (
+                      <>
+                        {budget.totalRequested.toFixed(2)} <DashIcon />
+                      </>
+                    ) : (
+                      "—"
+                    )}
                   </span>
                 </div>
                 <Progress value={budgetUsedPct} className="h-2" />
@@ -629,9 +639,13 @@ function Dashboard() {
                         : "font-mono tabular-nums text-success"
                     }
                   >
-                    {budget?.remainingAllPass != null
-                      ? `${budget.remainingAllPass.toFixed(2)} DASH`
-                      : "—"}
+                    {budget?.remainingAllPass != null ? (
+                      <>
+                        {budget.remainingAllPass.toFixed(2)} <DashIcon />
+                      </>
+                    ) : (
+                      "—"
+                    )}
                   </span>
                 </div>
               </div>
@@ -674,7 +688,9 @@ function Dashboard() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader>
-              <CardDescription>DASH Price · 24h</CardDescription>
+              <CardDescription>
+                <DashIcon /> Price · 24h
+              </CardDescription>
               <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums">
                 {usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(2)}` : "—"}
                 {priceChange != null && (
@@ -776,7 +792,13 @@ function Dashboard() {
             icon={<Wallet className="size-4 text-muted-foreground" />}
             label="Avg Tx Amount"
             value={
-              avgTxAmount != null ? `${formatDuffs(avgTxAmount, 4)} DASH` : "—"
+              avgTxAmount != null ? (
+                <>
+                  {formatDuffs(avgTxAmount, 4)} <DashIcon />
+                </>
+              ) : (
+                "—"
+              )
             }
             hint="Last 10 tx"
           />
@@ -867,7 +889,7 @@ function KpiCard({
   sublabel,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   change?: number | null;
   icon: React.ReactNode;
   sparkline?: { i: number; value: number }[];
@@ -938,7 +960,7 @@ function StatTile({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: string;
+  value: React.ReactNode;
   hint?: string;
   tone?: "accent";
 }) {

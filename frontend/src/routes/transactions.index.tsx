@@ -4,6 +4,7 @@ import { useStore } from "@tanstack/react-store";
 import { Activity, ArrowLeftRight, Box, Database } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { DashIcon } from "@/components/dash-icon";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
@@ -218,8 +219,7 @@ function TransactionsPage() {
       align: "right",
       cell: (row) => (
         <span className="font-mono tabular-nums">
-          {formatDuffs(sumVOut(row.vOut))}{" "}
-          <span className="text-muted-foreground">DASH</span>
+          {formatDuffs(sumVOut(row.vOut))} <DashIcon />
         </span>
       ),
     },

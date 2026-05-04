@@ -4,6 +4,7 @@ import { useStore } from "@tanstack/react-store";
 import { ChevronLeft, ChevronRight, FileText, Hash } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { DashIcon } from "@/components/dash-icon";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { DetailRow } from "@/components/detail-row";
 import { EmptyState } from "@/components/empty-state";
@@ -129,8 +130,7 @@ function BlockDetailPage() {
       align: "right",
       cell: (row) => (
         <span className="font-mono text-sm tabular-nums">
-          {formatDuffs(sumVOut(row.vOut))}{" "}
-          <span className="text-muted-foreground">DASH</span>
+          {formatDuffs(sumVOut(row.vOut))} <DashIcon />
         </span>
       ),
     },
@@ -257,7 +257,7 @@ function BlockDetailPage() {
               <DetailRow label="Version">{block.version}</DetailRow>
               <DetailRow label="Credit Pool">
                 <span className="font-mono tabular-nums">
-                  {formatDuffs(block.creditPoolBalance)} DASH
+                  {formatDuffs(block.creditPoolBalance)} <DashIcon />
                 </span>
               </DetailRow>
             </dl>

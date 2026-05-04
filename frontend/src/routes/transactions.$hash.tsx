@@ -10,6 +10,7 @@ import {
   FileText,
 } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
+import { DashIcon } from "@/components/dash-icon";
 import { DetailRow } from "@/components/detail-row";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
@@ -43,11 +44,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
-import {
-  DUFFS_PER_DASH,
-  formatRelativeTime,
-  highlightJson,
-} from "@/lib/format";
+import { formatDuffs, formatRelativeTime, highlightJson } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/transactions/$hash")({
@@ -86,17 +83,11 @@ function sumOutputs(vOut: ApiVOut[] | null | undefined): number | null {
   return total;
 }
 
-function formatDashAmount(value: number | null): string {
-  if (value == null) return "—";
-  return (value / DUFFS_PER_DASH).toFixed(8);
-}
-
 function DashAmount({ value }: { value: number | null }) {
   if (value == null) return <span className="text-muted-foreground">—</span>;
   return (
     <span className="font-mono tabular-nums">
-      {formatDashAmount(value)}{" "}
-      <span className="text-muted-foreground">DASH</span>
+      {formatDuffs(value)} <DashIcon />
     </span>
   );
 }

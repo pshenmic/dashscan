@@ -6,6 +6,7 @@ import { ArrowLeftRight, MoveDown, MoveUp, Wallet } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { CopyButton } from "@/components/copy-button";
+import { DashIcon } from "@/components/dash-icon";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
@@ -41,7 +42,7 @@ import {
   addressTransactionsQueryOptions,
 } from "@/lib/api/addresses";
 import type { ApiTransaction } from "@/lib/api/types";
-import { formatDash, formatRelativeTime, sumVOut } from "@/lib/format";
+import { DUFFS_PER_DASH, formatRelativeTime, sumVOut } from "@/lib/format";
 import { paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -246,7 +247,11 @@ function AddressDetailsPage() {
       align: "right",
       cell: (row) => (
         <span className="font-mono text-sm tabular-nums">
-          {formatDash(row.amount ?? sumVOut(row.vOut))}
+          {(() => {
+            const val = row.amount ?? sumVOut(row.vOut);
+            const dash = val / DUFFS_PER_DASH;
+            return dash >= 1 ? dash.toFixed(2) : dash.toFixed(4);
+          })()} <DashIcon />
         </span>
       ),
     },
@@ -298,7 +303,7 @@ function AddressDetailsPage() {
                       maximumFractionDigits: 4,
                     })
                   : "—"}{" "}
-                <span className="text-muted-foreground text-base">DASH</span>
+                <DashIcon />
               </CardTitle>
               <CardAction>
                 <Wallet className="size-4 text-muted-foreground" />
@@ -314,7 +319,7 @@ function AddressDetailsPage() {
                       maximumFractionDigits: 4,
                     })
                   : "—"}{" "}
-                <span className="text-muted-foreground text-base">DASH</span>
+                <DashIcon />
               </CardTitle>
               <CardAction>
                 <MoveDown className="size-4 text-success" />
@@ -338,11 +343,16 @@ function AddressDetailsPage() {
           <CardHeader>
             <CardDescription>Balance over time</CardDescription>
             <CardTitle className="text-2xl tabular-nums">
-              {balanceDash != null
-                ? `${balanceDash.toLocaleString(undefined, {
+              {balanceDash != null ? (
+                <>
+                  {balanceDash.toLocaleString(undefined, {
                     maximumFractionDigits: 4,
-                  })} DASH`
-                : "—"}
+                  })}{" "}
+                  <DashIcon />
+                </>
+              ) : (
+                "—"
+              )}
             </CardTitle>
             <CardAction>
               <Tabs
