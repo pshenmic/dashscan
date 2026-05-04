@@ -95,11 +95,13 @@ export function MnTypeBadge({ type }: MnTypeBadgeProps) {
 }
 
 interface InstantLockBadgeProps {
-  locked: boolean | null | undefined;
+  locked: boolean | string | null | undefined;
 }
 
 export function InstantLockBadge({ locked }: InstantLockBadgeProps) {
-  return locked ? (
+  const isLocked =
+    typeof locked === "string" ? locked.length > 0 : Boolean(locked);
+  return isLocked ? (
     <Badge variant="soft-success">InstantSend</Badge>
   ) : (
     <Badge variant="soft">Pending</Badge>

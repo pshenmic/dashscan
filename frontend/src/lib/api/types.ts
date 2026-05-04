@@ -56,7 +56,7 @@ export interface ApiTransaction {
   vIn: ApiVIn[];
   vOut: ApiVOut[];
   confirmations: number;
-  instantLock: boolean | null;
+  instantLock: boolean | string | null;
   chainLocked?: boolean | null;
   size?: number | null;
   timestamp: string;

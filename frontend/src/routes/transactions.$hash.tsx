@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { CheckCircle2, Clock, FileText, Workflow } from "lucide-react";
+import { CheckCircle2, Clock } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
 import { DashIcon } from "@/components/dash-icon";
 import { DetailRow } from "@/components/detail-row";
@@ -25,12 +25,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { transactionQueryOptions } from "@/lib/api/transactions";
-import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
-import { formatDuffs, formatRelativeTime, highlightJson } from "@/lib/format";
+import type { ApiVIn, ApiVOut } from "@/lib/api/types";
+import { formatDuffs, formatRelativeTime, getTxTypeLabel } from "@/lib/format";
 import { appStore, defaultNetwork } from "@/lib/store";
 
 export const Route = createFileRoute("/transactions/$hash")({
@@ -75,6 +73,137 @@ function DashAmount({ value }: { value: number | null }) {
     <span className="font-mono tabular-nums">
       {formatDuffs(value)} <DashIcon />
     </span>
+  );
+}
+
+function MutedDash() {
+  return <span className="text-muted-foreground">—</span>;
+}
+
+function HexValue({ value, label }: { value: string; label: string }) {
+  const display =
+    value.length > 24 ? `${value.slice(0, 12)}…${value.slice(-8)}` : value;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1">
+      <span className="font-mono text-xs tabular-nums break-all">
+        {display}
+      </span>
+      <CopyButton value={value} label={label} />
+    </span>
+  );
+}
+
+function BoolValue({ value }: { value: boolean | null | undefined }) {
+  if (value == null) return <MutedDash />;
+  return (
+    <Badge variant={value ? "soft-success" : "soft"}>
+      {value ? "true" : "false"}
+    </Badge>
+  );
+}
+
+function RawTxFields({
+  tx,
+}: {
+  tx: {
+    type: number;
+    version: number;
+    blockHash: string | null;
+    amount: number | null;
+    vIn: ApiVIn[] | null | undefined;
+    vOut: ApiVOut[] | null | undefined;
+    instantLock: boolean | string | null | undefined;
+    chainLocked?: boolean | null | undefined;
+  };
+}) {
+  const isCoinbase = tx.type === 5;
+  const isQuorum = tx.type === 6;
+
+  const instantLock = tx.instantLock;
+  const showInstantLock = !isCoinbase && !isQuorum;
+  const showAmount = tx.amount != null;
+  const showChainLocked = tx.chainLocked != null;
+
+  return (
+    <>
+      <DetailRow label="Type">
+        <span className="font-mono text-sm tabular-nums">{tx.type}</span>
+        <Badge variant="outline" className="text-xs">
+          {getTxTypeLabel(tx.type)}
+        </Badge>
+      </DetailRow>
+      <DetailRow label="Version">
+        <span className="font-mono text-sm tabular-nums">
+          {tx.version ?? "—"}
+        </span>
+      </DetailRow>
+      <DetailRow label="Block Hash">
+        {tx.blockHash ? (
+          <HashDisplay
+            value={tx.blockHash}
+            href="/blocks/$hashOrHeight"
+            params={{ hashOrHeight: tx.blockHash }}
+            head={10}
+            tail={8}
+          />
+        ) : (
+          <MutedDash />
+        )}
+      </DetailRow>
+      {isQuorum ? (
+        <>
+          <DetailRow label="Inputs">
+            <span className="text-muted-foreground">None</span>
+          </DetailRow>
+          <DetailRow label="Outputs">
+            <span className="text-muted-foreground">None</span>
+          </DetailRow>
+        </>
+      ) : isCoinbase ? (
+        <>
+          <DetailRow label="Inputs">
+            <Badge variant="soft">Coinbase</Badge>
+          </DetailRow>
+          <DetailRow label="Outputs">
+            <span className="font-mono text-sm tabular-nums">
+              {tx.vOut?.length ?? 0}
+            </span>
+          </DetailRow>
+        </>
+      ) : (
+        <>
+          <DetailRow label="Inputs">
+            <span className="font-mono text-sm tabular-nums">
+              {tx.vIn?.length ?? 0}
+            </span>
+          </DetailRow>
+          <DetailRow label="Outputs">
+            <span className="font-mono text-sm tabular-nums">
+              {tx.vOut?.length ?? 0}
+            </span>
+          </DetailRow>
+        </>
+      )}
+      {showAmount && (
+        <DetailRow label="Amount">
+          <DashAmount value={tx.amount} />
+        </DetailRow>
+      )}
+      {showInstantLock && (
+        <DetailRow label="Instant Lock">
+          {typeof instantLock === "string" && instantLock.length > 0 ? (
+            <HexValue value={instantLock} label="InstantLock signature" />
+          ) : (
+            <BoolValue value={instantLock as boolean | null | undefined} />
+          )}
+        </DetailRow>
+      )}
+      {showChainLocked && (
+        <DetailRow label="Chain Locked">
+          <BoolValue value={tx.chainLocked} />
+        </DetailRow>
+      )}
+    </>
   );
 }
 
@@ -174,124 +303,117 @@ function TransactionDetailPage() {
 
         <Card>
           <CardContent>
-            <dl className="grid gap-y-4 gap-x-8 sm:grid-cols-2">
-              <DetailRow label="Hash">
-                <HashDisplay value={tx.hash} variant="full" />
-              </DetailRow>
-              <DetailRow label="Block">
-                {tx.blockHeight != null ? (
-                  <Button
-                    asChild
-                    variant="link"
-                    className="h-auto p-0 font-mono"
-                  >
-                    <Link
-                      to="/blocks/$hashOrHeight"
-                      params={{ hashOrHeight: tx.blockHash }}
-                    >
-                      #{tx.blockHeight.toLocaleString()}
-                    </Link>
-                  </Button>
-                ) : (
-                  <span className="text-muted-foreground">Mempool</span>
-                )}
-              </DetailRow>
-              <DetailRow label="Timestamp">
-                {tx.timestamp ? (
-                  <>
-                    <span>{new Date(tx.timestamp).toLocaleString()}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {formatRelativeTime(tx.timestamp)}
-                    </Badge>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </DetailRow>
-              <DetailRow label="Confirmations">
-                {(tx.confirmations ?? 0).toLocaleString()}
-              </DetailRow>
-              {isCoinbase ? (
-                <DetailRow label="Block Reward">
-                  <DashAmount value={totalOutput} />
-                </DetailRow>
-              ) : isQuorum ? null : (
-                <>
-                  <DetailRow label="Total Input">
-                    <DashAmount value={totalInput} />
+            <div className="grid gap-x-12 gap-y-8 lg:grid-cols-2">
+              <section className="flex flex-col gap-4">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Summary
+                </h2>
+                <dl className="grid gap-y-4">
+                  <DetailRow label="Hash">
+                    <HashDisplay value={tx.hash} variant="full" />
                   </DetailRow>
-                  <DetailRow label="Total Output">
-                    <DashAmount value={totalOutput} />
+                  <DetailRow label="Block">
+                    {tx.blockHeight != null ? (
+                      <Button
+                        asChild
+                        variant="link"
+                        className="h-auto p-0 font-mono"
+                      >
+                        <Link
+                          to="/blocks/$hashOrHeight"
+                          params={{ hashOrHeight: tx.blockHash }}
+                        >
+                          #{tx.blockHeight.toLocaleString()}
+                        </Link>
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground">Mempool</span>
+                    )}
                   </DetailRow>
-                  <DetailRow label="Fee">
-                    <DashAmount value={fee} />
+                  <DetailRow label="Timestamp">
+                    {tx.timestamp ? (
+                      <>
+                        <span>{new Date(tx.timestamp).toLocaleString()}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {formatRelativeTime(tx.timestamp)}
+                        </Badge>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </DetailRow>
-                </>
-              )}
-              <DetailRow label="Size">
-                {tx.size != null ? (
-                  <span className="font-mono text-sm tabular-nums">
-                    {tx.size.toLocaleString()} bytes
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </DetailRow>
-              <DetailRow label="Version">{tx.version ?? "—"}</DetailRow>
-            </dl>
+                  <DetailRow label="Confirmations">
+                    {(tx.confirmations ?? 0).toLocaleString()}
+                  </DetailRow>
+                  {isCoinbase ? (
+                    <DetailRow label="Block Reward">
+                      <DashAmount value={totalOutput} />
+                    </DetailRow>
+                  ) : isQuorum ? null : (
+                    <>
+                      <DetailRow label="Total Input">
+                        <DashAmount value={totalInput} />
+                      </DetailRow>
+                      <DetailRow label="Total Output">
+                        <DashAmount value={totalOutput} />
+                      </DetailRow>
+                      <DetailRow label="Fee">
+                        <DashAmount value={fee} />
+                      </DetailRow>
+                    </>
+                  )}
+                  <DetailRow label="Size">
+                    {tx.size != null ? (
+                      <span className="font-mono text-sm tabular-nums">
+                        {tx.size.toLocaleString()} bytes
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </DetailRow>
+                </dl>
+              </section>
+
+              <section className="flex flex-col gap-4 lg:border-l lg:border-border/60 lg:pl-12">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Raw Transaction
+                </h2>
+                <dl className="grid gap-y-4">
+                  <RawTxFields tx={tx} />
+                </dl>
+              </section>
+            </div>
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="flow" className="gap-4">
-          <TabsList>
-            <TabsTrigger value="flow" className="gap-1.5">
-              <Workflow className="size-3.5" /> Flow
-              <span className="text-muted-foreground">
-                ({tx.vIn?.length ?? 0} → {tx.vOut?.length ?? 0})
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="raw" className="gap-1.5">
-              <FileText className="size-3.5" /> Raw
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="flow">
-            {hasFlow ? (
-              <TransactionFlow tx={tx} />
-            ) : (
-              <EmptyState
-                title={
-                  isCoinbase
-                    ? "Coinbase transaction"
-                    : isQuorum
-                      ? "Quorum commitment"
-                      : "No inputs or outputs"
-                }
-                description={
-                  isCoinbase
-                    ? "This transaction creates new coins from a mined block."
-                    : isQuorum
-                      ? "Quorum commitments do not consume inputs or produce outputs."
-                      : undefined
-                }
-              />
-            )}
-          </TabsContent>
-
-          <TabsContent value="raw">
-            <Card className="overflow-hidden p-0">
-              <ScrollArea className="h-[480px]">
-                <pre
-                  className="p-4 font-mono text-xs leading-relaxed"
-                  // biome-ignore lint/security/noDangerouslySetInnerHtml: highlightJson escapes input
-                  dangerouslySetInnerHTML={{
-                    __html: highlightJson(tx as ApiTransaction),
-                  }}
-                />
-              </ScrollArea>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Inputs &amp; Outputs{" "}
+            <span className="text-sm font-normal text-muted-foreground">
+              ({tx.vIn?.length ?? 0} → {tx.vOut?.length ?? 0})
+            </span>
+          </h2>
+          {hasFlow ? (
+            <TransactionFlow tx={tx} />
+          ) : (
+            <EmptyState
+              title={
+                isCoinbase
+                  ? "Coinbase transaction"
+                  : isQuorum
+                    ? "Quorum commitment"
+                    : "No inputs or outputs"
+              }
+              description={
+                isCoinbase
+                  ? "This transaction creates new coins from a mined block."
+                  : isQuorum
+                    ? "Quorum commitments do not consume inputs or produce outputs."
+                    : undefined
+              }
+            />
+          )}
+        </section>
       </div>
     </div>
   );
