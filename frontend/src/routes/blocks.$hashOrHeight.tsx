@@ -1,7 +1,20 @@
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { ChevronLeft, ChevronRight, FileText, Hash } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ArrowRightFromLine,
+  ArrowRightToLine,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  FileText,
+  Gauge,
+  HardDrive,
+  Hash,
+  Layers,
+} from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { DashIcon } from "@/components/dash-icon";
@@ -9,7 +22,12 @@ import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { DetailRow } from "@/components/detail-row";
 import { EmptyState } from "@/components/empty-state";
 import { HashDisplay } from "@/components/hash-display";
-import { ConfirmationsBadge, TxTypeBadge } from "@/components/status-badge";
+import {
+  ConfirmationsBadge,
+  InstantLockBadge,
+  TxTypeBadge,
+} from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,10 +37,22 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { blockQueryOptions } from "@/lib/api/blocks";
 import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
@@ -110,36 +140,67 @@ function BlockDetailPage() {
   const txColumns: DataTableColumn<ApiTransaction>[] = [
     {
       id: "hash",
-      header: "Hash",
+      header: "Transaction",
       cell: (row) => (
-        <HashDisplay
-          value={row.hash}
-          href="/transactions/$hash"
-          params={{ hash: row.hash }}
-        />
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+            <ArrowLeftRight className="size-4" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <HashDisplay
+              value={row.hash}
+              href="/transactions/$hash"
+              params={{ hash: row.hash }}
+              copy={false}
+            />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <TxTypeBadge type={row.type} />
+              <InstantLockBadge locked={row.instantLock} />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="soft" className="font-mono">
+                    <ArrowRightToLine className="size-3" />
+                    {row.vIn?.length ?? 0}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {row.vIn?.length ?? 0} input
+                  {(row.vIn?.length ?? 0) === 1 ? "" : "s"}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="soft" className="font-mono">
+                    <ArrowRightFromLine className="size-3" />
+                    {row.vOut?.length ?? 0}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {row.vOut?.length ?? 0} output
+                  {(row.vOut?.length ?? 0) === 1 ? "" : "s"}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+        </div>
       ),
     },
     {
-      id: "type",
-      header: "Type",
-      cell: (row) => <TxTypeBadge type={row.type} />,
+      id: "confirms",
+      header: "Confirms",
+      align: "right",
+      cell: (row) => (
+        <ConfirmationsBadge confirmations={row.confirmations ?? 0} />
+      ),
     },
     {
       id: "amount",
       header: "Amount",
       align: "right",
       cell: (row) => (
-        <span className="font-mono text-sm tabular-nums">
+        <span className="font-mono text-sm font-medium tabular-nums text-accent">
           {formatDuffs(sumVOut(row.vOut))} <DashIcon />
         </span>
-      ),
-    },
-    {
-      id: "confirms",
-      header: "Confirmations",
-      align: "right",
-      cell: (row) => (
-        <ConfirmationsBadge confirmations={row.confirmations ?? 0} />
       ),
     },
   ];
@@ -171,8 +232,11 @@ function BlockDetailPage() {
           </Breadcrumb>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-2 min-w-0">
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                <span className="text-muted-foreground">Block</span>{" "}
+              <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+                <span className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Layers className="size-4" />
+                </span>
+                <span className="text-muted-foreground">Block</span>
                 <span className="font-mono">
                   #{block.height.toLocaleString()}
                 </span>
@@ -207,6 +271,70 @@ function BlockDetailPage() {
             </div>
           </div>
         </header>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader>
+              <CardDescription>Transactions</CardDescription>
+              <CardTitle className="text-2xl tabular-nums text-accent">
+                {block.txCount.toLocaleString()}
+              </CardTitle>
+              <CardAction>
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <ArrowLeftRight className="size-4" />
+                </div>
+              </CardAction>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Size</CardDescription>
+              <CardTitle className="text-2xl tabular-nums text-accent">
+                {(block.size / 1024).toFixed(2)}{" "}
+                <span className="text-base font-normal text-muted-foreground">
+                  KB
+                </span>
+              </CardTitle>
+              <CardAction>
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <HardDrive className="size-4" />
+                </div>
+              </CardAction>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Difficulty</CardDescription>
+              <CardTitle className="text-2xl tabular-nums text-accent">
+                {block.difficulty.toFixed(4)}
+              </CardTitle>
+              <CardAction>
+                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                  <Gauge className="size-4" />
+                </div>
+              </CardAction>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Confirmations</CardDescription>
+              <CardTitle className="text-2xl tabular-nums text-accent">
+                {block.confirmations.toLocaleString()}
+              </CardTitle>
+              <CardAction>
+                <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
+                  <CheckCircle2 className="size-4" />
+                </div>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="size-3" />
+                {formatRelativeTime(block.timestamp)}
+              </span>
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
           <CardContent>
