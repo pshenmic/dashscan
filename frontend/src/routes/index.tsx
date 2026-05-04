@@ -6,6 +6,8 @@ import {
   ArrowDown,
   ArrowLeftRight,
   ArrowRight,
+  ArrowRightFromLine,
+  ArrowRightToLine,
   ArrowUp,
   Box,
   Boxes,
@@ -530,6 +532,14 @@ function Dashboard() {
                               <div className="flex items-center gap-1.5">
                                 <TxTypeBadge type={tx.type} />
                                 <InstantLockBadge locked={tx.instantLock} />
+                                <Badge variant="soft" className="font-mono">
+                                  <ArrowRightToLine className="size-3" />
+                                  {tx.vIn?.length ?? 0}
+                                </Badge>
+                                <Badge variant="soft" className="font-mono">
+                                  <ArrowRightFromLine className="size-3" />
+                                  {tx.vOut?.length ?? 0}
+                                </Badge>
                               </div>
                             </div>
                           </div>
@@ -802,6 +812,7 @@ function Dashboard() {
                 gradientId={`${priceSparkId}-hero`}
                 yFormat={(v) => `$${Number(v).toFixed(0)}`}
                 height={140}
+                yDomain={["auto", "auto"]}
               />
             </CardContent>
           </Card>
@@ -819,6 +830,7 @@ function Dashboard() {
                 gradientId={mcapAreaId}
                 yFormat={(v) => formatCompactUsdShort(Number(v))}
                 height={140}
+                yDomain={["auto", "auto"]}
               />
             </CardContent>
           </Card>
@@ -969,6 +981,7 @@ function KpiCard({
                   />
                 </linearGradient>
               </defs>
+              <YAxis hide domain={["dataMin", "dataMax"]} />
               <Area
                 dataKey="value"
                 type="monotone"
@@ -1064,12 +1077,14 @@ function ChartArea({
   yFormat,
   height,
   color,
+  yDomain,
 }: {
   data: { timestamp: number; value: number }[];
   gradientId: string;
   yFormat: (v: number | string) => string;
   height: number;
   color?: string;
+  yDomain?: [number | string, number | string];
 }) {
   if (data.length === 0) {
     return (
@@ -1110,6 +1125,7 @@ function ChartArea({
           tickMargin={8}
           width={56}
           tickFormatter={yFormat}
+          domain={yDomain}
         />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Area
