@@ -26,6 +26,19 @@ const TX_TYPE_VARIANTS: Record<number, BadgeVariant> = {
   9: "soft-success",
 };
 
+const TX_TYPE_CLASSES: Record<number, string> = {
+  0: "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-400/10 dark:text-blue-300",
+  1: "bg-violet-500/10 text-violet-600 border-violet-500/20 dark:bg-violet-400/10 dark:text-violet-300",
+  2: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20 dark:bg-indigo-400/10 dark:text-indigo-300",
+  3: "bg-cyan-500/10 text-cyan-700 border-cyan-500/20 dark:bg-cyan-400/10 dark:text-cyan-300",
+  4: "bg-red-500/10 text-red-600 border-red-500/20 dark:bg-red-400/10 dark:text-red-300",
+  5: "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:bg-amber-400/10 dark:text-amber-300",
+  6: "bg-teal-500/10 text-teal-700 border-teal-500/20 dark:bg-teal-400/10 dark:text-teal-300",
+  7: "bg-slate-500/10 text-slate-700 border-slate-500/20 dark:bg-slate-400/10 dark:text-slate-300",
+  8: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:bg-emerald-400/10 dark:text-emerald-300",
+  9: "bg-lime-500/10 text-lime-700 border-lime-500/20 dark:bg-lime-400/10 dark:text-lime-300",
+};
+
 export function getMnStatusVariant(status: string): BadgeVariant {
   const s = status.toUpperCase();
   if (s === "ENABLED") return "soft-success";
@@ -50,6 +63,14 @@ interface TxTypeBadgeProps {
 }
 
 export function TxTypeBadge({ type }: TxTypeBadgeProps) {
+  const cls = TX_TYPE_CLASSES[type];
+  if (cls) {
+    return (
+      <Badge variant="outline" className={cls}>
+        {getTxTypeLabel(type)}
+      </Badge>
+    );
+  }
   return <Badge variant={getTxTypeVariant(type)}>{getTxTypeLabel(type)}</Badge>;
 }
 

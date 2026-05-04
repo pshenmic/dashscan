@@ -57,6 +57,11 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
@@ -532,14 +537,30 @@ function Dashboard() {
                               <div className="flex items-center gap-1.5">
                                 <TxTypeBadge type={tx.type} />
                                 <InstantLockBadge locked={tx.instantLock} />
-                                <Badge variant="soft" className="font-mono">
-                                  <ArrowRightToLine className="size-3" />
-                                  {tx.vIn?.length ?? 0}
-                                </Badge>
-                                <Badge variant="soft" className="font-mono">
-                                  <ArrowRightFromLine className="size-3" />
-                                  {tx.vOut?.length ?? 0}
-                                </Badge>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="soft" className="font-mono">
+                                      <ArrowRightToLine className="size-3" />
+                                      {tx.vIn?.length ?? 0}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {tx.vIn?.length ?? 0} input
+                                    {(tx.vIn?.length ?? 0) === 1 ? "" : "s"}
+                                  </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="soft" className="font-mono">
+                                      <ArrowRightFromLine className="size-3" />
+                                      {tx.vOut?.length ?? 0}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {tx.vOut?.length ?? 0} output
+                                    {(tx.vOut?.length ?? 0) === 1 ? "" : "s"}
+                                  </TooltipContent>
+                                </Tooltip>
                               </div>
                             </div>
                           </div>
