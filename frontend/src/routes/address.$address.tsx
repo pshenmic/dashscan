@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
@@ -39,13 +39,17 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   addressBalanceChartQueryOptions,
   addressQueryOptions,
+  addressTransactionsInfiniteQueryOptions,
   addressTransactionsQueryOptions,
 } from "@/lib/api/addresses";
 import type { ApiTransaction } from "@/lib/api/types";
 import { DUFFS_PER_DASH, formatRelativeTime, sumVOut } from "@/lib/format";
-import { paginationSearchSchema } from "@/lib/pagination";
 import { appStore, defaultNetwork } from "@/lib/store";
+import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { cn } from "@/lib/utils";
+
+const INFINITE_PAGE_SIZE = 25;
+const PAGINATION_PAGE_SIZE = 25;
 
 type ChartRange = "1d" | "1w" | "1m" | "1y";
 
@@ -80,13 +84,11 @@ const chartConfig: ChartConfig = {
 };
 
 export const Route = createFileRoute("/address/$address")({
-  validateSearch: paginationSearchSchema,
-  loaderDeps: ({ search: { page, limit } }) => ({ page, limit }),
   component: AddressDetailsPage,
   head: ({ params }) => ({
     meta: [{ title: `Address ${params.address.slice(0, 12)}... | DashScan` }],
   }),
-  loader: async ({ context, params: { address }, deps: { page, limit } }) => {
+  loader: async ({ context, params: { address } }) => {
     if (typeof window !== "undefined") return;
     const network = defaultNetwork;
     const range = getRangeBounds("1m");
@@ -94,12 +96,11 @@ export const Route = createFileRoute("/address/$address")({
       context.queryClient.prefetchQuery(
         addressQueryOptions({ network, address }),
       ),
-      context.queryClient.prefetchQuery(
-        addressTransactionsQueryOptions({
+      context.queryClient.prefetchInfiniteQuery(
+        addressTransactionsInfiniteQueryOptions({
           network,
           address,
-          page,
-          limit,
+          limit: INFINITE_PAGE_SIZE,
           order: "desc",
         }),
       ),
@@ -113,11 +114,15 @@ export const Route = createFileRoute("/address/$address")({
 function AddressDetailsPage() {
   const { address } = Route.useParams();
   const network = useStore(appStore, (state) => state.network);
-  const { page, limit } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<ChartRange>("1m");
+  const [viewMode, setViewMode] = useTableViewMode("address-transactions");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
   const balanceGradientId = useId();
+
+  const isInfinite = viewMode === "infinite";
 
   const {
     data: detail,
@@ -130,18 +135,43 @@ function AddressDetailsPage() {
     addressBalanceChartQueryOptions({ network, address, ...rangeBounds }),
   );
 
-  const { data: txData, isFetching: isTxFetching } = useQuery(
-    addressTransactionsQueryOptions({
+  const {
+    data: infiniteData,
+    isFetching: isInfiniteFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    ...addressTransactionsInfiniteQueryOptions({
+      network,
+      address,
+      limit: INFINITE_PAGE_SIZE,
+      order: "desc",
+    }),
+    enabled: isInfinite,
+  });
+
+  const { data: pagedData, isFetching: isPagedFetching } = useQuery({
+    ...addressTransactionsQueryOptions({
       network,
       address,
       page,
-      limit,
+      limit: pageSize,
       order: "desc",
     }),
-  );
+    enabled: !isInfinite,
+  });
 
-  const transactions = txData?.resultSet ?? [];
-  const total = txData?.pagination?.total ?? 0;
+  const infiniteTransactions = useMemo(
+    () => infiniteData?.pages.flatMap((p) => p.resultSet) ?? [],
+    [infiniteData],
+  );
+  const transactions = isInfinite
+    ? infiniteTransactions
+    : (pagedData?.resultSet ?? []);
+  const total = isInfinite
+    ? (infiniteData?.pages[0]?.pagination?.total ?? 0)
+    : (pagedData?.pagination?.total ?? 0);
 
   const filtered = useMemo(() => {
     if (!search) return transactions;
@@ -457,7 +487,10 @@ function AddressDetailsPage() {
         <DataTable
           columns={txColumns}
           data={filtered}
-          isLoading={isTxFetching}
+          isLoading={
+            (isInfinite ? isInfiniteFetching : isPagedFetching) &&
+            transactions.length === 0
+          }
           rowKey={(row) => row.hash}
           onRowClick={(tx) =>
             navigate({ to: "/transactions/$hash", params: { hash: tx.hash } })
@@ -465,19 +498,29 @@ function AddressDetailsPage() {
           search={{
             value: search,
             onChange: setSearch,
-            placeholder: "Filter visible page by hash…",
+            placeholder: isInfinite
+              ? "Filter loaded transactions by hash…"
+              : "Filter visible page by hash…",
           }}
           emptyTitle="No transactions"
+          viewMode={{ value: viewMode, onChange: setViewMode }}
+          infiniteScroll={{
+            hasNextPage,
+            isFetchingNextPage,
+            onLoadMore: () => fetchNextPage(),
+            total,
+            loaded: transactions.length,
+            skeletonRows: 5,
+          }}
           pagination={{
             pageIndex: page,
-            pageSize: limit,
+            pageSize,
             total,
-            onPageChange: (p) => navigate({ search: { page: p, limit } }),
-            onPageSizeChange: (size) =>
-              navigate({
-                // biome-ignore lint/suspicious/noExplicitAny: pagination size literal
-                search: { page: 1, limit: size as any },
-              }),
+            onPageChange: setPage,
+            onPageSizeChange: (size) => {
+              setPageSize(size);
+              setPage(1);
+            },
           }}
         />
       </div>
