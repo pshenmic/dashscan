@@ -1,14 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import {
-  ArrowDown,
-  ArrowUp,
-  CheckCircle2,
-  Clock,
-  Coins,
-  FileText,
-} from "lucide-react";
+import { CheckCircle2, Clock, FileText, Workflow } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
 import { DashIcon } from "@/components/dash-icon";
 import { DetailRow } from "@/components/detail-row";
@@ -20,6 +13,7 @@ import {
   InstantLockBadge,
   TxTypeBadge,
 } from "@/components/status-badge";
+import { TransactionFlow } from "@/components/transaction-flow";
 import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
@@ -33,14 +27,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
@@ -128,8 +114,7 @@ function TransactionDetailPage() {
 
   const isCoinbase = tx.type === 5;
   const isQuorum = tx.type === 6;
-  const hasInputs = (tx.vIn?.length ?? 0) > 0;
-  const hasOutputs = (tx.vOut?.length ?? 0) > 0;
+  const hasFlow = (tx.vIn?.length ?? 0) > 0 || (tx.vOut?.length ?? 0) > 0;
 
   const statusBadge =
     tx.confirmations > 0 ? (
@@ -257,18 +242,12 @@ function TransactionDetailPage() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="inputs" className="gap-4">
+        <Tabs defaultValue="flow" className="gap-4">
           <TabsList>
-            <TabsTrigger value="inputs" className="gap-1.5">
-              <ArrowDown className="size-3.5" /> Inputs
+            <TabsTrigger value="flow" className="gap-1.5">
+              <Workflow className="size-3.5" /> Flow
               <span className="text-muted-foreground">
-                ({tx.vIn?.length ?? 0})
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="outputs" className="gap-1.5">
-              <ArrowUp className="size-3.5" /> Outputs
-              <span className="text-muted-foreground">
-                ({tx.vOut?.length ?? 0})
+                ({tx.vIn?.length ?? 0} → {tx.vOut?.length ?? 0})
               </span>
             </TabsTrigger>
             <TabsTrigger value="raw" className="gap-1.5">
@@ -276,70 +255,9 @@ function TransactionDetailPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="inputs">
-            {hasInputs ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">#</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Previous Output</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tx.vIn.map((input, idx) => (
-                    <TableRow
-                      key={`${input.prevTxHash ?? "coinbase"}-${
-                        input.vOutIndex ?? idx
-                      }`}
-                    >
-                      <TableCell className="text-muted-foreground">
-                        {idx}
-                      </TableCell>
-                      <TableCell>
-                        {input.address ? (
-                          <HashDisplay
-                            value={input.address}
-                            href="/address/$address"
-                            params={{ address: input.address }}
-                          />
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {input.prevTxHash ? (
-                          <Button
-                            asChild
-                            variant="link"
-                            className="h-auto p-0 font-mono"
-                          >
-                            <Link
-                              to="/transactions/$hash"
-                              params={{ hash: input.prevTxHash }}
-                            >
-                              {input.prevTxHash.slice(0, 10)}…:
-                              {input.vOutIndex ?? 0}
-                            </Link>
-                          </Button>
-                        ) : (
-                          <Badge variant="soft-accent">
-                            <Coins className="size-3" /> Coinbase
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {input.amount != null ? (
-                          <DashAmount value={Number(input.amount)} />
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+          <TabsContent value="flow">
+            {hasFlow ? (
+              <TransactionFlow tx={tx} />
             ) : (
               <EmptyState
                 title={
@@ -347,64 +265,14 @@ function TransactionDetailPage() {
                     ? "Coinbase transaction"
                     : isQuorum
                       ? "Quorum commitment"
-                      : "No inputs"
+                      : "No inputs or outputs"
                 }
                 description={
                   isCoinbase
                     ? "This transaction creates new coins from a mined block."
                     : isQuorum
-                      ? "Quorum commitments do not consume inputs."
+                      ? "Quorum commitments do not consume inputs or produce outputs."
                       : undefined
-                }
-              />
-            )}
-          </TabsContent>
-
-          <TabsContent value="outputs">
-            {hasOutputs ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">#</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Script</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tx.vOut.map((output) => (
-                    <TableRow key={output.number}>
-                      <TableCell className="text-muted-foreground">
-                        {output.number}
-                      </TableCell>
-                      <TableCell>
-                        {output.address ? (
-                          <HashDisplay
-                            value={output.address}
-                            href="/address/$address"
-                            params={{ address: output.address }}
-                          />
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-[280px] truncate font-mono text-xs text-muted-foreground">
-                        {output.scriptPubKeyASM}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DashAmount value={output.value} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <EmptyState
-                title={isQuorum ? "Quorum commitment" : "No outputs"}
-                description={
-                  isQuorum
-                    ? "Quorum commitments do not produce outputs."
-                    : undefined
                 }
               />
             )}
