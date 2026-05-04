@@ -349,12 +349,10 @@ function Dashboard() {
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-6">
         <header className="flex flex-col gap-2">
+          <p className="text-sm text-muted-foreground">Welcome to #1</p>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Dash Network Explorer
+            <span className="text-accent">Dash</span> Network Explorer
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Real-time blocks, transactions, and governance on the Dash chain.
-          </p>
         </header>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -558,7 +556,7 @@ function Dashboard() {
           <Card className="lg:col-span-7">
             <CardHeader>
               <CardDescription>Transactions · 30 days</CardDescription>
-              <CardTitle className="text-2xl tabular-nums">
+              <CardTitle className="text-2xl tabular-nums text-accent">
                 {txCount30d > 0 ? formatCompact(txCount30d) : "—"}
                 {txChange != null && (
                   <Badge
@@ -597,7 +595,7 @@ function Dashboard() {
           <Card className="lg:col-span-5 bg-gradient-to-br from-card to-secondary/40">
             <CardHeader>
               <CardDescription>DAO Treasury · Next Superblock</CardDescription>
-              <CardTitle className="flex items-baseline gap-3 text-2xl tabular-nums">
+              <CardTitle className="flex items-baseline gap-3 text-2xl tabular-nums text-accent">
                 {budget?.totalBudget != null ? (
                   <span>
                     {budget.totalBudget.toFixed(2)} <DashIcon />
@@ -691,7 +689,7 @@ function Dashboard() {
               <CardDescription>
                 <DashIcon /> Price · 24h
               </CardDescription>
-              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums">
+              <CardTitle className="flex items-baseline gap-2 text-xl tabular-nums text-accent">
                 {usdPrice?.usd != null ? `$${usdPrice.usd.toFixed(2)}` : "—"}
                 {priceChange != null && (
                   <span
@@ -720,7 +718,7 @@ function Dashboard() {
           <Card>
             <CardHeader>
               <CardDescription>Market Cap · 24h</CardDescription>
-              <CardTitle className="text-xl tabular-nums">
+              <CardTitle className="text-xl tabular-nums text-accent">
                 {marketCap?.usd != null ? formatCompactUsd(marketCap.usd) : "—"}
               </CardTitle>
             </CardHeader>
@@ -737,7 +735,7 @@ function Dashboard() {
           <Card>
             <CardHeader>
               <CardDescription>Trading Volume · 24h</CardDescription>
-              <CardTitle className="text-xl tabular-nums">
+              <CardTitle className="text-xl tabular-nums text-accent">
                 {volumeUsd?.usd != null ? formatCompactUsd(volumeUsd.usd) : "—"}
               </CardTitle>
             </CardHeader>
@@ -754,7 +752,7 @@ function Dashboard() {
           <Card>
             <CardHeader>
               <CardDescription>Avg Tx per Block · 24h</CardDescription>
-              <CardTitle className="text-xl tabular-nums">
+              <CardTitle className="text-xl tabular-nums text-accent">
                 {blockTxData.length > 0
                   ? (
                       blockTxData.reduce((s, p) => s + p.value, 0) /
@@ -900,8 +898,14 @@ function KpiCard({
     <Card>
       <CardHeader>
         <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl tabular-nums">{value}</CardTitle>
-        <CardAction>{icon}</CardAction>
+        <CardTitle className="text-2xl tabular-nums text-accent">
+          {value}
+        </CardTitle>
+        <CardAction>
+          <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+            {icon}
+          </div>
+        </CardAction>
       </CardHeader>
       <CardContent className="flex items-center justify-between gap-3">
         {change != null ? (
@@ -914,7 +918,7 @@ function KpiCard({
             {Math.abs(change).toFixed(2)}%
           </Badge>
         ) : sublabel ? (
-          <span className="text-xs text-muted-foreground">{sublabel}</span>
+          <span className="text-xs text-accent/64">{sublabel}</span>
         ) : (
           <span />
         )}
@@ -964,15 +968,50 @@ function StatTile({
   hint?: string;
   tone?: "accent";
 }) {
+  const isAccent = tone === "accent";
   return (
-    <Card className={tone === "accent" ? "bg-accent/5 border-accent/20" : ""}>
+    <Card
+      className={
+        isAccent
+          ? "bg-accent text-accent-foreground justify-center"
+          : "justify-center"
+      }
+    >
       <CardHeader>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-xl tabular-nums">{value}</CardTitle>
-        <CardAction>{icon}</CardAction>
+        <CardDescription
+          className={isAccent ? "text-accent-foreground/70" : ""}
+        >
+          {label}
+        </CardDescription>
+        <CardTitle
+          className={
+            isAccent
+              ? "text-2xl tabular-nums text-accent-foreground"
+              : "text-2xl tabular-nums text-accent"
+          }
+        >
+          {value}
+        </CardTitle>
+        <CardAction>
+          <div
+            className={
+              isAccent
+                ? "flex size-9 items-center justify-center rounded-full bg-white/20 [&_svg]:text-accent-foreground"
+                : "flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent"
+            }
+          >
+            {icon}
+          </div>
+        </CardAction>
       </CardHeader>
       {hint && (
-        <CardContent className="text-xs text-muted-foreground -mt-2">
+        <CardContent
+          className={
+            isAccent
+              ? "text-xs text-accent-foreground/70 -mt-2"
+              : "text-xs text-accent/64 -mt-2"
+          }
+        >
           {hint}
         </CardContent>
       )}
