@@ -21,7 +21,7 @@ import {
   Vote,
   Wallet,
 } from "lucide-react";
-import { useId, useMemo } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -178,9 +178,16 @@ function Dashboard() {
   const { data: blocksData } = useQuery(
     blocksQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
   );
-  const { data: txData } = useQuery(
-    transactionsQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
-  );
+  const { data: txData } = useQuery({
+    ...transactionsQueryOptions({
+      network,
+      page: 1,
+      limit: 10,
+      order: "desc",
+    }),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
   const { data: mnData } = useQuery(
     masternodesQueryOptions({ network, page: 1, limit: 1 }),
   );
@@ -224,7 +231,41 @@ function Dashboard() {
   );
 
   const blocks = blocksData?.resultSet ?? [];
-  const txs = txData?.resultSet ?? [];
+  const rawTxs = txData?.resultSet ?? [];
+  const txs = useMemo(() => {
+    const toMs = (t: string | number | undefined | null) => {
+      if (t == null) return 0;
+      if (typeof t === "number" || /^\d+$/.test(t)) {
+        return Number(t) * 1000;
+      }
+      const ms = new Date(t).getTime();
+      return Number.isNaN(ms) ? 0 : ms;
+    };
+    return [...rawTxs].sort(
+      (a, b) =>
+        toMs(b.timestamp) - toMs(a.timestamp) || b.hash.localeCompare(a.hash),
+    );
+  }, [rawTxs]);
+  const seenTxHashesRef = useRef<Set<string> | null>(null);
+  const [newTxHashes, setNewTxHashes] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (txs.length === 0) return;
+    const currentHashes = new Set(txs.map((t) => t.hash));
+    if (seenTxHashesRef.current === null) {
+      seenTxHashesRef.current = currentHashes;
+      return;
+    }
+    const fresh = new Set<string>();
+    for (const h of currentHashes) {
+      if (!seenTxHashesRef.current.has(h)) fresh.add(h);
+    }
+    seenTxHashesRef.current = currentHashes;
+    if (fresh.size === 0) return;
+    setNewTxHashes(fresh);
+    const timer = setTimeout(() => setNewTxHashes(new Set()), 2400);
+    return () => clearTimeout(timer);
+  }, [txs]);
   const latestBlock = blocks[0];
   const masternodeCount = mnData?.pagination?.total ?? null;
   const rawMempoolTotal = mempoolData?.pagination?.total ?? null;
@@ -399,7 +440,13 @@ function Dashboard() {
         <div className="grid gap-4 lg:grid-cols-12">
           <Card className="lg:col-span-8">
             <CardHeader>
-              <CardTitle>Latest Transactions</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Latest Transactions
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-70" />
+                  <span className="relative inline-flex size-2 rounded-full bg-success" />
+                </span>
+              </CardTitle>
               <CardDescription>
                 The most recent on-chain transactions.
               </CardDescription>
@@ -425,39 +472,49 @@ function Dashboard() {
                         </TableCell>
                       </TableRow>
                     ))}
-                  {txs.slice(0, 8).map((tx) => (
-                    <TableRow key={tx.hash}>
-                      <TableCell>
-                        <div className="flex min-w-0 items-center gap-3">
-                          <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
-                          <div className="flex min-w-0 flex-col gap-1">
-                            <HashDisplay
-                              value={tx.hash}
-                              href="/transactions/$hash"
-                              params={{ hash: tx.hash }}
-                              copy={false}
-                            />
-                            <div className="flex items-center gap-1.5">
-                              <TxTypeBadge type={tx.type} />
-                              <InstantLockBadge locked={tx.instantLock} />
+                  {txs.slice(0, 8).map((tx) => {
+                    const isNew = newTxHashes.has(tx.hash);
+                    return (
+                      <TableRow
+                        key={tx.hash}
+                        className={
+                          isNew
+                            ? "animate-in slide-in-from-top-2 fade-in duration-500 animate-tx-flash"
+                            : undefined
+                        }
+                      >
+                        <TableCell>
+                          <div className="flex min-w-0 items-center gap-3">
+                            <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
+                            <div className="flex min-w-0 flex-col gap-1">
+                              <HashDisplay
+                                value={tx.hash}
+                                href="/transactions/$hash"
+                                params={{ hash: tx.hash }}
+                                copy={false}
+                              />
+                              <div className="flex items-center gap-1.5">
+                                <TxTypeBadge type={tx.type} />
+                                <InstantLockBadge locked={tx.instantLock} />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className="font-mono text-sm tabular-nums">
-                            {formatDuffs(sumVOut(tx.vOut))} <DashIcon />
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {tx.timestamp
-                              ? formatRelativeTime(tx.timestamp)
-                              : "—"}
-                          </span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="font-mono text-sm tabular-nums">
+                              {formatDuffs(sumVOut(tx.vOut))} <DashIcon />
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {tx.timestamp
+                                ? formatRelativeTime(tx.timestamp)
+                                : "—"}
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>

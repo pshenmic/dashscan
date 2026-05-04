@@ -107,6 +107,19 @@
   }
 }
 
+@keyframes tx-flash {
+  0% {
+    background-color: color-mix(in oklab, var(--accent) 18%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@utility animate-tx-flash {
+  animation: tx-flash 2.4s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
