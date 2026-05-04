@@ -33,6 +33,24 @@ const schemas = [
       superblock: {
         type: ['boolean', 'null'],
       },
+      transaction_type: {
+        type: ['string', 'null'],
+        enum: [
+          'CLASSIC',
+          'PROVIDER_REGISTRATION',
+          'PROVIDER_UPDATE_SERVICE',
+          'PROVIDER_UPDATE_REGISTRAR',
+          'PROVIDER_UPDATE_REVOCATION',
+          'COINBASE',
+          'QUORUM_COMMITMENT',
+          'MASTERNODE_HARD_FORK_SIGNAL',
+          'ASSET_LOCK',
+          'ASSET_UNLOCK',
+        ],
+      },
+      coinjoin: { type: ['boolean', 'null'] },
+      multisig: { type: ['boolean', 'null'] },
+      block_height: { type: ['integer', 'null'], minimum: 1 },
     },
   },
   {

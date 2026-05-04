@@ -1,6 +1,17 @@
 import RpcClient from '@dashevo/dashd-rpc/promise';
 import ServiceNotAvailableError from './errors/ServiceNotAvailableError';
 
+export interface UtxoInfoRPC {
+  height: number;
+  bestblock: string;
+  txouts: number;
+  bogosize: number;
+  hash_serialized_2: string;
+  total_amount: number;
+  transactions: number;
+  disk_size: number;
+}
+
 export interface BlockchainInfoRPC {
   chain: string;
   blocks: number;
@@ -173,5 +184,9 @@ export class DashCoreRPC {
 
   async getChainInfo(): Promise<BlockchainInfoRPC> {
     return this.callMethod('getblockchaininfo', []);
+  }
+
+  async getUtxoInfo(): Promise<UtxoInfoRPC> {
+    return this.callMethod('gettxoutsetinfo', []);
   }
 }

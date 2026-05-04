@@ -103,4 +103,34 @@ impl Database {
 
         Ok(())
     }
+
+    /// Refresh the `address_balances` materialized view.
+    ///
+    /// Uses `CONCURRENTLY` once the matview has been populated (readers see
+    /// consistent data, no locking). Falls back to a plain `REFRESH` when the
+    /// view is empty — `CONCURRENTLY` is rejected by Postgres until the first
+    /// non-concurrent populate has happened.
+    pub async fn refresh_address_balances(&self) -> Result<(), PoolError> {
+        let client = self.begin().await?;
+
+        // Can't probe with `SELECT FROM address_balances` — Postgres errors
+        // E55000 on any read of an unpopulated matview. `pg_matviews` is the
+        // safe metadata source.
+        let populated: bool = client
+            .query_one(
+                "SELECT ispopulated FROM pg_matviews WHERE matviewname = 'address_balances'",
+                &[],
+            )
+            .await?
+            .get(0);
+
+        let sql = if populated {
+            "REFRESH MATERIALIZED VIEW CONCURRENTLY address_balances"
+        } else {
+            "REFRESH MATERIALIZED VIEW address_balances"
+        };
+        client.batch_execute(sql).await?;
+
+        Ok(())
+    }
 }

@@ -25,8 +25,8 @@ impl Database {
 
         let rows = client
             .query(
-                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, amount, coinjoin) \
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) \
+                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, amount, coinjoin, multisig) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) \
                  ON CONFLICT (hash) DO NOTHING \
                  RETURNING id",
                 &[
@@ -39,6 +39,7 @@ impl Database {
                     &is_coinbase,
                     &transaction_amount,
                     &coinjoin,
+                    &tx.multisig,
                 ],
             )
             .await?;
@@ -61,26 +62,27 @@ impl Database {
         }
 
         // type, size, coinbase, transfer amount, coinjoin
-        let tx_infos: Vec<(i16, i32, bool, i64, bool)> = tx_meta.iter().map(|(tx, _, _)| {
+        let tx_infos: Vec<(i16, i32, bool, i64, bool, bool)> = tx_meta.iter().map(|(tx, _, _)| {
             (
                 tx.tx_type.unwrap_or(0),
                 tx.size as i32,
                 tx.vin.first().map_or(false, |v| v.coinbase.is_some()),
                 tx.get_transaction_amount(),
-                tx.check_coinjoin()
+                tx.check_coinjoin(),
+                tx.multisig,
             )
         }).collect();
 
         for (chunk_idx, chunk) in tx_meta.chunks(BATCH_SIZE).enumerate() {
             let base = chunk_idx * BATCH_SIZE;
             let query = format!(
-                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, chain_locked, amount, coinjoin) VALUES {} \
+                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, chain_locked, amount, coinjoin, multisig) VALUES {} \
                  ON CONFLICT (hash) DO UPDATE SET block_height = COALESCE(transactions.block_height, EXCLUDED.block_height) \
                  RETURNING id, hash",
-                build_placeholders(chunk.len(), 10)
+                build_placeholders(chunk.len(), 11)
             );
 
-            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 8);
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 12);
             for (i, (tx, height, chain_locked)) in chunk.iter().enumerate() {
                 let abs = base + i;
 
@@ -96,6 +98,7 @@ impl Database {
                 params.push(chain_locked);
                 params.push(&tx_info.3);
                 params.push(&tx_info.4);
+                params.push(&tx_info.5);
             }
 
             let rows = client.query(query.as_str(), &params).await?;

@@ -10,7 +10,8 @@ use crate::errors::block_index_error::BlockIndexError;
 use crate::miner_pool::MinerPool;
 use crate::rpc::DashRpcClient;
 use std::collections::HashMap;
-use tracing::{debug, info};
+use std::sync::atomic::{AtomicU64, Ordering};
+use tracing::{debug, error, info};
 
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
@@ -18,6 +19,7 @@ pub struct BlockProcessor {
     pub superblock_interval: i64,
     pub miner_pools: Vec<MinerPool>,
     pub miner_pool_ids: HashMap<String, i32>,
+    pub blocks_since_balance_refresh: AtomicU64,
 }
 
 impl BlockProcessor {
@@ -34,6 +36,28 @@ impl BlockProcessor {
             superblock_interval: superblock_interval(network),
             miner_pools,
             miner_pool_ids,
+            blocks_since_balance_refresh: AtomicU64::new(0),
+        }
+    }
+
+    /// Bump the live-block counter and refresh `address_balances` once it
+    /// reaches `interval`. Called from the live-sync paths only — catch-up
+    /// skips this and a single bootstrap refresh runs once it finishes.
+    pub async fn tick_address_balances_refresh(&self, interval: u64) {
+        if interval == 0 {
+            return;
+        }
+        let prev = self
+            .blocks_since_balance_refresh
+            .fetch_add(1, Ordering::Relaxed);
+        if prev + 1 < interval {
+            return;
+        }
+        self.blocks_since_balance_refresh.store(0, Ordering::Relaxed);
+        if let Err(e) = self.db.refresh_address_balances().await {
+            error!("Failed to refresh address_balances matview: {e}");
+        } else {
+            debug!("Refreshed address_balances matview");
         }
     }
 

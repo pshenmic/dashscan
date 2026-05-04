@@ -1,7 +1,9 @@
 import {Knex} from 'knex';
 import Block from '../models/Block';
+import ChainStats from '../models/ChainStats';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
+import {NETWORK, SUPERBLOCK_INTERVALS} from "../constants";
 
 export default class BlocksDAO {
   private knex: Knex;
@@ -93,6 +95,50 @@ export default class BlocksDAO {
       { avg: row.avg_tx_count !== null ? parseFloat(parseFloat(row.avg_tx_count).toFixed(2)) : null },
     ));
   }
+
+  getChainStats = async (blocksForHashRate: number, blocksForBlockTime: number): Promise<ChainStats> => {
+    const topBlocks = this.knex('blocks')
+      .select('height', 'timestamp', 'difficulty', 'tx_count')
+      .orderBy('height', 'desc')
+      .limit(blocksForHashRate)
+      .as('top_blocks');
+
+    const recentCTE = this.knex
+      .select('height', 'timestamp', 'difficulty', 'tx_count')
+      .select(this.knex.raw('ROW_NUMBER() OVER (ORDER BY height DESC) AS rn'))
+      .select(this.knex.raw('COUNT(*) OVER () AS total'))
+      .from(topBlocks);
+
+    const [row] = await this.knex
+      .with('recent', recentCTE)
+      .select(this.knex.raw('MAX(CASE WHEN rn = 1 THEN height END) AS latest_height'))
+      .select(this.knex.raw('MAX(CASE WHEN rn = 1 THEN timestamp END) AS last_timestamp'))
+      .select(this.knex.raw('MAX(CASE WHEN rn = total THEN timestamp END) AS first_timestamp'))
+      .select(this.knex.raw('SUM(difficulty) AS work_sum'))
+      .select(this.knex.raw('MAX(CASE WHEN rn = LEAST(?, total) THEN timestamp END) AS bt_first_timestamp', [blocksForBlockTime]))
+      .select(this.knex.raw('SUM(CASE WHEN rn <= ? THEN tx_count ELSE 0 END)::bigint AS bt_tx_count', [blocksForBlockTime]))
+      .select(this.knex.raw('LEAST(MAX(total), ?) AS bt_sample_size', [blocksForBlockTime]))
+      .select(this.knex.raw('(SELECT COUNT(*) FROM transactions WHERE block_height IS NULL)::bigint AS mempool_size'))
+      .select(
+        this.knex('blocks')
+          .select('height')
+          .where(this.knex.raw('superblock=true'))
+          .orderBy('height', 'desc')
+          .limit(1)
+          .as('latest_superblock_height')
+      )
+      .from('recent');
+
+    const stats = ChainStats.fromRow(row);
+
+    const superblockInterval = SUPERBLOCK_INTERVALS[NETWORK];
+    const nextSuperblockHeight = row.latest_superblock_height + superblockInterval;
+
+    return ChainStats.fromObject({
+      ...stats,
+      nextSuperblockHeight: nextSuperblockHeight
+    });
+  };
 
   getBlockByHash = async (hash: string): Promise<Block | null> => {
     const rows = await this.knex('blocks')
