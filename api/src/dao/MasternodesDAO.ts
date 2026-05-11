@@ -1,7 +1,7 @@
 import { Knex } from 'knex';
 import Masternode from '../models/Masternode';
 import PaginatedResultSet from '../models/PaginatedResultSet';
-import GeoIPService, {IpInfo} from "../services/GeoIPService";
+import GeoIPService, {GeoIpInfo} from "../services/GeoIPService";
 
 export default class MasternodesDAO {
   private knex: Knex;
@@ -45,15 +45,15 @@ export default class MasternodesDAO {
         const masternode = Masternode.fromRow(row)
 
         const [ip] = masternode.address.split(':')
-        let ipInfo: IpInfo | undefined = undefined
+        let geoIpInfo: GeoIpInfo | undefined = undefined
 
         if(ip!=null){
-          ipInfo = this.geoIPService.lookup(ip)
+          geoIpInfo = this.geoIPService.lookup(ip)
         }
 
         return Masternode.fromObject({
           ...masternode,
-          ipInfo
+          geoIpInfo
         })
       }),
       page,

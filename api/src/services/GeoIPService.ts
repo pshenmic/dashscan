@@ -3,7 +3,7 @@ import {resolve} from 'path';
 import {GEOIP_PROVIDER, GEOIP_TABLE_NAME} from "../constants";
 import {CityResponse, CountryResponse, Reader} from "mmdb-lib";
 
-export interface IpInfo {
+export interface GeoIpInfo {
   ipv4: string;
   countryCode: string;
   city: string;
@@ -26,7 +26,7 @@ export default class GeoIPService {
     this.reader = new Reader<CityResponse>(data)
   }
 
-  lookup = (ipv4: string): IpInfo | null => {
+  lookup = (ipv4: string): GeoIpInfo | null => {
     if(!ipv4) {
       throw new Error('you must specify a valid IP address');
     }

@@ -1,4 +1,4 @@
-import {IpInfo} from "../services/GeoIPService";
+import {GeoIpInfo} from "../services/GeoIPService";
 
 interface MasternodeRPCEntry {
   proTxHash: string;
@@ -50,7 +50,7 @@ interface MasternodeObject {
   pubKeyOperator?: string | null;
   createdAt?: Date | null;
   updatedAt?: Date | null;
-  ipInfo?: IpInfo | null;
+  geoIpInfo?: GeoIpInfo | null;
 }
 
 export default class Masternode {
@@ -69,7 +69,7 @@ export default class Masternode {
   pubKeyOperator: string | null;
   createdAt: Date | null;
   updatedAt: Date | null;
-  ipInfo: IpInfo | null;
+  geoIpInfo: GeoIpInfo | null;
 
   constructor(
     proTxHash?: string,
@@ -87,7 +87,7 @@ export default class Masternode {
     pubKeyOperator?: string,
     createdAt?: Date,
     updatedAt?: Date,
-    ipInfo?: IpInfo,
+    geoIpInfo?: GeoIpInfo,
   ) {
     this.proTxHash = proTxHash ?? null;
     this.address = address ?? null;
@@ -104,7 +104,7 @@ export default class Masternode {
     this.pubKeyOperator = pubKeyOperator ?? null;
     this.createdAt = createdAt ?? null;
     this.updatedAt = updatedAt ?? null;
-    this.ipInfo = ipInfo ?? null;
+    this.geoIpInfo = geoIpInfo ?? null;
   }
 
   static fromRPC(entry: MasternodeRPCEntry): Masternode {
@@ -161,8 +161,8 @@ export default class Masternode {
                       pubKeyOperator,
                       createdAt,
                       updatedAt,
-                      ipInfo
+                      geoIpInfo
                     }: MasternodeObject): Masternode {
-    return new Masternode(proTxHash, address, payee, status, type, posPenaltyScore, consecutivePayments, lastPaidTime, lastPaidBlock, ownerAddress, votingAddress, collateralAddress, pubKeyOperator, createdAt, updatedAt, ipInfo)
+    return new Masternode(proTxHash, address, payee, status, type, posPenaltyScore, consecutivePayments, lastPaidTime, lastPaidBlock, ownerAddress, votingAddress, collateralAddress, pubKeyOperator, createdAt, updatedAt, geoIpInfo)
   }
 }
