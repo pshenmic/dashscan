@@ -25,7 +25,7 @@ impl Database {
 
         let rows = client
             .query(
-                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, transfer_amount, coinjoin, multisig) \
+                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, amount, coinjoin, multisig) \
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) \
                  ON CONFLICT (hash) DO NOTHING \
                  RETURNING id",
@@ -76,7 +76,7 @@ impl Database {
         for (chunk_idx, chunk) in tx_meta.chunks(BATCH_SIZE).enumerate() {
             let base = chunk_idx * BATCH_SIZE;
             let query = format!(
-                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, chain_locked, transfer_amount, coinjoin, multisig) VALUES {} \
+                "INSERT INTO transactions (hash, block_height, version, type, size, locktime, is_coinbase, chain_locked, amount, coinjoin, multisig) VALUES {} \
                  ON CONFLICT (hash) DO UPDATE SET block_height = COALESCE(transactions.block_height, EXCLUDED.block_height) \
                  RETURNING id, hash",
                 build_placeholders(chunk.len(), 11)

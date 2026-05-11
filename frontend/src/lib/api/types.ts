@@ -70,6 +70,23 @@ export interface ApiAddress {
   lastSeenTx: string;
 }
 
+export interface ApiAddressDetail {
+  address: string;
+  firstSeenBlock: string | null;
+  firstSeenTx: string | null;
+  lastSeenBlock: string | null;
+  lastSeenTx: string | null;
+  txCount: string;
+  received: string;
+  sent: string;
+  balance: string;
+}
+
+export interface ApiAddressBalancePoint {
+  timestamp: string;
+  data: { balance: string };
+}
+
 export interface ApiMasternode {
   proTxHash: string;
   address: string;
@@ -118,6 +135,18 @@ export interface ApiProposalData {
   paymentAmount: number | null;
   type: number | null;
   url: string | null;
+}
+
+export interface ApiGovernanceBudget {
+  totalBudget: number;
+  totalProposals: number;
+  totalRequested: number;
+  enoughVotesTotal: number;
+  enoughVotesCount: number;
+  enoughFundsTotal: number;
+  enoughFundsCount: number;
+  remainingAllPass: number;
+  remainingEnoughVotes: number;
 }
 
 export interface ApiGovernanceObject {

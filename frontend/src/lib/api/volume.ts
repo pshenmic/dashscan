@@ -31,7 +31,7 @@ export function volumeQueryOptions(params: FetchVolumeInput) {
 
 async function getVolumeHistorical(params: FetchVolumeInput) {
   const url = new URL(
-    `/volume/${params.currency}/historical`,
+    `/volume/${params.currency}/chart`,
     getBaseUrl(params.network),
   );
   const response = await fetch(url);

@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { Network } from "@/lib/store";
 import { getBaseUrl } from "./client";
-import type { ApiGovernanceObject } from "./types";
+import type { ApiGovernanceBudget, ApiGovernanceObject } from "./types";
 
 type ProposalType = "valid" | "funding" | "delete" | "endorsed" | "all";
 
@@ -26,5 +26,25 @@ export function proposalsQueryOptions(params: FetchProposalsInput) {
   return queryOptions({
     queryKey: ["proposals", params.network, params.proposalType],
     queryFn: () => getProposals(params),
+  });
+}
+
+interface FetchBudgetInput {
+  network: Network;
+}
+
+async function getBudget(params: FetchBudgetInput) {
+  const url = new URL("/governance/budget", getBaseUrl(params.network));
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<ApiGovernanceBudget>;
+}
+
+export function budgetQueryOptions(params: FetchBudgetInput) {
+  return queryOptions({
+    queryKey: ["governance-budget", params.network],
+    queryFn: () => getBudget(params),
   });
 }
