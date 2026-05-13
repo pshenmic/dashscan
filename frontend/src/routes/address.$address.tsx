@@ -4,8 +4,8 @@ import {
   addressQueryOptions,
   addressTransactionsQueryOptions,
 } from "@/lib/api/addresses";
+import { paginationSearchSchema } from "@/lib/pagination";
 import { defaultNetwork } from "@/lib/store";
-import { paginationSearchSchema } from "@/themes/classic/lib/pagination";
 import ClassicAddressDetailPage from "@/themes/classic/pages/address-detail";
 
 function getMonthRangeBounds() {

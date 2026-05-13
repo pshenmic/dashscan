@@ -34,6 +34,7 @@ import {
   getMnTypeBadgeStyle,
   getMnTypeLabel,
 } from "@/lib/format";
+import { getPageCount } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { CopyButton } from "@/themes/classic/components/copy-button";
 import { DataTable } from "@/themes/classic/components/data-table";
@@ -41,7 +42,6 @@ import { HashCell } from "@/themes/classic/components/hash-cell";
 import { Pagination } from "@/themes/classic/components/pagination";
 import { SearchInput } from "@/themes/classic/components/search-input";
 import { StatCard } from "@/themes/classic/components/stat-card";
-import { getPageCount } from "@/themes/classic/lib/pagination";
 
 const columns: ColumnDef<ApiMasternode>[] = [
   {

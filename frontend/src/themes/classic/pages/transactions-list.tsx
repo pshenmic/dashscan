@@ -43,6 +43,7 @@ import {
   getTxTypeLabel,
   sumVOut,
 } from "@/lib/format";
+import { getPageCount } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { CopyButton } from "@/themes/classic/components/copy-button";
 import { DataTable } from "@/themes/classic/components/data-table";
@@ -51,7 +52,6 @@ import { Pagination } from "@/themes/classic/components/pagination";
 import { SearchInput } from "@/themes/classic/components/search-input";
 import { StatCard } from "@/themes/classic/components/stat-card";
 import { TransactionsAmountChart } from "@/themes/classic/components/transactions-amount-chart";
-import { getPageCount } from "@/themes/classic/lib/pagination";
 
 const columns: ColumnDef<ApiTransaction>[] = [
   {

@@ -2,12 +2,26 @@ import { createFileRoute } from "@tanstack/react-router";
 import { blockQueryOptions } from "@/lib/api/blocks";
 import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
 import { defaultNetwork } from "@/lib/store";
+import { useActiveTheme } from "@/themes/active";
 import ClassicBlockDetailPage from "@/themes/classic/pages/block-detail";
+import RedesignBlockDetailPage from "@/themes/redesign/pages/block-detail";
 
 export const Route = createFileRoute("/blocks/$hashOrHeight")({
   component: BlockDetailRoute,
   head: ({ params }) => ({
-    meta: [{ title: `Block ${params.hashOrHeight} | DashScan` }],
+    meta: [
+      { title: `Block ${params.hashOrHeight} | DashScan` },
+      { property: "og:title", content: `Block ${params.hashOrHeight}` },
+      {
+        property: "og:image",
+        content: `/og/block/${params.hashOrHeight}`,
+      },
+      { name: "twitter:card", content: "summary_large_image" },
+      {
+        name: "twitter:image",
+        content: `/og/block/${params.hashOrHeight}`,
+      },
+    ],
   }),
   loader: async ({ context, params: { hashOrHeight } }) => {
     if (typeof window !== "undefined") return;
@@ -32,6 +46,9 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
 });
 
 function BlockDetailRoute() {
+  const theme = useActiveTheme();
   const { hashOrHeight } = Route.useParams();
+  if (theme === "redesign")
+    return <RedesignBlockDetailPage hashOrHeight={hashOrHeight} />;
   return <ClassicBlockDetailPage hashOrHeight={hashOrHeight} />;
 }

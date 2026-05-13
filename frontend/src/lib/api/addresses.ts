@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
 import { getBaseUrl } from "./client";
@@ -111,6 +111,40 @@ export function addressTransactionsQueryOptions(
       params.order,
     ],
     queryFn: () => getAddressTransactions(params),
+  });
+}
+
+interface InfiniteAddressTransactionsInput extends FetchAddressInput {
+  limit?: number;
+  order?: "asc" | "desc";
+}
+
+export function addressTransactionsInfiniteQueryOptions(
+  params: InfiniteAddressTransactionsInput,
+) {
+  const limit = params.limit ?? 25;
+  const order = params.order ?? "desc";
+  return infiniteQueryOptions({
+    queryKey: [
+      "address-transactions-infinite",
+      params.network,
+      params.address,
+      limit,
+      order,
+    ],
+    queryFn: ({ pageParam }) =>
+      getAddressTransactions({
+        network: params.network,
+        address: params.address,
+        page: pageParam,
+        limit,
+        order,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const { page, limit: pageLimit, total } = lastPage.pagination;
+      return page * pageLimit < total ? page + 1 : undefined;
+    },
   });
 }
 

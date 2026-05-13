@@ -1,10 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { blocksQueryOptions } from "@/lib/api/blocks";
+import { chainStatsQueryOptions } from "@/lib/api/chain";
+import {
+  budgetQueryOptions,
+  proposalsQueryOptions,
+} from "@/lib/api/governance";
 import {
   marketCapHistoricalQueryOptions,
   marketCapQueryOptions,
 } from "@/lib/api/marketcap";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
+import { mempoolQueryOptions } from "@/lib/api/mempool";
 import {
   priceHistoricalQueryOptions,
   priceQueryOptions,
@@ -14,9 +20,34 @@ import {
   transactionsStatsQueryOptions,
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
-import { volumeHistoricalQueryOptions } from "@/lib/api/volume";
+import {
+  volumeHistoricalQueryOptions,
+  volumeQueryOptions,
+} from "@/lib/api/volume";
 import { defaultNetwork } from "@/lib/store";
+import { useActiveTheme } from "@/themes/active";
 import ClassicDashboardPage from "@/themes/classic/pages/dashboard";
+import RedesignDashboardPage from "@/themes/redesign/pages/dashboard";
+
+function dayStatsRange() {
+  const end = new Date();
+  end.setUTCMinutes(0, 0, 0);
+  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+  return {
+    timestampStart: start.toISOString(),
+    timestampEnd: end.toISOString(),
+  };
+}
+
+function monthStatsRange() {
+  const end = new Date();
+  end.setUTCHours(0, 0, 0, 0);
+  const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+  return {
+    timestampStart: start.toISOString(),
+    timestampEnd: end.toISOString(),
+  };
+}
 
 export const Route = createFileRoute("/")({
   component: DashboardRoute,
@@ -28,19 +59,18 @@ export const Route = createFileRoute("/")({
     const network = defaultNetwork;
     return Promise.all([
       context.queryClient.prefetchQuery(
-        blocksQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
+        blocksQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
       ),
       context.queryClient.prefetchQuery(
-        transactionsQueryOptions({ network, page: 1, limit: 4, order: "desc" }),
+        transactionsQueryOptions({
+          network,
+          page: 1,
+          limit: 10,
+          order: "desc",
+        }),
       ),
       context.queryClient.prefetchQuery(
-        masternodesQueryOptions({ network, page: 1, limit: 5, order: "desc" }),
-      ),
-      context.queryClient.prefetchQuery(
-        transactionsStatsQueryOptions({ network }),
-      ),
-      context.queryClient.prefetchQuery(
-        blockTransactionsStatsQueryOptions({ network }),
+        masternodesQueryOptions({ network, page: 1, limit: 50 }),
       ),
       context.queryClient.prefetchQuery(
         priceQueryOptions({ network, currency: "usd" }),
@@ -58,12 +88,37 @@ export const Route = createFileRoute("/")({
         marketCapHistoricalQueryOptions({ network, currency: "usd" }),
       ),
       context.queryClient.prefetchQuery(
+        volumeQueryOptions({ network, currency: "usd" }),
+      ),
+      context.queryClient.prefetchQuery(
         volumeHistoricalQueryOptions({ network, currency: "usd" }),
+      ),
+      context.queryClient.prefetchQuery(
+        transactionsStatsQueryOptions({
+          network,
+          ...monthStatsRange(),
+          intervalsCount: 30,
+        }),
+      ),
+      context.queryClient.prefetchQuery(
+        blockTransactionsStatsQueryOptions({
+          network,
+          ...dayStatsRange(),
+          intervalsCount: 24,
+        }),
+      ),
+      context.queryClient.prefetchQuery(chainStatsQueryOptions({ network })),
+      context.queryClient.prefetchQuery(budgetQueryOptions({ network })),
+      context.queryClient.prefetchQuery(proposalsQueryOptions({ network })),
+      context.queryClient.prefetchQuery(
+        mempoolQueryOptions({ network, page: 1, limit: 1 }),
       ),
     ]);
   },
 });
 
 function DashboardRoute() {
+  const theme = useActiveTheme();
+  if (theme === "redesign") return <RedesignDashboardPage />;
   return <ClassicDashboardPage />;
 }

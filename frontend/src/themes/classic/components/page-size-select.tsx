@@ -5,7 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PAGE_SIZE_OPTIONS } from "@/themes/classic/lib/pagination";
+import { PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 
 interface PageSizeSelectProps {
   value: number;
