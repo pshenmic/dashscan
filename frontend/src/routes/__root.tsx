@@ -6,19 +6,18 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { Toaster } from "@/components/ui/sonner";
 import { ErrorFallback } from "../components/error-fallback";
-import Footer from "../components/footer";
-import Header from "../components/header";
-
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import TanStackQueryProvider from "../integrations/tanstack-query/root-provider";
 import appCss from "../styles.css?url";
+import { ThemeHydrator } from "../themes/Hydrator";
+import { THEME_INIT_SCRIPT } from "../themes/init";
+import { ThemeShell } from "../themes/ShellDispatcher";
 
 interface MyRouterContext {
   queryClient: QueryClient;
 }
-
-const THEME_INIT_SCRIPT = `(function(){var root=document.documentElement;root.classList.add('light');root.style.colorScheme='light';})();`;
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   errorComponent: ErrorFallback,
@@ -55,9 +54,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="font-sans antialiased">
         <TanStackQueryProvider>
-          <Header />
-          {children}
-          <Footer />
+          <ThemeHydrator />
+          <ThemeShell>{children}</ThemeShell>
+          <Toaster />
           <TanStackDevtools
             config={{
               position: "bottom-right",

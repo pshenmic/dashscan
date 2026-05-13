@@ -8,6 +8,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { ThemeSwitcher } from "@/themes/ThemeSwitcher";
 // import NetworkSelector from "./network-selector";
 import SearchBar from "./search-bar";
 
@@ -52,6 +53,7 @@ export default function Header() {
         <div className="hidden md:flex md:items-center md:gap-3">
           {/*<NetworkSelector />*/}
           <SearchBar />
+          <ThemeSwitcher />
         </div>
 
         {/* Mobile layout (< md) */}

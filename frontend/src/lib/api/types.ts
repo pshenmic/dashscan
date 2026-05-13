@@ -56,7 +56,7 @@ export interface ApiTransaction {
   vIn: ApiVIn[];
   vOut: ApiVOut[];
   confirmations: number;
-  instantLock: boolean | null;
+  instantLock: boolean | string | null;
   chainLocked?: boolean | null;
   size?: number | null;
   timestamp: string;
@@ -147,6 +147,16 @@ export interface ApiGovernanceBudget {
   enoughFundsCount: number;
   remainingAllPass: number;
   remainingEnoughVotes: number;
+}
+
+export interface ApiChainStats {
+  chain: string | null;
+  sizeOnDisk: number | null;
+  difficulty: number | null;
+  blockTime: number | null;
+  transactionsPerSecond: number | null;
+  transactionsPerMinute: number | null;
+  latestHeight: number | null;
 }
 
 export interface ApiGovernanceObject {
