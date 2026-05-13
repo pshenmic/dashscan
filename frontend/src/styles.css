@@ -4,8 +4,8 @@
 
 @import "tw-animate-css";
 
-@import "./themes/classic/styles.css";
-@import "./themes/redesign/styles.css";
+@import "./themes/dash/styles.css";
+@import "./themes/neo/styles.css";
 
 @custom-variant dark (&:is(.dark *));
 

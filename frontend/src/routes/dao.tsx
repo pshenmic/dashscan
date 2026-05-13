@@ -6,7 +6,9 @@ import {
 } from "@/lib/api/governance";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import { defaultNetwork } from "@/lib/store";
-import ClassicDaoPage from "@/themes/classic/pages/dao";
+import { useActiveTheme } from "@/themes/active";
+import ClassicDaoPage from "@/themes/dash/pages/dao";
+import RedesignDaoPage from "@/themes/neo/pages/dao";
 
 export const Route = createFileRoute("/dao")({
   component: DaoRoute,
@@ -32,5 +34,7 @@ export const Route = createFileRoute("/dao")({
 });
 
 function DaoRoute() {
+  const theme = useActiveTheme();
+  if (theme === "neo") return <RedesignDaoPage />;
   return <ClassicDaoPage />;
 }

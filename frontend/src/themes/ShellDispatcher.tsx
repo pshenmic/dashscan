@@ -1,7 +1,7 @@
 import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import ClassicShell from "@/themes/classic/Shell";
-import RedesignShell from "@/themes/redesign/Shell";
+import ClassicShell from "@/themes/dash/Shell";
+import RedesignShell from "@/themes/neo/Shell";
 import { useActiveTheme } from "./active";
 
 export function ThemeShell({ children }: { children: ReactNode }) {
@@ -12,7 +12,7 @@ export function ThemeShell({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  if (theme === "redesign") {
+  if (theme === "neo") {
     return <RedesignShell>{children}</RedesignShell>;
   }
 

@@ -9,8 +9,8 @@ import { transactionsQueryOptions } from "@/lib/api/transactions";
 import { paginationSearchSchema } from "@/lib/pagination";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
-import ClassicBlocksListPage from "@/themes/classic/pages/blocks-list";
-import RedesignBlocksListPage from "@/themes/redesign/pages/blocks-list";
+import ClassicBlocksListPage from "@/themes/dash/pages/blocks-list";
+import RedesignBlocksListPage from "@/themes/neo/pages/blocks-list";
 
 const INFINITE_PAGE_SIZE = 25;
 
@@ -71,6 +71,6 @@ export const Route = createFileRoute("/blocks/")({
 function BlocksListRoute() {
   const theme = useActiveTheme();
   const { page, limit } = Route.useSearch();
-  if (theme === "redesign") return <RedesignBlocksListPage />;
+  if (theme === "neo") return <RedesignBlocksListPage />;
   return <ClassicBlocksListPage page={page} limit={limit} />;
 }

@@ -12,8 +12,8 @@ import { setTheme, useActiveTheme } from "./active";
 import { THEME_NAMES, type ThemeName } from "./registry";
 
 const THEME_LABELS: Record<ThemeName, string> = {
-  classic: "Classic",
-  redesign: "Redesign",
+  dash: "Dash",
+  neo: "Neo",
 };
 
 export function ThemeSwitcher() {
