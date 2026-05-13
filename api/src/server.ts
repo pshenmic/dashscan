@@ -11,11 +11,10 @@ import BlocksController from './controllers/BlocksController';
 import TransactionsController from './controllers/TransactionsController';
 import AddressesController from './controllers/AddressesController';
 import MasternodesController from './controllers/MasternodesController';
-import MasternodesDAO from './dao/MasternodesDAO';
 import MarketController from './controllers/MarketController';
 import GovernanceController from "./controllers/GovernanceController";
 import MarketService from './services/MarketService';
-import SearchDAO from './dao/SearchDAO';
+import GeoIPService from './services/GeoIPService';
 import SearchController from './controllers/SearchController';
 import MainController from './controllers/MainController';
 import {Cache} from "./cache";
@@ -56,6 +55,9 @@ export const start = async (): Promise<FastifyInstance> => {
 
   const cache = new Cache()
 
+  const geoIPService = new GeoIPService();
+  const marketService = new MarketService();
+
   const preCacheUtxoInfo = await dashcoreRPC.getUtxoInfo()
 
   cache.set("utxoInfo", preCacheUtxoInfo, UTXO_INFO_LIFE_TIME)
@@ -64,13 +66,10 @@ export const start = async (): Promise<FastifyInstance> => {
   const blocksController = new BlocksController(knex);
   const transactionsController = new TransactionsController(knex);
   const addressesController = new AddressesController(knex, dashcoreRPC, cache);
-  const masternodesDAO = new MasternodesDAO(knex);
-  const masternodesController = new MasternodesController(masternodesDAO);
-  const marketService = new MarketService();
+  const masternodesController = new MasternodesController(knex, geoIPService);
   const marketController = new MarketController(marketService);
-  const searchDAO = new SearchDAO(knex);
-  const searchController = new SearchController(searchDAO);
-  const governanceController = new GovernanceController(dashcoreRPC, knex);
+  const searchController = new SearchController(knex);
+  const governanceController = new GovernanceController(knex, dashcoreRPC);
 
   Routes({
     fastify,

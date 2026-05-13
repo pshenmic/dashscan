@@ -10,3 +10,6 @@ export const SUPERBLOCK_INTERVALS = {
   devnet: 24,
   regtest: 20
 }
+
+export const GEOIP_PROVIDER = '@ip-location-db/dbip-city-mmdb'
+export const GEOIP_TABLE_NAME = 'dbip-city-ipv4.mmdb'

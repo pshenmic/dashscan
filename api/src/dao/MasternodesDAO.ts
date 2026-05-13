@@ -1,12 +1,15 @@
 import { Knex } from 'knex';
 import Masternode from '../models/Masternode';
 import PaginatedResultSet from '../models/PaginatedResultSet';
+import GeoIPService, {GeoIpInfo} from "../services/GeoIPService";
 
 export default class MasternodesDAO {
   private knex: Knex;
+  private geoIPService: GeoIPService;
 
-  constructor(knex: Knex) {
+  constructor(knex: Knex, geoIPService: GeoIPService) {
     this.knex = knex;
+    this.geoIPService = geoIPService;
   }
 
   getMasternodes = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Masternode>> => {
@@ -37,6 +40,25 @@ export default class MasternodesDAO {
 
     const [row] = rows;
 
-    return new PaginatedResultSet(rows.map(row => Masternode.fromRow(row)), page, limit, row?.total_count);
+    return new PaginatedResultSet(
+      rows.map(row => {
+        const masternode = Masternode.fromRow(row)
+
+        const [ip] = masternode.address.split(':')
+        let geoIpInfo: GeoIpInfo | undefined = undefined
+
+        if(ip!=null){
+          geoIpInfo = this.geoIPService.lookup(ip)
+        }
+
+        return Masternode.fromObject({
+          ...masternode,
+          geoIpInfo
+        })
+      }),
+      page,
+      limit,
+      row?.total_count
+    );
   };
 }

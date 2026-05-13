@@ -70,6 +70,21 @@
     "@fastify/forwarded" "^3.0.0"
     ipaddr.js "^2.1.0"
 
+"@ip-location-db/dbip-city-mmdb@^2.3.2026040119":
+  version "2.3.2026040119"
+  resolved "https://registry.yarnpkg.com/@ip-location-db/dbip-city-mmdb/-/dbip-city-mmdb-2.3.2026040119.tgz#c0040707d819de8623bb3a0e910a48d77bac8bd6"
+  integrity sha512-C62uSdLcj+MB+VbG7E74NkaIOmpf7rGy4O6IRbjJMfQZXP2kTaBlG5n1ATrBcJUwM3X4s+hrH92CCjFUpHb1Mg==
+
+"@ip-location-db/dbip-geo-whois-asn-country@^2.3.2026042608":
+  version "2.3.2026042608"
+  resolved "https://registry.yarnpkg.com/@ip-location-db/dbip-geo-whois-asn-country/-/dbip-geo-whois-asn-country-2.3.2026042608.tgz#02ac43c33f91fe57d866a03f4cf08dd299457c01"
+  integrity sha512-MoxXpUW/tHi1lYJj/KAVPB5DTFXh2AMy0SWdHVpN8n/bMMa/JKYcVnJ7LiZ9a0GN+A6P/nTSWIbEVRHMI14HWw==
+
+"@ip-location-db/geo-whois-asn-country@^2.3.2026042819":
+  version "2.3.2026042819"
+  resolved "https://registry.yarnpkg.com/@ip-location-db/geo-whois-asn-country/-/geo-whois-asn-country-2.3.2026042819.tgz#951f810d49b1510d253165bbdc0b026ba546bb20"
+  integrity sha512-gVN2pigu81QPgR7aBQCcLCob6D702a4uI0lxQKpUQpq87bp7LA5ktj+MECjBfthQdiZkD9ww87E2Q4S7FZVlig==
+
 "@jridgewell/resolve-uri@^3.0.3":
   version "3.1.2"
   resolved "https://registry.yarnpkg.com/@jridgewell/resolve-uri/-/resolve-uri-3.1.2.tgz#7a0ee601f60f99a20c7c7c5ff0c80388c1189bd6"
@@ -525,6 +540,11 @@ micro-packed@~0.8.0:
   integrity sha512-AKb8znIvg9sooythbXzyFeChEY0SkW0C6iXECpy/ls0e5BtwXO45J9wD9SLzBztnS4XmF/5kwZknsq+jyynd/A==
   dependencies:
     "@scure/base" "2.0.0"
+
+mmdb-lib@^3.0.2:
+  version "3.0.2"
+  resolved "https://registry.yarnpkg.com/mmdb-lib/-/mmdb-lib-3.0.2.tgz#6668b84c224855c52a4d6784eabab635c090725e"
+  integrity sha512-7e87vk0DdWT647wjcfEtWeMtjm+zVGqNohN/aeIymbUfjHQ2T4Sx5kM+1irVDBSloNC3CkGKxswdMoo8yhqTDg==
 
 ms@2.1.2:
   version "2.1.2"

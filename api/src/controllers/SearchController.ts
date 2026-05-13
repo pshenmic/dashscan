@@ -1,11 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import SearchDAO from '../dao/SearchDAO';
+import {Knex} from "knex";
 
 export default class SearchController {
   private searchDAO: SearchDAO;
 
-  constructor(searchDAO: SearchDAO) {
-    this.searchDAO = searchDAO;
+  constructor(knex: Knex) {
+    this.searchDAO = new SearchDAO(knex);
   }
 
   search = async (request: FastifyRequest<{ Querystring: { query: string } }>, reply: FastifyReply): Promise<void> => {

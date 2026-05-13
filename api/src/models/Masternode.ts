@@ -1,3 +1,5 @@
+import {GeoIpInfo} from "../services/GeoIPService";
+
 interface MasternodeRPCEntry {
   proTxHash: string;
   address: string;
@@ -32,6 +34,25 @@ interface MasternodeRow {
   updated_at: Date;
 }
 
+interface MasternodeObject {
+  proTxHash?: string | null;
+  address?: string | null;
+  payee?: string | null;
+  status?: string | null;
+  type?: string | null;
+  posPenaltyScore?: number | null;
+  consecutivePayments?: number | null;
+  lastPaidTime?: number | null;
+  lastPaidBlock?: number | null;
+  ownerAddress?: string | null;
+  votingAddress?: string | null;
+  collateralAddress?: string | null;
+  pubKeyOperator?: string | null;
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
+  geoIpInfo?: GeoIpInfo | null;
+}
+
 export default class Masternode {
   proTxHash: string | null;
   address: string | null;
@@ -48,6 +69,7 @@ export default class Masternode {
   pubKeyOperator: string | null;
   createdAt: Date | null;
   updatedAt: Date | null;
+  geoIpInfo: GeoIpInfo | null;
 
   constructor(
     proTxHash?: string,
@@ -65,6 +87,7 @@ export default class Masternode {
     pubKeyOperator?: string,
     createdAt?: Date,
     updatedAt?: Date,
+    geoIpInfo?: GeoIpInfo,
   ) {
     this.proTxHash = proTxHash ?? null;
     this.address = address ?? null;
@@ -81,6 +104,7 @@ export default class Masternode {
     this.pubKeyOperator = pubKeyOperator ?? null;
     this.createdAt = createdAt ?? null;
     this.updatedAt = updatedAt ?? null;
+    this.geoIpInfo = geoIpInfo ?? null;
   }
 
   static fromRPC(entry: MasternodeRPCEntry): Masternode {
@@ -119,5 +143,26 @@ export default class Masternode {
       row.created_at,
       row.updated_at,
     );
+  }
+
+  static fromObject({
+                      proTxHash,
+                      address,
+                      payee,
+                      status,
+                      type,
+                      posPenaltyScore,
+                      consecutivePayments,
+                      lastPaidTime,
+                      lastPaidBlock,
+                      ownerAddress,
+                      votingAddress,
+                      collateralAddress,
+                      pubKeyOperator,
+                      createdAt,
+                      updatedAt,
+                      geoIpInfo
+                    }: MasternodeObject): Masternode {
+    return new Masternode(proTxHash, address, payee, status, type, posPenaltyScore, consecutivePayments, lastPaidTime, lastPaidBlock, ownerAddress, votingAddress, collateralAddress, pubKeyOperator, createdAt, updatedAt, geoIpInfo)
   }
 }
