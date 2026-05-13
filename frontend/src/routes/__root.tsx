@@ -7,12 +7,10 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { ErrorFallback } from "../components/error-fallback";
-import Footer from "../components/footer";
-import Header from "../components/header";
-
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import TanStackQueryProvider from "../integrations/tanstack-query/root-provider";
 import appCss from "../styles.css?url";
+import ClassicShell from "../themes/classic/Shell";
 import { ThemeHydrator } from "../themes/Hydrator";
 import { THEME_INIT_SCRIPT } from "../themes/init";
 
@@ -56,9 +54,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body className="font-sans antialiased">
         <TanStackQueryProvider>
           <ThemeHydrator />
-          <Header />
-          {children}
-          <Footer />
+          <ClassicShell>{children}</ClassicShell>
           <TanStackDevtools
             config={{
               position: "bottom-right",

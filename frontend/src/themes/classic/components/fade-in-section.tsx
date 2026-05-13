@@ -1,5 +1,5 @@
-import { useInView } from "@/hooks/use-in-view";
 import { cn } from "@/lib/utils";
+import { useInView } from "@/themes/classic/hooks/use-in-view";
 
 export function FadeInSection({
   children,

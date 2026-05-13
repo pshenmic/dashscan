@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { PageSizeSelect } from "@/components/page-size-select";
+import { PageSizeSelect } from "@/themes/classic/components/page-size-select";
 
 interface PaginationProps {
   page: number;

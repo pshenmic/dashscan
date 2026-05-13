@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { AreaChart } from "@/components/area-chart";
+import { AreaChart } from "@/themes/classic/components/area-chart";
 
 type Point = { timestamp: string; count: number };
 

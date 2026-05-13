@@ -1,7 +1,7 @@
 import { useId } from "react";
 import type { ApiHistoricalEntry } from "@/lib/api/types";
-import { buildSmoothPath } from "@/lib/chart-utils";
 import { cn } from "@/lib/utils";
+import { buildSmoothPath } from "@/themes/classic/lib/chart-utils";
 
 type PriceChartProps = {
   data: ApiHistoricalEntry[];
