@@ -3,8 +3,8 @@ import { blockQueryOptions } from "@/lib/api/blocks";
 import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
-import ClassicBlockDetailPage from "@/themes/classic/pages/block-detail";
-import RedesignBlockDetailPage from "@/themes/redesign/pages/block-detail";
+import ClassicBlockDetailPage from "@/themes/dash/pages/block-detail";
+import RedesignBlockDetailPage from "@/themes/neo/pages/block-detail";
 
 export const Route = createFileRoute("/blocks/$hashOrHeight")({
   component: BlockDetailRoute,
@@ -48,7 +48,7 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
 function BlockDetailRoute() {
   const theme = useActiveTheme();
   const { hashOrHeight } = Route.useParams();
-  if (theme === "redesign")
+  if (theme === "neo")
     return <RedesignBlockDetailPage hashOrHeight={hashOrHeight} />;
   return <ClassicBlockDetailPage hashOrHeight={hashOrHeight} />;
 }

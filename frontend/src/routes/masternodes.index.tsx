@@ -6,8 +6,8 @@ import {
 import { paginationSearchSchema } from "@/lib/pagination";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
-import ClassicMasternodesListPage from "@/themes/classic/pages/masternodes-list";
-import RedesignMasternodesListPage from "@/themes/redesign/pages/masternodes-list";
+import ClassicMasternodesListPage from "@/themes/dash/pages/masternodes-list";
+import RedesignMasternodesListPage from "@/themes/neo/pages/masternodes-list";
 
 const REDESIGN_PAGE_SIZE = 25;
 
@@ -47,6 +47,6 @@ export const Route = createFileRoute("/masternodes/")({
 function MasternodesListRoute() {
   const theme = useActiveTheme();
   const { page, limit } = Route.useSearch();
-  if (theme === "redesign") return <RedesignMasternodesListPage />;
+  if (theme === "neo") return <RedesignMasternodesListPage />;
   return <ClassicMasternodesListPage page={page} limit={limit} />;
 }

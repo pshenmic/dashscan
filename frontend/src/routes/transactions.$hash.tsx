@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
-import ClassicTransactionDetailPage from "@/themes/classic/pages/transaction-detail";
-import RedesignTransactionDetailPage from "@/themes/redesign/pages/transaction-detail";
+import ClassicTransactionDetailPage from "@/themes/dash/pages/transaction-detail";
+import RedesignTransactionDetailPage from "@/themes/neo/pages/transaction-detail";
 
 export const Route = createFileRoute("/transactions/$hash")({
   component: TransactionDetailRoute,
@@ -30,7 +30,6 @@ export const Route = createFileRoute("/transactions/$hash")({
 function TransactionDetailRoute() {
   const theme = useActiveTheme();
   const { hash } = Route.useParams();
-  if (theme === "redesign")
-    return <RedesignTransactionDetailPage hash={hash} />;
+  if (theme === "neo") return <RedesignTransactionDetailPage hash={hash} />;
   return <ClassicTransactionDetailPage hash={hash} />;
 }

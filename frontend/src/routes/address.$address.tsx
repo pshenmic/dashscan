@@ -8,8 +8,8 @@ import {
 import { paginationSearchSchema } from "@/lib/pagination";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
-import ClassicAddressDetailPage from "@/themes/classic/pages/address-detail";
-import RedesignAddressDetailPage from "@/themes/redesign/pages/address-detail";
+import ClassicAddressDetailPage from "@/themes/dash/pages/address-detail";
+import RedesignAddressDetailPage from "@/themes/neo/pages/address-detail";
 
 const REDESIGN_PAGE_SIZE = 25;
 
@@ -74,8 +74,7 @@ function AddressDetailRoute() {
   const theme = useActiveTheme();
   const { address } = Route.useParams();
   const { page, limit } = Route.useSearch();
-  if (theme === "redesign")
-    return <RedesignAddressDetailPage address={address} />;
+  if (theme === "neo") return <RedesignAddressDetailPage address={address} />;
   return (
     <ClassicAddressDetailPage address={address} page={page} limit={limit} />
   );

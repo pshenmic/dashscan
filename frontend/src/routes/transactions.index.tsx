@@ -12,8 +12,8 @@ import {
 import { paginationSearchSchema } from "@/lib/pagination";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
-import ClassicTransactionsListPage from "@/themes/classic/pages/transactions-list";
-import RedesignTransactionsListPage from "@/themes/redesign/pages/transactions-list";
+import ClassicTransactionsListPage from "@/themes/dash/pages/transactions-list";
+import RedesignTransactionsListPage from "@/themes/neo/pages/transactions-list";
 
 const REDESIGN_PAGE_SIZE = 25;
 
@@ -59,6 +59,6 @@ export const Route = createFileRoute("/transactions/")({
 function TransactionsListRoute() {
   const theme = useActiveTheme();
   const { page, limit } = Route.useSearch();
-  if (theme === "redesign") return <RedesignTransactionsListPage />;
+  if (theme === "neo") return <RedesignTransactionsListPage />;
   return <ClassicTransactionsListPage page={page} limit={limit} />;
 }

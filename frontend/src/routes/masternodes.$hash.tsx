@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
-import ClassicMasternodeDetailPage from "@/themes/classic/pages/masternode-detail";
-import RedesignMasternodeDetailPage from "@/themes/redesign/pages/masternode-detail";
+import ClassicMasternodeDetailPage from "@/themes/dash/pages/masternode-detail";
+import RedesignMasternodeDetailPage from "@/themes/neo/pages/masternode-detail";
 
 export const Route = createFileRoute("/masternodes/$hash")({
   component: MasternodeDetailRoute,
@@ -30,6 +30,6 @@ export const Route = createFileRoute("/masternodes/$hash")({
 function MasternodeDetailRoute() {
   const theme = useActiveTheme();
   const { hash } = Route.useParams();
-  if (theme === "redesign") return <RedesignMasternodeDetailPage hash={hash} />;
+  if (theme === "neo") return <RedesignMasternodeDetailPage hash={hash} />;
   return <ClassicMasternodeDetailPage hash={hash} />;
 }

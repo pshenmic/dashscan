@@ -26,8 +26,8 @@ import {
 } from "@/lib/api/volume";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
-import ClassicDashboardPage from "@/themes/classic/pages/dashboard";
-import RedesignDashboardPage from "@/themes/redesign/pages/dashboard";
+import ClassicDashboardPage from "@/themes/dash/pages/dashboard";
+import RedesignDashboardPage from "@/themes/neo/pages/dashboard";
 
 function dayStatsRange() {
   const end = new Date();
@@ -119,6 +119,6 @@ export const Route = createFileRoute("/")({
 
 function DashboardRoute() {
   const theme = useActiveTheme();
-  if (theme === "redesign") return <RedesignDashboardPage />;
+  if (theme === "neo") return <RedesignDashboardPage />;
   return <ClassicDashboardPage />;
 }
