@@ -16,6 +16,11 @@ const THEME_LABELS: Record<ThemeName, string> = {
   neo: "Neo",
 };
 
+const THEME_TAGS: Record<ThemeName, string> = {
+  dash: "WIP",
+  neo: "AI-powered",
+};
+
 export function ThemeSwitcher() {
   const active = useActiveTheme();
 
@@ -32,16 +37,19 @@ export function ThemeSwitcher() {
           <span className="hidden sm:inline">{THEME_LABELS[active]}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[180px]">
+      <DropdownMenuContent align="end" className="min-w-[200px]">
         <DropdownMenuLabel>Theme</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {THEME_NAMES.map((name) => (
           <DropdownMenuItem
             key={name}
             onClick={() => setTheme(name)}
-            className={active === name ? "font-semibold text-accent" : ""}
+            className={`flex items-center justify-between gap-3 ${active === name ? "font-semibold text-accent" : ""}`}
           >
-            {THEME_LABELS[name]}
+            <span>{THEME_LABELS[name]}</span>
+            <span className="text-xs text-muted-foreground">
+              {THEME_TAGS[name]}
+            </span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
