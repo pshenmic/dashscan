@@ -2,10 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
-  ArrowDown,
   ArrowLeftRight,
-  ArrowUp,
   CheckCircle2,
+  ChevronUp,
   Clock,
   Lock,
   ShieldCheck,
@@ -15,20 +14,32 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
-import {
-  DUFFS_PER_DASH,
-  formatDuffs,
-  formatRelativeTime,
-  getTxTypeBadgeStyle,
-  getTxTypeLabel,
-} from "@/lib/format";
+import { DUFFS_PER_DASH, formatDuffs, formatRelativeTime } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { AddressLink } from "@/themes/dash/components/address-link";
 import { CopyButton } from "@/themes/dash/components/copy-button";
+import { ExtraPayloadCard } from "@/themes/dash/components/extra-payload";
 import { HashCell } from "@/themes/dash/components/hash-cell";
 import { PageStatus } from "@/themes/dash/components/page-status";
 
 type IconType = ComponentType<SVGProps<SVGSVGElement>>;
+
+const TX_TYPE_SHORT_LABELS: Record<number, string> = {
+  0: "Normal",
+  1: "Pro Reg Tx",
+  2: "Pro Up Serv Tx",
+  3: "Pro Up Reg Tx",
+  4: "Pro Up Rev Tx",
+  5: "Cb Tx",
+  6: "Qc Tx",
+  7: "Mn Hf Tx",
+  8: "Asset Lock",
+  9: "Asset Unlock",
+};
+
+function getShortTxTypeLabel(type: number): string {
+  return TX_TYPE_SHORT_LABELS[type] ?? `Type ${type}`;
+}
 
 function sumInputs(vIn: ApiVIn[] | null | undefined): number | null {
   if (!vIn || vIn.length === 0) return null;
@@ -94,8 +105,7 @@ export default function ClassicTransactionDetailPage({
 
   const status = deriveStatus(tx);
   const StatusIcon = status.icon;
-  const typeLabel = getTxTypeLabel(tx.type);
-  const typeBadgeStyle = getTxTypeBadgeStyle(tx.type);
+  const typeLabel = getShortTxTypeLabel(tx.type);
 
   const totalInput = sumInputs(tx.vIn);
   const totalOutput = sumOutputs(tx.vOut);
@@ -104,17 +114,51 @@ export default function ClassicTransactionDetailPage({
       ? null
       : Math.max(0, totalInput - totalOutput);
 
-  const hasInputs = tx.vIn && tx.vIn.length > 0;
-  const hasOutputs = tx.vOut && tx.vOut.length > 0;
+  const isCoinbase = tx.type === 5;
+  const isQuorum = tx.type === 6;
+
+  const hasInputs = !!tx.vIn && tx.vIn.length > 0 && !isCoinbase;
+  const hasOutputs = !!tx.vOut && tx.vOut.length > 0;
+
+  const INPUTS_ON_LEFT = new Set([1, 5, 6, 8, 9]);
+  const inputsOnLeft = INPUTS_ON_LEFT.has(tx.type);
+
+  const inputsSection = hasInputs ? (
+    <IoSection title="Inputs" count={tx.vIn?.length ?? 0}>
+      <IoTable
+        rows={(tx.vIn ?? []).map((input, idx) => ({
+          key: `${input.prevTxHash ?? "coinbase"}-${input.vOutIndex ?? idx}`,
+          address: input.address,
+          amount: input.amount != null ? Number(input.amount) : null,
+        }))}
+      />
+    </IoSection>
+  ) : isCoinbase ? (
+    <IoSection title="Inputs" count={1}>
+      <CoinbaseRow />
+    </IoSection>
+  ) : null;
+
+  const outputsSection = hasOutputs ? (
+    <IoSection title="Outputs" count={tx.vOut?.length ?? 0}>
+      <IoTable
+        rows={(tx.vOut ?? []).map((out) => ({
+          key: String(out.number),
+          address: out.address,
+          amount: out.value,
+        }))}
+      />
+    </IoSection>
+  ) : null;
 
   return (
     <main className="mx-auto max-w-[1440px] px-6 py-10">
       <h1 className="mb-8 text-4xl tracking-tight animate-fade-in-up">
-        Transaction Details
+        Transaction <span className="text-muted-foreground">Info</span>
       </h1>
 
       <div
-        className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up"
+        className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0 animate-fade-in-up"
         style={{ animationDelay: "100ms" }}
       >
         <div className="flex flex-col gap-6">
@@ -150,19 +194,15 @@ export default function ClassicTransactionDetailPage({
             <div className="flex size-14 shrink-0 items-center justify-center rounded-full border border-accent/12 text-accent">
               <ArrowLeftRight className="size-7" />
             </div>
-            <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex flex-1 items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">Transaction Type</p>
-              <Badge
-                className={`h-7 w-fit whitespace-nowrap border px-3 font-medium ${typeBadgeStyle}`}
-              >
-                {typeLabel}
-              </Badge>
+              <span className="font-bold">{typeLabel}</span>
             </div>
           </Card>
 
           <Card className="border-0 px-6 py-4">
             <div className="flex flex-col">
-              <DetailRow label="Transaction Hash">
+              <DetailRow label="TxID">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <HashCell hash={tx.hash} />
                   <CopyButton value={tx.hash} />
@@ -170,16 +210,10 @@ export default function ClassicTransactionDetailPage({
               </DetailRow>
               <DetailRow label="Block">
                 {tx.blockHeight != null ? (
-                  <div className="flex items-center gap-1.5">
-                    <Link
-                      to="/blocks/$hashOrHeight"
-                      params={{ hashOrHeight: String(tx.blockHeight) }}
-                      className="font-mono text-accent hover:underline"
-                    >
-                      #{tx.blockHeight}
-                    </Link>
-                    {tx.blockHash ? <CopyButton value={tx.blockHash} /> : null}
-                  </div>
+                  <BlockPill
+                    height={tx.blockHeight}
+                    hash={tx.blockHash ?? undefined}
+                  />
                 ) : (
                   <span className="text-muted-foreground">Mempool</span>
                 )}
@@ -199,11 +233,11 @@ export default function ClassicTransactionDetailPage({
                   <span className="text-muted-foreground">—</span>
                 )}
               </DetailRow>
-              {tx.type === 5 ? (
+              {isCoinbase ? (
                 <DetailRow label="Block Reward">
                   <AmountValue value={totalOutput} />
                 </DetailRow>
-              ) : tx.type !== 6 ? (
+              ) : isQuorum ? null : (
                 <>
                   <DetailRow label="Total Input">
                     <AmountValue value={totalInput} />
@@ -215,7 +249,7 @@ export default function ClassicTransactionDetailPage({
                     <AmountValue value={fee} muted />
                   </DetailRow>
                 </>
-              ) : null}
+              )}
               {tx.size != null ? (
                 <DetailRow label="Size">
                   <span>
@@ -225,98 +259,18 @@ export default function ClassicTransactionDetailPage({
               ) : null}
             </div>
           </Card>
+
+          {inputsOnLeft ? inputsSection : null}
         </div>
 
-        <Card className="flex flex-col gap-3 border-0 px-6 py-5">
-          <h2 className="text-sm text-foreground">Extra Payload</h2>
-          <div className="flex flex-col">
-            <DetailRow label="Version">
-              <span className="font-bold">{tx.version ?? "—"}</span>
-            </DetailRow>
-            <DetailRow label="Type">
-              <span className="font-bold">
-                {tx.type} <span className="text-muted-foreground">·</span>{" "}
-                {typeLabel}
-              </span>
-            </DetailRow>
-            {tx.size != null ? (
-              <DetailRow label="Size">
-                <span>
-                  <span className="font-bold">{tx.size}</span> bytes
-                </span>
-              </DetailRow>
-            ) : null}
-            <DetailRow label="Confirmations">
-              <span className="font-bold">
-                {(tx.confirmations ?? 0).toLocaleString()}
-              </span>
-            </DetailRow>
-            <DetailRow label="Chain Locked">
-              <span className="font-bold">{tx.chainLocked ? "Yes" : "No"}</span>
-            </DetailRow>
-            {tx.blockHash ? (
-              <DetailRow label="Block Hash">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <HashCell hash={tx.blockHash} />
-                  <CopyButton value={tx.blockHash} />
-                </div>
-              </DetailRow>
-            ) : null}
-            {tx.instantLock ? (
-              <DetailRow label="InstantSend Lock">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <HashCell hash={tx.instantLock} />
-                  <CopyButton value={tx.instantLock} />
-                </div>
-              </DetailRow>
-            ) : null}
-          </div>
-        </Card>
-      </div>
+        <div className="flex flex-col gap-6">
+          {tx.extraPayload ? (
+            <ExtraPayloadCard txType={tx.type} payload={tx.extraPayload} />
+          ) : null}
 
-      <div
-        className="grid gap-6 lg:grid-cols-2 animate-fade-in-up"
-        style={{ animationDelay: "200ms" }}
-      >
-        <IoSection
-          title="Inputs"
-          icon={ArrowDown}
-          count={tx.vIn?.length ?? 0}
-          total={totalInput}
-        >
-          {hasInputs ? (
-            <InputsTable vIn={tx.vIn ?? []} />
-          ) : (
-            <EmptyIo
-              message={
-                tx.type === 5
-                  ? "No inputs (coinbase transaction)."
-                  : tx.type === 6
-                    ? "Not applicable for quorum commitment."
-                    : "No inputs."
-              }
-            />
-          )}
-        </IoSection>
-
-        <IoSection
-          title="Outputs"
-          icon={ArrowUp}
-          count={tx.vOut?.length ?? 0}
-          total={totalOutput}
-        >
-          {hasOutputs ? (
-            <OutputsTable vOut={tx.vOut ?? []} />
-          ) : (
-            <EmptyIo
-              message={
-                tx.type === 6
-                  ? "Not applicable for quorum commitment."
-                  : "No outputs."
-              }
-            />
-          )}
-        </IoSection>
+          {inputsOnLeft ? null : inputsSection}
+          {outputsSection}
+        </div>
       </div>
     </main>
   );
@@ -369,6 +323,23 @@ function DetailRow({
   );
 }
 
+function BlockPill({ height, hash }: { height: number; hash?: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <Link
+        to="/blocks/$hashOrHeight"
+        params={{ hashOrHeight: String(height) }}
+        className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 transition-colors hover:bg-accent/10"
+      >
+        <span className="font-mono font-bold text-foreground">
+          {height.toLocaleString()}
+        </span>
+      </Link>
+      <CopyButton value={hash ?? String(height)} />
+    </div>
+  );
+}
+
 function AmountValue({
   value,
   muted = false,
@@ -387,33 +358,20 @@ function AmountValue({
 
 function IoSection({
   title,
-  icon: Icon,
   count,
-  total,
   children,
 }: {
   title: string;
-  icon: IconType;
   count: number;
-  total: number | null;
   children: ReactNode;
 }) {
   return (
-    <Card className="border-0 px-5 py-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-full border border-accent/12 text-accent">
-            <Icon className="size-4" />
-          </div>
-          <h2 className="text-lg">{title}</h2>
-          <Badge
-            variant="outline"
-            className="rounded-full border-border text-xs font-medium"
-          >
-            {count}
-          </Badge>
-        </div>
-        {total != null ? <DashAmountBadge value={total} /> : null}
+    <Card className="border-0 px-6 py-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm text-muted-foreground">
+          {title} <span className="text-foreground">({count})</span>
+        </h2>
+        <ChevronUp className="size-4 text-muted-foreground" />
       </div>
       {children}
     </Card>
@@ -423,130 +381,48 @@ function IoSection({
 function DashAmountBadge({ value }: { value: number }) {
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-accent/12 px-2.5 py-1 text-xs text-accent">
-      <img src="/images/dash-logo.svg" alt="" className="size-3.5" />
       <span className="font-bold">{formatDuffs(value)}</span>
+      <img src="/images/dash-logo.svg" alt="" className="size-3.5" />
     </span>
   );
 }
 
-function InputsTable({ vIn }: { vIn: ApiVIn[] }) {
+interface IoRow {
+  key: string;
+  address: string | null;
+  amount: number | null;
+}
+
+function IoTable({ rows }: { rows: IoRow[] }) {
   return (
-    <div className="overflow-x-auto">
-      <table
-        className="w-full text-xs"
-        style={{ borderCollapse: "separate", borderSpacing: "0 6px" }}
-      >
-        <thead>
-          <tr>
-            <th className="px-3 pb-2 text-left text-muted-foreground">#</th>
-            <th className="px-3 pb-2 text-left text-muted-foreground">
-              Address
-            </th>
-            <th className="px-3 pb-2 text-left text-muted-foreground">
-              Previous Output
-            </th>
-            <th className="px-3 pb-2 text-right text-muted-foreground">
-              Amount
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {vIn.map((input, idx) => {
-            const { prevTxHash } = input;
-            return (
-              <tr
-                key={`${prevTxHash ?? "coinbase"}-${input.vOutIndex ?? idx}`}
-                className="group transition-colors"
-              >
-                <td className="rounded-l-xl bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                  {idx}
-                </td>
-                <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                  <AddressLink address={input.address} />
-                </td>
-                <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                  {prevTxHash ? (
-                    <Link
-                      to="/transactions/$hash"
-                      params={{ hash: prevTxHash }}
-                      className="font-mono text-accent hover:underline"
-                    >
-                      {prevTxHash.slice(0, 12)}…:{input.vOutIndex ?? 0}
-                    </Link>
-                  ) : (
-                    <span className="font-mono text-muted-foreground">
-                      Coinbase
-                    </span>
-                  )}
-                </td>
-                <td className="rounded-r-xl bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
-                  {input.amount != null ? (
-                    <DashAmountBadge value={Number(input.amount)} />
-                  ) : (
-                    "—"
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-2 px-3 text-[11px] text-muted-foreground">
+        <span>Address</span>
+        <span className="text-right">Amount</span>
+      </div>
+      {rows.map((row) => (
+        <div
+          key={row.key}
+          className="group flex items-center justify-between gap-3 rounded-xl bg-secondary/60 px-3 py-2.5 transition-colors hover:bg-accent/10"
+        >
+          <div className="min-w-0 text-xs">
+            <AddressLink address={row.address} />
+          </div>
+          {row.amount != null ? (
+            <DashAmountBadge value={row.amount} />
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
 
-function OutputsTable({ vOut }: { vOut: ApiVOut[] }) {
+function CoinbaseRow() {
   return (
-    <div className="overflow-x-auto">
-      <table
-        className="w-full text-xs"
-        style={{ borderCollapse: "separate", borderSpacing: "0 6px" }}
-      >
-        <thead>
-          <tr>
-            <th className="px-3 pb-2 text-left text-muted-foreground">#</th>
-            <th className="px-3 pb-2 text-left text-muted-foreground">
-              Address
-            </th>
-            <th className="px-3 pb-2 text-left text-muted-foreground">
-              Script
-            </th>
-            <th className="px-3 pb-2 text-right text-muted-foreground">
-              Amount
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {vOut.map((output) => (
-            <tr key={output.number} className="group transition-colors">
-              <td className="rounded-l-xl bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                {output.number}
-              </td>
-              <td className="bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                <AddressLink address={output.address} />
-              </td>
-              <td className="max-w-[140px] truncate bg-secondary/50 px-3 py-2 font-mono text-muted-foreground transition-colors group-hover:bg-accent/10">
-                {output.scriptPubKeyASM}
-              </td>
-              <td className="rounded-r-xl bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
-                {output.value != null ? (
-                  <DashAmountBadge value={output.value} />
-                ) : (
-                  "—"
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function EmptyIo({ message }: { message: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground">
-      {message}
+    <div className="rounded-xl bg-secondary/60 px-3 py-2.5 text-xs text-muted-foreground">
+      Coinbase (newly generated coins)
     </div>
   );
 }

@@ -23,12 +23,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiVIn, ApiVOut } from "@/lib/api/types";
-import { formatDuffs, formatRelativeTime, getTxTypeLabel } from "@/lib/format";
+import { formatDuffs, formatRelativeTime } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "@/themes/neo/components/copy-button";
 import { DetailRow } from "@/themes/neo/components/detail-row";
 import { EmptyState, NotFoundState } from "@/themes/neo/components/empty-state";
+import { ExtraPayloadSection } from "@/themes/neo/components/extra-payload";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
 import { ShareButton } from "@/themes/neo/components/share-button";
 import {
@@ -287,137 +288,6 @@ function DashAmount({ value }: { value: number | null }) {
   );
 }
 
-function MutedDash() {
-  return <span className="text-muted-foreground">—</span>;
-}
-
-function HexValue({ value, label }: { value: string; label: string }) {
-  const display =
-    value.length > 24 ? `${value.slice(0, 12)}…${value.slice(-8)}` : value;
-  return (
-    <span className="inline-flex min-w-0 items-center gap-1">
-      <span className="font-mono text-xs tabular-nums break-all">
-        {display}
-      </span>
-      <CopyButton value={value} label={label} />
-    </span>
-  );
-}
-
-function BoolValue({ value }: { value: boolean | null | undefined }) {
-  if (value == null) return <MutedDash />;
-  return (
-    <Badge variant={value ? "soft-success" : "soft"}>
-      {value ? "true" : "false"}
-    </Badge>
-  );
-}
-
-function RawTxFields({
-  tx,
-}: {
-  tx: {
-    type: number;
-    version: number;
-    blockHash: string | null;
-    amount: number | null;
-    vIn: ApiVIn[] | null | undefined;
-    vOut: ApiVOut[] | null | undefined;
-    instantLock: boolean | string | null | undefined;
-    chainLocked?: boolean | null | undefined;
-  };
-}) {
-  const isCoinbase = tx.type === 5;
-  const isQuorum = tx.type === 6;
-
-  const instantLock = tx.instantLock;
-  const showInstantLock = !isCoinbase && !isQuorum;
-  const showAmount = tx.amount != null;
-  const showChainLocked = tx.chainLocked != null;
-
-  return (
-    <>
-      <DetailRow label="Type">
-        <span className="font-mono text-sm tabular-nums">{tx.type}</span>
-        <Badge variant="outline" className="text-xs">
-          {getTxTypeLabel(tx.type)}
-        </Badge>
-      </DetailRow>
-      <DetailRow label="Version">
-        <span className="font-mono text-sm tabular-nums">
-          {tx.version ?? "—"}
-        </span>
-      </DetailRow>
-      <DetailRow label="Block Hash">
-        {tx.blockHash ? (
-          <HashDisplay
-            value={tx.blockHash}
-            href="/blocks/$hashOrHeight"
-            params={{ hashOrHeight: tx.blockHash }}
-            head={10}
-            tail={8}
-          />
-        ) : (
-          <MutedDash />
-        )}
-      </DetailRow>
-      {isQuorum ? (
-        <>
-          <DetailRow label="Inputs">
-            <span className="text-muted-foreground">None</span>
-          </DetailRow>
-          <DetailRow label="Outputs">
-            <span className="text-muted-foreground">None</span>
-          </DetailRow>
-        </>
-      ) : isCoinbase ? (
-        <>
-          <DetailRow label="Inputs">
-            <Badge variant="soft">Coinbase</Badge>
-          </DetailRow>
-          <DetailRow label="Outputs">
-            <span className="font-mono text-sm tabular-nums">
-              {tx.vOut?.length ?? 0}
-            </span>
-          </DetailRow>
-        </>
-      ) : (
-        <>
-          <DetailRow label="Inputs">
-            <span className="font-mono text-sm tabular-nums">
-              {tx.vIn?.length ?? 0}
-            </span>
-          </DetailRow>
-          <DetailRow label="Outputs">
-            <span className="font-mono text-sm tabular-nums">
-              {tx.vOut?.length ?? 0}
-            </span>
-          </DetailRow>
-        </>
-      )}
-      {showAmount && (
-        <DetailRow label="Amount">
-          <DashAmount value={tx.amount} />
-        </DetailRow>
-      )}
-      {showInstantLock && (
-        <DetailRow label="Instant Lock">
-          {typeof instantLock === "string" && instantLock.length > 0 ? (
-            <HexValue value={instantLock} label="InstantLock signature" />
-          ) : (
-            <BoolValue value={instantLock as boolean | null | undefined} />
-          )}
-        </DetailRow>
-      )}
-      {showChainLocked && (
-        <DetailRow label="Chain Locked">
-          <BoolValue value={tx.chainLocked} />
-        </DetailRow>
-      )}
-    </>
-  );
-}
-
 interface RedesignTransactionDetailPageProps {
   hash: string;
 }
@@ -491,6 +361,41 @@ export default function RedesignTransactionDetailPage({
       </Badge>
     );
 
+  const hasValueData = !isQuorum && (totalInput != null || totalOutput != null);
+
+  const valueDistributionCard = hasValueData ? (
+    <Card>
+      <CardContent className="flex flex-col gap-5">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Value distribution
+          </h2>
+          {fee != null && fee > 0 && (
+            <Badge
+              variant="outline"
+              className="gap-1.5 border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+            >
+              <Flame className="size-3" />
+              Fee {(fee / 1e8).toFixed(8)} <DashIcon />
+            </Badge>
+          )}
+        </div>
+        {ribbonTotal > 0 ? (
+          <ValueRibbon segments={ribbonSegments} total={ribbonTotal} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No value flow available for this transaction.
+          </p>
+        )}
+        <FeeRewardCallout
+          totalInput={totalInput}
+          totalOutput={totalOutput}
+          fee={fee}
+        />
+      </CardContent>
+    </Card>
+  ) : null;
+
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8">
@@ -543,9 +448,16 @@ export default function RedesignTransactionDetailPage({
           </div>
         </header>
 
-        <Card>
-          <CardContent>
-            <div className="grid gap-x-12 gap-y-8 lg:grid-cols-2">
+        <div
+          className={`grid gap-6 ${
+            tx.extraPayload ||
+            (!isQuorum && (totalInput != null || totalOutput != null))
+              ? "lg:grid-cols-2"
+              : "lg:grid-cols-1"
+          }`}
+        >
+          <Card>
+            <CardContent>
               <section className="flex flex-col gap-4">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Summary
@@ -563,7 +475,10 @@ export default function RedesignTransactionDetailPage({
                       >
                         <Link
                           to="/blocks/$hashOrHeight"
-                          params={{ hashOrHeight: tx.blockHash }}
+                          params={{
+                            hashOrHeight:
+                              tx.blockHash ?? String(tx.blockHeight),
+                          }}
                         >
                           #{tx.blockHeight.toLocaleString()}
                         </Link>
@@ -615,53 +530,19 @@ export default function RedesignTransactionDetailPage({
                   </DetailRow>
                 </dl>
               </section>
+            </CardContent>
+          </Card>
 
-              <section className="flex flex-col gap-4 lg:border-l lg:border-border/60 lg:pl-12">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Raw Transaction
-                </h2>
-                <dl className="grid gap-y-4">
-                  <RawTxFields tx={tx} />
-                </dl>
-              </section>
-            </div>
-          </CardContent>
-        </Card>
+          {tx.extraPayload ? (
+            <ExtraPayloadSection txType={tx.type} payload={tx.extraPayload} />
+          ) : (
+            valueDistributionCard
+          )}
+        </div>
 
         {isCoinbase && <CoinbaseRewardPill reward={totalOutput} />}
 
-        {!isQuorum && (totalInput != null || totalOutput != null) && (
-          <Card>
-            <CardContent className="flex flex-col gap-5">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Value distribution
-                </h2>
-                {fee != null && fee > 0 && (
-                  <Badge
-                    variant="outline"
-                    className="gap-1.5 border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                  >
-                    <Flame className="size-3" />
-                    Fee {(fee / 1e8).toFixed(8)} <DashIcon />
-                  </Badge>
-                )}
-              </div>
-              {ribbonTotal > 0 ? (
-                <ValueRibbon segments={ribbonSegments} total={ribbonTotal} />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No value flow available for this transaction.
-                </p>
-              )}
-              <FeeRewardCallout
-                totalInput={totalInput}
-                totalOutput={totalOutput}
-                fee={fee}
-              />
-            </CardContent>
-          </Card>
-        )}
+        {tx.extraPayload ? valueDistributionCard : null}
 
         <section className="flex flex-col gap-4">
           <h2 className="text-lg font-semibold tracking-tight">

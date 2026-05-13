@@ -46,6 +46,134 @@ export interface ApiVOut {
   address: string | null;
 }
 
+export interface ApiOutPoint {
+  txId: string;
+  vOut: number;
+}
+
+export interface ApiOutput {
+  satoshis: string;
+  script: string;
+}
+
+export interface ApiQfCommit {
+  version: number;
+  llmqType: number;
+  quorumHash: string;
+  quorumIndex: number | null;
+  signers: string;
+  validMembers: string;
+  quorumPublicKey: string;
+  quorumVvecHash: string;
+  quorumSig: string;
+  sig: string;
+}
+
+export interface ApiMnHfSignal {
+  versionBit: number;
+  quorumHash: string;
+  sig: string;
+}
+
+export interface ApiProRegTxPayload {
+  version: number;
+  type: number;
+  mode: number;
+  collateralOutpoint: ApiOutPoint;
+  ipAddress: string;
+  port: number;
+  keyIdOwner: string;
+  keyIdVoting: string;
+  pubKeyOperator: string;
+  operatorReward: number;
+  scriptPayout: string;
+  inputsHash: string;
+  platformNodeID: string;
+  platformP2PPort: number;
+  platformHTTPPort: number;
+  payloadSig: string;
+}
+
+export interface ApiProUpServTxPayload {
+  version: number;
+  type: number;
+  proTxHash: string;
+  ipAddress: string;
+  port: number;
+  scriptOperatorPayout: string;
+  inputsHash: string;
+  platformNodeID: string;
+  platformP2PPort: number;
+  platformHTTPPort: number;
+  payloadSig: string;
+}
+
+export interface ApiProUpRegTxPayload {
+  version: number;
+  proTxHash: string;
+  mode: number;
+  keyIdVoting: string;
+  pubKeyOperator: string;
+  scriptPayout: string;
+  inputsHash: string;
+  payloadSig: string;
+}
+
+export interface ApiProUpRevTxPayload {
+  version: number;
+  proTxHash: string;
+  reason: number;
+  inputsHash: string;
+  payloadSig: string;
+}
+
+export interface ApiCbTxPayload {
+  version: number;
+  height: number;
+  merkleRootMNList: string;
+  merkleRootQuorums: string | null;
+  bestCLHeightDiff: string | null;
+  bestCLSignature: string | null;
+  creditPoolBalance: string | null;
+}
+
+export interface ApiQcTxPayload {
+  version: number;
+  height: number;
+  commitment: ApiQfCommit;
+}
+
+export interface ApiMnHfTxPayload {
+  version: number;
+  commitment: ApiMnHfSignal;
+}
+
+export interface ApiAssetLockTxPayload {
+  version: number;
+  count: number;
+  outputs: ApiOutput[];
+}
+
+export interface ApiAssetUnlockTxPayload {
+  version: number;
+  index: string;
+  fee: number;
+  requestedHeight: number;
+  quorumHash: string;
+  quorumSig: string;
+}
+
+export type ApiExtraPayload =
+  | ApiProRegTxPayload
+  | ApiProUpServTxPayload
+  | ApiProUpRegTxPayload
+  | ApiProUpRevTxPayload
+  | ApiCbTxPayload
+  | ApiQcTxPayload
+  | ApiMnHfTxPayload
+  | ApiAssetLockTxPayload
+  | ApiAssetUnlockTxPayload;
+
 export interface ApiTransaction {
   hash: string;
   type: number;
@@ -60,6 +188,7 @@ export interface ApiTransaction {
   chainLocked?: boolean | null;
   size?: number | null;
   timestamp: string;
+  extraPayload?: ApiExtraPayload | null;
 }
 
 export interface ApiAddress {
