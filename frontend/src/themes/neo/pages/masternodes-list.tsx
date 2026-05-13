@@ -3,12 +3,14 @@ import { useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
 import { CircleCheck, Server, ServerCrash, ShieldAlert } from "lucide-react";
-import { useId, useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { useMemo, useState } from "react";
+import { Cell, Pie, PieChart } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import {
   type ChartConfig,
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
@@ -55,12 +57,32 @@ const INFINITE_PAGE_SIZE = 25;
 const PAGINATION_PAGE_SIZE = 25;
 
 const statusConfig: ChartConfig = {
-  value: { label: "Nodes", color: "var(--chart-1)" },
+  value: { label: "Nodes" },
+  Enabled: { label: "Enabled", color: "var(--success)" },
+  Banned: { label: "Banned", color: "var(--destructive)" },
+  Other: { label: "Other", color: "var(--muted-foreground)" },
 };
 
-const typeConfig: ChartConfig = {
-  value: { label: "Nodes", color: "var(--chart-2)" },
-};
+const TYPE_PALETTE = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--chart-3)",
+];
+
+function buildTypeConfig(typeChart: { name: string; value: number }[]) {
+  const config: ChartConfig = {
+    value: { label: "Nodes" },
+  };
+  typeChart.forEach((entry, idx) => {
+    config[entry.name] = {
+      label: entry.name,
+      color: TYPE_PALETTE[idx % TYPE_PALETTE.length],
+    };
+  });
+  return config;
+}
 
 export default function RedesignMasternodesListPage() {
   const network = useStore(appStore, (state) => state.network);
@@ -69,9 +91,6 @@ export default function RedesignMasternodesListPage() {
   const [viewMode, setViewMode] = useTableViewMode("masternodes");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
-  const statusGradId = useId();
-  const typeGradId = useId();
-
   const isInfinite = viewMode === "infinite";
 
   const { data, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } =
@@ -120,6 +139,23 @@ export default function RedesignMasternodesListPage() {
     );
   }, [search, masternodes]);
 
+  const typeConfig = useMemo(
+    () =>
+      buildTypeConfig(
+        Object.entries(
+          (statsData?.resultSet ?? []).reduce<Record<string, number>>(
+            (acc, n) => {
+              const key = getMnTypeLabel(n.type);
+              acc[key] = (acc[key] ?? 0) + 1;
+              return acc;
+            },
+            {},
+          ),
+        ).map(([name, value]) => ({ name, value })),
+      ),
+    [statsData],
+  );
+
   const stats = useMemo(() => {
     const sample = statsData?.resultSet ?? [];
     const totalAll = statsData?.pagination?.total ?? null;
@@ -136,8 +172,8 @@ export default function RedesignMasternodesListPage() {
       acc[key] = (acc[key] ?? 0) + 1;
       return acc;
     }, {});
-    const typeChart = Object.entries(typeCounts).map(([type, count]) => ({
-      type,
+    const typeChart = Object.entries(typeCounts).map(([name, count]) => ({
+      name,
       value: count,
     }));
 
@@ -251,185 +287,146 @@ export default function RedesignMasternodesListPage() {
           </p>
         </header>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardDescription>Total Masternodes</CardDescription>
-              <CardTitle className="text-2xl tabular-nums text-accent">
-                {stats.totalAll != null ? formatCompact(stats.totalAll) : "—"}
-              </CardTitle>
-              <CardAction>
-                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
-                  <Server className="size-4" />
-                </div>
-              </CardAction>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Enabled (sampled)</CardDescription>
-              <CardTitle className="text-2xl tabular-nums text-accent">
-                {stats.sampled > 0 ? stats.enabled.toLocaleString() : "—"}
-              </CardTitle>
-              <CardAction>
-                <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
-                  <CircleCheck className="size-4" />
-                </div>
-              </CardAction>
-            </CardHeader>
-            <CardContent className="text-xs text-muted-foreground">
-              In latest {stats.sampled} nodes
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Banned (sampled)</CardDescription>
-              <CardTitle className="text-2xl tabular-nums text-accent">
-                {stats.sampled > 0 ? stats.banned.toLocaleString() : "—"}
-              </CardTitle>
-              <CardAction>
-                <div className="flex size-9 items-center justify-center rounded-full bg-destructive/12 [&_svg]:text-destructive">
-                  <ServerCrash className="size-4" />
-                </div>
-              </CardAction>
-            </CardHeader>
-            <CardContent className="text-xs text-muted-foreground">
-              In latest {stats.sampled} nodes
-            </CardContent>
-          </Card>
-        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="flex flex-col gap-4">
+            <Card>
+              <CardHeader>
+                <CardDescription>Total Masternodes</CardDescription>
+                <CardTitle className="text-2xl tabular-nums text-accent">
+                  {stats.totalAll != null ? formatCompact(stats.totalAll) : "—"}
+                </CardTitle>
+                <CardAction>
+                  <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+                    <Server className="size-4" />
+                  </div>
+                </CardAction>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Enabled (sampled)</CardDescription>
+                <CardTitle className="text-2xl tabular-nums text-accent">
+                  {stats.sampled > 0 ? stats.enabled.toLocaleString() : "—"}
+                </CardTitle>
+                <CardAction>
+                  <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
+                    <CircleCheck className="size-4" />
+                  </div>
+                </CardAction>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                In latest {stats.sampled} nodes
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Banned (sampled)</CardDescription>
+                <CardTitle className="text-2xl tabular-nums text-accent">
+                  {stats.sampled > 0 ? stats.banned.toLocaleString() : "—"}
+                </CardTitle>
+                <CardAction>
+                  <div className="flex size-9 items-center justify-center rounded-full bg-destructive/12 [&_svg]:text-destructive">
+                    <ServerCrash className="size-4" />
+                  </div>
+                </CardAction>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                In latest {stats.sampled} nodes
+              </CardContent>
+            </Card>
+          </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
+          <Card className="lg:col-span-2">
             <CardHeader>
-              <CardDescription>Status Distribution</CardDescription>
+              <CardDescription>Distribution</CardDescription>
               <CardTitle className="text-xl tabular-nums text-accent">
-                {stats.sampled} nodes
+                {stats.sampled} nodes sampled
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {stats.statusChart.length > 0 ? (
-                <ChartContainer
-                  config={statusConfig}
-                  className="aspect-auto h-[180px] w-full"
-                >
-                  <BarChart
-                    data={stats.statusChart}
-                    layout="vertical"
-                    margin={{ left: 16, right: 16 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id={statusGradId}
-                        x1="0"
-                        y1="0"
-                        x2="1"
-                        y2="0"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="var(--color-value)"
-                          stopOpacity={0.9}
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    By Status
+                  </span>
+                  {stats.statusChart.length > 0 ? (
+                    <ChartContainer
+                      config={statusConfig}
+                      className="mx-auto aspect-square h-[200px]"
+                    >
+                      <PieChart>
+                        <ChartTooltip
+                          content={
+                            <ChartTooltipContent nameKey="status" hideLabel />
+                          }
                         />
-                        <stop
-                          offset="100%"
-                          stopColor="var(--color-value)"
-                          stopOpacity={0.4}
+                        <Pie
+                          data={stats.statusChart}
+                          dataKey="value"
+                          nameKey="status"
+                          innerRadius={42}
+                          outerRadius={76}
+                          strokeWidth={2}
+                          paddingAngle={2}
+                        >
+                          {stats.statusChart.map((entry) => (
+                            <Cell
+                              key={entry.status}
+                              fill={`var(--color-${entry.status})`}
+                            />
+                          ))}
+                        </Pie>
+                        <ChartLegend
+                          content={<ChartLegendContent nameKey="status" />}
                         />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                    <XAxis
-                      type="number"
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v) => Number(v).toFixed(0)}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="status"
-                      tickLine={false}
-                      axisLine={false}
-                      width={80}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar
-                      dataKey="value"
-                      fill={`url(#${statusGradId})`}
-                      radius={[0, 4, 4, 0]}
-                    />
-                  </BarChart>
-                </ChartContainer>
-              ) : (
-                <EmptyState title="No data" className="h-[180px]" />
-              )}
-            </CardContent>
-          </Card>
+                      </PieChart>
+                    </ChartContainer>
+                  ) : (
+                    <EmptyState title="No data" className="h-[200px] w-full" />
+                  )}
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardDescription>Type Distribution</CardDescription>
-              <CardTitle className="text-xl tabular-nums text-accent">
-                {stats.typeChart.length}{" "}
-                {stats.typeChart.length === 1 ? "type" : "types"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {stats.typeChart.length > 0 ? (
-                <ChartContainer
-                  config={typeConfig}
-                  className="aspect-auto h-[180px] w-full"
-                >
-                  <BarChart
-                    data={stats.typeChart}
-                    layout="vertical"
-                    margin={{ left: 16, right: 16 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id={typeGradId}
-                        x1="0"
-                        y1="0"
-                        x2="1"
-                        y2="0"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="var(--color-value)"
-                          stopOpacity={0.9}
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    By Type
+                  </span>
+                  {stats.typeChart.length > 0 ? (
+                    <ChartContainer
+                      config={typeConfig}
+                      className="mx-auto aspect-square h-[200px]"
+                    >
+                      <PieChart>
+                        <ChartTooltip
+                          content={
+                            <ChartTooltipContent nameKey="name" hideLabel />
+                          }
                         />
-                        <stop
-                          offset="100%"
-                          stopColor="var(--color-value)"
-                          stopOpacity={0.4}
+                        <Pie
+                          data={stats.typeChart}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={42}
+                          outerRadius={76}
+                          strokeWidth={2}
+                          paddingAngle={2}
+                        >
+                          {stats.typeChart.map((entry) => (
+                            <Cell
+                              key={entry.name}
+                              fill={`var(--color-${entry.name})`}
+                            />
+                          ))}
+                        </Pie>
+                        <ChartLegend
+                          content={<ChartLegendContent nameKey="name" />}
                         />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                    <XAxis
-                      type="number"
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v) => Number(v).toFixed(0)}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="type"
-                      tickLine={false}
-                      axisLine={false}
-                      width={80}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar
-                      dataKey="value"
-                      fill={`url(#${typeGradId})`}
-                      radius={[0, 4, 4, 0]}
-                    />
-                  </BarChart>
-                </ChartContainer>
-              ) : (
-                <EmptyState title="No data" className="h-[180px]" />
-              )}
+                      </PieChart>
+                    </ChartContainer>
+                  ) : (
+                    <EmptyState title="No data" className="h-[200px] w-full" />
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

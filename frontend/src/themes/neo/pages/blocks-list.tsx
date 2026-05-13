@@ -377,7 +377,22 @@ export default function RedesignBlocksListPage() {
                       width={40}
                       tickFormatter={(v) => Number(v).toFixed(0)}
                     />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={(_, payload) => {
+                            const ts = payload?.[0]?.payload?.timestamp;
+                            if (typeof ts !== "number") return null;
+                            return new Date(ts).toLocaleString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            });
+                          }}
+                        />
+                      }
+                    />
                     <Area
                       dataKey="value"
                       type="monotone"
@@ -456,7 +471,18 @@ export default function RedesignBlocksListPage() {
                       width={40}
                       tickFormatter={(v) => `${Number(v).toFixed(0)}`}
                     />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={(_, payload) => {
+                            const h = payload?.[0]?.payload?.height;
+                            return h != null
+                              ? `Block #${Number(h).toLocaleString()}`
+                              : null;
+                          }}
+                        />
+                      }
+                    />
                     <Bar
                       dataKey="value"
                       fill={`url(#${sizeGradId})`}
