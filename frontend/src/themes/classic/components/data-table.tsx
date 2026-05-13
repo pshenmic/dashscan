@@ -1,5 +1,5 @@
 import { flexRender, type Table } from "@tanstack/react-table";
-import { SkeletonRow } from "@/components/skeleton";
+import { SkeletonRow } from "@/themes/classic/components/skeleton";
 
 interface DataTableProps<T> {
   table: Table<T>;

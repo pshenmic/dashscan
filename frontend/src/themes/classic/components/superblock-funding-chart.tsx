@@ -1,4 +1,4 @@
-import { AreaChart } from "@/components/area-chart";
+import { AreaChart } from "@/themes/classic/components/area-chart";
 
 type SuperblockFundingChartProps = {
   data: { label: string; value: number }[];
