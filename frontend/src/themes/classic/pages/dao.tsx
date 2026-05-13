@@ -25,6 +25,11 @@ import {
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiGovernanceObject } from "@/lib/api/types";
 import { formatRelativeTime } from "@/lib/format";
+import {
+  getDaysUntilSuperblock,
+  getRequiredVotes,
+  getVotingDeadline,
+} from "@/lib/governance";
 import { appStore } from "@/lib/store";
 import { CopyButton } from "@/themes/classic/components/copy-button";
 import { DataTable } from "@/themes/classic/components/data-table";
@@ -33,11 +38,6 @@ import { Pagination } from "@/themes/classic/components/pagination";
 import { SearchInput } from "@/themes/classic/components/search-input";
 import { StatCard } from "@/themes/classic/components/stat-card";
 import { SuperblockFundingChart } from "@/themes/classic/components/superblock-funding-chart";
-import {
-  getDaysUntilSuperblock,
-  getRequiredVotes,
-  getVotingDeadline,
-} from "@/themes/classic/lib/governance";
 
 const columns: ColumnDef<ApiGovernanceObject>[] = [
   {
