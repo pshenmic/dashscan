@@ -31,6 +31,7 @@ import {
   getTxTypeLabel,
   sumVOut,
 } from "@/lib/format";
+import { getPageCount, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { AreaChart } from "@/themes/classic/components/area-chart";
@@ -41,10 +42,6 @@ import { MiniStatCard } from "@/themes/classic/components/mini-stat-card";
 import { PageStatus } from "@/themes/classic/components/page-status";
 import { Pagination } from "@/themes/classic/components/pagination";
 import { SearchInput } from "@/themes/classic/components/search-input";
-import {
-  getPageCount,
-  PAGE_SIZE_OPTIONS,
-} from "@/themes/classic/lib/pagination";
 
 type ChartRange = "1d" | "1w" | "1m" | "1y";
 

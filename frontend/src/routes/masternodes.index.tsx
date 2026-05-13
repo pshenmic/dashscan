@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
+import { paginationSearchSchema } from "@/lib/pagination";
 import { defaultNetwork } from "@/lib/store";
-import { paginationSearchSchema } from "@/themes/classic/lib/pagination";
 import ClassicMasternodesListPage from "@/themes/classic/pages/masternodes-list";
 
 export const Route = createFileRoute("/masternodes/")({

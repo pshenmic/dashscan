@@ -5,6 +5,7 @@
 @import "tw-animate-css";
 
 @import "./themes/classic/styles.css";
+@import "./themes/redesign/styles.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -26,8 +27,18 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-violet-foreground: var(--accent-violet-foreground);
+  --color-accent-teal: var(--accent-teal);
+  --color-accent-teal-foreground: var(--accent-teal-foreground);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-amber-foreground: var(--accent-amber-foreground);
+  --color-accent-lime: var(--accent-lime);
+  --color-accent-lime-foreground: var(--accent-lime-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -90,6 +101,13 @@
 
 @utility shadow-card {
   box-shadow: 0 0 48px rgba(0, 0, 0, 0.08);
+}
+
+@utility shadow-floating {
+  box-shadow:
+    0 1px 1px 0 hsla(215, 62%, 12%, 0.04),
+    0 8px 24px -8px hsla(215, 62%, 12%, 0.12),
+    0 24px 64px -12px hsla(215, 62%, 12%, 0.18);
 }
 
 @layer base {

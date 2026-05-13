@@ -27,6 +27,7 @@ import {
   getTxTypeLabel,
   sumVOut,
 } from "@/lib/format";
+import { getPageCount } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { CopyButton } from "@/themes/classic/components/copy-button";
 import { DetailRow } from "@/themes/classic/components/detail-row";
@@ -35,7 +36,6 @@ import { Pagination } from "@/themes/classic/components/pagination";
 import { SearchInput } from "@/themes/classic/components/search-input";
 import { SkeletonBar } from "@/themes/classic/components/skeleton";
 import { TwoLineHash } from "@/themes/classic/components/two-line-hash";
-import { getPageCount } from "@/themes/classic/lib/pagination";
 
 interface ClassicBlockDetailPageProps {
   hashOrHeight: string;

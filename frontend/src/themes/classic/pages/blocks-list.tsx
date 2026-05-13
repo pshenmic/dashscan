@@ -21,6 +21,7 @@ import { blocksQueryOptions } from "@/lib/api/blocks";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiBlock } from "@/lib/api/types";
 import { formatCompact, formatRelativeTime } from "@/lib/format";
+import { getPageCount } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { BlockTransactionsChart } from "@/themes/classic/components/block-transactions-chart";
 import { CopyButton } from "@/themes/classic/components/copy-button";
@@ -29,7 +30,6 @@ import { HashCell } from "@/themes/classic/components/hash-cell";
 import { Pagination } from "@/themes/classic/components/pagination";
 import { SearchInput } from "@/themes/classic/components/search-input";
 import { StatCard } from "@/themes/classic/components/stat-card";
-import { getPageCount } from "@/themes/classic/lib/pagination";
 
 const columns: ColumnDef<ApiBlock>[] = [
   {

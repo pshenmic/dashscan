@@ -4,8 +4,8 @@ import {
   transactionsStatsQueryOptions,
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
+import { paginationSearchSchema } from "@/lib/pagination";
 import { defaultNetwork } from "@/lib/store";
-import { paginationSearchSchema } from "@/themes/classic/lib/pagination";
 import ClassicTransactionsListPage from "@/themes/classic/pages/transactions-list";
 
 export const Route = createFileRoute("/transactions/")({
