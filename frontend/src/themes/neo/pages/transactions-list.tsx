@@ -340,7 +340,21 @@ export default function RedesignTransactionsListPage() {
                       width={48}
                       tickFormatter={(v) => formatCompact(Number(v))}
                     />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={(_, payload) => {
+                            const ts = payload?.[0]?.payload?.timestamp;
+                            if (typeof ts !== "number") return null;
+                            return new Date(ts).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            });
+                          }}
+                        />
+                      }
+                    />
                     <Bar
                       dataKey="value"
                       fill={`url(#${barGradId})`}
