@@ -55,7 +55,7 @@ export default class SearchDAO {
         'transactions.is_coinbase',
         'blocks.height as block_height',
         'blocks.timestamp as timestamp',
-        this.knex.raw('transactions.transfer_amount::text as transfer_amount'),
+        this.knex.raw('transactions.amount::text as amount'),
         'transactions.coinjoin',
       )
       .leftJoin('blocks', 'blocks.height', 'transactions.block_height')
