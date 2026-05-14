@@ -101,6 +101,7 @@ export default function Header() {
 
               <div className="flex flex-col gap-3 border-t border-border pt-4">
                 {/*<NetworkSelector />*/}
+                <ThemeSwitcher />
               </div>
             </div>
           </SheetContent>

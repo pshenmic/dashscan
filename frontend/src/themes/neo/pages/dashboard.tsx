@@ -97,6 +97,7 @@ import { cn } from "@/lib/utils";
 import { EmptyState } from "@/themes/neo/components/empty-state";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
 import { LiveTicker } from "@/themes/neo/components/live-ticker";
+import { MasternodeMap } from "@/themes/neo/components/masternode-map";
 import {
   InstantLockBadge,
   MnStatusBadge,
@@ -910,6 +911,8 @@ export default function RedesignDashboardPage() {
             isLoading={proposals == null}
           />
         </div>
+
+        <MasternodeMap variant="dashboard" />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatTile

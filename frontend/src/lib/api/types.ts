@@ -216,6 +216,14 @@ export interface ApiAddressBalancePoint {
   data: { balance: string };
 }
 
+export interface GeoIpInfo {
+  ipv4: string;
+  countryCode: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface ApiMasternode {
   proTxHash: string;
   address: string;
@@ -232,6 +240,7 @@ export interface ApiMasternode {
   pubKeyOperator: string;
   createdAt: string;
   updatedAt: string;
+  geoIpInfo: GeoIpInfo | null;
 }
 
 export interface ApiTransactionsStatsEntry {

@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
 import { CircleCheck, Server, ServerCrash, ShieldAlert } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Cell, Pie, PieChart } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import {
@@ -20,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  allMasternodesGeoQueryOptions,
   masternodesInfiniteQueryOptions,
   masternodesQueryOptions,
 } from "@/lib/api/masternodes";
@@ -28,6 +29,8 @@ import {
   formatCompact,
   formatRelativeTime,
   getIp,
+  getMnStatusBucket,
+  getMnTypeBucket,
   getMnTypeLabel,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -39,6 +42,14 @@ import {
 } from "@/themes/neo/components/data-table";
 import { EmptyState } from "@/themes/neo/components/empty-state";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
+import { MasternodeMap } from "@/themes/neo/components/masternode-map";
+import {
+  EMPTY_FILTERS,
+  isFiltersActive,
+  LAST_PAID_WINDOW_SEC,
+  type MasternodeFilters,
+  MasternodesFilterBar,
+} from "@/themes/neo/components/masternodes-filter-bar";
 import {
   MnStatusBadge,
   MnTypeBadge,
@@ -117,10 +128,52 @@ export default function RedesignMasternodesListPage() {
     masternodesQueryOptions({ network, page: 1, limit: 100, order: "desc" }),
   );
 
-  const infiniteMasternodes = useMemo(
-    () => data?.pages.flatMap((p) => p.resultSet) ?? [],
-    [data],
+  const { data: geoData } = useQuery(
+    allMasternodesGeoQueryOptions({ network }),
   );
+  const [filters, setFilters] = useState<MasternodeFilters>(EMPTY_FILTERS);
+  const filtersActive = isFiltersActive(filters);
+
+  const countryByHash = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of geoData ?? []) m.set(p.proTxHash, p.countryCode);
+    return m;
+  }, [geoData]);
+
+  const countryOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of geoData ?? []) {
+      m.set(p.countryCode, (m.get(p.countryCode) ?? 0) + 1);
+    }
+    return Array.from(m.entries()).map(([code, count]) => ({ code, count }));
+  }, [geoData]);
+
+  const setSelectedCountry = useCallback(
+    (code: string | null) => setFilters((f) => ({ ...f, country: code })),
+    [],
+  );
+
+  useEffect(() => {
+    if (filtersActive && !isInfinite) setViewMode("infinite");
+  }, [filtersActive, isInfinite, setViewMode]);
+
+  useEffect(() => {
+    if (!filtersActive) return;
+    if (isFetchingNextPage) return;
+    if (hasNextPage) fetchNextPage();
+  }, [filtersActive, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const infiniteMasternodes = useMemo(() => {
+    const all = data?.pages.flatMap((p) => p.resultSet) ?? [];
+    const seen = new Set<string>();
+    const unique: typeof all = [];
+    for (const m of all) {
+      if (seen.has(m.proTxHash)) continue;
+      seen.add(m.proTxHash);
+      unique.push(m);
+    }
+    return unique;
+  }, [data]);
   const masternodes = isInfinite
     ? infiniteMasternodes
     : (pagedData?.resultSet ?? []);
@@ -129,15 +182,47 @@ export default function RedesignMasternodesListPage() {
     : (pagedData?.pagination?.total ?? 0);
 
   const filtered = useMemo(() => {
-    if (!search) return masternodes;
     const q = search.toLowerCase();
-    return masternodes.filter(
-      (m) =>
-        m.proTxHash.toLowerCase().includes(q) ||
-        m.address.toLowerCase().includes(q) ||
-        m.payee?.toLowerCase().includes(q),
-    );
-  }, [search, masternodes]);
+    const nowSec = Math.floor(Date.now() / 1000);
+    return masternodes.filter((m) => {
+      if (q) {
+        const match =
+          m.proTxHash.toLowerCase().includes(q) ||
+          m.address.toLowerCase().includes(q) ||
+          m.payee?.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      if (filters.country) {
+        const cc = countryByHash.get(m.proTxHash);
+        if (cc !== filters.country) return false;
+      }
+      if (
+        filters.statuses.length > 0 &&
+        !filters.statuses.includes(getMnStatusBucket(m.status))
+      )
+        return false;
+      if (
+        filters.types.length > 0 &&
+        !filters.types.includes(getMnTypeBucket(m.type))
+      )
+        return false;
+      if (filters.lastPaid !== "any") {
+        const lp = Number(m.lastPaidTime ?? 0);
+        const windowSec = LAST_PAID_WINDOW_SEC[filters.lastPaid];
+        if (windowSec === 0) {
+          if (lp > 0) return false;
+        } else if (windowSec != null) {
+          if (lp <= 0) return false;
+          if (nowSec - lp > windowSec) return false;
+        }
+      }
+      if (filters.pose !== "any") {
+        if (filters.pose === "healthy" && m.posPenaltyScore !== 0) return false;
+        if (filters.pose === "penalty" && m.posPenaltyScore === 0) return false;
+      }
+      return true;
+    });
+  }, [search, masternodes, filters, countryByHash]);
 
   const typeConfig = useMemo(
     () =>
@@ -430,6 +515,18 @@ export default function RedesignMasternodesListPage() {
             </CardContent>
           </Card>
         </div>
+
+        <MasternodeMap
+          variant="page"
+          selectedCountry={filters.country}
+          onSelectCountry={setSelectedCountry}
+        />
+
+        <MasternodesFilterBar
+          filters={filters}
+          onChange={setFilters}
+          countryOptions={countryOptions}
+        />
 
         <DataTable
           columns={columns}
