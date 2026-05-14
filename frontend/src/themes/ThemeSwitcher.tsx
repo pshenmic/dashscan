@@ -34,7 +34,7 @@ export function ThemeSwitcher() {
           aria-label="Switch theme"
         >
           <Palette className="size-4" />
-          <span className="hidden sm:inline">{THEME_LABELS[active]}</span>
+          <span>{THEME_LABELS[active]}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[200px]">

@@ -149,6 +149,10 @@ export default function SiteHeader() {
                   </Link>
                 ))}
               </nav>
+
+              <div className="flex flex-col gap-3 border-t border-border pt-4">
+                <ThemeSwitcher />
+              </div>
             </div>
           </SheetContent>
         </Sheet>
