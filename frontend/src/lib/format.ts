@@ -60,6 +60,23 @@ export function getMnStatusLabel(status: string): string {
   return status;
 }
 
+export type MnStatusBucket = "enabled" | "banned" | "other";
+export type MnTypeBucket = "regular" | "evo";
+
+export function getMnStatusBucket(status: string): MnStatusBucket {
+  const s = status.toUpperCase();
+  if (s === "ENABLED") return "enabled";
+  if (s.includes("BANNED")) return "banned";
+  return "other";
+}
+
+export function getMnTypeBucket(type: string): MnTypeBucket {
+  const t = type.toLowerCase();
+  return t === "evo" || t === "evolution" || t === "highperformance"
+    ? "evo"
+    : "regular";
+}
+
 export function getIp(address: string): string {
   const idx = address.lastIndexOf(":");
   return idx > 0 ? address.slice(0, idx) : address;
