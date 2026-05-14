@@ -19,7 +19,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event.workflow_run.conclusion == 'success' && github.event.pull_request.merged == true
 
     steps:
       - name: Set environment variables
