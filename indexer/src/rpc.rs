@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tracing::{debug, warn};
 use crate::errors::rpc_error::RpcError;
+use dashcore::consensus::encode::deserialize as consensus_deserialize;
 
 pub struct DashRpcClient {
     client: Client,
@@ -241,6 +242,27 @@ impl DashRpcClient {
         debug!("Fetched block {hash}");
         serde_json::from_value(result)
             .map_err(|e| RpcError { code: 0, message: format!("Failed to parse get_block JSON response with serde: {e}") })
+    }
+
+    pub async fn get_block_raw(&self, hash: &str) -> Result<dashcore::block::Block, RpcError> {
+        let result = self
+            .call(
+                "getblock",
+                vec![Value::from(hash), Value::from(0)], // verbosity=0 for raw hex
+            )
+            .await
+            .map_err(|e| RpcError { code: 0, message: e.message })?;
+
+        let hex_str = result
+            .as_str()
+            .ok_or_else(|| RpcError { code: 0, message: "get_block_raw: expected hex string".to_string() })?;
+
+        let bytes = hex::decode(hex_str)
+            .map_err(|e| RpcError { code: 0, message: format!("get_block_raw: hex decode failed: {e}") })?;
+
+        debug!("Fetched raw block {hash}");
+        consensus_deserialize(&bytes)
+            .map_err(|e| RpcError { code: 0, message: format!("get_block_raw: consensus decode failed: {e}") })
     }
 
     #[allow(dead_code)]

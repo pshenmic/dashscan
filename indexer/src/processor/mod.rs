@@ -8,6 +8,7 @@ use crate::config::superblock_interval;
 use crate::db::Database;
 use crate::errors::block_index_error::BlockIndexError;
 use crate::miner_pool::MinerPool;
+use crate::p2p_converter;
 use crate::rpc::DashRpcClient;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -16,6 +17,7 @@ use tracing::{debug, error, info};
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
     pub db: Database,
+    pub network: dashcore::Network,
     pub superblock_interval: i64,
     pub miner_pools: Vec<MinerPool>,
     pub miner_pool_ids: HashMap<String, i32>,
@@ -33,6 +35,7 @@ impl BlockProcessor {
         Self {
             rpc,
             db,
+            network,
             superblock_interval: superblock_interval(network),
             miner_pools,
             miner_pool_ids,
@@ -69,7 +72,12 @@ impl BlockProcessor {
             return Ok(None);
         }
 
-        let block = self.rpc.get_block(hash).await?;
+        let raw_block = self.rpc.get_block_raw(hash).await?;
+        let height = p2p_converter::extract_block_height_from_cbtx(&raw_block)
+            .ok_or_else(|| BlockIndexError::UnexpectedError(
+                format!("Block {hash} has no cbTx height — cannot determine block height from raw block")
+            ))?;
+        let block = p2p_converter::convert_block(&raw_block, height, self.network);
         self.process_block(&mut client, block).await?;
 
         Ok(Some(hash.to_string()))
