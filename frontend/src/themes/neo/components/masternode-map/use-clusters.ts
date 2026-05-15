@@ -29,11 +29,49 @@ export function isCluster(f: ClusterFeature): f is ClusterFeature & {
   return Boolean((f.properties as { cluster?: boolean }).cluster);
 }
 
+export const SUPERCLUSTER_MAX_ZOOM = 16;
+export const MAP_TO_SUPER_ZOOM_SLOPE = 3;
+
+const COLOC_SPREAD_RADIUS_DEG = 0.35;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+function jitterColocated(points: MasternodeGeoPoint[]): MasternodeGeoPoint[] {
+  const groups = new Map<string, MasternodeGeoPoint[]>();
+  for (const p of points) {
+    const key = `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`;
+    const list = groups.get(key);
+    if (list) list.push(p);
+    else groups.set(key, [p]);
+  }
+  const out: MasternodeGeoPoint[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      out.push(group[0]);
+      continue;
+    }
+    group.sort((a, b) => a.proTxHash.localeCompare(b.proTxHash));
+    const step = COLOC_SPREAD_RADIUS_DEG / Math.sqrt(group.length);
+    const invCosLat =
+      1 / Math.max(0.1, Math.cos((group[0].lat * Math.PI) / 180));
+    for (let i = 0; i < group.length; i++) {
+      const r = Math.sqrt(i) * step;
+      const angle = i * GOLDEN_ANGLE;
+      const p = group[i];
+      out.push({
+        ...p,
+        lat: p.lat + r * Math.sin(angle),
+        lng: p.lng + r * Math.cos(angle) * invCosLat,
+      });
+    }
+  }
+  return out;
+}
+
 export function useSuperclusterIndex(points: MasternodeGeoPoint[]) {
   return useMemo(() => {
     const index = new Supercluster<ClusterProps, ClusterAggregate>({
-      radius: 48,
-      maxZoom: 8,
+      radius: 40,
+      maxZoom: SUPERCLUSTER_MAX_ZOOM,
       minPoints: 2,
       map: (props) => {
         const bucket = getMnStatusBucket(props.point.status);
@@ -51,8 +89,9 @@ export function useSuperclusterIndex(points: MasternodeGeoPoint[]) {
         acc.other += props.other;
       },
     });
+    const prepared = jitterColocated(points);
     index.load(
-      points.map((p) => ({
+      prepared.map((p) => ({
         type: "Feature" as const,
         properties: { point: p },
         geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
@@ -62,8 +101,12 @@ export function useSuperclusterIndex(points: MasternodeGeoPoint[]) {
   }, [points]);
 }
 
-export function mapZoomToSuperZoom(mapZoom: number, maxZoom = 8): number {
+export function mapZoomToSuperZoom(mapZoom: number): number {
   if (mapZoom <= 1) return 1;
-  const z = Math.round(Math.log2(mapZoom) * 1.5 + 1);
-  return Math.max(0, Math.min(maxZoom, z));
+  const z = Math.round(Math.log2(mapZoom) * MAP_TO_SUPER_ZOOM_SLOPE + 1);
+  return Math.max(0, Math.min(SUPERCLUSTER_MAX_ZOOM + 1, z));
+}
+
+export function superZoomToMapZoom(superZoom: number): number {
+  return 2 ** ((superZoom - 1) / MAP_TO_SUPER_ZOOM_SLOPE);
 }

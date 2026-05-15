@@ -31,6 +31,7 @@ import {
   type ClusterFeature,
   isCluster,
   mapZoomToSuperZoom,
+  superZoomToMapZoom,
   useSuperclusterIndex,
 } from "./use-clusters";
 
@@ -39,7 +40,7 @@ const GEO_URL = "/world-110m.json";
 const INITIAL_CENTER: [number, number] = [0, 0];
 const INITIAL_ZOOM = 1;
 const MIN_ZOOM = 1;
-const MAX_ZOOM = 8;
+const MAX_ZOOM = 64;
 const MAP_WIDTH = 980;
 const MAP_BASE_SCALE = 165;
 const MIN_ANIM_MS = 350;
@@ -289,11 +290,12 @@ export function MasternodeMapCanvas({
   const handleClusterClick = useCallback(
     (cluster: ClusterFeature) => {
       if (!isCluster(cluster)) return;
-      const expansionZoom = clampZoom(
-        index.getClusterExpansionZoom(cluster.properties.cluster_id),
+      const expansionSuperZoom = index.getClusterExpansionZoom(
+        cluster.properties.cluster_id,
       );
+      const expansionMapZoom = superZoomToMapZoom(expansionSuperZoom);
       const target = clampZoom(
-        Math.max(viewRef.current.zoom * 1.6, expansionZoom),
+        Math.max(viewRef.current.zoom * 1.6, expansionMapZoom),
       );
       const [lng, lat] = cluster.geometry.coordinates as [number, number];
       animateView({ center: [lng, lat], zoom: target });
