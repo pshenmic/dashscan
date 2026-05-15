@@ -108,6 +108,7 @@ import {
 } from "@/lib/governance";
 import { appStore, type Network } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { ConcentrationBanner } from "@/themes/neo/components/concentration-banner";
 import { EmptyState } from "@/themes/neo/components/empty-state";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
 import { LiveTicker } from "@/themes/neo/components/live-ticker";
@@ -2472,6 +2473,7 @@ function TopHoldersCard({
         </CardAction>
       </CardHeader>
       <CardContent>
+        <ConcentrationBanner entries={entries} isLoading={isLoading} />
         <Table>
           <TableBody>
             {isLoading &&
