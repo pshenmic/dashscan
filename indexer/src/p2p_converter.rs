@@ -150,6 +150,16 @@ pub fn convert_transaction(
     }
 }
 
+pub fn extract_block_height_from_cbtx(block: &dashcore::block::Block) -> Option<i64> {
+    let coinbase = block.coinbase()?;
+    let payload = coinbase.special_transaction_payload.as_ref()?;
+    if let TransactionPayload::CoinbasePayloadType(cb) = payload {
+        Some(cb.height as i64)
+    } else {
+        None
+    }
+}
+
 fn extract_cbtx(block: &dashcore::block::Block) -> Option<CbTx> {
     let coinbase = block.coinbase()?;
     let payload = coinbase.special_transaction_payload.as_ref()?;
