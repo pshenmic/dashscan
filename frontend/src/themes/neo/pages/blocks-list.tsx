@@ -1,13 +1,15 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
   Activity,
   ArrowLeftRight,
   Boxes,
   Clock,
+  Flame,
   Gauge,
   Layers,
+  X,
 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import {
@@ -19,6 +21,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Button } from "@/components/ui/button";
 import {
   type ChartConfig,
   ChartContainer,
@@ -75,6 +78,19 @@ function dayRange() {
 export default function RedesignBlocksListPage() {
   const network = useStore(appStore, (state) => state.network);
   const navigate = useNavigate({ from: "/blocks/" });
+  const routeSearch = useSearch({ strict: false }) as {
+    superblock?: boolean;
+  };
+  const superblockFilter = routeSearch.superblock ?? null;
+  const setSuperblockFilter = (value: boolean | null) => {
+    navigate({
+      // biome-ignore lint/suspicious/noExplicitAny: dynamic search param merge
+      search: ((prev: any) => ({
+        ...prev,
+        superblock: value ?? undefined,
+      })) as any,
+    });
+  };
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useTableViewMode("blocks");
   const [page, setPage] = useState(1);
@@ -90,6 +106,7 @@ export default function RedesignBlocksListPage() {
         network,
         limit: INFINITE_PAGE_SIZE,
         order: "desc",
+        superblock: superblockFilter,
       }),
       enabled: isInfinite,
     });
@@ -99,6 +116,7 @@ export default function RedesignBlocksListPage() {
       page,
       limit: pageSize,
       order: "desc",
+      superblock: superblockFilter,
     }),
     enabled: !isInfinite,
   });
@@ -168,13 +186,34 @@ export default function RedesignBlocksListPage() {
       header: "Block",
       cell: (row) => (
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
-            <Layers className="size-4" />
+          <div
+            className={
+              row.superblock
+                ? "flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/15 [&_svg]:text-amber-500"
+                : "flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent"
+            }
+          >
+            {row.superblock ? (
+              <Flame className="size-4" />
+            ) : (
+              <Layers className="size-4" />
+            )}
           </div>
           <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="font-mono text-sm font-semibold tabular-nums text-accent">
-              #{row.height.toLocaleString()}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-sm font-semibold tabular-nums text-accent">
+                #{row.height.toLocaleString()}
+              </span>
+              {row.superblock && (
+                <Badge
+                  variant="soft"
+                  className="border-amber-500/30 bg-amber-500/10 font-mono text-amber-500"
+                >
+                  <Flame className="size-3" />
+                  Superblock
+                </Badge>
+              )}
+            </div>
             <HashDisplay
               value={row.hash}
               href="/blocks/$hashOrHeight"
@@ -517,6 +556,35 @@ export default function RedesignBlocksListPage() {
               ? "Filter loaded blocks by hash or height…"
               : "Filter visible page by hash or height…",
           }}
+          toolbar={
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant={superblockFilter === true ? "default" : "outline"}
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() =>
+                  setSuperblockFilter(superblockFilter === true ? null : true)
+                }
+              >
+                <Flame className="size-3.5" />
+                Superblocks
+              </Button>
+              {superblockFilter != null && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-muted-foreground"
+                  onClick={() => setSuperblockFilter(null)}
+                  aria-label="Clear filter"
+                >
+                  <X className="size-3.5" />
+                  Clear
+                </Button>
+              )}
+            </div>
+          }
           emptyTitle="No blocks"
           viewMode={{ value: viewMode, onChange: setViewMode }}
           infiniteScroll={{

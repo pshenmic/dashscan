@@ -156,8 +156,66 @@ export function formatRelativeTime(timestamp: string | number): string {
   return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
 }
 
+export function formatDuration(ms: number): string {
+  const totalMinutes = Math.max(0, Math.round(ms / 60_000));
+  if (totalMinutes < 1) return "<1m";
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  const totalHours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (totalHours < 24) {
+    return minutes > 0 ? `${totalHours}h ${minutes}m` : `${totalHours}h`;
+  }
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+}
+
+export function formatDurationParts(ms: number): {
+  value: string;
+  unit: string;
+} {
+  const totalMinutes = Math.max(0, Math.round(ms / 60_000));
+  if (totalMinutes < 1) return { value: "<1", unit: "min left" };
+  if (totalMinutes < 60)
+    return {
+      value: String(totalMinutes),
+      unit: totalMinutes === 1 ? "min left" : "mins left",
+    };
+  const totalHours = Math.floor(totalMinutes / 60);
+  if (totalHours < 24)
+    return {
+      value: String(totalHours),
+      unit: totalHours === 1 ? "hr left" : "hrs left",
+    };
+  const days = Math.floor(totalHours / 24);
+  return {
+    value: String(days),
+    unit: days === 1 ? "day left" : "days left",
+  };
+}
+
 export function formatCompact(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
   return value.toLocaleString();
+}
+
+export function formatHashRate(
+  hps: string | number | null | undefined,
+): string {
+  if (hps == null) return "—";
+  const n = typeof hps === "number" ? hps : Number(hps);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  const units: [number, string][] = [
+    [1e18, "EH/s"],
+    [1e15, "PH/s"],
+    [1e12, "TH/s"],
+    [1e9, "GH/s"],
+    [1e6, "MH/s"],
+    [1e3, "kH/s"],
+  ];
+  for (const [scale, unit] of units) {
+    if (n >= scale) return `${(n / scale).toFixed(2)} ${unit}`;
+  }
+  return `${n.toFixed(0)} H/s`;
 }

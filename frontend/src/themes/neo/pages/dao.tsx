@@ -22,21 +22,29 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { blocksQueryOptions } from "@/lib/api/blocks";
+import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
   budgetQueryOptions,
   proposalsQueryOptions,
 } from "@/lib/api/governance";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiGovernanceObject } from "@/lib/api/types";
-import { formatRelativeTime } from "@/lib/format";
 import {
-  getDaysUntilSuperblock,
+  formatDuration,
+  formatDurationParts,
+  formatRelativeTime,
+} from "@/lib/format";
+import {
+  getMsUntilSuperblock,
+  getMsUntilVotingDeadline,
   getNextSuperblockHeight,
   getRequiredVotes,
   getSuperblockProgress,
   getVotingDeadline,
+  getVotingDeadlineHeight,
+  getVotingProgress,
 } from "@/lib/governance";
-import { appStore } from "@/lib/store";
+import { appStore, type Network } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { cn } from "@/lib/utils";
 import {
@@ -87,6 +95,7 @@ export default function RedesignDaoPage() {
   const { data: mnData } = useQuery(
     masternodesQueryOptions({ network, page: 1, limit: 1 }),
   );
+  const { data: chainStats } = useQuery(chainStatsQueryOptions({ network }));
 
   const proposals = useMemo(
     () =>
@@ -130,8 +139,18 @@ export default function RedesignDaoPage() {
     proposalCount - fundedProposalCount,
   );
   const requiredVotes = getRequiredVotes(masternodeCount);
-  const nextPaymentDays = getDaysUntilSuperblock(currentHeight);
-  const votingDeadline = getVotingDeadline(currentHeight);
+  const blockTimeMs = chainStats?.blockTime ?? null;
+  const msUntilSuperblock = getMsUntilSuperblock(
+    currentHeight,
+    network,
+    blockTimeMs,
+  );
+  const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
+  const msUntilVoteCutoff = getMsUntilVotingDeadline(
+    currentHeight,
+    network,
+    blockTimeMs,
+  );
 
   const chartData = useMemo(() => {
     const triggers = (allProposals ?? []).filter(
@@ -319,7 +338,7 @@ export default function RedesignDaoPage() {
             <CardHeader>
               <CardDescription>Next Superblock</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {nextPaymentDays > 0 ? `${nextPaymentDays} days` : "—"}
+                {currentHeight > 0 ? formatDuration(msUntilSuperblock) : "—"}
               </CardTitle>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
@@ -355,8 +374,12 @@ export default function RedesignDaoPage() {
                       minute: "2-digit",
                     })}
                   </span>
-                  {nextPaymentDays > 0 && (
-                    <Badge variant="soft-accent">in {nextPaymentDays}d</Badge>
+                  {msUntilVoteCutoff > 0 ? (
+                    <Badge variant="soft-accent">
+                      in {formatDuration(msUntilVoteCutoff)}
+                    </Badge>
+                  ) : (
+                    <Badge variant="soft-destructive">Voting closed</Badge>
                   )}
                 </DetailRow>
                 <DetailRow
@@ -422,7 +445,9 @@ export default function RedesignDaoPage() {
               ) : (
                 <SuperblockCountdown
                   currentHeight={currentHeight}
-                  daysRemaining={nextPaymentDays}
+                  msRemaining={msUntilSuperblock}
+                  msUntilVoteCutoff={msUntilVoteCutoff}
+                  network={network}
                 />
               )}
             </CardContent>
@@ -467,15 +492,19 @@ export default function RedesignDaoPage() {
 
 function SuperblockCountdown({
   currentHeight,
-  daysRemaining,
+  msRemaining,
+  msUntilVoteCutoff,
+  network,
 }: {
   currentHeight: number;
-  daysRemaining: number;
+  msRemaining: number;
+  msUntilVoteCutoff: number;
+  network: Network;
 }) {
-  const progress = getSuperblockProgress(currentHeight);
-  const nextHeight = getNextSuperblockHeight(currentHeight);
-  const circumference = 2 * Math.PI * 56;
-  const dashOffset = circumference * (1 - progress);
+  const sbProgress = getSuperblockProgress(currentHeight, network);
+  const sbHeight = getNextSuperblockHeight(currentHeight, network);
+  const voteProgress = getVotingProgress(currentHeight, network);
+  const voteHeight = getVotingDeadlineHeight(currentHeight, network);
 
   return (
     <div className="relative flex h-[260px] flex-col items-center justify-center gap-4 overflow-hidden">
@@ -487,51 +516,100 @@ function SuperblockCountdown({
             "radial-gradient(50% 60% at 50% 40%, color-mix(in oklab, var(--accent) 12%, transparent) 0%, transparent 70%)",
         }}
       />
-      <div className="relative flex size-36 items-center justify-center">
-        <svg className="size-full -rotate-90" viewBox="0 0 128 128" aria-hidden>
-          <title>Next superblock progress</title>
+      <div className="relative flex w-full max-w-md items-center justify-center gap-6">
+        <CountdownRing
+          label="Voting closes"
+          subLabel={
+            voteProgress >= 1
+              ? "Voting closed"
+              : `#${voteHeight.toLocaleString()}`
+          }
+          msRemaining={msUntilVoteCutoff}
+          progress={voteProgress}
+          accent="var(--accent-violet)"
+          icon={<Vote className="size-3" />}
+        />
+        <CountdownRing
+          label="Next superblock"
+          subLabel={`#${sbHeight.toLocaleString()}`}
+          msRemaining={msRemaining}
+          progress={sbProgress}
+          accent="var(--accent)"
+          icon={<CalendarClock className="size-3" />}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CountdownRing({
+  label,
+  subLabel,
+  msRemaining,
+  progress,
+  accent,
+  icon,
+}: {
+  label: string;
+  subLabel: string;
+  msRemaining: number;
+  progress: number;
+  accent: string;
+  icon: React.ReactNode;
+}) {
+  const { value, unit } = formatDurationParts(msRemaining);
+  const circumference = 2 * Math.PI * 48;
+  const dashOffset = circumference * (1 - Math.min(1, Math.max(0, progress)));
+  return (
+    <div className="relative flex flex-col items-center gap-2">
+      <div className="relative flex size-28 items-center justify-center">
+        <svg className="size-full -rotate-90" viewBox="0 0 112 112" aria-hidden>
+          <title>{label}</title>
           <circle
-            cx="64"
-            cy="64"
-            r="56"
+            cx="56"
+            cy="56"
+            r="48"
             fill="none"
             strokeWidth="6"
             className="stroke-border/40"
           />
           <circle
-            cx="64"
-            cy="64"
-            r="56"
+            cx="56"
+            cy="56"
+            r="48"
             fill="none"
             strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
-            className="stroke-accent transition-[stroke-dashoffset] duration-700 ease-out"
+            className="transition-[stroke-dashoffset] duration-700 ease-out"
+            stroke={accent}
             style={{
-              filter:
-                "drop-shadow(0 0 6px color-mix(in oklab, var(--accent) 60%, transparent))",
+              filter: `drop-shadow(0 0 6px color-mix(in oklab, ${accent} 60%, transparent))`,
             }}
           />
         </svg>
         <div className="absolute flex flex-col items-center">
-          <span className="font-display-num text-3xl tabular-nums leading-none text-foreground">
-            {daysRemaining}
+          <span className="font-display-num text-2xl tabular-nums leading-none text-foreground">
+            {value}
           </span>
-          <span className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-            days left
+          <span className="mt-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+            {unit}
           </span>
         </div>
       </div>
-      <div className="relative flex flex-col items-center gap-0.5 text-center">
-        <Badge variant="soft-accent" className="font-mono">
-          <CalendarClock className="size-3" />
-          Next superblock · #{nextHeight.toLocaleString()}
+      <div className="flex flex-col items-center gap-0.5 text-center">
+        <Badge
+          variant="soft"
+          className="font-mono"
+          style={{ color: accent, borderColor: `${accent}33` }}
+        >
+          {icon}
+          {label}
         </Badge>
-        <p className="max-w-xs text-xs text-muted-foreground">
-          Funding cycle in progress · {Math.round(progress * 100)}% to next
-          payout
-        </p>
+        <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+          {subLabel}
+        </span>
       </div>
     </div>
   );

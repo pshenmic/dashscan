@@ -18,15 +18,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { blocksQueryOptions } from "@/lib/api/blocks";
+import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
   budgetQueryOptions,
   proposalsQueryOptions,
 } from "@/lib/api/governance";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiGovernanceObject } from "@/lib/api/types";
-import { formatRelativeTime } from "@/lib/format";
+import { formatDuration, formatRelativeTime } from "@/lib/format";
 import {
-  getDaysUntilSuperblock,
+  getMsUntilSuperblock,
   getRequiredVotes,
   getVotingDeadline,
 } from "@/lib/governance";
@@ -149,6 +150,8 @@ export default function ClassicDaoPage() {
     masternodesQueryOptions({ network, page: 1, limit: 1 }),
   );
 
+  const { data: chainStats } = useQuery(chainStatsQueryOptions({ network }));
+
   const proposals = useMemo(
     () =>
       (allProposals ?? []).filter(
@@ -172,8 +175,13 @@ export default function ClassicDaoPage() {
     proposalCount - fundedProposalCount,
   );
   const requiredVotes = getRequiredVotes(masternodeCount);
-  const nextPaymentDays = getDaysUntilSuperblock(currentHeight);
-  const votingDeadline = getVotingDeadline(currentHeight);
+  const blockTimeMs = chainStats?.blockTime ?? null;
+  const msUntilSuperblock = getMsUntilSuperblock(
+    currentHeight,
+    network,
+    blockTimeMs,
+  );
+  const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
 
   const chartData = useMemo(() => {
     const triggers = (allProposals ?? []).filter(
@@ -255,7 +263,9 @@ export default function ClassicDaoPage() {
               }
               label="Next Payment"
               bgImage="/images/dao/next-payment.png"
-              value={nextPaymentDays > 0 ? `${nextPaymentDays} Days` : "—"}
+              value={
+                currentHeight > 0 ? formatDuration(msUntilSuperblock) : "—"
+              }
             />
           </div>
 
@@ -282,7 +292,7 @@ export default function ClassicDaoPage() {
                   second: "2-digit",
                 })}
                 <Badge className="h-5 border-0 bg-muted px-2 text-[11px] font-medium text-foreground">
-                  in {nextPaymentDays}d
+                  in {formatDuration(msUntilSuperblock)}
                 </Badge>
               </span>
             </div>

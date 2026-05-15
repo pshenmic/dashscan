@@ -4,6 +4,7 @@ import type { Network } from "@/lib/store";
 import { getBaseUrl } from "./client";
 import type {
   ApiBlockTransactionsStatsEntry,
+  ApiTransactionsBreakdown,
   ApiTransactionsStatsEntry,
 } from "./types";
 
@@ -90,5 +91,40 @@ export function blockTransactionsStatsQueryOptions(params: FetchStatsInput) {
       params.intervalsCount ?? null,
     ],
     queryFn: () => getBlockTransactionsStats(params),
+  });
+}
+
+interface FetchBreakdownInput {
+  network: Network;
+}
+
+async function getTransactionsBreakdown24h(params: FetchBreakdownInput) {
+  const url = new URL("/transactions/stats", getBaseUrl(params.network));
+  const response = await fetch(url);
+  if (response.status === 404) {
+    return {
+      total: null,
+      special: null,
+      coinjoin: null,
+      multisig: null,
+      normal: null,
+    } satisfies ApiTransactionsBreakdown;
+  }
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<ApiTransactionsBreakdown>;
+}
+
+export const fetchTransactionsBreakdown24h = createServerFn({ method: "POST" })
+  .inputValidator((input: FetchBreakdownInput) => input)
+  .handler(({ data }) => getTransactionsBreakdown24h(data));
+
+export function transactionsBreakdown24hQueryOptions(
+  params: FetchBreakdownInput,
+) {
+  return queryOptions({
+    queryKey: ["transactionsBreakdown24h", params.network],
+    queryFn: () => getTransactionsBreakdown24h(params),
   });
 }

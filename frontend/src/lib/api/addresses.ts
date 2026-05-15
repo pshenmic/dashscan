@@ -4,9 +4,11 @@ import type { Network } from "@/lib/store";
 import { getBaseUrl } from "./client";
 import type {
   ApiAddress,
+  ApiAddressBalanceEntry,
   ApiAddressBalancePoint,
   ApiAddressDetail,
   ApiTransaction,
+  ApiUtxoEntry,
   PaginatedResponse,
   PaginationParams,
 } from "./types";
@@ -197,5 +199,82 @@ export function addressBalanceChartQueryOptions(
       params.intervalsCount,
     ],
     queryFn: () => getAddressBalanceChart(params),
+  });
+}
+
+interface FetchAddressUtxosInput extends PaginationParams {
+  network: Network;
+  address: string;
+}
+
+async function getAddressUtxos(params: FetchAddressUtxosInput) {
+  const url = new URL(
+    `/address/${params.address}/utxo`,
+    getBaseUrl(params.network),
+  );
+  if (params.page !== undefined)
+    url.searchParams.set("page", String(params.page));
+  if (params.limit !== undefined)
+    url.searchParams.set("limit", String(params.limit));
+  if (params.order !== undefined) url.searchParams.set("order", params.order);
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<PaginatedResponse<ApiUtxoEntry>>;
+}
+
+export const fetchAddressUtxos = createServerFn({ method: "POST" })
+  .inputValidator((input: FetchAddressUtxosInput) => input)
+  .handler(({ data }) => getAddressUtxos(data));
+
+export function addressUtxosQueryOptions(params: FetchAddressUtxosInput) {
+  return queryOptions({
+    queryKey: [
+      "address-utxos",
+      params.network,
+      params.address,
+      params.page,
+      params.limit,
+      params.order,
+    ],
+    queryFn: () => getAddressUtxos(params),
+  });
+}
+
+interface FetchRichListInput extends PaginationParams {
+  network: Network;
+}
+
+async function getRichList(params: FetchRichListInput) {
+  const url = new URL("/addresses/rich-list", getBaseUrl(params.network));
+  if (params.page !== undefined)
+    url.searchParams.set("page", String(params.page));
+  if (params.limit !== undefined)
+    url.searchParams.set("limit", String(params.limit));
+  if (params.order !== undefined) url.searchParams.set("order", params.order);
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<PaginatedResponse<ApiAddressBalanceEntry>>;
+}
+
+export const fetchRichList = createServerFn({ method: "POST" })
+  .inputValidator((input: FetchRichListInput) => input)
+  .handler(({ data }) => getRichList(data));
+
+export function richListQueryOptions(params: FetchRichListInput) {
+  return queryOptions({
+    queryKey: [
+      "rich-list",
+      params.network,
+      params.page,
+      params.limit,
+      params.order,
+    ],
+    queryFn: () => getRichList(params),
   });
 }

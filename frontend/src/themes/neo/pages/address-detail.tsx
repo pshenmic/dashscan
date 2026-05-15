@@ -2,8 +2,8 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
-import { ArrowLeftRight, MoveDown, MoveUp, Wallet } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { ArrowLeftRight, Coins, MoveDown, MoveUp, Wallet } from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import {
@@ -28,9 +28,16 @@ import {
   addressQueryOptions,
   addressTransactionsInfiniteQueryOptions,
   addressTransactionsQueryOptions,
+  addressUtxosQueryOptions,
 } from "@/lib/api/addresses";
-import type { ApiTransaction } from "@/lib/api/types";
-import { DUFFS_PER_DASH, formatRelativeTime, sumVOut } from "@/lib/format";
+import type { ApiTransaction, ApiUtxoEntry } from "@/lib/api/types";
+import {
+  DUFFS_PER_DASH,
+  formatCompact,
+  formatDuffs,
+  formatRelativeTime,
+  sumVOut,
+} from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { cn } from "@/lib/utils";
@@ -634,6 +641,8 @@ export default function RedesignAddressDetailPage({
           </CardContent>
         </Card>
 
+        <AddressUtxosCard network={network} address={detail.address} />
+
         {transactions.length === 0 &&
         !isInfiniteFetching &&
         !isPagedFetching ? (
@@ -822,6 +831,144 @@ function QrIllustration({ value }: { value: string }) {
             "radial-gradient(closest-side, transparent 65%, color-mix(in oklab, var(--accent-amber, var(--accent)) 14%, transparent) 100%)",
         }}
       />
+    </div>
+  );
+}
+
+const UTXO_PAGE_SIZE = 10;
+
+function AddressUtxosCard({
+  network,
+  address,
+}: {
+  network: "mainnet" | "testnet";
+  address: string;
+}) {
+  const [utxoPage, setUtxoPage] = useState(1);
+  const { data, isFetching, error } = useQuery({
+    ...addressUtxosQueryOptions({
+      network,
+      address,
+      page: utxoPage,
+      limit: UTXO_PAGE_SIZE,
+      order: "desc",
+    }),
+  });
+
+  if (error) return null;
+  const utxos = data?.resultSet ?? [];
+  const total = data?.pagination?.total ?? 0;
+  if (!isFetching && utxos.length === 0) return null;
+  const totalPages = Math.max(1, Math.ceil(total / UTXO_PAGE_SIZE));
+  const sumDuffs = utxos.reduce((s, u) => s + Number(u.amount), 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          UTXOs
+          <Badge variant="soft" className="font-mono">
+            {formatCompact(total)}
+          </Badge>
+        </CardTitle>
+        <CardDescription>
+          Unspent outputs · top {Math.min(utxos.length, UTXO_PAGE_SIZE)} by
+          amount
+        </CardDescription>
+        <CardAction>
+          <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+            <Coins className="size-4" />
+          </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          {isFetching && utxos.length === 0 ? (
+            Array.from({ length: 5 }, (_, i) => `u-${i}`).map((k) => (
+              <Skeleton key={k} className="h-10 w-full" />
+            ))
+          ) : utxos.length === 0 ? (
+            <EmptyState title="No UTXOs" />
+          ) : (
+            <UtxosTable utxos={utxos} sumDuffs={sumDuffs} />
+          )}
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs">
+            <span className="text-muted-foreground">
+              Page {utxoPage} / {totalPages}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7"
+                disabled={utxoPage <= 1}
+                onClick={() => setUtxoPage((p) => Math.max(1, p - 1))}
+              >
+                Prev
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7"
+                disabled={utxoPage >= totalPages}
+                onClick={() => setUtxoPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function UtxosTable({
+  utxos,
+  sumDuffs,
+}: {
+  utxos: ApiUtxoEntry[];
+  sumDuffs: number;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {utxos.map((u) => {
+        const amountDuffs = Number(u.amount);
+        const share = sumDuffs > 0 ? (amountDuffs / sumDuffs) * 100 : 0;
+        return (
+          <Link
+            key={`${u.prevTxHash}-${u.vOutIndex}`}
+            to="/transactions/$hash"
+            params={{ hash: u.prevTxHash }}
+            className="group flex items-center gap-3 rounded-md border border-border/40 px-3 py-2 transition-colors hover:border-accent/40 hover:bg-accent/5 no-underline"
+          >
+            <Coins className="size-4 shrink-0 text-muted-foreground group-hover:text-accent" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate font-mono text-xs text-accent">
+                  {u.prevTxHash.slice(0, 12)}…{u.prevTxHash.slice(-8)}
+                </span>
+                <Badge variant="soft" className="font-mono">
+                  #{u.vOutIndex}
+                </Badge>
+              </div>
+              <div className="h-1 w-full overflow-hidden rounded-full bg-secondary/60">
+                <div
+                  className="h-full bg-accent transition-all"
+                  style={{ width: `${share}%` }}
+                />
+              </div>
+            </div>
+            <span className="shrink-0 font-mono text-sm font-medium tabular-nums text-accent">
+              {formatDuffs(amountDuffs)} <DashIcon />
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 }
