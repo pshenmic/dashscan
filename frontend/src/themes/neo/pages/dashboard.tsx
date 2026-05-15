@@ -12,6 +12,7 @@ import {
   ArrowUp,
   Box,
   Boxes,
+  CalendarClock,
   CheckCircle2,
   Coins,
   Crown,
@@ -96,15 +97,19 @@ import {
   formatCompactUsd,
   formatCompactUsdShort,
   formatDuffs,
-  formatDuration,
+  formatDurationParts,
   formatHashRate,
   formatRelativeTime,
   getIp,
   sumVOut,
 } from "@/lib/format";
 import {
+  getBlocksUntilVotingDeadline,
+  getMsUntilVotingDeadline,
   getNextSuperblockHeight,
   getPreviousSuperblockHeight,
+  getVotingDeadlineHeight,
+  getVotingProgress,
 } from "@/lib/governance";
 import { appStore, type Network } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -2329,7 +2334,7 @@ function NextSuperblockCard({
     resolvedNext != null && resolvedPrev != null
       ? Math.max(1, resolvedNext - resolvedPrev)
       : null;
-  const progress =
+  const sbProgress =
     blocksLeft != null && totalBlocks != null
       ? Math.min(1, Math.max(0, 1 - blocksLeft / totalBlocks))
       : 0;
@@ -2337,9 +2342,21 @@ function NextSuperblockCard({
     blocksLeft != null && blockTimeMs != null && blockTimeMs > 0
       ? blocksLeft * blockTimeMs
       : null;
-  const etaLabel = etaMs != null ? formatDuration(etaMs) : null;
-  const circumference = 2 * Math.PI * 48;
-  const dashOffset = circumference * (1 - progress);
+  const voteHeight =
+    latestHeight != null
+      ? getVotingDeadlineHeight(latestHeight, network)
+      : null;
+  const voteProgress =
+    latestHeight != null ? getVotingProgress(latestHeight, network) : 0;
+  const voteBlocksLeft =
+    latestHeight != null
+      ? getBlocksUntilVotingDeadline(latestHeight, network)
+      : null;
+  const voteMs =
+    latestHeight != null && blockTimeMs != null
+      ? getMsUntilVotingDeadline(latestHeight, network, blockTimeMs)
+      : null;
+  const votingClosed = voteBlocksLeft != null && voteBlocksLeft <= 0;
   return (
     <Card
       className={cn(
@@ -2358,62 +2375,39 @@ function NextSuperblockCard({
           </div>
         </CardAction>
       </CardHeader>
-      <CardContent className="flex flex-1 items-center justify-center gap-6 pb-4">
-        <div className="relative flex aspect-square w-[44%] max-w-[180px] min-w-[112px] shrink-0 items-center justify-center">
-          <svg
-            className="size-full -rotate-90"
-            viewBox="0 0 112 112"
-            aria-hidden
-          >
-            <title>Superblock countdown</title>
-            <circle
-              cx="56"
-              cy="56"
-              r="48"
-              fill="none"
-              strokeWidth="6"
-              className="stroke-border/40"
-            />
-            <circle
-              cx="56"
-              cy="56"
-              r="48"
-              fill="none"
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={dashOffset}
-              className="stroke-accent transition-[stroke-dashoffset] duration-700 ease-out"
-              style={{
-                filter:
-                  "drop-shadow(0 0 6px color-mix(in oklab, var(--accent) 60%, transparent))",
-              }}
-            />
-          </svg>
-          <div className="absolute flex flex-col items-center">
-            <span className="font-display-num text-2xl tabular-nums leading-none">
-              {blocksLeft != null ? formatCompact(blocksLeft) : "—"}
-            </span>
-            <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              blocks
-            </span>
-          </div>
+      <CardContent className="flex flex-1 flex-col justify-between gap-5 pb-5">
+        <div className="flex flex-1 items-center justify-around gap-4">
+          <CountdownDial
+            label="Voting closes"
+            subLabel={
+              votingClosed
+                ? "Closed"
+                : voteHeight != null
+                  ? `#${voteHeight.toLocaleString()}`
+                  : "—"
+            }
+            ms={voteMs}
+            progress={voteProgress}
+            accent="var(--accent-violet)"
+            icon={<Vote className="size-3" />}
+            closed={votingClosed}
+          />
+          <CountdownDial
+            label="Next superblock"
+            subLabel={
+              resolvedNext != null ? `#${resolvedNext.toLocaleString()}` : "—"
+            }
+            ms={etaMs}
+            progress={sbProgress}
+            accent="var(--accent)"
+            icon={<CalendarClock className="size-3" />}
+          />
         </div>
-        <div className="flex flex-1 flex-col justify-center gap-3 text-sm">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-xs text-muted-foreground">ETA</span>
-            <span className="font-mono tabular-nums">
-              {etaLabel ? `~${etaLabel}` : "—"}
+        <div className="grid grid-cols-2 gap-3 border-t border-border/50 pt-4 text-sm">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+              Budget
             </span>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-xs text-muted-foreground">Progress</span>
-            <span className="font-mono tabular-nums">
-              {Math.round(progress * 100)}%
-            </span>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-xs text-muted-foreground">Budget</span>
             <span className="font-mono tabular-nums text-accent">
               {budgetDash != null ? (
                 <>
@@ -2423,18 +2417,106 @@ function NextSuperblockCard({
                 "—"
               )}
             </span>
-          </div>
-          {budgetDash != null && usdPrice != null && (
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-xs text-muted-foreground">≈ USD</span>
-              <span className="font-mono tabular-nums text-muted-foreground">
-                {formatCompactUsd(budgetDash * usdPrice)}
+            {budgetDash != null && usdPrice != null && (
+              <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                ≈ {formatCompactUsd(budgetDash * usdPrice)}
               </span>
-            </div>
-          )}
+            )}
+          </div>
+          <div className="flex flex-col gap-0.5 text-right">
+            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+              Cycle progress
+            </span>
+            <span className="font-mono tabular-nums">
+              {Math.round(sbProgress * 100)}%
+            </span>
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              {blocksLeft != null
+                ? `${formatCompact(blocksLeft)} blocks left`
+                : "—"}
+            </span>
+          </div>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function CountdownDial({
+  label,
+  subLabel,
+  ms,
+  progress,
+  accent,
+  icon,
+  closed,
+}: {
+  label: string;
+  subLabel: string;
+  ms: number | null;
+  progress: number;
+  accent: string;
+  icon: React.ReactNode;
+  closed?: boolean;
+}) {
+  const parts = ms != null ? formatDurationParts(ms) : null;
+  const value = closed ? "—" : (parts?.value ?? "—");
+  const unit = closed ? "closed" : (parts?.unit ?? "");
+  const safeProgress = Math.min(1, Math.max(0, progress));
+  const circumference = 2 * Math.PI * 48;
+  const dashOffset = circumference * (1 - safeProgress);
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative flex size-28 items-center justify-center">
+        <svg className="size-full -rotate-90" viewBox="0 0 112 112" aria-hidden>
+          <title>{label}</title>
+          <circle
+            cx="56"
+            cy="56"
+            r="48"
+            fill="none"
+            strokeWidth="6"
+            className="stroke-border/40"
+          />
+          <circle
+            cx="56"
+            cy="56"
+            r="48"
+            fill="none"
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            className="transition-[stroke-dashoffset] duration-700 ease-out"
+            stroke={accent}
+            style={{
+              filter: `drop-shadow(0 0 6px color-mix(in oklab, ${accent} 60%, transparent))`,
+            }}
+          />
+        </svg>
+        <div className="absolute flex flex-col items-center">
+          <span className="font-display-num text-2xl tabular-nums leading-none">
+            {value}
+          </span>
+          <span className="mt-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+            {unit}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col items-center gap-0.5 text-center">
+        <Badge
+          variant="soft"
+          className="font-mono"
+          style={{ color: accent, borderColor: `${accent}33` }}
+        >
+          {icon}
+          {label}
+        </Badge>
+        <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+          {subLabel}
+        </span>
+      </div>
+    </div>
   );
 }
 
