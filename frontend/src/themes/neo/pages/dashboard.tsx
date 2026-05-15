@@ -2405,9 +2405,7 @@ function NextSuperblockCard({
         </div>
         <div className="grid grid-cols-2 gap-3 border-t border-border/50 pt-4 text-sm">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-              Budget
-            </span>
+            <span className="text-sm text-muted-foreground">Budget</span>
             <span className="font-mono tabular-nums text-accent">
               {budgetDash != null ? (
                 <>
@@ -2424,7 +2422,7 @@ function NextSuperblockCard({
             )}
           </div>
           <div className="flex flex-col gap-0.5 text-right">
-            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               Cycle progress
             </span>
             <span className="font-mono tabular-nums">
@@ -2466,8 +2464,8 @@ function CountdownDial({
   const circumference = 2 * Math.PI * 48;
   const dashOffset = circumference * (1 - safeProgress);
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative flex size-28 items-center justify-center">
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative flex aspect-square w-[160px] items-center justify-center">
         <svg className="size-full -rotate-90" viewBox="0 0 112 112" aria-hidden>
           <title>{label}</title>
           <circle
@@ -2475,7 +2473,7 @@ function CountdownDial({
             cy="56"
             r="48"
             fill="none"
-            strokeWidth="6"
+            strokeWidth="7"
             className="stroke-border/40"
           />
           <circle
@@ -2483,22 +2481,22 @@ function CountdownDial({
             cy="56"
             r="48"
             fill="none"
-            strokeWidth="6"
+            strokeWidth="7"
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
             className="transition-[stroke-dashoffset] duration-700 ease-out"
             stroke={accent}
             style={{
-              filter: `drop-shadow(0 0 6px color-mix(in oklab, ${accent} 60%, transparent))`,
+              filter: `drop-shadow(0 0 8px color-mix(in oklab, ${accent} 60%, transparent))`,
             }}
           />
         </svg>
         <div className="absolute flex flex-col items-center">
-          <span className="font-display-num text-2xl tabular-nums leading-none">
+          <span className="font-display-num text-3xl tabular-nums leading-none">
             {value}
           </span>
-          <span className="mt-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+          <span className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
             {unit}
           </span>
         </div>
