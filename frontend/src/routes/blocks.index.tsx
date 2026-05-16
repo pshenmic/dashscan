@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
 import {
   blocksInfiniteQueryOptions,
   blocksQueryOptions,
@@ -14,6 +15,10 @@ import RedesignBlocksListPage from "@/themes/neo/pages/blocks-list";
 
 const INFINITE_PAGE_SIZE = 25;
 
+const blocksSearchSchema = paginationSearchSchema.extend({
+  superblock: z.boolean().optional().catch(undefined),
+});
+
 function dayRange() {
   const end = new Date();
   end.setUTCMinutes(0, 0, 0);
@@ -25,18 +30,28 @@ function dayRange() {
 }
 
 export const Route = createFileRoute("/blocks/")({
-  validateSearch: paginationSearchSchema,
-  loaderDeps: ({ search: { page, limit } }) => ({ page, limit }),
+  validateSearch: blocksSearchSchema,
+  loaderDeps: ({ search: { page, limit, superblock } }) => ({
+    page,
+    limit,
+    superblock,
+  }),
   component: BlocksListRoute,
   head: () => ({
     meta: [{ title: "Blocks | DashScan" }],
   }),
-  loader: ({ context, deps: { page, limit } }) => {
+  loader: ({ context, deps: { page, limit, superblock } }) => {
     if (typeof window !== "undefined") return;
     const network = defaultNetwork;
     return Promise.all([
       context.queryClient.prefetchQuery(
-        blocksQueryOptions({ network, page, limit, order: "desc" }),
+        blocksQueryOptions({
+          network,
+          page,
+          limit,
+          order: "desc",
+          superblock,
+        }),
       ),
       context.queryClient.prefetchQuery(
         blocksQueryOptions({ network, page: 1, limit: 40, order: "desc" }),
@@ -54,6 +69,7 @@ export const Route = createFileRoute("/blocks/")({
           network,
           limit: INFINITE_PAGE_SIZE,
           order: "desc",
+          superblock,
         }),
       ),
       context.queryClient.prefetchQuery(

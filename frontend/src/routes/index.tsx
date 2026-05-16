@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { richListQueryOptions } from "@/lib/api/addresses";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
@@ -17,6 +18,8 @@ import {
 } from "@/lib/api/price";
 import {
   blockTransactionsStatsQueryOptions,
+  monthStatsRange,
+  transactionsBreakdown24hQueryOptions,
   transactionsStatsQueryOptions,
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
@@ -33,16 +36,6 @@ function dayStatsRange() {
   const end = new Date();
   end.setUTCMinutes(0, 0, 0);
   const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
-  return {
-    timestampStart: start.toISOString(),
-    timestampEnd: end.toISOString(),
-  };
-}
-
-function monthStatsRange() {
-  const end = new Date();
-  end.setUTCHours(0, 0, 0, 0);
-  const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
   return {
     timestampStart: start.toISOString(),
     timestampEnd: end.toISOString(),
@@ -112,6 +105,12 @@ export const Route = createFileRoute("/")({
       context.queryClient.prefetchQuery(proposalsQueryOptions({ network })),
       context.queryClient.prefetchQuery(
         mempoolQueryOptions({ network, page: 1, limit: 1 }),
+      ),
+      context.queryClient.prefetchQuery(
+        richListQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
+      ),
+      context.queryClient.prefetchQuery(
+        transactionsBreakdown24hQueryOptions({ network }),
       ),
     ]);
   },

@@ -28,6 +28,7 @@ export interface ApiBlock {
   previousBlockHash: string;
   confirmations: number;
   nonce: number;
+  superblock?: boolean | null;
 }
 
 export interface ApiVIn {
@@ -216,6 +217,15 @@ export interface ApiAddressBalancePoint {
   data: { balance: string };
 }
 
+export interface ApiUtxoEntry {
+  prevTxHash: string;
+  vOutIndex: number;
+  address: string;
+  amount: string;
+  sequence: number | null;
+  scriptSigASM: string | null;
+}
+
 export interface GeoIpInfo {
   ipv4: string;
   countryCode: string;
@@ -295,6 +305,24 @@ export interface ApiChainStats {
   transactionsPerSecond: number | null;
   transactionsPerMinute: number | null;
   latestHeight: number | null;
+  hashRate: string | null;
+  mempoolSize: number | null;
+  nextSuperblockHeight: number | null;
+  latestSuperblockHeight: number | null;
+}
+
+export interface ApiAddressBalanceEntry {
+  address: string | null;
+  balance: string | null;
+  concentration: string | null;
+}
+
+export interface ApiTransactionsBreakdown {
+  total: number | null;
+  special: number | null;
+  coinjoin: number | null;
+  multisig: number | null;
+  normal: number | null;
 }
 
 export interface ApiGovernanceObject {

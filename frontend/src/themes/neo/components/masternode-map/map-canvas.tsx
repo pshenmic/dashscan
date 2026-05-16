@@ -31,6 +31,7 @@ import {
   type ClusterFeature,
   isCluster,
   mapZoomToSuperZoom,
+  superZoomToMapZoom,
   useSuperclusterIndex,
 } from "./use-clusters";
 
@@ -39,7 +40,7 @@ const GEO_URL = "/world-110m.json";
 const INITIAL_CENTER: [number, number] = [0, 0];
 const INITIAL_ZOOM = 1;
 const MIN_ZOOM = 1;
-const MAX_ZOOM = 8;
+const MAX_ZOOM = 64;
 const MAP_WIDTH = 980;
 const MAP_BASE_SCALE = 165;
 const MIN_ANIM_MS = 350;
@@ -289,11 +290,12 @@ export function MasternodeMapCanvas({
   const handleClusterClick = useCallback(
     (cluster: ClusterFeature) => {
       if (!isCluster(cluster)) return;
-      const expansionZoom = clampZoom(
-        index.getClusterExpansionZoom(cluster.properties.cluster_id),
+      const expansionSuperZoom = index.getClusterExpansionZoom(
+        cluster.properties.cluster_id,
       );
+      const expansionMapZoom = superZoomToMapZoom(expansionSuperZoom);
       const target = clampZoom(
-        Math.max(viewRef.current.zoom * 1.6, expansionZoom),
+        Math.max(viewRef.current.zoom * 1.6, expansionMapZoom),
       );
       const [lng, lat] = cluster.geometry.coordinates as [number, number];
       animateView({ center: [lng, lat], zoom: target });
@@ -573,8 +575,8 @@ const ClusterMarker = memo(function ClusterMarker({
     other: number;
   };
   const { total, enabled, banned, other } = props;
-  const size = 14 + Math.log2(total + 1) * 6;
-  const fontSize = Math.min(13, size * 0.7);
+  const size = Math.min(56, 18 + Math.log2(total + 1) * 6.5);
+  const fontSize = Math.max(10, Math.min(14, size * 0.55));
   const payload = useMemo(
     () =>
       ({
@@ -600,24 +602,24 @@ const ClusterMarker = memo(function ClusterMarker({
     >
       <g transform={`scale(${inv})`} style={MARKER_SCALE_STYLE}>
         <circle
-          r={size}
+          r={size + 2}
           fill={`url(#${gradientId})`}
-          opacity={0.18}
+          opacity={0.22}
           filter={`url(#${glowId})`}
         />
         <circle
-          r={size - 4}
+          r={size}
           fill={`url(#${gradientId})`}
-          opacity={0.85}
+          opacity={1}
           stroke="var(--card)"
-          strokeWidth={1.5}
+          strokeWidth={2}
         />
         <text
           textAnchor="middle"
           dominantBaseline="central"
           fill="var(--accent-foreground)"
           fontSize={fontSize}
-          fontWeight={600}
+          fontWeight={700}
           style={{ pointerEvents: "none" }}
         >
           {total}

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { blocksQueryOptions } from "@/lib/api/blocks";
+import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
   budgetQueryOptions,
   proposalsQueryOptions,
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/dao")({
       context.queryClient.prefetchQuery(
         masternodesQueryOptions({ network, page: 1, limit: 1 }),
       ),
+      context.queryClient.prefetchQuery(chainStatsQueryOptions({ network })),
     ]);
   },
 });

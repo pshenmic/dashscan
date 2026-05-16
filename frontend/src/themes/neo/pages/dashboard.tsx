@@ -12,11 +12,13 @@ import {
   ArrowUp,
   Box,
   Boxes,
+  CalendarClock,
   CheckCircle2,
   Coins,
   Crown,
   Database,
   ExternalLink,
+  Flame,
   Gauge,
   HardDrive,
   Hourglass,
@@ -24,7 +26,10 @@ import {
   Radio,
   Server,
   ShieldAlert,
+  Trophy,
+  Users,
   Vote,
+  Zap,
 } from "lucide-react";
 import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
@@ -52,6 +57,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { richListQueryOptions } from "@/lib/api/addresses";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
@@ -71,10 +77,12 @@ import {
 import {
   blockTransactionsStatsQueryOptions,
   monthStatsRange,
+  transactionsBreakdown24hQueryOptions,
   transactionsStatsQueryOptions,
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type {
+  ApiAddressBalanceEntry,
   ApiBlock,
   ApiGovernanceObject,
   ApiMasternode,
@@ -84,16 +92,28 @@ import {
   volumeQueryOptions,
 } from "@/lib/api/volume";
 import {
+  DUFFS_PER_DASH,
   formatCompact,
   formatCompactUsd,
   formatCompactUsdShort,
   formatDuffs,
+  formatDurationParts,
+  formatHashRate,
   formatRelativeTime,
   getIp,
   sumVOut,
 } from "@/lib/format";
-import { appStore } from "@/lib/store";
+import {
+  getBlocksUntilVotingDeadline,
+  getMsUntilVotingDeadline,
+  getNextSuperblockHeight,
+  getPreviousSuperblockHeight,
+  getVotingDeadlineHeight,
+  getVotingProgress,
+} from "@/lib/governance";
+import { appStore, type Network } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { ConcentrationBanner } from "@/themes/neo/components/concentration-banner";
 import { EmptyState } from "@/themes/neo/components/empty-state";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
 import { LiveTicker } from "@/themes/neo/components/live-ticker";
@@ -104,6 +124,7 @@ import {
   MnTypeBadge,
   TxTypeBadge,
 } from "@/themes/neo/components/status-badge";
+import { TxBreakdownCard } from "@/themes/neo/components/tx-breakdown-card";
 import { Badge } from "@/themes/neo/components/ui/badge";
 import {
   Card,
@@ -186,12 +207,24 @@ export default function RedesignDashboardPage() {
       intervalsCount: 24,
     }),
   );
-  const { data: chainStats } = useQuery(chainStatsQueryOptions({ network }));
+  const { data: chainStats } = useQuery({
+    ...chainStatsQueryOptions({ network }),
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false,
+  });
   const { data: budget } = useQuery(budgetQueryOptions({ network }));
   const { data: proposals } = useQuery(proposalsQueryOptions({ network }));
   const { data: mempoolData } = useQuery(
     mempoolQueryOptions({ network, page: 1, limit: 1 }),
   );
+  const { data: richList } = useQuery(
+    richListQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
+  );
+  const { data: txBreakdown } = useQuery({
+    ...transactionsBreakdown24hQueryOptions({ network }),
+    refetchInterval: 60000,
+    refetchIntervalInBackground: false,
+  });
 
   const blocks = blocksData?.resultSet ?? [];
   const rawTxs = txData?.resultSet ?? [];
@@ -697,6 +730,12 @@ export default function RedesignDashboardPage() {
               }
             />
             <StatTile
+              icon={<Zap className="size-4 text-muted-foreground" />}
+              label="Hash Rate"
+              value={formatHashRate(chainStats?.hashRate ?? null)}
+              hint="Avg over last 120 blocks"
+            />
+            <StatTile
               icon={<Server className="size-4 text-muted-foreground" />}
               label="Masternodes"
               value={
@@ -768,7 +807,7 @@ export default function RedesignDashboardPage() {
         />
 
         <div className="grid gap-4 lg:grid-cols-12">
-          <Card className="lg:col-span-7">
+          <Card className="lg:col-span-5">
             <CardHeader>
               <CardDescription>Transactions · 30 days</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
@@ -807,9 +846,15 @@ export default function RedesignDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-5 bg-gradient-to-br from-card to-secondary/40">
+          <TxBreakdownCard
+            breakdown={txBreakdown ?? null}
+            isLoading={txBreakdown == null}
+            className="lg:col-span-4"
+          />
+
+          <Card className="lg:col-span-3 bg-gradient-to-br from-card to-secondary/40">
             <CardHeader>
-              <CardDescription>DAO Treasury · Next Superblock</CardDescription>
+              <CardDescription>DAO Treasury</CardDescription>
               <CardTitle className="flex items-baseline gap-3 text-2xl tabular-nums text-accent">
                 {budget?.totalBudget != null ? (
                   <span>
@@ -817,11 +862,6 @@ export default function RedesignDashboardPage() {
                   </span>
                 ) : (
                   "—"
-                )}
-                {usdPrice?.usd != null && budget?.totalBudget != null && (
-                  <span className="text-sm font-normal text-muted-foreground">
-                    ≈ {formatCompactUsd(budget.totalBudget * usdPrice.usd)}
-                  </span>
                 )}
               </CardTitle>
               <CardAction>
@@ -912,50 +952,74 @@ export default function RedesignDashboardPage() {
           />
         </div>
 
-        <MasternodeMap variant="dashboard" />
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatTile
-            icon={<Boxes className="size-4 text-muted-foreground" />}
-            label="Total Blocks"
-            value={blocksTotal != null ? formatCompact(blocksTotal) : "—"}
-            hint="Indexed"
+        <div className="grid gap-4 lg:grid-cols-12">
+          <TopHoldersCard
+            entries={richList?.resultSet ?? []}
+            total={richList?.pagination?.total ?? null}
+            usdPrice={usdPrice?.usd ?? null}
+            isLoading={richList == null}
           />
-          <StatTile
-            icon={<ArrowLeftRight className="size-4 text-muted-foreground" />}
-            label="Total Tx"
-            value={txsTotal != null ? formatCompact(txsTotal) : "—"}
-            hint="All-time"
-          />
-          <StatTile
-            icon={<Coins className="size-4 text-muted-foreground" />}
-            label="Circulating Supply"
-            value={
-              circulatingSupply != null ? (
-                <>
-                  {formatCompact(circulatingSupply)} <DashIcon />
-                </>
-              ) : (
-                "—"
-              )
-            }
-            hint="vs 18.9M cap"
-          />
-          <StatTile
-            icon={<CheckCircle2 className="size-4 text-muted-foreground" />}
-            label="Funded Proposals"
-            value={
-              budget?.enoughFundsCount != null
-                ? budget.enoughFundsCount.toString()
-                : "—"
-            }
-            hint={
-              budget?.enoughFundsTotal != null
-                ? `${budget.enoughFundsTotal.toFixed(0)} DASH allocated`
-                : "Next superblock payout"
-            }
-          />
+          <div className="lg:col-span-5 flex flex-col gap-4">
+            <NextSuperblockCard
+              nextHeight={chainStats?.nextSuperblockHeight ?? null}
+              prevHeight={chainStats?.latestSuperblockHeight ?? null}
+              latestHeight={
+                chainStats?.latestHeight ?? latestBlock?.height ?? null
+              }
+              blockTimeMs={chainStats?.blockTime ?? null}
+              budgetDash={budget?.totalBudget ?? null}
+              usdPrice={usdPrice?.usd ?? null}
+              network={network}
+              className="lg:col-span-12 flex-1"
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <StatTile
+                icon={<Boxes className="size-4 text-muted-foreground" />}
+                label="Total Blocks"
+                value={blocksTotal != null ? formatCompact(blocksTotal) : "—"}
+                hint="Indexed"
+              />
+              <StatTile
+                icon={
+                  <ArrowLeftRight className="size-4 text-muted-foreground" />
+                }
+                label="Total Tx"
+                value={txsTotal != null ? formatCompact(txsTotal) : "—"}
+                hint="All-time"
+              />
+              <StatTile
+                icon={<Coins className="size-4 text-muted-foreground" />}
+                label="Circulating Supply"
+                value={
+                  circulatingSupply != null ? (
+                    <>
+                      {formatCompact(circulatingSupply)} <DashIcon />
+                    </>
+                  ) : (
+                    "—"
+                  )
+                }
+                hint="vs 18.9M cap"
+              />
+              <StatTile
+                icon={<CheckCircle2 className="size-4 text-muted-foreground" />}
+                label="Funded Proposals"
+                value={
+                  budget?.enoughFundsCount != null
+                    ? budget.enoughFundsCount.toString()
+                    : "—"
+                }
+                hint={
+                  budget?.enoughFundsTotal != null
+                    ? `${budget.enoughFundsTotal.toFixed(0)} DASH allocated`
+                    : "Next superblock payout"
+                }
+              />
+            </div>
+          </div>
         </div>
+
+        <MasternodeMap variant="dashboard" />
       </div>
     </div>
   );
@@ -2228,6 +2292,402 @@ function ProposalRow({
               : "—"}
           </span>
         </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function NextSuperblockCard({
+  nextHeight,
+  prevHeight,
+  latestHeight,
+  blockTimeMs,
+  budgetDash,
+  usdPrice,
+  network,
+  className,
+}: {
+  nextHeight: number | null;
+  prevHeight: number | null;
+  latestHeight: number | null;
+  blockTimeMs: number | null;
+  budgetDash: number | null;
+  usdPrice: number | null;
+  network: Network;
+  className?: string;
+}) {
+  const resolvedNext =
+    nextHeight ??
+    (latestHeight != null
+      ? getNextSuperblockHeight(latestHeight, network)
+      : null);
+  const resolvedPrev =
+    prevHeight ??
+    (latestHeight != null
+      ? getPreviousSuperblockHeight(latestHeight, network)
+      : null);
+  const blocksLeft =
+    resolvedNext != null && latestHeight != null
+      ? Math.max(0, resolvedNext - latestHeight)
+      : null;
+  const totalBlocks =
+    resolvedNext != null && resolvedPrev != null
+      ? Math.max(1, resolvedNext - resolvedPrev)
+      : null;
+  const sbProgress =
+    blocksLeft != null && totalBlocks != null
+      ? Math.min(1, Math.max(0, 1 - blocksLeft / totalBlocks))
+      : 0;
+  const etaMs =
+    blocksLeft != null && blockTimeMs != null && blockTimeMs > 0
+      ? blocksLeft * blockTimeMs
+      : null;
+  const voteHeight =
+    latestHeight != null
+      ? getVotingDeadlineHeight(latestHeight, network)
+      : null;
+  const voteProgress =
+    latestHeight != null ? getVotingProgress(latestHeight, network) : 0;
+  const voteBlocksLeft =
+    latestHeight != null
+      ? getBlocksUntilVotingDeadline(latestHeight, network)
+      : null;
+  const voteMs =
+    latestHeight != null && blockTimeMs != null
+      ? getMsUntilVotingDeadline(latestHeight, network, blockTimeMs)
+      : null;
+  const votingClosed = voteBlocksLeft != null && voteBlocksLeft <= 0;
+  return (
+    <Card
+      className={cn(
+        "lg:col-span-3 bg-gradient-to-br from-card to-secondary/40",
+        className,
+      )}
+    >
+      <CardHeader>
+        <CardDescription>Next Superblock</CardDescription>
+        <CardTitle className="text-2xl tabular-nums text-accent">
+          {resolvedNext != null ? `#${resolvedNext.toLocaleString()}` : "—"}
+        </CardTitle>
+        <CardAction>
+          <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+            <Flame className="size-4" />
+          </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col justify-between gap-5 pb-5">
+        <div className="flex flex-1 items-center justify-around gap-4">
+          <CountdownDial
+            label="Voting closes"
+            subLabel={
+              votingClosed
+                ? "Closed"
+                : voteHeight != null
+                  ? `#${voteHeight.toLocaleString()}`
+                  : "—"
+            }
+            ms={voteMs}
+            progress={voteProgress}
+            accent="var(--accent-violet)"
+            icon={<Vote className="size-3" />}
+            closed={votingClosed}
+          />
+          <CountdownDial
+            label="Next superblock"
+            subLabel={
+              resolvedNext != null ? `#${resolvedNext.toLocaleString()}` : "—"
+            }
+            ms={etaMs}
+            progress={sbProgress}
+            accent="var(--accent)"
+            icon={<CalendarClock className="size-3" />}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3 border-t border-border/50 pt-4 text-sm">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm text-muted-foreground">Budget</span>
+            <span className="font-mono tabular-nums text-accent">
+              {budgetDash != null ? (
+                <>
+                  {budgetDash.toFixed(0)} <DashIcon />
+                </>
+              ) : (
+                "—"
+              )}
+            </span>
+            {budgetDash != null && usdPrice != null && (
+              <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                ≈ {formatCompactUsd(budgetDash * usdPrice)}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col gap-0.5 text-right">
+            <span className="text-sm text-muted-foreground">
+              Cycle progress
+            </span>
+            <span className="font-mono tabular-nums">
+              {Math.round(sbProgress * 100)}%
+            </span>
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              {blocksLeft != null
+                ? `${formatCompact(blocksLeft)} blocks left`
+                : "—"}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CountdownDial({
+  label,
+  subLabel,
+  ms,
+  progress,
+  accent,
+  icon,
+  closed,
+}: {
+  label: string;
+  subLabel: string;
+  ms: number | null;
+  progress: number;
+  accent: string;
+  icon: React.ReactNode;
+  closed?: boolean;
+}) {
+  const parts = ms != null ? formatDurationParts(ms) : null;
+  const value = closed ? "—" : (parts?.value ?? "—");
+  const unit = closed ? "closed" : (parts?.unit ?? "");
+  const safeProgress = Math.min(1, Math.max(0, progress));
+  const circumference = 2 * Math.PI * 48;
+  const dashOffset = circumference * (1 - safeProgress);
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative flex aspect-square w-[160px] items-center justify-center">
+        <svg className="size-full -rotate-90" viewBox="0 0 112 112" aria-hidden>
+          <title>{label}</title>
+          <circle
+            cx="56"
+            cy="56"
+            r="48"
+            fill="none"
+            strokeWidth="7"
+            className="stroke-border/40"
+          />
+          <circle
+            cx="56"
+            cy="56"
+            r="48"
+            fill="none"
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            className="transition-[stroke-dashoffset] duration-700 ease-out"
+            stroke={accent}
+            style={{
+              filter: `drop-shadow(0 0 8px color-mix(in oklab, ${accent} 60%, transparent))`,
+            }}
+          />
+        </svg>
+        <div className="absolute flex flex-col items-center">
+          <span className="font-display-num text-3xl tabular-nums leading-none">
+            {value}
+          </span>
+          <span className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {unit}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col items-center gap-0.5 text-center">
+        <Badge
+          variant="soft"
+          className="font-mono"
+          style={{ color: accent, borderColor: `${accent}33` }}
+        >
+          {icon}
+          {label}
+        </Badge>
+        <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+          {subLabel}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function TopHoldersCard({
+  entries,
+  total,
+  usdPrice,
+  isLoading,
+}: {
+  entries: ApiAddressBalanceEntry[];
+  total: number | null;
+  usdPrice: number | null;
+  isLoading: boolean;
+}) {
+  const rows = entries.filter((e) => e.address !== "others");
+  const othersRow = entries.find((e) => e.address === "others") ?? null;
+  return (
+    <Card className="lg:col-span-7">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          Top Holders
+          <Badge variant="soft-accent" className="font-mono">
+            <Trophy className="size-3" />
+            Rich list
+          </Badge>
+        </CardTitle>
+        <CardDescription>
+          {total != null
+            ? `${formatCompact(total)} addresses · sorted by balance`
+            : "Largest addresses by UTXO balance"}
+        </CardDescription>
+        <CardAction>
+          <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+            <Users className="size-4" />
+          </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <ConcentrationBanner entries={entries} isLoading={isLoading} />
+        <Table>
+          <TableBody>
+            {isLoading &&
+              Array.from({ length: 6 }, (_, i) => `rl-${i}`).map((k) => (
+                <TableRow key={k} className="hover:bg-transparent">
+                  <TableCell>
+                    <Skeleton className="h-4 w-40" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-2 w-full" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="ml-auto h-4 w-20" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            {!isLoading && rows.length === 0 && (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={3}>
+                  <EmptyState title="No data" />
+                </TableCell>
+              </TableRow>
+            )}
+            {rows.map((entry, idx) => (
+              <TopHolderRow
+                key={entry.address ?? `r-${idx}`}
+                rank={idx + 1}
+                entry={entry}
+                usdPrice={usdPrice}
+              />
+            ))}
+            {othersRow && <OthersRow entry={othersRow} />}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TopHolderRow({
+  rank,
+  entry,
+  usdPrice,
+}: {
+  rank: number;
+  entry: ApiAddressBalanceEntry;
+  usdPrice: number | null;
+}) {
+  const address = entry.address ?? "";
+  const balanceDuffs = entry.balance != null ? Number(entry.balance) : 0;
+  const balanceDash = balanceDuffs / DUFFS_PER_DASH;
+  const concentration =
+    entry.concentration != null ? Number(entry.concentration) : 0;
+  const usdValue = usdPrice != null ? balanceDash * usdPrice : null;
+  return (
+    <TableRow className="row-lift">
+      <TableCell className="max-w-[200px]">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent/12 font-mono text-xs font-semibold text-accent">
+            {rank}
+          </span>
+          <HashDisplay
+            value={address}
+            href="/address/$address"
+            params={{ address }}
+            copy={false}
+            head={8}
+            tail={6}
+          />
+        </div>
+      </TableCell>
+      <TableCell className="min-w-[120px]">
+        <div className="flex flex-col gap-1.5">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+            <div
+              className="h-full bg-accent transition-all"
+              style={{ width: `${Math.min(100, concentration)}%` }}
+            />
+          </div>
+          <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+            {concentration < 0.01
+              ? `${concentration.toFixed(4)}%`
+              : `${concentration.toFixed(2)}%`}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex flex-col items-end gap-0.5">
+          <span className="font-mono text-sm font-medium tabular-nums text-accent">
+            {formatCompact(balanceDash)} <DashIcon />
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {usdValue != null ? `≈ ${formatCompactUsd(usdValue)}` : "—"}
+          </span>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function OthersRow({ entry }: { entry: ApiAddressBalanceEntry }) {
+  const balanceDash =
+    entry.balance != null ? Number(entry.balance) / DUFFS_PER_DASH : 0;
+  const concentration =
+    entry.concentration != null ? Number(entry.concentration) : 0;
+  return (
+    <TableRow className="hover:bg-transparent">
+      <TableCell className="max-w-[200px]">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted/50 font-mono text-xs font-semibold text-muted-foreground">
+            ∑
+          </span>
+          <span className="truncate font-mono text-sm font-medium text-muted-foreground">
+            Other addresses
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="min-w-[120px]">
+        <div className="flex flex-col gap-1.5">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+            <div
+              className="h-full bg-muted-foreground/40 transition-all"
+              style={{ width: `${Math.min(100, concentration)}%` }}
+            />
+          </div>
+          <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+            {concentration.toFixed(2)}%
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <span className="font-mono text-sm font-medium tabular-nums text-muted-foreground">
+          {formatCompact(balanceDash)} <DashIcon />
+        </span>
       </TableCell>
     </TableRow>
   );
