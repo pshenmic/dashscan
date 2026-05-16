@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@dashevo/dashd-rpc": "github:owl352/dashd-rpc",
-    "dash-core-sdk": "1.1.3-dev.1",
+    "dash-core-sdk": "1.1.3-dev.3",
     "@fastify/cors": "^11.2.0",
     "@ip-location-db/dbip-city-mmdb": "^2.3.2026040119",
     "dotenv": "^17.2.3",
