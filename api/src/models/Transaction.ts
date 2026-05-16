@@ -187,11 +187,7 @@ export default class Transaction {
       }
 
       if (extraPayloadHandler != null) {
-        try {
-          normalExtraPayload = extraPayloadHandler(extraPayload)
-        } catch (e) {
-          console.error(`Failed to decode extraPayload for tx ${hash}, type ${type}:`, e)
-        }
+        normalExtraPayload = extraPayloadHandler(extraPayload)
       }
     }
 
