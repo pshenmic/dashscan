@@ -1,4 +1,4 @@
-import { getMnStatusLabel, getMnTypeLabel, getTxTypeLabel } from "@/lib/format";
+import { getMnStatusLabel, getMnTypeLabel, getTxTypeLabel, txTypeNum } from "@/lib/format";
 import { Badge } from "@/themes/neo/components/ui/badge";
 
 type BadgeVariant =
@@ -59,19 +59,20 @@ export function getTxTypeVariant(type: number): BadgeVariant {
 }
 
 interface TxTypeBadgeProps {
-  type: number;
+  type: string | number | null | undefined;
 }
 
 export function TxTypeBadge({ type }: TxTypeBadgeProps) {
-  const cls = TX_TYPE_CLASSES[type];
+  const n = txTypeNum(type);
+  const cls = TX_TYPE_CLASSES[n];
   if (cls) {
     return (
       <Badge variant="outline" className={cls}>
-        {getTxTypeLabel(type)}
+        {getTxTypeLabel(n)}
       </Badge>
     );
   }
-  return <Badge variant={getTxTypeVariant(type)}>{getTxTypeLabel(type)}</Badge>;
+  return <Badge variant={getTxTypeVariant(n)}>{getTxTypeLabel(n)}</Badge>;
 }
 
 interface MnStatusBadgeProps {

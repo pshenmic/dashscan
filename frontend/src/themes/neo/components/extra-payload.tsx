@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { txTypeNum } from "@/lib/format";
 import { Layers, Network, ShieldAlert, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
 import { DashIcon } from "@/components/dash-icon";
@@ -68,7 +69,7 @@ const TONE_VARS: Record<string, string> = {
 };
 
 interface ExtraPayloadSectionProps {
-  txType: number;
+  txType: string | number | null | undefined;
   payload: ApiExtraPayload | null | undefined;
 }
 
@@ -77,9 +78,10 @@ export function ExtraPayloadSection({
   payload,
 }: ExtraPayloadSectionProps) {
   if (!payload) return null;
-  const meta = PAYLOAD_META[txType];
+  const typeNum = txTypeNum(txType);
+  const meta = PAYLOAD_META[typeNum];
   const accent = TONE_VARS[meta?.tone ?? "violet"];
-  const Icon = iconFor(txType);
+  const Icon = iconFor(typeNum);
 
   return (
     <Card className="overflow-hidden">
@@ -117,12 +119,12 @@ export function ExtraPayloadSection({
               background: `color-mix(in oklab, ${accent} 10%, transparent)`,
             }}
           >
-            DIP-2 · type {txType}
+            DIP-2 · type {typeNum}
           </Badge>
         </div>
       </div>
       <CardContent className="grid gap-x-12 gap-y-4 pt-5 lg:grid-cols-2">
-        {renderBody(txType, payload)}
+        {renderBody(typeNum, payload)}
       </CardContent>
     </Card>
   );

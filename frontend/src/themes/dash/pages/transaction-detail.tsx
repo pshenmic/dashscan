@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
-import { DUFFS_PER_DASH, formatDuffs, formatRelativeTime } from "@/lib/format";
+import { DUFFS_PER_DASH, formatDuffs, formatRelativeTime, txTypeNum } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { AddressLink } from "@/themes/dash/components/address-link";
 import { CopyButton } from "@/themes/dash/components/copy-button";
@@ -37,8 +37,8 @@ const TX_TYPE_SHORT_LABELS: Record<number, string> = {
   9: "Asset Unlock",
 };
 
-function getShortTxTypeLabel(type: number): string {
-  return TX_TYPE_SHORT_LABELS[type] ?? `Type ${type}`;
+function getShortTxTypeLabel(type: string | number | null | undefined): string {
+  return TX_TYPE_SHORT_LABELS[txTypeNum(type)] ?? `Type ${type}`;
 }
 
 function sumInputs(vIn: ApiVIn[] | null | undefined): number | null {
@@ -110,18 +110,18 @@ export default function ClassicTransactionDetailPage({
   const totalInput = sumInputs(tx.vIn);
   const totalOutput = sumOutputs(tx.vOut);
   const fee =
-    tx.type === 5 || totalInput == null || totalOutput == null
+    tx.type === "COINBASE" || totalInput == null || totalOutput == null
       ? null
       : Math.max(0, totalInput - totalOutput);
 
-  const isCoinbase = tx.type === 5;
-  const isQuorum = tx.type === 6;
+  const isCoinbase = tx.type === "COINBASE";
+  const isQuorum = tx.type === "QUORUM_COMMITMENT";
 
   const hasInputs = !!tx.vIn && tx.vIn.length > 0 && !isCoinbase;
   const hasOutputs = !!tx.vOut && tx.vOut.length > 0;
 
-  const INPUTS_ON_LEFT = new Set([1, 5, 6, 8, 9]);
-  const inputsOnLeft = INPUTS_ON_LEFT.has(tx.type);
+  const INPUTS_ON_LEFT = new Set(["PROVIDER_REGISTRATION", "COINBASE", "QUORUM_COMMITMENT", "ASSET_LOCK", "ASSET_UNLOCK"]);
+  const inputsOnLeft = INPUTS_ON_LEFT.has(tx.type ?? "");
 
   const inputsSection = hasInputs ? (
     <IoSection title="Inputs" count={tx.vIn?.length ?? 0}>

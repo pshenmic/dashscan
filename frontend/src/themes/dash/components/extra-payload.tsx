@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { txTypeNum } from "@/lib/format";
 import { ChevronUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
@@ -37,19 +38,20 @@ function countBitsSet(hex: string | null | undefined): number {
 }
 
 interface ExtraPayloadCardProps {
-  txType: number;
+  txType: string | number | null | undefined;
   payload: ApiExtraPayload | null | undefined;
 }
 
 export function ExtraPayloadCard({ txType, payload }: ExtraPayloadCardProps) {
   if (!payload) return null;
+  const typeNum = txTypeNum(txType);
   return (
     <Card className="flex flex-col gap-3 border-0 px-6 py-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm text-muted-foreground">Extra Payload</h2>
         <ChevronUp className="size-4 text-muted-foreground" />
       </div>
-      <div className="flex flex-col">{renderPayloadBody(txType, payload)}</div>
+      <div className="flex flex-col">{renderPayloadBody(typeNum, payload)}</div>
     </Card>
   );
 }

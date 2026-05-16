@@ -100,6 +100,25 @@ export function highlightJson(obj: unknown): string {
   );
 }
 
+const TX_TYPE_BY_NAME: Record<string, number> = {
+  CLASSIC: 0,
+  PROVIDER_REGISTRATION: 1,
+  PROVIDER_UPDATE_SERVICE: 2,
+  PROVIDER_UPDATE_REGISTRAR: 3,
+  PROVIDER_UPDATE_REVOCATION: 4,
+  COINBASE: 5,
+  QUORUM_COMMITMENT: 6,
+  MASTERNODE_HARD_FORK_SIGNAL: 7,
+  ASSET_LOCK: 8,
+  ASSET_UNLOCK: 9,
+};
+
+export function txTypeNum(type: string | number | null | undefined): number {
+  if (type == null) return 0;
+  if (typeof type === "number") return type;
+  return TX_TYPE_BY_NAME[type] ?? 0;
+}
+
 const TX_TYPE_LABELS: Record<number, string> = {
   0: "Asset Transfer",
   1: "Provider Register",
@@ -113,8 +132,9 @@ const TX_TYPE_LABELS: Record<number, string> = {
   9: "Asset Unlock",
 };
 
-export function getTxTypeLabel(type: number): string {
-  return TX_TYPE_LABELS[type] ?? `Type ${type}`;
+export function getTxTypeLabel(type: string | number | null | undefined): string {
+  const n = txTypeNum(type);
+  return TX_TYPE_LABELS[n] ?? `Type ${type}`;
 }
 
 const TX_TYPE_STYLES: Record<number, string> = {
@@ -130,9 +150,9 @@ const TX_TYPE_STYLES: Record<number, string> = {
   9: "border-teal-500 bg-teal-500/12 text-teal-500",
 };
 
-export function getTxTypeBadgeStyle(type: number): string {
+export function getTxTypeBadgeStyle(type: string | number | null | undefined): string {
   return (
-    TX_TYPE_STYLES[type] ?? "border-slate-500 bg-slate-500/12 text-slate-500"
+    TX_TYPE_STYLES[txTypeNum(type)] ?? "border-slate-500 bg-slate-500/12 text-slate-500"
   );
 }
 
