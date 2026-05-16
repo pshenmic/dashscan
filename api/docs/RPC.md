@@ -34,16 +34,17 @@ All list endpoints return this wrapper:
 > `total` is `-1` when the result set is empty.
 
 ### Transaction Extra Payload
-Extra payload may vary depending on transaction type:
-- ProRegTX
-- ProUpServTx
-- ProUpRegTx
-- ProUpRevTx
-- CbTx
-- QcTx
-- MnHfTx
-- AssetLockTx
-- AssetUnlockTx
+Extra payload may vary depending on special transaction type:
+- `CLASSIC` (No extraPayload, null)
+- `PROVIDER_REGISTRATION` (ProRegTX)
+- `PROVIDER_UPDATE_SERVICE` (ProUpServTx)
+- `PROVIDER_UPDATE_REGISTRAR` (ProUpRegTx)
+- `PROVIDER_UPDATE_REVOCATION` (ProUpRevTx)
+- `COINBASE` (CbTx)
+- `QUORUM_COMMITMENT` (QcTx)
+- `MASTERNODE_HARD_FORK_SIGNAL` (MnHfTx)
+- `ASSET_LOCK` (AssetLockTx)
+- `ASSET_UNLOCK` (AssetUnlockTx)
 
 #### ProRegTX
 | Field              | Type     |

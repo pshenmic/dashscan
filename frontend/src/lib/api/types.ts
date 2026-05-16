@@ -176,7 +176,7 @@ export type ApiExtraPayload =
 
 export interface ApiTransaction {
   hash: string;
-  type: number;
+  type: string | null;
   blockHeight: number;
   blockHash: string;
   amount: number | null;

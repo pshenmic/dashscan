@@ -324,12 +324,12 @@ export default function RedesignTransactionDetailPage({
   const totalInput = sumInputs(tx.vIn);
   const totalOutput = sumOutputs(tx.vOut);
   const fee =
-    tx.type === 5 || totalInput == null || totalOutput == null
+    tx.type === "COINBASE" || totalInput == null || totalOutput == null
       ? null
       : Math.max(0, totalInput - totalOutput);
 
-  const isCoinbase = tx.type === 5;
-  const isQuorum = tx.type === 6;
+  const isCoinbase = tx.type === "COINBASE";
+  const isQuorum = tx.type === "QUORUM_COMMITMENT";
   const hasFlow = (tx.vIn?.length ?? 0) > 0 || (tx.vOut?.length ?? 0) > 0;
 
   const ribbonSegments: RibbonSegment[] = (tx.vOut ?? [])

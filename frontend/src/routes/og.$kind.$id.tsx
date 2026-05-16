@@ -4,6 +4,7 @@ import { blockQueryOptions } from "@/lib/api/blocks";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import { buildOgSvg, type OgPayload } from "@/lib/og";
+import { txTypeNum } from "@/lib/format";
 import { defaultNetwork } from "@/lib/store";
 
 type OgKind = OgPayload["kind"];
@@ -83,8 +84,8 @@ export const Route = createFileRoute("/og/$kind/$id")({
   },
 });
 
-function txTypeLabel(type: number | string | undefined): string {
-  const n = typeof type === "string" ? Number(type) : type;
+function txTypeLabel(type: number | string | null | undefined): string {
+  const n = txTypeNum(type);
   switch (n) {
     case 0:
       return "Standard";
