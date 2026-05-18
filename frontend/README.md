@@ -1,6 +1,6 @@
 <div align="center">
 
-# DashScan Web App
+# Dashscan Web App
 
 **Blockchain explorer for the [Dash](https://www.dash.org/) network**
 
