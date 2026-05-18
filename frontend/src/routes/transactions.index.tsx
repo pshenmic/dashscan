@@ -41,7 +41,7 @@ export const Route = createFileRoute("/transactions/")({
   }),
   component: TransactionsListRoute,
   head: () => ({
-    meta: [{ title: "Transactions | DashScan" }],
+    meta: [{ title: "Transactions | Dashscan" }],
   }),
   loader: ({
     context,

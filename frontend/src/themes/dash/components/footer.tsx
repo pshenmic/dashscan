@@ -173,7 +173,7 @@ export default function Footer() {
         </div>
 
         <p className="m-0 text-sm text-muted-foreground">
-          {year} &copy; DashScan Explorer
+          {year} &copy; Dashscan
         </p>
       </div>
     </footer>

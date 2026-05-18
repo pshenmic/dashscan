@@ -45,7 +45,7 @@ function dayStatsRange() {
 export const Route = createFileRoute("/")({
   component: DashboardRoute,
   head: () => ({
-    meta: [{ title: "Dashboard | DashScan" }],
+    meta: [{ title: "Dashboard | Dashscan" }],
   }),
   loader: ({ context }) => {
     if (typeof window !== "undefined") return;

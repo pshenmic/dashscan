@@ -62,7 +62,7 @@ export default function SiteHeader() {
     <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-screen-2xl items-center gap-6 px-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex shrink-0 items-center no-underline">
-          <img src="/dashscan-logo.svg" alt="DashScan" className="h-6" />
+          <img src="/dashscan-logo.svg" alt="Dashscan" className="h-6" />
         </Link>
 
         <nav className="relative hidden h-full items-center gap-1 md:flex">

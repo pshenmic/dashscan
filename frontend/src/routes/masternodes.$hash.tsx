@@ -9,7 +9,7 @@ export const Route = createFileRoute("/masternodes/$hash")({
   component: MasternodeDetailRoute,
   head: ({ params }) => ({
     meta: [
-      { title: `Masternode ${params.hash.slice(0, 12)}... | DashScan` },
+      { title: `Masternode ${params.hash.slice(0, 12)}... | Dashscan` },
       {
         property: "og:title",
         content: `Masternode ${params.hash.slice(0, 12)}…`,

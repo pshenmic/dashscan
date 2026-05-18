@@ -5,7 +5,7 @@ const SOCIALS = [
   { href: "https://github.com/pshenmic", label: "GitHub", icon: Github },
   { href: "https://x.com/pshenmic", label: "X / Twitter", icon: Twitter },
   {
-    href: "https://discord.gg/dash",
+    href: "https://discordapp.com/invite/PXbUxJB",
     label: "Discord",
     icon: MessageCircle,
   },
@@ -16,7 +16,7 @@ export default function SiteFooter() {
     <footer className="mt-12 border-t border-border bg-background">
       <div className="mx-auto flex h-14 max-w-screen-2xl items-center justify-between gap-4 px-4 text-sm sm:px-6 lg:px-8">
         <p className="text-muted-foreground">
-          © {new Date().getFullYear()} DashScan Explorer · pshenmic.dev
+          © {new Date().getFullYear()} Dashscan · pshenmic.dev
         </p>
         <div className="flex items-center gap-1">
           {SOCIALS.map((s) => (

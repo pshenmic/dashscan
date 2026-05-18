@@ -9,7 +9,7 @@ export const Route = createFileRoute("/transactions/$hash")({
   component: TransactionDetailRoute,
   head: ({ params }) => ({
     meta: [
-      { title: `TX ${params.hash.slice(0, 12)}... | DashScan` },
+      { title: `TX ${params.hash.slice(0, 12)}... | Dashscan` },
       {
         property: "og:title",
         content: `Transaction ${params.hash.slice(0, 12)}…`,
