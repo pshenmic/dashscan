@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   CalendarClock,
   Coins,
   ExternalLink,
@@ -70,6 +73,46 @@ const chartConfig: ChartConfig = {
 
 const PROPOSALS_PAGE_SIZE = 25;
 
+type SortId = "rank" | "name" | "time" | "votes" | "funding";
+type SortDir = "asc" | "desc";
+
+function SortHeader({
+  active,
+  direction,
+  onClick,
+  className,
+  children,
+}: {
+  active: boolean;
+  direction: SortDir;
+  onClick: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1 select-none hover:text-foreground",
+        active && "text-foreground",
+        className,
+      )}
+    >
+      {children}
+      {active ? (
+        direction === "asc" ? (
+          <ArrowUp className="size-3" />
+        ) : (
+          <ArrowDown className="size-3" />
+        )
+      ) : (
+        <ArrowUpDown className="size-3 opacity-50" />
+      )}
+    </button>
+  );
+}
+
 export default function RedesignDaoPage() {
   const storeNetwork = useStore(appStore, (state) => state.network);
   const [search, setSearch] = useState("");
@@ -77,6 +120,19 @@ export default function RedesignDaoPage() {
   const [viewMode, setViewMode] = useTableViewMode("dao");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PROPOSALS_PAGE_SIZE);
+  const [sortId, setSortId] = useState<SortId>("rank");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const toggleSort = (id: SortId) => {
+    if (sortId === id) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortId(id);
+      setSortDir(id === "rank" || id === "name" ? "asc" : "desc");
+    }
+    setPage(1);
+    setVisibleCount(PROPOSALS_PAGE_SIZE);
+  };
 
   const isInfinite = viewMode === "infinite";
 
@@ -127,17 +183,80 @@ export default function RedesignDaoPage() {
     );
   }, [proposals, search]);
 
-  const paged = useMemo(() => {
-    if (isInfinite) {
-      return filteredProposals.slice(0, visibleCount);
-    }
-    const start = (page - 1) * pageSize;
-    return filteredProposals.slice(start, start + pageSize);
-  }, [filteredProposals, visibleCount, isInfinite, page, pageSize]);
-  const hasNextPage = visibleCount < filteredProposals.length;
-
   const currentHeight = blockData?.resultSet?.[0]?.height ?? 0;
   const masternodeCount = mnData?.pagination?.total ?? 0;
+  const requiredVotes = getRequiredVotes(masternodeCount);
+  const blockTimeMs = chainStats?.blockTime ?? null;
+  const msUntilVoteCutoff = getMsUntilVotingDeadline(
+    currentHeight,
+    network,
+    blockTimeMs,
+  );
+  const votingOpen = msUntilVoteCutoff > 0;
+  const fundedLabel = votingOpen ? "Requested" : "Funded";
+
+  const rankMap = useMemo(() => {
+    const ranked = [...proposals].sort(
+      (a, b) =>
+        (b.yesCount ?? 0) -
+        (b.noCount ?? 0) -
+        ((a.yesCount ?? 0) - (a.noCount ?? 0)),
+    );
+    const map = new Map<string, { rank: number; passing: boolean }>();
+    ranked.forEach((p, i) => {
+      if (!p.hash) return;
+      const net = (p.yesCount ?? 0) - (p.noCount ?? 0);
+      map.set(p.hash, { rank: i + 1, passing: net >= requiredVotes });
+    });
+    return map;
+  }, [proposals, requiredVotes]);
+
+  const sortedProposals = useMemo(() => {
+    const arr = [...filteredProposals];
+    const dir = sortDir === "asc" ? 1 : -1;
+    const cmp = (a: ApiGovernanceObject, b: ApiGovernanceObject): number => {
+      switch (sortId) {
+        case "rank": {
+          const ra = rankMap.get(a.hash ?? "")?.rank ?? Number.MAX_SAFE_INTEGER;
+          const rb = rankMap.get(b.hash ?? "")?.rank ?? Number.MAX_SAFE_INTEGER;
+          return ra - rb;
+        }
+        case "name": {
+          const na = a.data?.name ?? "";
+          const nb = b.data?.name ?? "";
+          return na.localeCompare(nb);
+        }
+        case "time": {
+          const ta = a.creationTime ? Date.parse(a.creationTime) : 0;
+          const tb = b.creationTime ? Date.parse(b.creationTime) : 0;
+          return ta - tb;
+        }
+        case "votes": {
+          const va = (a.yesCount ?? 0) - (a.noCount ?? 0);
+          const vb = (b.yesCount ?? 0) - (b.noCount ?? 0);
+          return va - vb;
+        }
+        case "funding": {
+          const fa = a.data?.paymentAmount ?? 0;
+          const fb = b.data?.paymentAmount ?? 0;
+          return fa - fb;
+        }
+        default:
+          return 0;
+      }
+    };
+    arr.sort((a, b) => cmp(a, b) * dir);
+    return arr;
+  }, [filteredProposals, sortId, sortDir, rankMap]);
+
+  const paged = useMemo(() => {
+    if (isInfinite) {
+      return sortedProposals.slice(0, visibleCount);
+    }
+    const start = (page - 1) * pageSize;
+    return sortedProposals.slice(start, start + pageSize);
+  }, [sortedProposals, visibleCount, isInfinite, page, pageSize]);
+  const hasNextPage = visibleCount < sortedProposals.length;
 
   const availableBudget = budget?.totalBudget ?? 0;
   const proposalCount = budget?.totalProposals ?? proposals.length;
@@ -149,19 +268,12 @@ export default function RedesignDaoPage() {
     0,
     proposalCount - fundedProposalCount,
   );
-  const requiredVotes = getRequiredVotes(masternodeCount);
-  const blockTimeMs = chainStats?.blockTime ?? null;
   const msUntilSuperblock = getMsUntilSuperblock(
     currentHeight,
     network,
     blockTimeMs,
   );
   const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
-  const msUntilVoteCutoff = getMsUntilVotingDeadline(
-    currentHeight,
-    network,
-    blockTimeMs,
-  );
 
   const chartData = useMemo(() => {
     const triggers = (allProposals ?? []).filter(
@@ -184,72 +296,97 @@ export default function RedesignDaoPage() {
 
   const columns: DataTableColumn<ApiGovernanceObject>[] = [
     {
+      id: "rank",
+      width: 64,
+      header: (
+        <SortHeader
+          active={sortId === "rank"}
+          direction={sortDir}
+          onClick={() => toggleSort("rank")}
+        >
+          #
+        </SortHeader>
+      ),
+      cell: (row) => {
+        const info = rankMap.get(row.hash ?? "");
+        if (!info) return <span className="text-muted-foreground">—</span>;
+        return (
+          <Badge
+            variant={info.passing ? "soft-success" : "soft"}
+            className="min-w-9 justify-center font-mono tabular-nums"
+          >
+            #{info.rank}
+          </Badge>
+        );
+      },
+    },
+    {
       id: "name",
-      header: "Proposal",
+      header: (
+        <SortHeader
+          active={sortId === "name"}
+          direction={sortDir}
+          onClick={() => toggleSort("name")}
+        >
+          Proposal
+        </SortHeader>
+      ),
       cell: (row) => {
         const name = row.data?.name ?? "Untitled";
         const url = row.data?.url;
         const addr = row.data?.paymentAddress;
-        const yes = row.yesCount ?? 0;
-        const no = row.noCount ?? 0;
-        const net = (row.absoluteYesCount ?? yes - no) || 0;
-        const isPassing = net > 0;
         return (
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-full",
-                isPassing
-                  ? "bg-success/12 [&_svg]:text-success"
-                  : "bg-accent/12 [&_svg]:text-accent",
-              )}
-            >
-              <Vote className="size-4" />
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <div className="flex min-w-0 items-center gap-1.5">
-                {url ? (
-                  <Button
-                    asChild
-                    variant="link"
-                    className="h-auto truncate p-0 text-sm font-medium"
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex min-w-0 items-center gap-1.5">
+              {url ? (
+                <Button
+                  asChild
+                  variant="link"
+                  className="h-auto truncate p-0 text-sm font-medium"
+                >
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {name}
-                    </a>
-                  </Button>
-                ) : (
-                  <span className="truncate text-sm font-medium">{name}</span>
-                )}
-                {url && (
-                  <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
-                )}
-              </div>
-              {addr ? (
-                <HashDisplay
-                  value={addr}
-                  href="/address/$address"
-                  params={{ address: addr }}
-                  copy={false}
-                />
+                    {name}
+                  </a>
+                </Button>
               ) : (
-                <span className="text-xs text-muted-foreground">
-                  No payment address
-                </span>
+                <span className="truncate text-sm font-medium">{name}</span>
+              )}
+              {url && (
+                <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
               )}
             </div>
+            {addr ? (
+              <HashDisplay
+                value={addr}
+                href="/address/$address"
+                params={{ address: addr }}
+                copy={false}
+              />
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                No payment address
+              </span>
+            )}
           </div>
         );
       },
     },
     {
       id: "time",
-      header: "Created",
+      header: (
+        <SortHeader
+          active={sortId === "time"}
+          direction={sortDir}
+          onClick={() => toggleSort("time")}
+        >
+          Created
+        </SortHeader>
+      ),
       cell: (row) => (
         <span className="whitespace-nowrap text-sm text-muted-foreground">
           {row.creationTime ? formatRelativeTime(row.creationTime) : "—"}
@@ -258,7 +395,15 @@ export default function RedesignDaoPage() {
     },
     {
       id: "votes",
-      header: "Votes",
+      header: (
+        <SortHeader
+          active={sortId === "votes"}
+          direction={sortDir}
+          onClick={() => toggleSort("votes")}
+        >
+          Votes
+        </SortHeader>
+      ),
       cell: (row) => (
         <div className="flex items-center gap-1.5">
           <Badge variant="soft-success">
@@ -268,15 +413,24 @@ export default function RedesignDaoPage() {
             <ThumbsDown className="size-3" /> {row.noCount ?? 0}
           </Badge>
           <Badge variant="soft">
-            <Minus className="size-3" /> {row.abstainCount ?? 0}
+            <Minus className="size-3" /> Abstain {row.abstainCount ?? 0}
           </Badge>
         </div>
       ),
     },
     {
       id: "funding",
-      header: "Funding",
       align: "right",
+      header: (
+        <SortHeader
+          active={sortId === "funding"}
+          direction={sortDir}
+          onClick={() => toggleSort("funding")}
+          className="ml-auto"
+        >
+          {fundedLabel}
+        </SortHeader>
+      ),
       cell: (row) => {
         const amount = row.data?.paymentAmount;
         if (amount == null)
