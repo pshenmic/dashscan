@@ -47,7 +47,7 @@ export default class MasternodesDAO {
         const [ip] = masternode.address.split(':')
         let geoIpInfo: GeoIpInfo | undefined = undefined
 
-        if(ip!=null && masternode.address != '[::]:0'){
+        if (ip!=null && masternode.address != '[::]:0') {
           geoIpInfo = this.geoIPService.lookup(ip)
         }
 
