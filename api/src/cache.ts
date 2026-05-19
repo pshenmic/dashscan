@@ -2,7 +2,7 @@ import {UtxoInfoRPC} from "./dashcoreRPC";
 
 interface CacheStorage {
   utxoInfo?: UtxoInfoRPC;
-  geoipStorage?: object;
+  geoipStorage?: { [key: string | number]: any };
 }
 
 export class Cache {
