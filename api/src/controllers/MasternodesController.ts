@@ -24,4 +24,10 @@ export default class MasternodesController {
 
     response.send(stats);
   };
+
+  getMasternodesMap = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
+    const masternodesMap = await this.masternodesDAO.getMasternodesMap();
+
+    response.send(masternodesMap)
+  }
 }

@@ -90,21 +90,22 @@ export default class Masternode {
     geoIpInfo?: GeoIpInfo,
   ) {
     this.proTxHash = proTxHash ?? null;
-    this.address = address ?? null;
     this.payee = payee ?? null;
     this.status = status ?? null;
     this.type = type ?? null;
-    this.posPenaltyScore = posPenaltyScore ?? null;
-    this.consecutivePayments = consecutivePayments ?? null;
-    this.lastPaidTime = lastPaidTime ?? null;
-    this.lastPaidBlock = lastPaidBlock ?? null;
     this.ownerAddress = ownerAddress ?? null;
     this.votingAddress = votingAddress ?? null;
     this.collateralAddress = collateralAddress ?? null;
-    this.pubKeyOperator = pubKeyOperator ?? null;
     this.createdAt = createdAt ?? null;
-    this.updatedAt = updatedAt ?? null;
     this.geoIpInfo = geoIpInfo ?? null;
+    // without default for short form (masternodes map)
+    this.address = address;
+    this.posPenaltyScore = posPenaltyScore;
+    this.consecutivePayments = consecutivePayments;
+    this.lastPaidTime = lastPaidTime;
+    this.lastPaidBlock = lastPaidBlock;
+    this.pubKeyOperator = pubKeyOperator;
+    this.updatedAt = updatedAt;
   }
 
   static fromRPC(entry: MasternodeRPCEntry): Masternode {

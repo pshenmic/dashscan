@@ -48,7 +48,7 @@ export default class MasternodesDAO {
         const [ip] = masternode.address.split(':')
         let geoIpInfo: GeoIpInfo | undefined = undefined
 
-        if(ip!=null){
+        if(ip!=null&&ip!='[::]:0'){
           geoIpInfo = this.geoIPService.lookup(ip)
         }
 
@@ -75,5 +75,38 @@ export default class MasternodesDAO {
       .first<MasternodeStatsRow>()
 
     return MasternodeStats.fromRow(row)
+  }
+
+  getMasternodesMap = async (): Promise<Masternode[]> => {
+    const rows = await this.knex('masternodes')
+      .select(
+        'pro_tx_hash', 'payee', 'status', 'type', 'created_at',
+        'owner_address', 'voting_address', 'collateral_address', 'address'
+      )
+
+    return rows
+      .filter((row)=>row.address!='[::]:0')
+      .map(row => {
+        const masternode = Masternode.fromRow(row)
+
+        const [ip] = masternode.address.split(':')
+        let geoIpInfo: GeoIpInfo | undefined = undefined
+
+        if(ip!=null){
+          geoIpInfo = this.geoIPService.lookup(ip)
+        }
+
+        return Masternode.fromObject({
+          proTxHash: masternode.proTxHash,
+          payee: masternode.payee,
+          status: masternode.status,
+          type: masternode.type,
+          ownerAddress: masternode.ownerAddress,
+          votingAddress: masternode.votingAddress,
+          collateralAddress: masternode.collateralAddress,
+          createdAt: masternode.createdAt,
+          geoIpInfo
+        })
+      })
   }
 }
