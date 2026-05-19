@@ -19,8 +19,8 @@ export default class MasternodesController {
     response.send(masternodes);
   };
 
-  getMasternodesStats = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
-    const stats = await this.masternodesDAO.getMasternodesStats();
+  getMasternodeStats = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
+    const stats = await this.masternodesDAO.getMasternodeStats();
 
     response.send(stats);
   };

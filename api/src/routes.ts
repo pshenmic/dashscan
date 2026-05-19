@@ -136,7 +136,7 @@ export default function Routes({ fastify, mainController, blocksController, tran
     {
       path: '/masternodes/stats',
       method: 'get',
-      handler: masternodesController.getMasternodesStats,
+      handler: masternodesController.getMasternodeStats,
       schema: {
         querystring: { $ref: 'paginationOptions#' },
       },

@@ -63,7 +63,7 @@ export default class MasternodesDAO {
     );
   };
 
-  getMasternodesStats = async (): Promise<MasternodeStats> => {
+  getMasternodeStats = async (): Promise<MasternodeStats> => {
     const row = await this.knex('masternodes')
       .count('* as masternodes_total_count')
       .select(
