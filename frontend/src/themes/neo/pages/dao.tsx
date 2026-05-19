@@ -43,6 +43,7 @@ import {
   getVotingDeadline,
   getVotingDeadlineHeight,
   getVotingProgress,
+  resolveNetworkFromChain,
 } from "@/lib/governance";
 import { appStore, type Network } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
@@ -70,7 +71,7 @@ const chartConfig: ChartConfig = {
 const PROPOSALS_PAGE_SIZE = 25;
 
 export default function RedesignDaoPage() {
-  const network = useStore(appStore, (state) => state.network);
+  const storeNetwork = useStore(appStore, (state) => state.network);
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(PROPOSALS_PAGE_SIZE);
   const [viewMode, setViewMode] = useTableViewMode("dao");
@@ -86,16 +87,26 @@ export default function RedesignDaoPage() {
   };
 
   const { data: allProposals, isFetching } = useQuery(
-    proposalsQueryOptions({ network, proposalType: "all" }),
+    proposalsQueryOptions({ network: storeNetwork, proposalType: "all" }),
   );
-  const { data: budget } = useQuery(budgetQueryOptions({ network }));
+  const { data: budget } = useQuery(
+    budgetQueryOptions({ network: storeNetwork }),
+  );
   const { data: blockData } = useQuery(
-    blocksQueryOptions({ network, page: 1, limit: 1, order: "desc" }),
+    blocksQueryOptions({
+      network: storeNetwork,
+      page: 1,
+      limit: 1,
+      order: "desc",
+    }),
   );
   const { data: mnData } = useQuery(
-    masternodesQueryOptions({ network, page: 1, limit: 1 }),
+    masternodesQueryOptions({ network: storeNetwork, page: 1, limit: 1 }),
   );
-  const { data: chainStats } = useQuery(chainStatsQueryOptions({ network }));
+  const { data: chainStats } = useQuery(
+    chainStatsQueryOptions({ network: storeNetwork }),
+  );
+  const network = resolveNetworkFromChain(chainStats?.chain, storeNetwork);
 
   const proposals = useMemo(
     () =>

@@ -23,6 +23,15 @@ export function getGovernanceParams(network: Network): GovernanceParams {
   return GOVERNANCE_PARAMS[network];
 }
 
+export function resolveNetworkFromChain(
+  chain: string | null | undefined,
+  fallback: Network,
+): Network {
+  if (chain === "main") return "mainnet";
+  if (chain === "test") return "testnet";
+  return fallback;
+}
+
 export function getPreviousSuperblockHeight(
   currentHeight: number,
   network: Network,
