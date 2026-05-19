@@ -15,15 +15,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import { Button } from "@/components/ui/button";
-import {
-  type ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
@@ -66,10 +59,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/themes/neo/components/ui/card";
-
-const chartConfig: ChartConfig = {
-  value: { label: "Triggers", color: "var(--chart-1)" },
-};
 
 const PROPOSALS_PAGE_SIZE = 25;
 
@@ -279,25 +268,6 @@ export default function RedesignDaoPage() {
   );
   const nextSuperblockDate = new Date(new Date().getTime() + msUntilSuperblock);
   const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
-
-  const chartData = useMemo(() => {
-    const triggers = (allProposals ?? []).filter(
-      (p) => p.objectType === "Trigger",
-    );
-    if (triggers.length === 0) return [];
-
-    const months = new Map<string, number>();
-    for (const t of triggers) {
-      if (!t.creationTime) continue;
-      const d = new Date(t.creationTime);
-      const key = `${d.toLocaleString("en", { month: "short" })} ${d.getFullYear()}`;
-      months.set(key, (months.get(key) ?? 0) + 1);
-    }
-
-    return [...months.entries()]
-      .map(([label, value]) => ({ label, value }))
-      .slice(-12);
-  }, [allProposals]);
 
   const columns: DataTableColumn<ApiGovernanceObject>[] = [
     {
@@ -596,49 +566,15 @@ export default function RedesignDaoPage() {
           <Card>
             <CardHeader>
               <CardTitle>Superblock Activity</CardTitle>
-              <CardDescription>
-                {chartData.length > 0
-                  ? "Triggers per month"
-                  : "Countdown to next funding cycle"}
-              </CardDescription>
+              <CardDescription>Countdown to next funding cycle</CardDescription>
             </CardHeader>
             <CardContent>
-              {chartData.length > 0 ? (
-                <ChartContainer
-                  config={chartConfig}
-                  className="aspect-auto h-[260px] w-full"
-                >
-                  <BarChart data={chartData}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="label"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      width={40}
-                      allowDecimals={false}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar
-                      dataKey="value"
-                      fill="var(--color-value)"
-                      radius={[6, 6, 0, 0]}
-                    />
-                  </BarChart>
-                </ChartContainer>
-              ) : (
-                <SuperblockCountdown
-                  currentHeight={currentHeight}
-                  msRemaining={msUntilSuperblock}
-                  msUntilVoteCutoff={msUntilVoteCutoff}
-                  network={network}
-                />
-              )}
+              <SuperblockCountdown
+                currentHeight={currentHeight}
+                msRemaining={msUntilSuperblock}
+                msUntilVoteCutoff={msUntilVoteCutoff}
+                network={network}
+              />
             </CardContent>
           </Card>
         </div>
