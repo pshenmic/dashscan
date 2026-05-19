@@ -2,10 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { ArrowRight, MapPin, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { allMasternodesGeoQueryOptions } from "@/lib/api/masternodes";
+import {
+  allMasternodesGeoQueryOptions,
+  type MasternodeGeoPoint,
+} from "@/lib/api/masternodes";
 import { appStore } from "@/lib/store";
 import {
   Card,
@@ -15,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/themes/neo/components/ui/card";
+import { ClusterList } from "./cluster-list";
 import { CountryLegend } from "./country-legend";
 import { countryFlagEmoji, countryName } from "./iso-codes";
 import { MasternodeMapCanvas } from "./map-canvas";
@@ -36,11 +40,19 @@ export function MasternodeMap({
     allMasternodesGeoQueryOptions({ network }),
   );
   const [internalCountry, setInternalCountry] = useState<string | null>(null);
+  const [clusterLeaves, setClusterLeaves] = useState<
+    MasternodeGeoPoint[] | null
+  >(null);
   const isControlled = controlledCountry !== undefined;
   const selectedCountry = isControlled ? controlledCountry : internalCountry;
-  const setSelectedCountry = isControlled
-    ? (controlledOnSelect ?? (() => {}))
-    : setInternalCountry;
+  const setSelectedCountry = useCallback(
+    (code: string | null) => {
+      setClusterLeaves(null);
+      if (isControlled) controlledOnSelect?.(code);
+      else setInternalCountry(code);
+    },
+    [isControlled, controlledOnSelect],
+  );
 
   const points = data ?? [];
   const total = points.length;
@@ -67,6 +79,17 @@ export function MasternodeMap({
         <CardTitle className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-2xl tabular-nums text-accent">
           {isLoading ? (
             <Skeleton className="h-7 w-24" />
+          ) : clusterLeaves ? (
+            <>
+              <span>
+                {clusterLeaves.length}{" "}
+                {clusterLeaves.length === 1 ? "node" : "nodes"}
+              </span>
+              <span className="text-sm font-normal text-muted-foreground">
+                in selected cluster
+              </span>
+              <ClearPill onClick={() => setClusterLeaves(null)} />
+            </>
           ) : selectedCountry && countrySubset ? (
             <>
               <span className="flex items-baseline gap-2">
@@ -83,14 +106,7 @@ export function MasternodeMap({
                 {countrySubset.cities > 0 &&
                   ` · ${countrySubset.cities} ${countrySubset.cities === 1 ? "city" : "cities"}`}
               </span>
-              <button
-                type="button"
-                onClick={() => setSelectedCountry(null)}
-                className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                <X className="size-3" />
-                Clear
-              </button>
+              <ClearPill onClick={() => setSelectedCountry(null)} />
             </>
           ) : (
             <>
@@ -121,6 +137,7 @@ export function MasternodeMap({
                 points={points}
                 highlightedCountry={selectedCountry}
                 onSelectCountry={setSelectedCountry}
+                onSelectCluster={setClusterLeaves}
                 height={height}
               />
             )}
@@ -132,6 +149,8 @@ export function MasternodeMap({
                   <Skeleton key={i} className="h-12 w-full rounded-xl" />
                 ))}
               </div>
+            ) : clusterLeaves ? (
+              <ClusterList leaves={clusterLeaves} maxHeight={height} />
             ) : (
               <CountryLegend
                 points={points}
@@ -144,5 +163,18 @@ export function MasternodeMap({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ClearPill({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+    >
+      <X className="size-3" />
+      Clear
+    </button>
   );
 }

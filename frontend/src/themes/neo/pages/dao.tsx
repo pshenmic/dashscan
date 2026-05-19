@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   CalendarClock,
   Coins,
   ExternalLink,
@@ -12,15 +15,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import { Button } from "@/components/ui/button";
-import {
-  type ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
@@ -43,6 +39,7 @@ import {
   getVotingDeadline,
   getVotingDeadlineHeight,
   getVotingProgress,
+  resolveNetworkFromChain,
 } from "@/lib/governance";
 import { appStore, type Network } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
@@ -63,19 +60,68 @@ import {
   CardTitle,
 } from "@/themes/neo/components/ui/card";
 
-const chartConfig: ChartConfig = {
-  value: { label: "Triggers", color: "var(--chart-1)" },
-};
-
 const PROPOSALS_PAGE_SIZE = 25;
 
+type SortId = "rank" | "name" | "time" | "votes" | "funding";
+type SortDir = "asc" | "desc";
+
+function SortHeader({
+  active,
+  direction,
+  onClick,
+  className,
+  children,
+}: {
+  active: boolean;
+  direction: SortDir;
+  onClick: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1 select-none hover:text-foreground",
+        active && "text-foreground",
+        className,
+      )}
+    >
+      {children}
+      {active ? (
+        direction === "asc" ? (
+          <ArrowUp className="size-3" />
+        ) : (
+          <ArrowDown className="size-3" />
+        )
+      ) : (
+        <ArrowUpDown className="size-3 opacity-50" />
+      )}
+    </button>
+  );
+}
+
 export default function RedesignDaoPage() {
-  const network = useStore(appStore, (state) => state.network);
+  const storeNetwork = useStore(appStore, (state) => state.network);
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(PROPOSALS_PAGE_SIZE);
   const [viewMode, setViewMode] = useTableViewMode("dao");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PROPOSALS_PAGE_SIZE);
+  const [sortId, setSortId] = useState<SortId>("rank");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const toggleSort = (id: SortId) => {
+    if (sortId === id) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortId(id);
+      setSortDir(id === "rank" || id === "name" ? "asc" : "desc");
+    }
+    setPage(1);
+    setVisibleCount(PROPOSALS_PAGE_SIZE);
+  };
 
   const isInfinite = viewMode === "infinite";
 
@@ -86,16 +132,26 @@ export default function RedesignDaoPage() {
   };
 
   const { data: allProposals, isFetching } = useQuery(
-    proposalsQueryOptions({ network, proposalType: "all" }),
+    proposalsQueryOptions({ network: storeNetwork, proposalType: "all" }),
   );
-  const { data: budget } = useQuery(budgetQueryOptions({ network }));
+  const { data: budget } = useQuery(
+    budgetQueryOptions({ network: storeNetwork }),
+  );
   const { data: blockData } = useQuery(
-    blocksQueryOptions({ network, page: 1, limit: 1, order: "desc" }),
+    blocksQueryOptions({
+      network: storeNetwork,
+      page: 1,
+      limit: 1,
+      order: "desc",
+    }),
   );
   const { data: mnData } = useQuery(
-    masternodesQueryOptions({ network, page: 1, limit: 1 }),
+    masternodesQueryOptions({ network: storeNetwork, page: 1, limit: 1 }),
   );
-  const { data: chainStats } = useQuery(chainStatsQueryOptions({ network }));
+  const { data: chainStats } = useQuery(
+    chainStatsQueryOptions({ network: storeNetwork }),
+  );
+  const network = resolveNetworkFromChain(chainStats?.chain, storeNetwork);
 
   const proposals = useMemo(
     () =>
@@ -116,129 +172,196 @@ export default function RedesignDaoPage() {
     );
   }, [proposals, search]);
 
-  const paged = useMemo(() => {
-    if (isInfinite) {
-      return filteredProposals.slice(0, visibleCount);
-    }
-    const start = (page - 1) * pageSize;
-    return filteredProposals.slice(start, start + pageSize);
-  }, [filteredProposals, visibleCount, isInfinite, page, pageSize]);
-  const hasNextPage = visibleCount < filteredProposals.length;
-
   const currentHeight = blockData?.resultSet?.[0]?.height ?? 0;
   const masternodeCount = mnData?.pagination?.total ?? 0;
-
-  const availableBudget = budget?.totalBudget ?? 0;
-  const proposalCount = budget?.totalProposals ?? proposals.length;
-  const fundedAmount = budget?.enoughFundsTotal ?? 0;
-  const fundedProposalCount = budget?.enoughFundsCount ?? 0;
-  const totalRequested = budget?.totalRequested ?? 0;
-  const unfundedAmount = Math.max(0, totalRequested - fundedAmount);
-  const unfundedProposalCount = Math.max(
-    0,
-    proposalCount - fundedProposalCount,
-  );
   const requiredVotes = getRequiredVotes(masternodeCount);
   const blockTimeMs = chainStats?.blockTime ?? null;
-  const msUntilSuperblock = getMsUntilSuperblock(
-    currentHeight,
-    network,
-    blockTimeMs,
-  );
-  const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
   const msUntilVoteCutoff = getMsUntilVotingDeadline(
     currentHeight,
     network,
     blockTimeMs,
   );
+  const votingOpen = msUntilVoteCutoff > 0;
+  const fundedLabel = votingOpen ? "Requested" : "Funded";
 
-  const chartData = useMemo(() => {
-    const triggers = (allProposals ?? []).filter(
-      (p) => p.objectType === "Trigger",
+  const rankMap = useMemo(() => {
+    const ranked = [...proposals].sort(
+      (a, b) =>
+        (b.yesCount ?? 0) -
+        (b.noCount ?? 0) -
+        ((a.yesCount ?? 0) - (a.noCount ?? 0)),
     );
-    if (triggers.length === 0) return [];
+    const map = new Map<string, { rank: number; passing: boolean }>();
+    ranked.forEach((p, i) => {
+      if (!p.hash) return;
+      const net = (p.yesCount ?? 0) - (p.noCount ?? 0);
+      map.set(p.hash, { rank: i + 1, passing: net >= requiredVotes });
+    });
+    return map;
+  }, [proposals, requiredVotes]);
 
-    const months = new Map<string, number>();
-    for (const t of triggers) {
-      if (!t.creationTime) continue;
-      const d = new Date(t.creationTime);
-      const key = `${d.toLocaleString("en", { month: "short" })} ${d.getFullYear()}`;
-      months.set(key, (months.get(key) ?? 0) + 1);
+  const sortedProposals = useMemo(() => {
+    const arr = [...filteredProposals];
+    const dir = sortDir === "asc" ? 1 : -1;
+    const cmp = (a: ApiGovernanceObject, b: ApiGovernanceObject): number => {
+      switch (sortId) {
+        case "rank": {
+          const ra = rankMap.get(a.hash ?? "")?.rank ?? Number.MAX_SAFE_INTEGER;
+          const rb = rankMap.get(b.hash ?? "")?.rank ?? Number.MAX_SAFE_INTEGER;
+          return ra - rb;
+        }
+        case "name": {
+          const na = a.data?.name ?? "";
+          const nb = b.data?.name ?? "";
+          return na.localeCompare(nb);
+        }
+        case "time": {
+          const ta = a.creationTime ? Date.parse(a.creationTime) : 0;
+          const tb = b.creationTime ? Date.parse(b.creationTime) : 0;
+          return ta - tb;
+        }
+        case "votes": {
+          const va = (a.yesCount ?? 0) - (a.noCount ?? 0);
+          const vb = (b.yesCount ?? 0) - (b.noCount ?? 0);
+          return va - vb;
+        }
+        case "funding": {
+          const fa = a.data?.paymentAmount ?? 0;
+          const fb = b.data?.paymentAmount ?? 0;
+          return fa - fb;
+        }
+        default:
+          return 0;
+      }
+    };
+    arr.sort((a, b) => cmp(a, b) * dir);
+    return arr;
+  }, [filteredProposals, sortId, sortDir, rankMap]);
+
+  const paged = useMemo(() => {
+    if (isInfinite) {
+      return sortedProposals.slice(0, visibleCount);
     }
+    const start = (page - 1) * pageSize;
+    return sortedProposals.slice(start, start + pageSize);
+  }, [sortedProposals, visibleCount, isInfinite, page, pageSize]);
+  const hasNextPage = visibleCount < sortedProposals.length;
 
-    return [...months.entries()]
-      .map(([label, value]) => ({ label, value }))
-      .slice(-12);
-  }, [allProposals]);
+  const availableBudget = budget?.totalBudget ?? 0;
+  const proposalCount = budget?.totalProposals ?? proposals.length;
+  const enoughFundsTotal = budget?.enoughFundsTotal ?? 0;
+  const enoughFundsProposalCount = budget?.enoughFundsCount ?? 0;
+  const enoughVotesTotal = budget?.enoughVotesTotal ?? 0;
+  const enoughVotesProposalCount = budget?.enoughVotesCount ?? 0;
+  const totalRequested = budget?.totalRequested ?? 0;
+  const missingVotesAmount = Math.max(0, totalRequested - enoughVotesTotal);
+  const missingVotesCount = Math.max(
+    0,
+    proposalCount - enoughVotesProposalCount,
+  );
+  const remainingBudget = Math.max(0, availableBudget - enoughFundsTotal);
+
+  const msUntilSuperblock = getMsUntilSuperblock(
+    currentHeight,
+    network,
+    blockTimeMs,
+  );
+  const nextSuperblockDate = new Date(new Date().getTime() + msUntilSuperblock);
+  const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
 
   const columns: DataTableColumn<ApiGovernanceObject>[] = [
     {
+      id: "rank",
+      width: 64,
+      header: (
+        <SortHeader
+          active={sortId === "rank"}
+          direction={sortDir}
+          onClick={() => toggleSort("rank")}
+        >
+          #
+        </SortHeader>
+      ),
+      cell: (row) => {
+        const info = rankMap.get(row.hash ?? "");
+        if (!info) return <span className="text-muted-foreground">—</span>;
+        return (
+          <Badge
+            variant={info.passing ? "soft-success" : "soft"}
+            className="min-w-9 justify-center font-mono tabular-nums"
+          >
+            #{info.rank}
+          </Badge>
+        );
+      },
+    },
+    {
       id: "name",
-      header: "Proposal",
+      header: (
+        <SortHeader
+          active={sortId === "name"}
+          direction={sortDir}
+          onClick={() => toggleSort("name")}
+        >
+          Proposal
+        </SortHeader>
+      ),
       cell: (row) => {
         const name = row.data?.name ?? "Untitled";
         const url = row.data?.url;
         const addr = row.data?.paymentAddress;
-        const yes = row.yesCount ?? 0;
-        const no = row.noCount ?? 0;
-        const net = (row.absoluteYesCount ?? yes - no) || 0;
-        const isPassing = net > 0;
         return (
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-full",
-                isPassing
-                  ? "bg-success/12 [&_svg]:text-success"
-                  : "bg-accent/12 [&_svg]:text-accent",
-              )}
-            >
-              <Vote className="size-4" />
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <div className="flex min-w-0 items-center gap-1.5">
-                {url ? (
-                  <Button
-                    asChild
-                    variant="link"
-                    className="h-auto truncate p-0 text-sm font-medium"
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex min-w-0 items-center gap-1.5">
+              {url ? (
+                <Button
+                  asChild
+                  variant="link"
+                  className="h-auto truncate p-0 text-sm font-medium"
+                >
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {name}
-                    </a>
-                  </Button>
-                ) : (
-                  <span className="truncate text-sm font-medium">{name}</span>
-                )}
-                {url && (
-                  <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
-                )}
-              </div>
-              {addr ? (
-                <HashDisplay
-                  value={addr}
-                  href="/address/$address"
-                  params={{ address: addr }}
-                  copy={false}
-                />
+                    {name}
+                  </a>
+                </Button>
               ) : (
-                <span className="text-xs text-muted-foreground">
-                  No payment address
-                </span>
+                <span className="truncate text-sm font-medium">{name}</span>
+              )}
+              {url && (
+                <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
               )}
             </div>
+            {addr ? (
+              <HashDisplay
+                value={addr}
+                href="/address/$address"
+                params={{ address: addr }}
+                copy={false}
+              />
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                No payment address
+              </span>
+            )}
           </div>
         );
       },
     },
     {
       id: "time",
-      header: "Created",
+      header: (
+        <SortHeader
+          active={sortId === "time"}
+          direction={sortDir}
+          onClick={() => toggleSort("time")}
+        >
+          Created
+        </SortHeader>
+      ),
       cell: (row) => (
         <span className="whitespace-nowrap text-sm text-muted-foreground">
           {row.creationTime ? formatRelativeTime(row.creationTime) : "—"}
@@ -247,7 +370,15 @@ export default function RedesignDaoPage() {
     },
     {
       id: "votes",
-      header: "Votes",
+      header: (
+        <SortHeader
+          active={sortId === "votes"}
+          direction={sortDir}
+          onClick={() => toggleSort("votes")}
+        >
+          Votes
+        </SortHeader>
+      ),
       cell: (row) => (
         <div className="flex items-center gap-1.5">
           <Badge variant="soft-success">
@@ -257,15 +388,24 @@ export default function RedesignDaoPage() {
             <ThumbsDown className="size-3" /> {row.noCount ?? 0}
           </Badge>
           <Badge variant="soft">
-            <Minus className="size-3" /> {row.abstainCount ?? 0}
+            <Minus className="size-3" /> Abstain {row.abstainCount ?? 0}
           </Badge>
         </div>
       ),
     },
     {
       id: "funding",
-      header: "Funding",
       align: "right",
+      header: (
+        <SortHeader
+          active={sortId === "funding"}
+          direction={sortDir}
+          onClick={() => toggleSort("funding")}
+          className="ml-auto"
+        >
+          {fundedLabel}
+        </SortHeader>
+      ),
       cell: (row) => {
         const amount = row.data?.paymentAmount;
         if (amount == null)
@@ -296,7 +436,7 @@ export default function RedesignDaoPage() {
             <CardHeader>
               <CardDescription>Available Budget</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {availableBudget.toLocaleString()} <DashIcon />
+                {availableBudget.toFixed(1)} <DashIcon />
               </CardTitle>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
@@ -307,9 +447,9 @@ export default function RedesignDaoPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardDescription>Proposals</CardDescription>
+              <CardDescription>Total Proposals</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {proposalCount.toLocaleString()}
+                {proposalCount.toLocaleString()} ({totalRequested} <DashIcon />)
               </CardTitle>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
@@ -322,9 +462,9 @@ export default function RedesignDaoPage() {
             <CardHeader>
               <CardDescription>Funded</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {fundedProposalCount}{" "}
+                {enoughFundsTotal}{" "}
                 <span className="text-muted-foreground text-base">
-                  / {Math.round(fundedAmount).toLocaleString()} <DashIcon />
+                  / {availableBudget.toFixed(1)} <DashIcon />
                 </span>
               </CardTitle>
               <CardAction>
@@ -359,11 +499,6 @@ export default function RedesignDaoPage() {
             </CardHeader>
             <CardContent>
               <dl className="flex flex-col gap-4">
-                <DetailRow label="Required Votes" className="border-b-0 pb-0">
-                  <span className="font-mono tabular-nums">
-                    {requiredVotes.toLocaleString()} Yes
-                  </span>
-                </DetailRow>
                 <DetailRow label="Voting Deadline" className="border-b-0 pb-0">
                   <span>
                     {votingDeadline.toLocaleString("en-US", {
@@ -375,29 +510,53 @@ export default function RedesignDaoPage() {
                     })}
                   </span>
                   {msUntilVoteCutoff > 0 ? (
-                    <Badge variant="soft-accent">
-                      in {formatDuration(msUntilVoteCutoff)}
-                    </Badge>
+                      <Badge variant="soft-accent">
+                        in {formatDuration(msUntilVoteCutoff)}
+                      </Badge>
                   ) : (
-                    <Badge variant="soft-destructive">Voting closed</Badge>
+                      <Badge variant="soft-destructive">Voting closed</Badge>
                   )}
                 </DetailRow>
-                <DetailRow
-                  label="With Enough Votes"
-                  className="border-b-0 pb-0"
-                >
+                <DetailRow label="Next superblock payment" className="border-b-0 pb-0">
+                  <span>
+                    {nextSuperblockDate.toLocaleString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </DetailRow>
+                <DetailRow label="Required Votes" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
-                    {fundedProposalCount} proposals ·{" "}
-                    {Math.round(fundedAmount).toLocaleString()} <DashIcon />
+                    {requiredVotes.toLocaleString()} Yes
                   </span>
                 </DetailRow>
                 <DetailRow
-                  label="Without Enough Funds"
+                    label="Remaining budget"
+                    className="border-b-0 pb-0"
+                >
+                  <span className="font-mono tabular-nums">
+                    {Math.round(remainingBudget).toLocaleString()} <DashIcon />
+                  </span>
+                </DetailRow>
+                <DetailRow
+                  label="Passes funding"
                   className="border-b-0 pb-0"
                 >
                   <span className="font-mono tabular-nums">
-                    {unfundedProposalCount} proposals ·{" "}
-                    {Math.round(unfundedAmount).toLocaleString()} <DashIcon />
+                    {enoughFundsProposalCount} proposals ·{" "}
+                    {Math.round(enoughFundsTotal).toLocaleString()} <DashIcon />
+                  </span>
+                </DetailRow>
+                <DetailRow
+                  label="Not enough votes"
+                  className="border-b-0 pb-0"
+                >
+                  <span className="font-mono tabular-nums">
+                    {missingVotesCount} proposals ·{" "}
+                    {Math.round(missingVotesAmount).toLocaleString()} <DashIcon />
                   </span>
                 </DetailRow>
               </dl>
@@ -407,49 +566,15 @@ export default function RedesignDaoPage() {
           <Card>
             <CardHeader>
               <CardTitle>Superblock Activity</CardTitle>
-              <CardDescription>
-                {chartData.length > 0
-                  ? "Triggers per month"
-                  : "Countdown to next funding cycle"}
-              </CardDescription>
+              <CardDescription>Countdown to next funding cycle</CardDescription>
             </CardHeader>
             <CardContent>
-              {chartData.length > 0 ? (
-                <ChartContainer
-                  config={chartConfig}
-                  className="aspect-auto h-[260px] w-full"
-                >
-                  <BarChart data={chartData}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="label"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      width={40}
-                      allowDecimals={false}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar
-                      dataKey="value"
-                      fill="var(--color-value)"
-                      radius={[6, 6, 0, 0]}
-                    />
-                  </BarChart>
-                </ChartContainer>
-              ) : (
-                <SuperblockCountdown
-                  currentHeight={currentHeight}
-                  msRemaining={msUntilSuperblock}
-                  msUntilVoteCutoff={msUntilVoteCutoff}
-                  network={network}
-                />
-              )}
+              <SuperblockCountdown
+                currentHeight={currentHeight}
+                msRemaining={msUntilSuperblock}
+                msUntilVoteCutoff={msUntilVoteCutoff}
+                network={network}
+              />
             </CardContent>
           </Card>
         </div>
