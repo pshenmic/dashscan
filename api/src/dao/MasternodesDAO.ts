@@ -2,6 +2,7 @@ import { Knex } from 'knex';
 import Masternode from '../models/Masternode';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import GeoIPService, {GeoIpInfo} from "../services/GeoIPService";
+import MasternodeStats from "../models/MasternodeStats";
 
 export default class MasternodesDAO {
   private knex: Knex;
@@ -61,4 +62,46 @@ export default class MasternodesDAO {
       row?.total_count
     );
   };
+
+  getMasternodesStats = async (): Promise<MasternodeStats> => {
+    const evoSubquery = this.knex('masternodes')
+      .where('type', 'Evo')
+
+    const regularSubquery = this.knex('masternodes')
+      .where('type', 'Regular')
+
+    const row = await this.knex
+      .with('evo_masternodes', evoSubquery)
+      .with('regular_masternodes', regularSubquery)
+      .select(
+        this.knex('masternodes')
+          .count('*')
+          .as('masternodes_total_count')
+      )
+      .select(
+        this.knex('regular_masternodes')
+          .count('*')
+          .limit(1)
+          .as('regular_masternodes_count'),
+        this.knex('evo_masternodes')
+          .count('*')
+          .limit(1)
+          .as('evo_masternodes_count')
+      )
+      .select(
+        this.knex('regular_masternodes')
+          .where('status', 'ENABLED')
+          .count('*')
+          .limit(1)
+          .as('regular_enabled_masternodes'),
+        this.knex('evo_masternodes')
+          .where('status', 'ENABLED')
+          .count('*')
+          .limit(1)
+          .as('evo_enabled_masternodes')
+      )
+      .first()
+
+    return MasternodeStats.fromRow(row)
+  }
 }

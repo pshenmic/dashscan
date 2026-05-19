@@ -134,6 +134,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/masternodes/stats',
+      method: 'get',
+      handler: masternodesController.getMasternodesStats,
+      schema: {
+        querystring: { $ref: 'paginationOptions#' },
+      },
+    },
+    {
       path: '/price/:currency',
       method: 'get',
       handler: marketController.getPrice,
