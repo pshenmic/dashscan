@@ -521,3 +521,12 @@ export function countryFlagEmoji(alpha2: string): string {
     A + (cc.charCodeAt(1) - a),
   );
 }
+
+export function formatLocation(point: {
+  city: string;
+  countryCode: string;
+}): string {
+  return point.city
+    ? `${point.city}, ${countryName(point.countryCode)}`
+    : countryName(point.countryCode);
+}

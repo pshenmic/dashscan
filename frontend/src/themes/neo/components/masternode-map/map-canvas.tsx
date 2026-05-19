@@ -24,11 +24,13 @@ import {
   ZoomableGroup,
 } from "react-simple-maps";
 import type { MasternodeGeoPoint } from "@/lib/api/masternodes";
-import { getMnStatusBucket, type MnStatusBucket } from "@/lib/format";
+import { getMnStatusBucket } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { alpha2FromNumeric, countryName } from "./iso-codes";
+import { alpha2FromNumeric, formatLocation } from "./iso-codes";
+import { STATUS_COLOR } from "./status";
 import {
   type ClusterFeature,
+  getClusterLeafPoints,
   isCluster,
   mapZoomToSuperZoom,
   superZoomToMapZoom,
@@ -68,12 +70,6 @@ type TooltipState =
       banned: number;
       other: number;
     };
-
-const STATUS_COLOR: Record<MnStatusBucket, string> = {
-  enabled: "var(--success)",
-  banned: "var(--destructive)",
-  other: "var(--muted-foreground)",
-};
 
 const GEO_STROKE_W = 0.45;
 
@@ -144,11 +140,13 @@ export function MasternodeMapCanvas({
   points,
   highlightedCountry,
   onSelectCountry,
+  onSelectCluster,
   height = 460,
 }: {
   points: MasternodeGeoPoint[];
   highlightedCountry?: string | null;
   onSelectCountry?: (code: string | null) => void;
+  onSelectCluster?: (leaves: MasternodeGeoPoint[]) => void;
   height?: number;
 }) {
   const navigate = useNavigate();
@@ -290,17 +288,19 @@ export function MasternodeMapCanvas({
   const handleClusterClick = useCallback(
     (cluster: ClusterFeature) => {
       if (!isCluster(cluster)) return;
-      const expansionSuperZoom = index.getClusterExpansionZoom(
-        cluster.properties.cluster_id,
-      );
+      const clusterId = cluster.properties.cluster_id;
+      const expansionSuperZoom = index.getClusterExpansionZoom(clusterId);
       const expansionMapZoom = superZoomToMapZoom(expansionSuperZoom);
       const target = clampZoom(
         Math.max(viewRef.current.zoom * 1.6, expansionMapZoom),
       );
       const [lng, lat] = cluster.geometry.coordinates as [number, number];
       animateView({ center: [lng, lat], zoom: target });
+      if (onSelectCluster) {
+        onSelectCluster(getClusterLeafPoints(index, clusterId));
+      }
     },
-    [index, animateView],
+    [index, animateView, onSelectCluster],
   );
 
   const handleNodeClick = useCallback(
@@ -575,8 +575,8 @@ const ClusterMarker = memo(function ClusterMarker({
     other: number;
   };
   const { total, enabled, banned, other } = props;
-  const size = Math.min(56, 18 + Math.log2(total + 1) * 6.5);
-  const fontSize = Math.max(10, Math.min(14, size * 0.55));
+  const size = 18;
+  const fontSize = total >= 1000 ? 9 : total >= 100 ? 10 : 11;
   const payload = useMemo(
     () =>
       ({
@@ -807,9 +807,7 @@ function MapTooltip({
             {tooltip.point.ipv4}
           </div>
           <div className="text-muted-foreground">
-            {tooltip.point.city
-              ? `${tooltip.point.city}, ${countryName(tooltip.point.countryCode)}`
-              : countryName(tooltip.point.countryCode)}
+            {formatLocation(tooltip.point)}
           </div>
           <div className="flex items-center gap-2 pt-1">
             <span
