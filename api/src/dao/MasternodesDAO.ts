@@ -2,7 +2,7 @@ import { Knex } from 'knex';
 import Masternode from '../models/Masternode';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import GeoIPService, {GeoIpInfo} from "../services/GeoIPService";
-import MasternodeStats from "../models/MasternodeStats";
+import MasternodeStats, {MasternodeStatsRow} from "../models/MasternodeStats";
 
 export default class MasternodesDAO {
   private knex: Knex;
@@ -72,7 +72,7 @@ export default class MasternodesDAO {
         this.knex.raw(`count(*) filter (where type = ? and status = ?) as regular_enabled_masternodes`, ['Regular', 'ENABLED']),
         this.knex.raw(`count(*) filter (where type = ? and status = ?) as evo_enabled_masternodes`, ['Evo', 'ENABLED']),
       )
-      .first()
+      .first<MasternodeStatsRow>()
 
     return MasternodeStats.fromRow(row)
   }
