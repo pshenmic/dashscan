@@ -260,19 +260,24 @@ export default function RedesignDaoPage() {
 
   const availableBudget = budget?.totalBudget ?? 0;
   const proposalCount = budget?.totalProposals ?? proposals.length;
-  const fundedAmount = budget?.enoughFundsTotal ?? 0;
-  const fundedProposalCount = budget?.enoughFundsCount ?? 0;
+  const enoughFundsTotal = budget?.enoughFundsTotal ?? 0;
+  const enoughFundsProposalCount = budget?.enoughFundsCount ?? 0;
+  const enoughVotesTotal = budget?.enoughVotesTotal ?? 0;
+  const enoughVotesProposalCount = budget?.enoughVotesCount ?? 0;
   const totalRequested = budget?.totalRequested ?? 0;
-  const unfundedAmount = Math.max(0, totalRequested - fundedAmount);
-  const unfundedProposalCount = Math.max(
+  const missingVotesAmount = Math.max(0, totalRequested - enoughVotesTotal);
+  const missingVotesCount = Math.max(
     0,
-    proposalCount - fundedProposalCount,
+    proposalCount - enoughVotesProposalCount,
   );
+  const remainingBudget = Math.max(0, availableBudget - enoughFundsTotal);
+
   const msUntilSuperblock = getMsUntilSuperblock(
     currentHeight,
     network,
     blockTimeMs,
   );
+  const nextSuperblockDate = new Date(new Date().getTime() + msUntilSuperblock);
   const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
 
   const chartData = useMemo(() => {
@@ -461,7 +466,7 @@ export default function RedesignDaoPage() {
             <CardHeader>
               <CardDescription>Available Budget</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {availableBudget.toLocaleString()} <DashIcon />
+                {availableBudget.toFixed(1)} <DashIcon />
               </CardTitle>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
@@ -472,9 +477,9 @@ export default function RedesignDaoPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardDescription>Proposals</CardDescription>
+              <CardDescription>Total Proposals</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {proposalCount.toLocaleString()}
+                {proposalCount.toLocaleString()} ({totalRequested} <DashIcon />)
               </CardTitle>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
@@ -487,9 +492,9 @@ export default function RedesignDaoPage() {
             <CardHeader>
               <CardDescription>Funded</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {fundedProposalCount}{" "}
+                {enoughFundsTotal}{" "}
                 <span className="text-muted-foreground text-base">
-                  / {Math.round(fundedAmount).toLocaleString()} <DashIcon />
+                  / {availableBudget.toFixed(1)} <DashIcon />
                 </span>
               </CardTitle>
               <CardAction>
@@ -524,11 +529,6 @@ export default function RedesignDaoPage() {
             </CardHeader>
             <CardContent>
               <dl className="flex flex-col gap-4">
-                <DetailRow label="Required Votes" className="border-b-0 pb-0">
-                  <span className="font-mono tabular-nums">
-                    {requiredVotes.toLocaleString()} Yes
-                  </span>
-                </DetailRow>
                 <DetailRow label="Voting Deadline" className="border-b-0 pb-0">
                   <span>
                     {votingDeadline.toLocaleString("en-US", {
@@ -540,29 +540,53 @@ export default function RedesignDaoPage() {
                     })}
                   </span>
                   {msUntilVoteCutoff > 0 ? (
-                    <Badge variant="soft-accent">
-                      in {formatDuration(msUntilVoteCutoff)}
-                    </Badge>
+                      <Badge variant="soft-accent">
+                        in {formatDuration(msUntilVoteCutoff)}
+                      </Badge>
                   ) : (
-                    <Badge variant="soft-destructive">Voting closed</Badge>
+                      <Badge variant="soft-destructive">Voting closed</Badge>
                   )}
                 </DetailRow>
-                <DetailRow
-                  label="With Enough Votes"
-                  className="border-b-0 pb-0"
-                >
+                <DetailRow label="Next superblock payment" className="border-b-0 pb-0">
+                  <span>
+                    {nextSuperblockDate.toLocaleString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </DetailRow>
+                <DetailRow label="Required Votes" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
-                    {fundedProposalCount} proposals ·{" "}
-                    {Math.round(fundedAmount).toLocaleString()} <DashIcon />
+                    {requiredVotes.toLocaleString()} Yes
                   </span>
                 </DetailRow>
                 <DetailRow
-                  label="Without Enough Funds"
+                    label="Remaining budget"
+                    className="border-b-0 pb-0"
+                >
+                  <span className="font-mono tabular-nums">
+                    {Math.round(remainingBudget).toLocaleString()} <DashIcon />
+                  </span>
+                </DetailRow>
+                <DetailRow
+                  label="Passes funding"
                   className="border-b-0 pb-0"
                 >
                   <span className="font-mono tabular-nums">
-                    {unfundedProposalCount} proposals ·{" "}
-                    {Math.round(unfundedAmount).toLocaleString()} <DashIcon />
+                    {enoughFundsProposalCount} proposals ·{" "}
+                    {Math.round(enoughFundsTotal).toLocaleString()} <DashIcon />
+                  </span>
+                </DetailRow>
+                <DetailRow
+                  label="Not enough votes"
+                  className="border-b-0 pb-0"
+                >
+                  <span className="font-mono tabular-nums">
+                    {missingVotesCount} proposals ·{" "}
+                    {Math.round(missingVotesAmount).toLocaleString()} <DashIcon />
                   </span>
                 </DetailRow>
               </dl>
