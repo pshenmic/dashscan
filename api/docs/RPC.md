@@ -949,24 +949,24 @@ Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
 
 #### Masternode Object
 
-| Field                 | Type      | Description                                |
-|-----------------------|-----------|--------------------------------------------|
-| `proTxHash`           | string    | Provider transaction hash                  |
-| `address`             | string    | IP address and port                        |
-| `payee`               | string    | Payout address                             |
-| `status`              | string    | Masternode status (e.g. `ENABLED`)         |
-| `type`                | string    | Masternode type (e.g. `Regular`, `Evo`)    |
-| `posPenaltyScore`     | number    | Proof-of-service penalty score             |
-| `consecutivePayments` | number    | Number of consecutive payments received    |
-| `lastPaidTime`        | number    | Unix timestamp of last payment             |
-| `lastPaidBlock`       | number    | Block height of last payment               |
-| `ownerAddress`        | string    | Owner address                              |
-| `votingAddress`       | string    | Voting address                             |
-| `collateralAddress`   | string    | Collateral address                         |
-| `pubKeyOperator`      | string    | Operator public key                        |
-| `createdAt`           | string    | ISO 8601 timestamp when first indexed      |
-| `updatedAt`           | string    | ISO 8601 timestamp of last update          |
-| `geoIpInfo`           | GeoIpInfo | Information about node ip with coordinates |
+| Field                 | Type              | Description                                                       |
+|-----------------------|-------------------|-------------------------------------------------------------------|
+| `proTxHash`           | string            | Provider transaction hash                                         |
+| `address`             | string            | IP address and port                                               |
+| `payee`               | string            | Payout address                                                    |
+| `status`              | string            | Masternode status (e.g. `ENABLED`)                                |
+| `type`                | string            | Masternode type (e.g. `Regular`, `Evo`)                           |
+| `posPenaltyScore`     | number            | Proof-of-service penalty score                                    |
+| `consecutivePayments` | number            | Number of consecutive payments received                           |
+| `lastPaidTime`        | number            | Unix timestamp of last payment                                    |
+| `lastPaidBlock`       | number            | Block height of last payment                                      |
+| `ownerAddress`        | string            | Owner address                                                     |
+| `votingAddress`       | string            | Voting address                                                    |
+| `collateralAddress`   | string            | Collateral address                                                |
+| `pubKeyOperator`      | string            | Operator public key                                               |
+| `createdAt`           | string            | ISO 8601 timestamp when first indexed                             |
+| `updatedAt`           | string            | ISO 8601 timestamp of last update                                 |
+| `geoIpInfo`           | GeoIpInfo \| null | Information about node ip with coordinates. Null if ip is \[::]:0 |
 
 
 ### GeoIpInfo Object
