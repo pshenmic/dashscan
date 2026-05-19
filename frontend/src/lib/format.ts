@@ -195,7 +195,7 @@ export function formatDurationParts(ms: number): {
   unit: string;
 } {
   const totalMinutes = Math.max(0, Math.round(ms / 60_000));
-  if (totalMinutes < 1) return { value: "<1", unit: "min left" };
+  if (totalMinutes < 1) return { value: "0", unit: "min left" };
   if (totalMinutes < 60)
     return {
       value: String(totalMinutes),
