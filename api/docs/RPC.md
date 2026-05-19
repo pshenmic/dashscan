@@ -979,7 +979,69 @@ Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
 | latitude    | number | Latitude on global map of ip address             |
 | longitude   | number | Longitude on global map of ip address            |
 
+> GeoIP data is derived from the [IP to City Lite database by DB-IP](https://db-ip.com/db/download/ip-to-city-lite), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
+---
+
+### GET /masternodes/stats
+
+Returns aggregate counts of masternodes by type and status.
+
+**Response `200`**
+
+```json
+{
+  "total": 2944,
+  "evo": 363,
+  "regular": 2581,
+  "evoEnabled": 356,
+  "evoDisabled": 7,
+  "regularEnabled": 1697,
+  "regularDisabled": 884
+}
+```
+
+| Field             | Type   | Description                                  |
+|-------------------|--------|----------------------------------------------|
+| `total`           | number | Total number of indexed masternodes          |
+| `evo`             | number | Count of Evo-type masternodes                |
+| `regular`         | number | Count of Regular-type masternodes            |
+| `evoEnabled`      | number | Evo masternodes with status `ENABLED`        |
+| `evoDisabled`     | number | Evo masternodes not in `ENABLED` status      |
+| `regularEnabled`  | number | Regular masternodes with status `ENABLED`    |
+| `regularDisabled` | number | Regular masternodes not in `ENABLED` status  |
+
+---
+
+### GET /masternodes/map
+
+Returns all masternodes with valid network addresses, enriched with GeoIP coordinates, intended for rendering on a global map. Masternodes with the placeholder address `[::]:0` are excluded. The response is not paginated.
+
+**Response `200`**
+
+```json
+[
+  {
+    "proTxHash": "abcdef1234...",
+    "payee": "XaBC...",
+    "status": "ENABLED",
+    "type": "Regular",
+    "ownerAddress": "XoBC...",
+    "votingAddress": "XvBC...",
+    "collateralAddress": "XcBC...",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "geoIpInfo": {
+      "ipv4": "1.2.3.4",
+      "countryCode": "NL",
+      "city": "Amsterdam",
+      "latitude": 12.3456789101112131,
+      "longitude": 12.3456789101112131
+    }
+  }
+]
+```
+
+Each entry is a subset of the [Masternode Object](#masternode-object): `proTxHash`, `payee`, `status`, `type`, `ownerAddress`, `votingAddress`, `collateralAddress`, `createdAt`, and `geoIpInfo`. See the [GeoIpInfo Object](#geoipinfo-object) table for the nested shape and attribution.
 
 ---
 
