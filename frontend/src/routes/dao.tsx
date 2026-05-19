@@ -14,7 +14,7 @@ import RedesignDaoPage from "@/themes/neo/pages/dao";
 export const Route = createFileRoute("/dao")({
   component: DaoRoute,
   head: () => ({
-    meta: [{ title: "DAO | DashScan" }],
+    meta: [{ title: "DAO | Dashscan" }],
   }),
   loader: ({ context }) => {
     if (typeof window !== "undefined") return;

@@ -16,7 +16,7 @@ export const Route = createFileRoute("/masternodes/")({
   loaderDeps: ({ search: { page, limit } }) => ({ page, limit }),
   component: MasternodesListRoute,
   head: () => ({
-    meta: [{ title: "Masternodes | DashScan" }],
+    meta: [{ title: "Masternodes | Dashscan" }],
   }),
   loader: ({ context, deps: { page, limit } }) => {
     if (typeof window !== "undefined") return;

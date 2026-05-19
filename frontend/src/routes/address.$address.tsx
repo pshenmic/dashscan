@@ -28,7 +28,7 @@ export const Route = createFileRoute("/address/$address")({
   component: AddressDetailRoute,
   head: ({ params }) => ({
     meta: [
-      { title: `Address ${params.address.slice(0, 12)}... | DashScan` },
+      { title: `Address ${params.address.slice(0, 12)}... | Dashscan` },
       {
         property: "og:title",
         content: `Address ${params.address.slice(0, 12)}…`,

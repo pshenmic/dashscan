@@ -1,3 +1,3 @@
-export const SITE_TITLE = "DashScan";
-export const SITE_DESCRIPTION = "DashScan web application.";
+export const SITE_TITLE = "Dashscan";
+export const SITE_DESCRIPTION = "Dashscan web application.";
 export const SITE_URL = "https://example.com";

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
   component: BlockDetailRoute,
   head: ({ params }) => ({
     meta: [
-      { title: `Block ${params.hashOrHeight} | DashScan` },
+      { title: `Block ${params.hashOrHeight} | Dashscan` },
       { property: "og:title", content: `Block ${params.hashOrHeight}` },
       {
         property: "og:image",

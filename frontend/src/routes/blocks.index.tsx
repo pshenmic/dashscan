@@ -38,7 +38,7 @@ export const Route = createFileRoute("/blocks/")({
   }),
   component: BlocksListRoute,
   head: () => ({
-    meta: [{ title: "Blocks | DashScan" }],
+    meta: [{ title: "Blocks | Dashscan" }],
   }),
   loader: ({ context, deps: { page, limit, superblock } }) => {
     if (typeof window !== "undefined") return;
