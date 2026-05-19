@@ -282,7 +282,7 @@ impl DashRpcClient {
         let result = self
             .call(
                 "masternode",
-                vec![Value::from("list"), Value::from("json"), Value::from("ENABLED")],
+                vec![Value::from("list"), Value::from("json")],
             )
             .await?;
 
