@@ -30,6 +30,7 @@ import {
   getMsUntilSuperblock,
   getRequiredVotes,
   getVotingDeadline,
+  resolveNetworkFromChain,
 } from "@/lib/governance";
 import { appStore } from "@/lib/store";
 import { CopyButton } from "@/themes/dash/components/copy-button";
@@ -132,25 +133,35 @@ const columns: ColumnDef<ApiGovernanceObject>[] = [
 const skeletonWidths = ["w-20", "w-40", "w-36", "w-36", "w-20"];
 
 export default function ClassicDaoPage() {
-  const network = useStore(appStore, (state) => state.network);
+  const storeNetwork = useStore(appStore, (state) => state.network);
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
   const { data: allProposals, isFetching } = useQuery(
-    proposalsQueryOptions({ network, proposalType: "all" }),
+    proposalsQueryOptions({ network: storeNetwork, proposalType: "all" }),
   );
 
-  const { data: budget } = useQuery(budgetQueryOptions({ network }));
+  const { data: budget } = useQuery(
+    budgetQueryOptions({ network: storeNetwork }),
+  );
 
   const { data: blockData } = useQuery(
-    blocksQueryOptions({ network, page: 1, limit: 1, order: "desc" }),
+    blocksQueryOptions({
+      network: storeNetwork,
+      page: 1,
+      limit: 1,
+      order: "desc",
+    }),
   );
 
   const { data: mnData } = useQuery(
-    masternodesQueryOptions({ network, page: 1, limit: 1 }),
+    masternodesQueryOptions({ network: storeNetwork, page: 1, limit: 1 }),
   );
 
-  const { data: chainStats } = useQuery(chainStatsQueryOptions({ network }));
+  const { data: chainStats } = useQuery(
+    chainStatsQueryOptions({ network: storeNetwork }),
+  );
+  const network = resolveNetworkFromChain(chainStats?.chain, storeNetwork);
 
   const proposals = useMemo(
     () =>
