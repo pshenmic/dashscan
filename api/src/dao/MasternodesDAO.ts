@@ -64,41 +64,13 @@ export default class MasternodesDAO {
   };
 
   getMasternodesStats = async (): Promise<MasternodeStats> => {
-    const evoSubquery = this.knex('masternodes')
-      .where('type', 'Evo')
-
-    const regularSubquery = this.knex('masternodes')
-      .where('type', 'Regular')
-
-    const row = await this.knex
-      .with('evo_masternodes', evoSubquery)
-      .with('regular_masternodes', regularSubquery)
+    const row = await this.knex('masternodes')
+      .count('* as masternodes_total_count')
       .select(
-        this.knex('masternodes')
-          .count('*')
-          .as('masternodes_total_count')
-      )
-      .select(
-        this.knex('regular_masternodes')
-          .count('*')
-          .limit(1)
-          .as('regular_masternodes_count'),
-        this.knex('evo_masternodes')
-          .count('*')
-          .limit(1)
-          .as('evo_masternodes_count')
-      )
-      .select(
-        this.knex('regular_masternodes')
-          .where('status', 'ENABLED')
-          .count('*')
-          .limit(1)
-          .as('regular_enabled_masternodes'),
-        this.knex('evo_masternodes')
-          .where('status', 'ENABLED')
-          .count('*')
-          .limit(1)
-          .as('evo_enabled_masternodes')
+        this.knex.raw(`count(*) filter (where type = ?) as regular_masternodes_count`, ['Regular']),
+        this.knex.raw(`count(*) filter (where type = ?) as evo_masternodes_count`, ['Evo']),
+        this.knex.raw(`count(*) filter (where type = ? and status = ?) as regular_enabled_masternodes`, ['Regular', 'ENABLED']),
+        this.knex.raw(`count(*) filter (where type = ? and status = ?) as evo_enabled_masternodes`, ['Evo', 'ENABLED']),
       )
       .first()
 

@@ -1,6 +1,6 @@
 interface MasternodeStatsRow {
   masternodes_total_count?: string | number | null;
-  evo_masternodes_count: string | number | null;
+  evo_masternodes_count?: string | number | null;
   regular_masternodes_count?: string | number | null;
   evo_enabled_masternodes?: string | number | null;
   regular_enabled_masternodes?: string | number | null;
