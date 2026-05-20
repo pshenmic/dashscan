@@ -12,9 +12,24 @@ export default class MasternodesController {
   }
 
   getMasternodes = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
-    const { page = 1, limit = 10, order = 'asc' } = request.query;
+    const {
+      page,
+      limit,
+      order = 'asc',
+      status,
+      type,
+      last_paid_before: lastPaidBefore,
+      has_penalty: hasPenalty,
+      country,
+    } = request.query;
 
-    const masternodes = await this.masternodesDAO.getMasternodes(page, limit, order);
+    const lastPaidBeforeUnix = lastPaidBefore != null
+      ? Math.floor(new Date(lastPaidBefore).getTime() / 1000)
+      : undefined;
+
+    const masternodes = await this.masternodesDAO.getMasternodes(
+      page, limit, order, status, type, lastPaidBeforeUnix, hasPenalty, country,
+    );
 
     response.send(masternodes);
   };
@@ -24,10 +39,4 @@ export default class MasternodesController {
 
     response.send(stats);
   };
-
-  getMasternodesMap = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
-    const masternodesMap = await this.masternodesDAO.getMasternodesMap();
-
-    response.send(masternodesMap)
-  }
 }
