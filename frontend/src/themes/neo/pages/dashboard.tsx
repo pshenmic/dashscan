@@ -2063,7 +2063,7 @@ function MasternodesListCard({
                 </TableCell>
               </TableRow>
             )}
-            {masternodes.map((mn) => {
+            {masternodes.filter(mn => mn.status === 'ENABLED').map((mn) => {
               const stake = getCollateral(mn.type);
               const penalty = mn.posPenaltyScore ?? 0;
               return (

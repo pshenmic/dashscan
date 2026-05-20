@@ -161,6 +161,9 @@ export function MasternodeMap({
             )}
           </div>
         </div>
+        <span className="text-muted-foreground text-sm" aria-hidden="true">
+          GeoIP data is derived from the [<a href={'https://db-ip.com/db/download/ip-to-city-lite'}>IP to City Lite database by DB-IP</a>], licensed under [<a href={'https://creativecommons.org/licenses/by/4.0/'}>CC BY 4.0</a>].
+        </span>
       </CardContent>
     </Card>
   );
