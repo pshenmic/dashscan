@@ -252,6 +252,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
               type: ['string', 'null'],
               enum: ['valid', 'funding', 'delete', 'endorsed', 'all'],
             },
+            order: {
+              type: ['string', 'null'],
+              enum: ['asc', 'desc'],
+            },
+            order_by: {
+              type: ['string', 'null'],
+              enum: ['creation_time', 'name', 'votes', 'payment_amount'],
+            },
           },
         },
       },
