@@ -17,6 +17,7 @@ export class GovernanceObject {
   localValidity: boolean | null;
   isValidReason: string | null;
   enoughVotes: boolean | null;
+  enoughFunds: boolean | null;
 
   constructor(
     dataHex?: string,
@@ -33,6 +34,7 @@ export class GovernanceObject {
     isValidReason?: string,
     signingMasternode?: string,
     enoughVotes?: boolean,
+    enoughFunds?: boolean,
   ) {
     this.dataHex = dataHex ?? null;
     this.data = data ?? null;
@@ -48,6 +50,7 @@ export class GovernanceObject {
     this.isValidReason = isValidReason ?? null;
     this.signingMasternode = signingMasternode ?? null;
     this.enoughVotes = enoughVotes ?? null;
+    this.enoughFunds = enoughFunds ?? null;
   }
 
   static fromObject(obj: GovernanceObjectDetails): GovernanceObject {

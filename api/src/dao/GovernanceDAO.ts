@@ -16,22 +16,40 @@ export default class GovernanceDAO {
     orderBy?: string,
     order: string = 'asc',
   ): Promise<GovernanceObject[]> => {
-    const [response, masternodeStats] = await Promise.all([
+    const [response, masternodeStats, governanceInfo] = await Promise.all([
       this.dashCoreRPC.getGovernanceObjects(proposalType, 'proposals'),
       this.masternodesDAO.getMasternodeStats(),
+      this.dashCoreRPC.getGovernanceInfo(),
     ])
 
-    const threshold = masternodeStats.requiredProposalVotes ?? 0
+    const totalBudget = await this.dashCoreRPC.getSuperblockBudget(governanceInfo.nextsuperblock)
+
+    const requiredProposalVotes = masternodeStats.requiredProposalVotes ?? 0
 
     const keys = Object.keys(response)
 
     const proposals = keys.map(key => {
       const proposal = GovernanceObject.fromObject({...response[key]})
 
-      proposal.enoughVotes = (proposal.absoluteYesCount ?? 0) >= threshold
+      proposal.enoughVotes = (proposal.absoluteYesCount ?? 0) >= requiredProposalVotes
+      proposal.enoughFunds = false
 
       return proposal
-    })
+    });
+
+    [...proposals]
+      .sort((a, b) => (b.absoluteYesCount ?? 0) - (a.absoluteYesCount ?? 0))
+      .reduce((running, proposal) => {
+        const amount = proposal.data?.paymentAmount ?? 0
+
+        if (running + amount > totalBudget) {
+          return running
+        }
+
+        proposal.enoughFunds = true
+
+        return running + amount
+      }, 0)
 
     if (orderBy == null) {
       return proposals
