@@ -13,8 +13,8 @@ export default class GovernanceController {
   blocksDAO: BlocksDAO
 
   constructor(knex: Knex, dashCoreRPC: DashCoreRPC, geoIPService: GeoIPService) {
-    this.governanceDAO = new GovernanceDAO(dashCoreRPC)
     this.masternodesDAO = new MasternodesDAO(knex, geoIPService)
+    this.governanceDAO = new GovernanceDAO(dashCoreRPC, this.masternodesDAO)
     this.blocksDAO = new BlocksDAO(knex)
   }
 

@@ -1,11 +1,14 @@
 import {DashCoreRPC, GovernanceInfoRPC, GovernanceObjectSignal} from "../dashcoreRPC";
 import {GovernanceObject} from "../models/GovernanceObject";
+import MasternodesDAO from "./MasternodesDAO";
 
 export default class GovernanceDAO {
   dashCoreRPC: DashCoreRPC;
+  masternodesDAO: MasternodesDAO;
 
-  constructor(dashCoreRPC: DashCoreRPC) {
+  constructor(dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO) {
     this.dashCoreRPC = dashCoreRPC
+    this.masternodesDAO = masternodesDAO
   }
 
   getProposals = async (
@@ -13,13 +16,22 @@ export default class GovernanceDAO {
     orderBy?: string,
     order: string = 'asc',
   ): Promise<GovernanceObject[]> => {
-    const response = await this.dashCoreRPC.getGovernanceObjects(proposalType, 'proposals')
+    const [response, masternodeStats] = await Promise.all([
+      this.dashCoreRPC.getGovernanceObjects(proposalType, 'proposals'),
+      this.masternodesDAO.getMasternodeStats(),
+    ])
+
+    const threshold = masternodeStats.requiredProposalVotes ?? 0
 
     const keys = Object.keys(response)
 
-    const proposals = keys.map(key => GovernanceObject.fromObject({
-      ...response[key]
-    }))
+    const proposals = keys.map(key => {
+      const proposal = GovernanceObject.fromObject({...response[key]})
+
+      proposal.enoughVotes = (proposal.absoluteYesCount ?? 0) >= threshold
+
+      return proposal
+    })
 
     if (orderBy == null) {
       return proposals
