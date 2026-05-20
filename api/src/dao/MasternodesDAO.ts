@@ -75,7 +75,7 @@ export default class MasternodesDAO {
       })
       .orderBy('last_paid_block', order)
       .modify((builder) => {
-        if (limit!=null) builder.limit(effectiveLimit).offset(fromRank);
+        if (limit!=null || page!=null) builder.limit(effectiveLimit).offset(fromRank);
       });
 
     const [row] = rows;
