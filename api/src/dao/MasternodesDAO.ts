@@ -23,7 +23,6 @@ export default class MasternodesDAO {
     hasPenalty?: boolean,
     country?: string,
   ): Promise<PaginatedResultSet<Masternode>> => {
-    const paginated = page != null || limit != null;
     const effectivePage = page ?? 1;
     const effectiveLimit = limit ?? 10;
     const fromRank = (effectivePage - 1) * effectiveLimit;
@@ -76,7 +75,7 @@ export default class MasternodesDAO {
       })
       .orderBy('last_paid_block', order)
       .modify((builder) => {
-        if (paginated) builder.limit(effectiveLimit).offset(fromRank);
+        if (limit!=null) builder.limit(effectiveLimit).offset(fromRank);
       });
 
     const [row] = rows;
@@ -100,7 +99,7 @@ export default class MasternodesDAO {
         })
       }),
       effectivePage,
-      paginated ? effectiveLimit : (row?.total_count ?? rows.length),
+      limit!=null ? effectiveLimit : Number(row?.total_count ?? rows.length),
       row?.total_count ?? 0
     );
   };
