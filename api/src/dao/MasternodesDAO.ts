@@ -80,24 +80,26 @@ export default class MasternodesDAO {
 
     const [row] = rows;
 
+    const resultSet = rows.map(row => {
+      const masternode = Masternode.fromRow(row)
+
+      let geoIpInfo: GeoIpInfo | undefined = undefined
+
+      if (masternode.address != null && masternode.address !== '[::]:0') {
+        const [ip] = masternode.address.split(':')
+
+        // second lookup fast because we use cache
+        geoIpInfo = this.geoIPService.lookup(ip)
+      }
+
+      return Masternode.fromObject({
+        ...masternode,
+        geoIpInfo
+      })
+    })
+
     return new PaginatedResultSet(
-      rows.map(row => {
-        const masternode = Masternode.fromRow(row)
-
-        let geoIpInfo: GeoIpInfo | undefined = undefined
-
-        if (masternode.address != null && masternode.address !== '[::]:0') {
-          const [ip] = masternode.address.split(':')
-
-          // second lookup fast because we use cache
-          geoIpInfo = this.geoIPService.lookup(ip)
-        }
-
-        return Masternode.fromObject({
-          ...masternode,
-          geoIpInfo
-        })
-      }),
+      resultSet,
       effectivePage,
       limit!=null ? effectiveLimit : Number(row?.total_count ?? rows.length),
       row?.total_count ?? 0
@@ -117,5 +119,4 @@ export default class MasternodesDAO {
 
     return MasternodeStats.fromRow(row)
   }
-
 }
