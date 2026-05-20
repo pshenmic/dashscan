@@ -1007,19 +1007,21 @@ Returns aggregate counts of masternodes by type and status.
   "evoEnabled": 356,
   "evoDisabled": 7,
   "regularEnabled": 1697,
-  "regularDisabled": 884
+  "regularDisabled": 884,
+  "requiredProposalVotes": 312
 }
 ```
 
-| Field             | Type   | Description                                  |
-|-------------------|--------|----------------------------------------------|
-| `total`           | number | Total number of indexed masternodes          |
-| `evo`             | number | Count of Evo-type masternodes                |
-| `regular`         | number | Count of Regular-type masternodes            |
-| `evoEnabled`      | number | Evo masternodes with status `ENABLED`        |
-| `evoDisabled`     | number | Evo masternodes not in `ENABLED` status      |
-| `regularEnabled`  | number | Regular masternodes with status `ENABLED`    |
-| `regularDisabled` | number | Regular masternodes not in `ENABLED` status  |
+| Field                   | Type   | Description                                                                                   |
+|-------------------------|--------|-----------------------------------------------------------------------------------------------|
+| `total`                 | number | Total number of indexed masternodes                                                           |
+| `evo`                   | number | Count of Evo-type masternodes                                                                 |
+| `regular`               | number | Count of Regular-type masternodes                                                             |
+| `evoEnabled`            | number | Evo masternodes with status `ENABLED`                                                         |
+| `evoDisabled`           | number | Evo masternodes not in `ENABLED` status                                                       |
+| `regularEnabled`        | number | Regular masternodes with status `ENABLED`                                                     |
+| `regularDisabled`       | number | Regular masternodes not in `ENABLED` status                                                   |
+| `requiredProposalVotes` | number | Proposal-approval voting-weight threshold: `ceil((regularEnabled + evoEnabled * 4) * 0.1)`    |
 
 ---
 
