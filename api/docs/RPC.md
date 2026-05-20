@@ -905,9 +905,19 @@ Each field is either the matched object (same shape as its individual endpoint) 
 
 ### GET /masternodes
 
-Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
+Returns a list of masternodes, ordered by `lastPaidBlock`. If neither `page` nor `limit` is supplied, the full set is returned without pagination; otherwise standard pagination is applied (defaults: `page=1`, `limit=10`).
 
 **Query Parameters:** [Pagination](#pagination-query-parameters)
+
+Additional optional filters:
+
+| Parameter          | Type    | Constraints                       | Description                                                         |
+|--------------------|---------|-----------------------------------|---------------------------------------------------------------------|
+| `status`           | string  | `ENABLED` \| `POSE_BANNED`        | Filter by masternode status                                         |
+| `type`             | string  | `REGULAR` \| `EVO`                | Filter by masternode type (case-insensitive at DB level)            |
+| `last_paid_before` | string  | ISO 8601 date-time                | Only masternodes whose `lastPaidTime` is strictly before this point |
+| `has_penalty`      | boolean |                                   | `true` → `posPenaltyScore > 0`; `false` → `posPenaltyScore = 0`     |
+| `country`          | string  | ISO 3166-1 alpha-2 (e.g. `US`)    | Filter by GeoIP country code resolved from the masternode address   |
 
 **Response `200`**
 
@@ -922,7 +932,7 @@ Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
       "type": "Regular",
       "posPenaltyScore": 0,
       "consecutivePayments": 0,
-      "lastPaidTime": 1741305600,
+      "lastPaidTime": "2026-05-20T01:59:22.000Z",
       "lastPaidBlock": 1999000,
       "ownerAddress": "XoBC...",
       "votingAddress": "XvBC...",
@@ -1010,38 +1020,6 @@ Returns aggregate counts of masternodes by type and status.
 | `evoDisabled`     | number | Evo masternodes not in `ENABLED` status      |
 | `regularEnabled`  | number | Regular masternodes with status `ENABLED`    |
 | `regularDisabled` | number | Regular masternodes not in `ENABLED` status  |
-
----
-
-### GET /masternodes/map
-
-Returns all masternodes with valid network addresses, enriched with GeoIP coordinates, intended for rendering on a global map. Masternodes with the placeholder address `[::]:0` are excluded. The response is not paginated.
-
-**Response `200`**
-
-```json
-[
-  {
-    "proTxHash": "abcdef1234...",
-    "payee": "XaBC...",
-    "status": "ENABLED",
-    "type": "Regular",
-    "ownerAddress": "XoBC...",
-    "votingAddress": "XvBC...",
-    "collateralAddress": "XcBC...",
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "geoIpInfo": {
-      "ipv4": "1.2.3.4",
-      "countryCode": "NL",
-      "city": "Amsterdam",
-      "latitude": 12.3456789101112131,
-      "longitude": 12.3456789101112131
-    }
-  }
-]
-```
-
-Each entry is a subset of the [Masternode Object](#masternode-object): `proTxHash`, `payee`, `status`, `type`, `ownerAddress`, `votingAddress`, `collateralAddress`, `createdAt`, and `geoIpInfo`. See the [GeoIpInfo Object](#geoipinfo-object) table for the nested shape and attribution.
 
 ---
 

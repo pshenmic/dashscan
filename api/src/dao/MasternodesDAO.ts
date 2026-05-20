@@ -70,7 +70,7 @@ export default class MasternodesDAO {
       .modify((builder) => {
         if (status != null) builder.where('status', status);
         if (type != null) builder.whereRaw('LOWER(type) = ?', [type.toLowerCase()]);
-        if (lastPaidBefore != null) builder.where('last_paid_time', '<', lastPaidBefore);
+        if (lastPaidBefore != null) builder.where('last_paid_time', '>', lastPaidBefore);
         if (hasPenalty != null) builder.where('pos_penalty_score', hasPenalty ? '>' : '=', 0);
         if (proTxHashFilter != null) builder.whereIn('pro_tx_hash', proTxHashFilter);
       })

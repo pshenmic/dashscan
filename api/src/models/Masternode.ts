@@ -42,7 +42,7 @@ interface MasternodeObject {
   type?: string | null;
   posPenaltyScore?: number | null;
   consecutivePayments?: number | null;
-  lastPaidTime?: number | null;
+  lastPaidTime?: Date | null;
   lastPaidBlock?: number | null;
   ownerAddress?: string | null;
   votingAddress?: string | null;
@@ -61,7 +61,7 @@ export default class Masternode {
   type: string | null;
   posPenaltyScore: number | null;
   consecutivePayments: number | null;
-  lastPaidTime: number | null;
+  lastPaidTime: Date | null;
   lastPaidBlock: number | null;
   ownerAddress: string | null;
   votingAddress: string | null;
@@ -79,7 +79,7 @@ export default class Masternode {
     type?: string,
     posPenaltyScore?: number,
     consecutivePayments?: number,
-    lastPaidTime?: number,
+    lastPaidTime?: Date,
     lastPaidBlock?: number,
     ownerAddress?: string,
     votingAddress?: string,
@@ -109,6 +109,8 @@ export default class Masternode {
   }
 
   static fromRPC(entry: MasternodeRPCEntry): Masternode {
+    const lastPaidDate = new Date(entry.lastpaidtime ?? 0);
+
     return new Masternode(
       entry.proTxHash,
       entry.address,
@@ -117,7 +119,7 @@ export default class Masternode {
       entry.type,
       entry.pospenaltyscore,
       entry.consecutivePayments,
-      entry.lastpaidtime,
+      lastPaidDate,
       entry.lastpaidblock,
       entry.owneraddress,
       entry.votingaddress,
@@ -127,6 +129,8 @@ export default class Masternode {
   }
 
   static fromRow(row: MasternodeRow): Masternode {
+    const lastPaidDate = new Date(Number(row.last_paid_time??0) * 1000)
+
     return new Masternode(
       row.pro_tx_hash,
       row.address,
@@ -135,7 +139,7 @@ export default class Masternode {
       row.type,
       row.pos_penalty_score,
       row.consecutive_payments,
-      row.last_paid_time,
+      lastPaidDate,
       row.last_paid_block,
       row.owner_address,
       row.voting_address,
