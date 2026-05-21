@@ -241,6 +241,20 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/governance/proposal/:hash',
+      method: 'get',
+      handler: governanceController.getProposalByHash,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            hash: { $ref: 'hash#' },
+          },
+          required: ['hash'],
+        },
+      },
+    },
+    {
       path: '/governance/proposals',
       method: 'get',
       handler: governanceController.getProposals,

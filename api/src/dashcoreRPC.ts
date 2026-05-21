@@ -108,6 +108,13 @@ export interface GovernanceObjectDetails {
 
 type GovernanceObjectsResult = Record<string, GovernanceObjectDetails>;
 
+export interface ProTxEntry {
+  proTxHash: string;
+  collateralHash: string;
+  collateralIndex: number;
+  state?: Record<string, any>;
+}
+
 export interface GovernanceInfoRPC {
   governanceminquorum: number;
   proposalfee: number;
@@ -164,6 +171,18 @@ export class DashCoreRPC {
 
   async getGovernanceObjects(signal: GovernanceObjectSignal = "all", type: GovernanceObjectType = "all"): Promise<GovernanceObjectsResult> {
     return this.callMethod('gobject', ['list', signal, type]);
+  }
+
+  async getGovernanceObject(hash: string): Promise<GovernanceObjectDetails | null> {
+    return this.callMethod('gobject', ['get', hash], () => null);
+  }
+
+  async getGovernanceObjectVotes(hash: string): Promise<Record<string, string>> {
+    return this.callMethod('gobject', ['getcurrentvotes', hash], () => ({}));
+  }
+
+  async getProTxList(): Promise<ProTxEntry[]> {
+    return this.callMethod('protx', ['list', 'registered', true], () => []);
   }
 
   async getSuperblockBudget(superblockHeight: number): Promise<number> {

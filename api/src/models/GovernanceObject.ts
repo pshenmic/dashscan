@@ -1,6 +1,8 @@
 import {GovernanceObjectType} from "../enums/GovernanceObjectType";
 import {GovernanceObjectDetails} from "../dashcoreRPC";
 import {ProposalData} from "./ProposalData";
+import {VoteResult} from "./VoteResult";
+import {ProposalVote} from "./ProposalVote";
 
 export class GovernanceObject {
   dataHex: string | null;
@@ -18,6 +20,11 @@ export class GovernanceObject {
   isValidReason: string | null;
   enoughVotes: boolean | null;
   enoughFunds: boolean | null;
+  fundingResult: VoteResult | null;
+  validResult: VoteResult | null;
+  deleteResult: VoteResult | null;
+  endorsedResult: VoteResult | null;
+  votes: ProposalVote[] | null;
 
   constructor(
     dataHex?: string,
@@ -35,6 +42,10 @@ export class GovernanceObject {
     signingMasternode?: string,
     enoughVotes?: boolean,
     enoughFunds?: boolean,
+    fundingResult?: VoteResult | null,
+    validResult?: VoteResult | null,
+    deleteResult?: VoteResult | null,
+    endorsedResult?: VoteResult | null,
   ) {
     this.dataHex = dataHex ?? null;
     this.data = data ?? null;
@@ -51,10 +62,16 @@ export class GovernanceObject {
     this.signingMasternode = signingMasternode ?? null;
     this.enoughVotes = enoughVotes ?? null;
     this.enoughFunds = enoughFunds ?? null;
+    this.fundingResult = fundingResult ?? null;
+    this.validResult = validResult ?? null;
+    this.deleteResult = deleteResult ?? null;
+    this.endorsedResult = endorsedResult ?? null;
+    this.votes = null;
   }
 
   static fromObject(obj: GovernanceObjectDetails): GovernanceObject {
     const data = obj.DataString != null ? JSON.parse(obj.DataString) : null
+
     return new GovernanceObject(
       obj.DataHex,
       data != null ? ProposalData.fromObject(data) : null,
@@ -69,6 +86,12 @@ export class GovernanceObject {
       obj.fLocalValidity,
       obj.IsValidReason,
       obj.SigningMasternode,
+      undefined,
+      undefined,
+      VoteResult.fromRaw((obj as any).FundingResult),
+      VoteResult.fromRaw((obj as any).ValidResult),
+      VoteResult.fromRaw((obj as any).DeleteResult),
+      VoteResult.fromRaw((obj as any).EndorsedResult),
     );
   }
 }

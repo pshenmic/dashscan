@@ -1,14 +1,39 @@
 import {DashCoreRPC, GovernanceInfoRPC, GovernanceObjectSignal} from "../dashcoreRPC";
 import {GovernanceObject} from "../models/GovernanceObject";
+import {ProposalVote} from "../models/ProposalVote";
 import MasternodesDAO from "./MasternodesDAO";
+import {Cache} from "../cache";
+import {PROTX_OUTPOINT_MAP_LIFE_TIME} from "../constants";
 
 export default class GovernanceDAO {
   dashCoreRPC: DashCoreRPC;
   masternodesDAO: MasternodesDAO;
+  cache: Cache;
 
-  constructor(dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO) {
+  constructor(dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO, cache: Cache) {
     this.dashCoreRPC = dashCoreRPC
     this.masternodesDAO = masternodesDAO
+    this.cache = cache
+  }
+
+  private getProtxOutpointMap = async (): Promise<Record<string, string>> => {
+    const cached = this.cache.get('protxOutpointMap')
+
+    if (cached != null) {
+      return cached
+    }
+
+    const list = await this.dashCoreRPC.getProTxList()
+
+    const map: Record<string, string> = {}
+
+    list.forEach(entry => {
+      map[`${entry.collateralHash}-${entry.collateralIndex}`] = entry.proTxHash
+    })
+
+    this.cache.set('protxOutpointMap', map, PROTX_OUTPOINT_MAP_LIFE_TIME)
+
+    return map
   }
 
   getProposals = async (
@@ -77,6 +102,42 @@ export default class GovernanceDAO {
           return 0
       }
     })
+  }
+
+  getProposalByHash = async (hash: string): Promise<GovernanceObject | null> => {
+    const [raw, masternodeStats, rawVotes, outpointMap] = await Promise.all([
+      this.dashCoreRPC.getGovernanceObject(hash),
+      this.masternodesDAO.getMasternodeStats(),
+      this.dashCoreRPC.getGovernanceObjectVotes(hash),
+      this.getProtxOutpointMap(),
+    ])
+
+    if (raw == null) {
+      return null
+    }
+
+    const proposal = GovernanceObject.fromObject(raw)
+
+    if (proposal.absoluteYesCount == null && proposal.fundingResult != null) {
+      proposal.absoluteYesCount = proposal.fundingResult.absoluteYesCount
+      proposal.yesCount = proposal.fundingResult.yesCount
+      proposal.noCount = proposal.fundingResult.noCount
+      proposal.abstainCount = proposal.fundingResult.abstainCount
+    }
+
+    const requiredProposalVotes = masternodeStats.requiredProposalVotes ?? 0
+
+    proposal.enoughVotes = (proposal.absoluteYesCount ?? 0) >= requiredProposalVotes
+
+    proposal.votes = Object.values(rawVotes)
+      .map(value => ProposalVote.fromRaw(value))
+      .filter((vote): vote is ProposalVote => vote != null)
+      .map(vote => {
+        vote.proTxHash = outpointMap[vote.outpoint] ?? null
+        return vote
+      })
+
+    return proposal
   }
 
   getBudgetInfo = async (superblockHeight: number): Promise<number> => {
