@@ -1025,9 +1025,9 @@ Returns aggregate counts of masternodes by type and status.
 
 ---
 
-### GET /masternodes/:proTxHash/votes
+### GET /masternode/:proTxHash/votes
 
-Returns all current-cycle governance votes cast by a single masternode, aggregated across every active proposal. Resolves the masternode's collateral outpoint via the cached `protx list registered` map, fetches every proposal hash via `gobject list all proposals`, then calls `gobject getcurrentvotes <proposalHash> <collateralTxid> <collateralVout>` for each proposal in parallel.
+Returns all current-cycle governance votes cast by a single masternode, aggregated across every active proposal. Resolves the masternode's collateral outpoint via the cached `protx list registered` map, fetches every proposal hash via `gobject list all proposals`, then calls `gobject getcurrentvotes <proposalHash>` for each proposal in parallel and keeps only the rows whose outpoint matches.
 
 **Path Parameters**
 
@@ -1052,7 +1052,7 @@ Returns all current-cycle governance votes cast by a single masternode, aggregat
 
 Each entry uses the same shape as `ProposalVote` on `/governance/proposal/:hash` (see [there](#get-governanceproposalhash)), with `proposalHash` filled in instead of being implied by the route.
 
-> Cost note: this is a fan-out of N RPC calls (one per active proposal). N is typically 10–50 on mainnet. Filtered-by-outpoint responses are tiny, so total latency is bounded by the slowest individual `getcurrentvotes` call, not the sum.
+> Cost note: this is a fan-out of N RPC calls (one per active proposal). N is typically 10–50 on mainnet. Each call returns one entry per voting masternode; filtering happens in-process. Total latency is bounded by the slowest individual `getcurrentvotes` call, not the sum.
 
 ---
 
