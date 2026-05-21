@@ -1025,6 +1025,37 @@ Returns aggregate counts of masternodes by type and status.
 
 ---
 
+### GET /masternodes/:proTxHash/votes
+
+Returns all current-cycle governance votes cast by a single masternode, aggregated across every active proposal. Resolves the masternode's collateral outpoint via the cached `protx list registered` map, fetches every proposal hash via `gobject list all proposals`, then calls `gobject getcurrentvotes <proposalHash> <collateralTxid> <collateralVout>` for each proposal in parallel.
+
+**Path Parameters**
+
+| Parameter   | Type   | Constraints                            | Description                            |
+|-------------|--------|----------------------------------------|----------------------------------------|
+| `proTxHash` | string | 64-char hex (`[A-Za-z0-9]`, length 64) | Masternode ProRegTx hash               |
+
+**Response `200`** — array of votes. Empty array when the proTxHash isn't in the current registered set (revoked / never-registered) or it hasn't voted on anything in the current cycle.
+
+```json
+[
+  {
+    "outpoint": "abcdef1234...-0",
+    "proTxHash": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+    "proposalHash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "time": "2026-05-19T11:37:22.402Z",
+    "outcome": "funding",
+    "signal": "yes"
+  }
+]
+```
+
+Each entry uses the same shape as `ProposalVote` on `/governance/proposal/:hash` (see [there](#get-governanceproposalhash)), with `proposalHash` filled in instead of being implied by the route.
+
+> Cost note: this is a fan-out of N RPC calls (one per active proposal). N is typically 10–50 on mainnet. Filtered-by-outpoint responses are tiny, so total latency is bounded by the slowest individual `getcurrentvotes` call, not the sum.
+
+---
+
 ### GET /price/:currency
 
 Returns the current DASH price for the given currency. Cached for 60 minutes. Falls back to Kraken if CoinGecko is unavailable.

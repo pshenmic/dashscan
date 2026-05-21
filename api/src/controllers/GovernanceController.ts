@@ -19,6 +19,14 @@ export default class GovernanceController {
     this.blocksDAO = new BlocksDAO(knex)
   }
 
+  getMasternodeVotes = async (request: FastifyRequest<{ Params: { proTxHash: string } }>, response: FastifyReply): Promise<void> => {
+    const {proTxHash} = request.params
+
+    const votes = await this.governanceDAO.getMasternodeVotes(proTxHash)
+
+    response.send(votes)
+  }
+
   getProposalByHash = async (request: FastifyRequest<{ Params: { hash: string } }>, response: FastifyReply): Promise<void> => {
     const {hash} = request.params
 

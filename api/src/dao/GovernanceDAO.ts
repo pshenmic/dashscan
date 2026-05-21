@@ -104,6 +104,39 @@ export default class GovernanceDAO {
     })
   }
 
+  getMasternodeVotes = async (proTxHash: string): Promise<ProposalVote[]> => {
+    const [outpointMap, objects] = await Promise.all([
+      this.getProtxOutpointMap(),
+      this.dashCoreRPC.getGovernanceObjects('all', 'proposals'),
+    ])
+
+    const targetOutpoint = Object.entries(outpointMap).find(([, hash]) => hash === proTxHash)?.[0]
+
+    if (targetOutpoint == null) {
+      return []
+    }
+
+    const proposalHashes = Object.values(objects).map(o => o.Hash)
+
+    const perProposal = await Promise.all(
+      proposalHashes.map(async proposalHash => {
+        const rawVotes = await this.dashCoreRPC.getGovernanceObjectVotes(proposalHash)
+
+        return Object.values(rawVotes)
+          .map(value => ProposalVote.fromRaw(value))
+          .filter((vote): vote is ProposalVote => vote != null)
+          .filter(vote => vote.outpoint === targetOutpoint)
+          .map(vote => {
+            vote.proTxHash = proTxHash
+            vote.proposalHash = proposalHash
+            return vote
+          })
+      }),
+    )
+
+    return perProposal.flat()
+  }
+
   getProposalByHash = async (hash: string): Promise<GovernanceObject | null> => {
     const [raw, masternodeStats, rawVotes, outpointMap] = await Promise.all([
       this.dashCoreRPC.getGovernanceObject(hash),

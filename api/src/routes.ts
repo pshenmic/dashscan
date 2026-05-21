@@ -139,6 +139,20 @@ export default function Routes({ fastify, mainController, blocksController, tran
       handler: masternodesController.getMasternodeStats,
     },
     {
+      path: '/masternode/:proTxHash/votes',
+      method: 'get',
+      handler: governanceController.getMasternodeVotes,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            proTxHash: { $ref: 'hash#' },
+          },
+          required: ['proTxHash'],
+        },
+      },
+    },
+    {
       path: '/price/:currency',
       method: 'get',
       handler: marketController.getPrice,
