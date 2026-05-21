@@ -1270,10 +1270,10 @@ Returns a list of governance proposals from Dash Core RPC.
     "isValidReason": "",
     "enoughVotes": true,
     "enoughFunds": true,
-    "fundingResult": { "absoluteYesCount": 150, "yesCount": 200, "noCount": 50, "abstainCount": 10 },
-    "validResult":   { "absoluteYesCount": 0,   "yesCount": 0,   "noCount": 0,  "abstainCount": 0  },
-    "deleteResult":  { "absoluteYesCount": 0,   "yesCount": 0,   "noCount": 0,  "abstainCount": 0  },
-    "endorsedResult":{ "absoluteYesCount": 0,   "yesCount": 0,   "noCount": 0,  "abstainCount": 0  }
+    "fundingResult": null,
+    "validResult": null,
+    "deleteResult": null,
+    "endorsedResult": null
   }
 ]
 ```
