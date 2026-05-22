@@ -1,0 +1,149 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "DScan" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "DScan" [ref=e6]
+        - link "Dashboard" [ref=e7] [cursor=pointer]:
+          - /url: /
+        - link "Blocks" [ref=e8] [cursor=pointer]:
+          - /url: /blocks
+        - link "Transactions" [ref=e9] [cursor=pointer]:
+          - /url: /transactions
+        - link "Masternodes" [ref=e10] [cursor=pointer]:
+          - /url: /masternodes
+        - link "DAO" [ref=e11] [cursor=pointer]:
+          - /url: /dao
+      - generic [ref=e12]:
+        - generic [ref=e13]:
+          - textbox "Search..." [ref=e14]
+          - button "Search" [ref=e15]:
+            - img [ref=e16]
+        - button "Switch theme" [ref=e19]:
+          - img
+          - generic [ref=e20]: Dash
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - img "yS93d71aWP4Wfif16Lj1cu9yh5sEUqNp4P" [ref=e25]
+      - heading "Address yS93d71aWP4Wfif16Lj1cu9yh5sEUqNp4P" [level=1] [ref=e26]:
+        - generic [ref=e27]: Address
+        - generic [ref=e28]: yS93d71aWP4Wfif16Lj1cu9yh5sEUqNp4P
+      - button [ref=e29] [cursor=pointer]:
+        - img [ref=e30]
+    - generic [ref=e33]:
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e36]:
+            - img [ref=e38]
+            - generic [ref=e41]:
+              - paragraph [ref=e42]: Total Balance
+              - generic [ref=e43]:
+                - generic [ref=e44]: "500"
+                - img "DASH" [ref=e45]
+          - generic [ref=e46]:
+            - img [ref=e48]
+            - generic [ref=e50]:
+              - paragraph [ref=e51]: Received
+              - generic [ref=e52]:
+                - generic [ref=e53]: "500"
+                - img "DASH" [ref=e54]
+          - generic [ref=e55]:
+            - img [ref=e57]
+            - generic [ref=e59]:
+              - paragraph [ref=e60]: Sent
+              - generic [ref=e61]:
+                - generic [ref=e62]: "0"
+                - img "DASH" [ref=e63]
+          - generic [ref=e64]:
+            - img [ref=e66]
+            - generic [ref=e69]:
+              - paragraph [ref=e70]: Transactions
+              - generic [ref=e71]: "1"
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - generic [ref=e75]: First Seen
+            - generic [ref=e77]:
+              - generic [ref=e78]: 5/1/2014, 2:38:20 AM
+              - link "000000ab6ae2…" [ref=e79] [cursor=pointer]:
+                - /url: /blocks/000000ab6ae22728c701e15a13dfa022c88f17a4e0fd71f073b0a720229de22b
+          - generic [ref=e80]:
+            - generic [ref=e81]: Last Seen
+            - generic [ref=e83]:
+              - generic [ref=e84]: 5/1/2014, 2:38:20 AM
+              - link "000000ab6ae2…" [ref=e85] [cursor=pointer]:
+                - /url: /blocks/000000ab6ae22728c701e15a13dfa022c88f17a4e0fd71f073b0a720229de22b
+          - generic [ref=e86]:
+            - generic [ref=e87]: Total Fee Spent
+            - generic [ref=e89]: —
+      - generic [ref=e90]:
+        - generic [ref=e91]:
+          - generic [ref=e94]:
+            - paragraph [ref=e95]: Balance
+            - generic [ref=e96]:
+              - generic [ref=e97]: "500"
+              - generic [ref=e98]: DASH
+          - generic [ref=e100]:
+            - button "1D" [ref=e101]
+            - button "1W" [ref=e102]
+            - button "1M" [ref=e103]
+            - button "1Y" [ref=e104]
+        - generic [ref=e106]: No balance data for this range.
+    - generic [ref=e107]:
+      - generic [ref=e108]:
+        - generic [ref=e109]: Transactions
+        - generic [ref=e111]:
+          - textbox "Search by Tx Hash..." [ref=e112]
+          - button "Search" [ref=e113]:
+            - img [ref=e114]
+      - table [ref=e118]:
+        - rowgroup [ref=e119]:
+          - row "Time Hash Type Size Amount Confirmations" [ref=e120]:
+            - columnheader "Time" [ref=e121]
+            - columnheader "Hash" [ref=e122]
+            - columnheader "Type" [ref=e123]
+            - columnheader "Size" [ref=e124]
+            - columnheader "Amount" [ref=e125]
+            - columnheader "Confirmations" [ref=e126]
+        - rowgroup [ref=e127]:
+          - row "4404 days ago 5494a90a580a4f16ff80d2b0c7507d7a565415091d88abeaa752b517da92e06d Asset Transfer 1 Kb 500.00 DASH 1,481,504" [ref=e128] [cursor=pointer]:
+            - cell "4404 days ago" [ref=e129]
+            - cell "5494a90a580a4f16ff80d2b0c7507d7a565415091d88abeaa752b517da92e06d" [ref=e130]:
+              - generic [ref=e131]:
+                - link "5494a90a580a4f16ff80d2b0c7507d7a565415091d88abeaa752b517da92e06d" [ref=e132]:
+                  - /url: /transactions/5494a90a580a4f16ff80d2b0c7507d7a565415091d88abeaa752b517da92e06d
+                  - generic [ref=e133]: 5494a90a580a4f16ff80d2b0c7507d7a565415091d88abeaa752b517da92e06d
+                - button [ref=e134]:
+                  - img [ref=e135]
+            - cell "Asset Transfer" [ref=e138]:
+              - generic [ref=e139]: Asset Transfer
+            - cell "1 Kb" [ref=e140]
+            - cell "500.00 DASH" [ref=e141]
+            - cell "1,481,504" [ref=e142]
+      - generic [ref=e143]:
+        - generic [ref=e144]:
+          - generic [ref=e145]: Show
+          - combobox [ref=e146]:
+            - img
+          - combobox [ref=e147]
+          - generic [ref=e148]: records
+        - generic [ref=e149]:
+          - button [disabled] [ref=e150]:
+            - img [ref=e151]
+          - button "1" [ref=e153]
+          - button [disabled] [ref=e154]:
+            - img [ref=e155]
+  - contentinfo [ref=e157]:
+    - generic [ref=e158]:
+      - generic [ref=e159]:
+        - img [ref=e160]
+        - generic [ref=e163]: pshenmic.dev
+      - generic [ref=e165]:
+        - link "GitHub" [ref=e166] [cursor=pointer]:
+          - /url: https://github.com/pshenmic/dashscan
+        - link "X" [ref=e167] [cursor=pointer]:
+          - /url: https://twitter.com/Dashpay
+        - link "Discord" [ref=e168] [cursor=pointer]:
+          - /url: https://discordapp.com/invite/PXbUxJB
+      - paragraph [ref=e169]: 2026 © Dashscan
+  - region "Notifications alt+T"

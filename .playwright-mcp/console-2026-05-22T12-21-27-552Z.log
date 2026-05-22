@@ -1,0 +1,52 @@
+[     687ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:20102
+[     776ms] Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <MatchInnerImpl matchId="__root__/">
+      <OutletImpl>
+        <Suspense fallback={null}>
+          <MatchImpl matchId={"/address..."}>
+            <SafeFragment>
+              <SafeFragment fallback={null}>
+                <SafeFragment getResetKey={function getResetKey} errorComponent={function ErrorComponent} ...>
+                  <SafeFragment fallback={function fallback}>
+                    <MatchInnerImpl matchId={"/address..."}>
+                      <Lazy>
+                        <AddressDetailRoute>
+                          <ClassicAddressDetailPage address="yS93d71aWP..." page={1} limit={10} ...>
+                            <PageStatus message="Loading ad..." data-tsd-source="/src/theme...">
+                              <main
+                                className="mx-auto max-w-[1440px] px-6 py-10"
++                               data-tsd-source="/src/themes/dash/components/page-status.tsx:3:5"
+-                               data-tsd-source="/src/themes/dash/pages/address-detail.tsx:244:5"
+                              >
+                                <div
++                                 className="flex h-64 items-center justify-center text-muted-foreground"
+-                                 className="mb-6 flex flex-wrap items-center gap-4 animate-fade-in-up"
++                                 data-tsd-source="/src/themes/dash/components/page-status.tsx:4:7"
+-                                 data-tsd-source="/src/themes/dash/pages/address-detail.tsx:245:7"
+                                >
++                                 Loading address...
+-                                 AddressyS93d71aWP4Wfif16Lj1cu9yh5sEUqNp4P
+              ...
+
+    at throwOnHydrationMismatch (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:3920:13)
+    at prepareToHydrateHostInstance (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:3994:23)
+    at completeWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:8999:17)
+    at runWithFiberInDEV (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:997:72)
+    at completeUnitOfWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:12669:22)
+    at performUnitOfWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:12575:29)
+    at workLoopConcurrentByScheduler (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:12557:11)
+    at renderRootConcurrent (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:12539:71)
+    at performWorkOnRoot (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:11766:152)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=584f35fc:13505:9)
