@@ -2,8 +2,16 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
-import { ArrowLeftRight, Coins, MoveDown, MoveUp, Wallet } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
+import {
+  ArrowLeftRight,
+  CalendarClock,
+  Coins,
+  History,
+  MoveDown,
+  MoveUp,
+  Wallet,
+} from "lucide-react";
+import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import {
@@ -260,7 +268,8 @@ export default function RedesignAddressDetailPage({
     return ordered.map((t) => {
       const inAddr = t.vIn?.some((v) => v.address === address) ?? false;
       const outAddr = t.vOut?.some((v) => v.address === address) ?? false;
-      const value = (t.amount ?? sumVOut(t.vOut)) / DUFFS_PER_DASH;
+      const duffs = t.amount != null ? Number(t.amount) : sumVOut(t.vOut);
+      const value = duffs / DUFFS_PER_DASH;
       if (outAddr && !inAddr) cumIn += value;
       else if (inAddr && !outAddr) cumOut += value;
       return {
@@ -388,8 +397,9 @@ export default function RedesignAddressDetailPage({
       align: "right",
       cell: (row) => {
         const dir = direction(row);
-        const val = row.amount ?? sumVOut(row.vOut);
-        const dash = val / DUFFS_PER_DASH;
+        const duffs =
+          row.amount != null ? Number(row.amount) : sumVOut(row.vOut);
+        const dash = duffs / DUFFS_PER_DASH;
         const formatted = dash >= 1 ? dash.toFixed(2) : dash.toFixed(4);
         const tone =
           dir === "in"
@@ -505,6 +515,20 @@ export default function RedesignAddressDetailPage({
                     {Number(detail.txCount).toLocaleString()}
                   </span>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <SeenTile
+                  icon={<CalendarClock className="size-3" />}
+                  label="First Seen"
+                  timestamp={detail.firstSeenBlockTimestamp}
+                  blockHash={detail.firstSeenBlock}
+                />
+                <SeenTile
+                  icon={<History className="size-3" />}
+                  label="Last Seen"
+                  timestamp={detail.lastSeenBlockTimestamp}
+                  blockHash={detail.lastSeenBlock}
+                />
               </div>
               <div className="flex flex-col gap-1.5 rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur-sm">
                 <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -689,6 +713,48 @@ export default function RedesignAddressDetailPage({
           />
         )}
       </div>
+    </div>
+  );
+}
+
+function SeenTile({
+  icon,
+  label,
+  timestamp,
+  blockHash,
+}: {
+  icon: ReactNode;
+  label: string;
+  timestamp: string | null;
+  blockHash: string | null;
+}) {
+  const parsed = timestamp ? new Date(timestamp) : null;
+  const date = parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
+  return (
+    <div className="flex flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur-sm">
+      <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        {icon} {label}
+      </span>
+      {date ? (
+        <span
+          className="font-mono text-xs font-semibold tabular-nums"
+          title={date.toISOString()}
+        >
+          {date.toLocaleString()}
+        </span>
+      ) : (
+        <span className="font-mono text-xs text-muted-foreground">—</span>
+      )}
+      {blockHash ? (
+        <Link
+          to="/blocks/$hashOrHeight"
+          params={{ hashOrHeight: blockHash }}
+          className="truncate font-mono text-[10px] text-muted-foreground transition-colors hover:text-accent"
+          title={blockHash}
+        >
+          {blockHash.slice(0, 16)}…
+        </Link>
+      ) : null}
     </div>
   );
 }
