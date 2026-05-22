@@ -6,7 +6,9 @@ import {
   CircleCheck,
   Globe,
   MapPin,
+  Server,
   ServerCrash,
+  Sparkles,
   X,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
@@ -17,6 +19,7 @@ import {
   allMasternodesGeoQueryOptions,
   type MasternodeGeoPoint,
 } from "@/lib/api/masternodes";
+import { getMnTypeBucket } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import {
   Card,
@@ -32,6 +35,7 @@ import { countryFlagEmoji, countryName } from "./iso-codes";
 import { MasternodeMapCanvas } from "./map-canvas";
 
 type MapStatusFilter = "all" | "enabled" | "disabled";
+type MapTypeFilter = "all" | "evolution" | "regular";
 
 export { CountryLegend } from "./country-legend";
 export { MasternodeMapCanvas } from "./map-canvas";
@@ -54,6 +58,7 @@ export function MasternodeMap({
     MasternodeGeoPoint[] | null
   >(null);
   const [statusFilter, setStatusFilter] = useState<MapStatusFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<MapTypeFilter>("all");
   const isControlled = controlledCountry !== undefined;
   const selectedCountry = isControlled ? controlledCountry : internalCountry;
   const setSelectedCountry = useCallback(
@@ -67,11 +72,17 @@ export function MasternodeMap({
 
   const allPoints = data ?? [];
   const statusFilteredPoints = useMemo(() => {
-    if (statusFilter === "all") return allPoints;
+    let result = allPoints;
     if (statusFilter === "enabled")
-      return allPoints.filter((p) => p.status.toUpperCase() === "ENABLED");
-    return allPoints.filter((p) => p.status.toUpperCase() !== "ENABLED");
-  }, [allPoints, statusFilter]);
+      result = result.filter((p) => p.status.toUpperCase() === "ENABLED");
+    else if (statusFilter === "disabled")
+      result = result.filter((p) => p.status.toUpperCase() !== "ENABLED");
+    if (typeFilter === "evolution")
+      result = result.filter((p) => getMnTypeBucket(p.type) === "evo");
+    else if (typeFilter === "regular")
+      result = result.filter((p) => getMnTypeBucket(p.type) === "regular");
+    return result;
+  }, [allPoints, statusFilter, typeFilter]);
   const points = useMemo(() => {
     if (!selectedCountry) return statusFilteredPoints;
     return statusFilteredPoints.filter(
@@ -93,6 +104,12 @@ export function MasternodeMap({
     if (!value) return;
     setClusterLeaves(null);
     setStatusFilter(value as MapStatusFilter);
+  }, []);
+
+  const handleTypeFilterChange = useCallback((value: string) => {
+    if (!value) return;
+    setClusterLeaves(null);
+    setTypeFilter(value as MapTypeFilter);
   }, []);
 
   const isPage = variant === "page";
@@ -160,34 +177,63 @@ export function MasternodeMap({
                   </>
                 )}
               </CardTitle>
-              <ToggleGroup
-                type="single"
-                value={statusFilter}
-                onValueChange={handleStatusFilterChange}
-                variant="outline"
-                size="sm"
-              >
-                <ToggleGroupItem value="all" aria-label="All masternodes">
-                  <Globe className="size-3" />
-                  All
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="enabled"
-                  aria-label="Enabled masternodes"
-                  className="data-[state=on]:bg-success/15 data-[state=on]:text-success data-[state=on]:border-success/40"
+              <div className="flex flex-wrap items-center gap-2">
+                <ToggleGroup
+                  type="single"
+                  value={statusFilter}
+                  onValueChange={handleStatusFilterChange}
+                  variant="outline"
+                  size="sm"
                 >
-                  <CircleCheck className="size-3" />
-                  Enabled
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="disabled"
-                  aria-label="Disabled masternodes"
-                  className="data-[state=on]:bg-destructive/15 data-[state=on]:text-destructive data-[state=on]:border-destructive/40"
+                  <ToggleGroupItem value="all" aria-label="All masternodes">
+                    <Globe className="size-3" />
+                    All
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="enabled"
+                    aria-label="Enabled masternodes"
+                    className="data-[state=on]:bg-success/15 data-[state=on]:text-success data-[state=on]:border-success/40"
+                  >
+                    <CircleCheck className="size-3" />
+                    Enabled
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="disabled"
+                    aria-label="Disabled masternodes"
+                    className="data-[state=on]:bg-destructive/15 data-[state=on]:text-destructive data-[state=on]:border-destructive/40"
+                  >
+                    <ServerCrash className="size-3" />
+                    Disabled
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <ToggleGroup
+                  type="single"
+                  value={typeFilter}
+                  onValueChange={handleTypeFilterChange}
+                  variant="outline"
+                  size="sm"
                 >
-                  <ServerCrash className="size-3" />
-                  Disabled
-                </ToggleGroupItem>
-              </ToggleGroup>
+                  <ToggleGroupItem value="all" aria-label="All types">
+                    <Globe className="size-3" />
+                    All
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="evolution"
+                    aria-label="Evolution masternodes"
+                    className="data-[state=on]:bg-accent-violet/15 data-[state=on]:text-[color:var(--accent-violet)] data-[state=on]:border-[color:var(--accent-violet)]/40"
+                  >
+                    <Sparkles className="size-3" />
+                    Evolution
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="regular"
+                    aria-label="Regular masternodes"
+                  >
+                    <Server className="size-3" />
+                    Regular
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
             </div>
             {isLoading ? (
               <Skeleton className="w-full rounded-2xl" style={{ height }} />
