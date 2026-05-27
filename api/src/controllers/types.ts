@@ -4,6 +4,7 @@ export interface PaginatedQuery {
   page?: number;
   limit?: number;
   order?: string
+  order_by?: string
   superblock?: boolean
   transaction_type?: keyof typeof TransactionType
   coinjoin?: boolean

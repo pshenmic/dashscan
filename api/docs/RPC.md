@@ -1025,6 +1025,37 @@ Returns aggregate counts of masternodes by type and status.
 
 ---
 
+### GET /masternode/:proTxHash/votes
+
+Returns all current-cycle governance votes cast by a single masternode, aggregated across every active proposal. Resolves the masternode's collateral outpoint via the cached `protx list registered` map, fetches every proposal hash via `gobject list all proposals`, then calls `gobject getcurrentvotes <proposalHash>` for each proposal in parallel and keeps only the rows whose outpoint matches.
+
+**Path Parameters**
+
+| Parameter   | Type   | Constraints                            | Description                            |
+|-------------|--------|----------------------------------------|----------------------------------------|
+| `proTxHash` | string | 64-char hex (`[A-Za-z0-9]`, length 64) | Masternode ProRegTx hash               |
+
+**Response `200`** — array of votes. Empty array when the proTxHash isn't in the current registered set (revoked / never-registered) or it hasn't voted on anything in the current cycle.
+
+```json
+[
+  {
+    "outpoint": "abcdef1234...-0",
+    "proTxHash": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+    "proposalHash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "time": "2026-05-19T11:37:22.402Z",
+    "outcome": "funding",
+    "signal": "yes"
+  }
+]
+```
+
+Each entry uses the same shape as `ProposalVote` on `/governance/proposal/:hash` (see [there](#get-governanceproposalhash)), with `proposalHash` filled in instead of being implied by the route.
+
+> Cost note: this is a fan-out of N RPC calls (one per active proposal). N is typically 10–50 on mainnet. Each call returns one entry per voting masternode; filtering happens in-process. Total latency is bounded by the slowest individual `getcurrentvotes` call, not the sum.
+
+---
+
 ### GET /price/:currency
 
 Returns the current DASH price for the given currency. Cached for 60 minutes. Falls back to Kraken if CoinGecko is unavailable.
@@ -1173,15 +1204,43 @@ Returns DASH trading volume for the past 24 hours, compacted to one point per ho
 
 ---
 
+### GET /governance/proposal/:hash
+
+Returns a single governance proposal by its hash, fetched directly via `gobject get`, plus the full per-vote list from `gobject getcurrentvotes <hash>` on the `votes` field. `enoughVotes` is computed against `requiredProposalVotes` from `/masternodes/stats`. `enoughFunds` is not set on this endpoint — that flag depends on global ranking and is only meaningful on the list view.
+
+Each entry of `votes` is parsed from the Core string `"<masternode-outpoint>:<unix-time>:<outcome>:<signal>"`. The outpoint is resolved to `proTxHash` via a cached `protx list registered` lookup (5-minute TTL); if a vote's outpoint isn't in the current registered set (e.g. revoked/banned MN), `proTxHash` is `null`.
+
+| Field       | Type           | Description                                                       |
+|-------------|----------------|-------------------------------------------------------------------|
+| `outpoint`  | string         | Masternode collateral outpoint as `txid-vout`                     |
+| `proTxHash` | string \| null | ProRegTx hash of the voting masternode (when resolvable)          |
+| `time`      | string         | ISO 8601 timestamp when the vote was cast                         |
+| `outcome`   | string         | `"funding"`, `"valid"`, `"delete"`, or `"endorsed"`               |
+| `signal`    | string         | `"yes"`, `"no"`, or `"abstain"`                                   |
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                                | Description             |
+|-----------|--------|--------------------------------------------|-------------------------|
+| `hash`    | string | 64-char hex (`[A-Za-z0-9]`, length 64)     | Governance object hash  |
+
+**Response `200`** — single [Governance Proposal Object](#governance-proposal-object).
+
+**Response `404`** — Proposal not found.
+
+---
+
 ### GET /governance/proposals
 
 Returns a list of governance proposals from Dash Core RPC.
 
 **Query Parameters**
 
-| Parameter      | Type   | Default | Constraints                                               | Description                     |
-|----------------|--------|---------|-----------------------------------------------------------|---------------------------------|
-| `proposalType` | string | `null`  | `"valid"`, `"funding"`, `"delete"`, `"endorsed"`, `"all"` | Filter proposals by signal type |
+| Parameter      | Type   | Default | Constraints                                                      | Description                                                                                                                  |
+|----------------|--------|---------|------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `proposalType` | string | `null`  | `"valid"`, `"funding"`, `"delete"`, `"endorsed"`, `"all"`        | Filter proposals by signal type                                                                                              |
+| `order_by`     | string | `null`  | `"creation_time"`, `"name"`, `"votes"`, `"payment_amount"`       | Sort key. `votes` sorts by net yes-no (`yesCount - noCount`). When omitted, proposals are returned in RPC-provided order.    |
+| `order`        | string | `"asc"` | `"asc"`, `"desc"`                                                | Sort direction (only applied when `order_by` is set)                                                                         |
 
 **Response `200`**
 
@@ -1208,28 +1267,49 @@ Returns a list of governance proposals from Dash Core RPC.
     "noCount": 50,
     "abstainCount": 10,
     "localValidity": true,
-    "isValidReason": ""
+    "isValidReason": "",
+    "enoughVotes": true,
+    "enoughFunds": true,
+    "fundingResult": null,
+    "validResult": null,
+    "deleteResult": null,
+    "endorsedResult": null
   }
 ]
 ```
 
 #### Governance Proposal Object
 
-| Field               | Type         | Description                                                 |
-|---------------------|--------------|-------------------------------------------------------------|
-| `dataHex`           | string       | Governance object info as hex string                        |
-| `data`              | ProposalData | Decoded governance object data (see ProposalData below)     |
-| `hash`              | string       | Hash of this governance object (64-char hex)                |
-| `collateralHash`    | string       | Hash of the collateral payment transaction (64-char hex)    |
-| `objectType`        | string       | Object type name: `"Unknown"`, `"Proposal"`, or `"Trigger"` |
-| `creationTime`      | string       | ISO 8601 timestamp of object creation                       |
-| `signingMasternode` | string       | Signing masternode's vin (only present in triggers)         |
-| `absoluteYesCount`  | number       | Number of Yes votes minus number of No votes                |
-| `yesCount`          | number       | Number of Yes votes                                         |
-| `noCount`           | number       | Number of No votes                                          |
-| `abstainCount`      | number       | Number of Abstain votes                                     |
-| `localValidity`     | boolean      | Valid by the blockchain                                     |
-| `isValidReason`     | string       | Validation error reason. Empty if no error                  |
+| Field               | Type         | Description                                                                                                               |
+|---------------------|--------------|---------------------------------------------------------------------------------------------------------------------------|
+| `dataHex`           | string       | Governance object info as hex string                                                                                      |
+| `data`              | ProposalData | Decoded governance object data (see ProposalData below)                                                                   |
+| `hash`              | string       | Hash of this governance object (64-char hex)                                                                              |
+| `collateralHash`    | string       | Hash of the collateral payment transaction (64-char hex)                                                                  |
+| `objectType`        | string       | Object type name: `"Unknown"`, `"Proposal"`, or `"Trigger"`                                                               |
+| `creationTime`      | string       | ISO 8601 timestamp of object creation                                                                                     |
+| `signingMasternode` | string       | Signing masternode's vin (only present in triggers)                                                                       |
+| `absoluteYesCount`  | number       | Number of Yes votes minus number of No votes                                                                              |
+| `yesCount`          | number       | Number of Yes votes                                                                                                       |
+| `noCount`           | number       | Number of No votes                                                                                                        |
+| `abstainCount`      | number       | Number of Abstain votes                                                                                                   |
+| `localValidity`     | boolean      | Valid by the blockchain                                                                                                   |
+| `isValidReason`     | string       | Validation error reason. Empty if no error                                                                                |
+| `enoughVotes`       | boolean      | `true` when `absoluteYesCount >= requiredProposalVotes` (the masternode-weighted 10% threshold from `/masternodes/stats`) |
+| `enoughFunds`       | boolean      | `true` when the proposal fits in the next superblock budget                                                               |
+| `fundingResult`     | VoteResult   | Vote tallies for the funding outcome (only populated on the single-proposal endpoint)                                     |
+| `validResult`       | VoteResult   | Vote tallies for the valid outcome                                                                                        |
+| `deleteResult`      | VoteResult   | Vote tallies for the delete outcome                                                                                       |
+| `endorsedResult`    | VoteResult   | Vote tallies for the endorsed outcome                                                                                     |
+
+#### VoteResult Object
+
+| Field              | Type   | Description                          |
+|--------------------|--------|--------------------------------------|
+| `absoluteYesCount` | number | Net yes votes (`yesCount - noCount`) |
+| `yesCount`         | number | Yes votes                            |
+| `noCount`          | number | No votes                             |
+| `abstainCount`     | number | Abstain votes                        |
 
 #### ProposalData Object
 
@@ -1373,7 +1453,9 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
   "enoughFundsTotal": 7337.0,
   "enoughFundsCount": 8,
   "remainingAllPass": -1069.48518384,
-  "remainingEnoughVotes": -257.48518384
+  "remainingEnoughVotes": -257.48518384,
+  "requiredVotes": 312,
+  "votingDeadline": "2026-05-18T01:23:45.000Z"
 }
 ```
 
@@ -1388,6 +1470,8 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
 | `enoughFundsTotal`     | number | Sum of `paymentAmount` across the `enoughFunds` subset                                                                                                                          |
 | `remainingAllPass`     | number | `totalBudget - totalRequested` (negative when proposals are oversubscribed)                                                                                                     |
 | `remainingEnoughVotes` | number | `totalBudget - enoughVotesTotal` (negative when vote-passing proposals exceed budget)                                                                                           |
+| `requiredVotes`        | number | Net-yes-vote threshold for proposal approval (from `/masternodes/stats.requiredProposalVotes`)                                                                                  |
+| `votingDeadline`       | string | ISO 8601 timestamp after which new votes won't be reflected in the upcoming superblock's payouts. Computed as `nextSuperblockTime − superblockmaturitywindow × avgBlockTime`, where `avgBlockTime = cycleMs / superblockcycle`. |
 
 **Response `404`** — fewer than 2 superblocks have been indexed, so `nextSuperblockTime` cannot be computed
 

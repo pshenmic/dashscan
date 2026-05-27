@@ -4,20 +4,45 @@ import {FastifyReply, FastifyRequest} from "fastify";
 import GovernanceDAO from "../dao/GovernanceDAO";
 import BlocksDAO from "../dao/BlocksDAO";
 import {GovernanceObject} from "../models/GovernanceObject";
+import MasternodesDAO from "../dao/MasternodesDAO";
+import GeoIPService from "../services/GeoIPService";
+import {Cache} from "../cache";
 
 export default class GovernanceController {
   governanceDAO: GovernanceDAO
+  masternodesDAO: MasternodesDAO
   blocksDAO: BlocksDAO
 
-  constructor(knex: Knex, dashCoreRPC: DashCoreRPC) {
-    this.governanceDAO = new GovernanceDAO(dashCoreRPC)
+  constructor(knex: Knex, dashCoreRPC: DashCoreRPC, geoIPService: GeoIPService, cache: Cache) {
+    this.masternodesDAO = new MasternodesDAO(knex, geoIPService)
+    this.governanceDAO = new GovernanceDAO(dashCoreRPC, this.masternodesDAO, cache)
     this.blocksDAO = new BlocksDAO(knex)
   }
 
-  getProposals = async (request: FastifyRequest<{ Querystring: { proposalType?: GovernanceObjectSignal } }>, response: FastifyReply): Promise<void> => {
-    const {proposalType} = request.query;
+  getMasternodeVotes = async (request: FastifyRequest<{ Params: { proTxHash: string } }>, response: FastifyReply): Promise<void> => {
+    const {proTxHash} = request.params
 
-    const proposals = await this.governanceDAO.getProposals(proposalType)
+    const votes = await this.governanceDAO.getMasternodeVotes(proTxHash)
+
+    response.send(votes)
+  }
+
+  getProposalByHash = async (request: FastifyRequest<{ Params: { hash: string } }>, response: FastifyReply): Promise<void> => {
+    const {hash} = request.params
+
+    const proposal = await this.governanceDAO.getProposalByHash(hash)
+
+    if (proposal == null) {
+      return response.status(404).send({error: 'Proposal not found'})
+    }
+
+    response.send(proposal)
+  }
+
+  getProposals = async (request: FastifyRequest<{ Querystring: { proposalType?: GovernanceObjectSignal, order?: string, order_by?: string } }>, response: FastifyReply): Promise<void> => {
+    const {proposalType, order = 'asc', order_by: orderBy} = request.query;
+
+    const proposals = await this.governanceDAO.getProposals(proposalType, orderBy, order)
 
     response.send(proposals)
   }
@@ -31,9 +56,10 @@ export default class GovernanceController {
       return
     }
 
-    const [governanceInfo, allProposals] = await Promise.all([
+    const [governanceInfo, allProposals, masternodeStats] = await Promise.all([
       this.governanceDAO.getGovernanceInfo(),
       this.governanceDAO.getProposals(),
+      this.masternodesDAO.getMasternodeStats()
     ])
 
     if(governanceInfo.lastsuperblock>lastSuperblock.height) {
@@ -43,7 +69,11 @@ export default class GovernanceController {
     const totalBudget = await this.governanceDAO.getBudgetInfo(governanceInfo.nextsuperblock)
 
     const cycleMs = lastSuperblock.timestamp.getTime() - prevSuperblock.timestamp.getTime()
-    const nextSuperblockTimeSec = Math.floor((lastSuperblock.timestamp.getTime() + cycleMs) / 1000)
+    const nextSuperblockTimeMs = lastSuperblock.timestamp.getTime() + cycleMs
+    const nextSuperblockTimeSec = Math.floor(nextSuperblockTimeMs / 1000)
+
+    const avgBlockMs = cycleMs / governanceInfo.superblockcycle
+    const votingDeadline = new Date(nextSuperblockTimeMs - governanceInfo.superblockmaturitywindow * avgBlockMs)
 
     const proposals = allProposals.filter(p =>
       p.objectType === 'Proposal' &&
@@ -86,6 +116,8 @@ export default class GovernanceController {
       enoughFundsCount: enoughFunds.length,
       remainingAllPass: totalBudget - totalRequested,
       remainingEnoughVotes: totalBudget - enoughVotesTotal,
+      requiredVotes: masternodeStats.requiredProposalVotes,
+      votingDeadline,
     })
   }
 }
