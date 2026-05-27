@@ -1056,6 +1056,53 @@ Each entry uses the same shape as `ProposalVote` on `/governance/proposal/:hash`
 
 ---
 
+### GET /masternode/:proTxHash/transactions
+
+Returns a paginated list of transactions involving any address tied to the given masternode — its `payee`, `ownerAddress`, `votingAddress`, or `collateralAddress` — either as an input or an output.
+
+**Path Parameters**
+
+| Parameter   | Type   | Constraints                            | Description              |
+|-------------|--------|----------------------------------------|--------------------------|
+| `proTxHash` | string | 64-char hex (`[A-Za-z0-9]`, length 64) | Masternode ProRegTx hash |
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "hash": "abcdef1234...",
+      "type": "CLASSIC",
+      "blockHeight": 100000,
+      "blockHash": "000000000000abcd1234...",
+      "timestamp": "2023-01-01T00:00:00.000Z",
+      "amount": "100000000",
+      "version": 3,
+      "vIn": [...],
+      "vOut": [...],
+      "confirmations": 10,
+      "instantLock": "0102375e...d571d32a0a",
+      "chainLocked": true,
+      "coinjoin": false,
+      "multisig": false,
+      "extraPayload": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 42
+  }
+}
+```
+
+Entries use the [Transaction Object](#transaction-object) shape. `total` reflects the distinct count of transactions across all the masternode's addresses.
+
+---
+
 ### GET /price/:currency
 
 Returns the current DASH price for the given currency. Cached for 60 minutes. Falls back to Kraken if CoinGecko is unavailable.

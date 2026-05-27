@@ -139,6 +139,21 @@ export default function Routes({ fastify, mainController, blocksController, tran
       handler: masternodesController.getMasternodeStats,
     },
     {
+      path: '/masternode/:proTxHash/transactions',
+      method: 'get',
+      handler: transactionsController.getMasternodeTransactions,
+      schema: {
+        querystring: { $ref: 'paginationOptions#' },
+        params: {
+          type: 'object',
+          properties: {
+            proTxHash: { $ref: 'hash#' },
+          },
+          required: ['proTxHash'],
+        },
+      },
+    },
+    {
       path: '/masternode/:proTxHash/votes',
       method: 'get',
       handler: governanceController.getMasternodeVotes,

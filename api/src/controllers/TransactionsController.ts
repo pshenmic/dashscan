@@ -114,4 +114,13 @@ export default class TransactionsController {
 
     response.send(transactions)
   }
+
+  getMasternodeTransactions = async (request: FastifyRequest<{ Params: { proTxHash: string }, Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
+    const { proTxHash } = request.params;
+    const { page = 1, limit = 10, order = 'asc' } = request.query;
+
+    const transactions = await this.transactionsDAO.getMasternodeTransactions(proTxHash, page, limit, order);
+
+    response.send(transactions);
+  }
 }
