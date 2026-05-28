@@ -381,7 +381,7 @@ export default class TransactionsDAO {
     ));
   }
 
-  getAddressTransactions = async (address: string, page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
+  getAddressTransactions = async (address: string, page: number, limit: number, order: string, transactionType?: TransactionType): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
     const addressIdSubquery = this.knex('addresses').select('id').where('address', address);
@@ -395,7 +395,12 @@ export default class TransactionsDAO {
           .where('address_id', addressIdSubquery),
       );
 
-    const countSubquery = this.knex('address_tx_ids').count('*');
+    const countSubquery = transactionType != null
+      ? this.knex('transactions')
+          .whereIn('id', this.knex('address_tx_ids').select('tx_id'))
+          .where('type', transactionType)
+          .count('*')
+      : this.knex('address_tx_ids').count('*');
 
     const blockMaxHeightSubquery = this.knex('blocks')
       .select(this.knex.raw('MAX(height) as max_height'))
@@ -416,6 +421,9 @@ export default class TransactionsDAO {
         'transactions.multisig',
       )
       .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'))
+      .modify((builder) => {
+        if (transactionType != null) builder.where('transactions.type', transactionType);
+      })
       .orderBy('transactions.block_height', order)
       .limit(limit)
       .offset(fromRank)

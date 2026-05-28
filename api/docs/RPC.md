@@ -648,7 +648,11 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
 |-----------|--------|--------------------------------------------|--------------|
 | `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
 
-**Query Parameters:** [Pagination](#pagination-query-parameters)
+**Query Parameters:** [Pagination](#pagination-query-parameters), plus optional filter:
+
+| Parameter          | Type   | Constraints                                                                          | Description                                                                                       |
+|--------------------|--------|--------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `transaction_type` | string | one of the [transaction type](#transaction-types) names (e.g. `CLASSIC`, `COINBASE`) | Filter by transaction type. Use `COINBASE` to list only coinbase payouts received by the address  |
 
 **Response `200`**
 
