@@ -578,19 +578,21 @@ export default class TransactionsDAO {
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
   }
 
-  getTransactionStats24h = async (): Promise<TransactionStats | null> => {
-    const minHeightSubquery = this.knex('blocks')
-      .min('height')
-      .where('timestamp', '>', this.knex.raw("NOW() - INTERVAL '24 hours'"));
+  getTransactionStats = async (start: Date, end: Date): Promise<TransactionStats | null> => {
+    const heightRangeSubquery = this.knex('blocks')
+      .select(this.knex.raw('MIN(height) AS min_height'), this.knex.raw('MAX(height) AS max_height'))
+      .whereBetween('timestamp', [start, end]);
 
     const [row] = await this.knex
+      .with('height_range', heightRangeSubquery)
       .select(
         this.knex.raw('COUNT(*) FILTER (WHERE type > 0)::bigint AS special'),
         this.knex.raw('COUNT(*) FILTER (WHERE coinjoin)::bigint AS coinjoin'),
         this.knex.raw('COUNT(*) FILTER (WHERE multisig)::bigint AS multisig'),
         this.knex.raw('COUNT(*) FILTER (WHERE type = 0 AND NOT coinjoin AND NOT multisig)::bigint AS normal')
       )
-      .where('block_height', '>=', minHeightSubquery)
+      .where('block_height', '>=', this.knex('height_range').select('min_height'))
+      .andWhere('block_height', '<=', this.knex('height_range').select('max_height'))
       .limit(1)
       .from('transactions');
 

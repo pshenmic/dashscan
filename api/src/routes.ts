@@ -68,6 +68,9 @@ export default function Routes({ fastify, mainController, blocksController, tran
       path: '/transactions/stats',
       method: 'get',
       handler: transactionsController.getTransactionStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
     },
     {
       path: '/transactions/chart',
