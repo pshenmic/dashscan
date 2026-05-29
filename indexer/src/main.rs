@@ -174,6 +174,10 @@ async fn main() {
         info!("Bootstrapped address_balances matview");
     }
 
+    if let Err(e) = processor.sync_governance(last_height as i32).await {
+        error!("Failed to bootstrap governance: {e}");
+    }
+
     info!(last_height, "Starting continuous indexing...");
 
     // Channel for ZMQ block notifications
@@ -263,6 +267,10 @@ async fn continuous_indexing(
                         if let Err(e) = processor.sync_masternodes().await {
                             error!("Failed to sync masternode list: {}", e);
                         }
+                        let tip = processor.db.get_max_block_height().await.unwrap_or(0) as i32;
+                        if let Err(e) = processor.sync_governance(tip).await {
+                            error!("Failed to sync governance: {}", e);
+                        }
                         processor
                             .tick_address_balances_refresh(config.address_balances_refresh_blocks)
                             .await;
@@ -321,6 +329,11 @@ async fn index_new_blocks(processor: &BlockProcessor, config: &Config) {
 
     if let Err(e) = processor.sync_masternodes().await {
         error!("Failed to sync masternode list: {}", e);
+    }
+
+    let tip = processor.db.get_max_block_height().await.unwrap_or(0) as i32;
+    if let Err(e) = processor.sync_governance(tip).await {
+        error!("Failed to sync governance: {}", e);
     }
 }
 

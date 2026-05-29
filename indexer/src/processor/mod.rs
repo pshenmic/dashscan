@@ -1,6 +1,7 @@
 mod address_resolver;
 mod block_writer;
 mod catch_up;
+mod governance;
 mod miner;
 mod utxo_cache;
 

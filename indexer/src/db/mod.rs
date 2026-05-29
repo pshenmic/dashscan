@@ -1,10 +1,13 @@
 mod addresses;
 mod blocks;
+mod governance;
 mod inputs;
 mod masternodes;
 mod outputs;
 mod transactions;
 mod utxo;
+
+pub use governance::{ProposalRow, VoteRow};
 
 use deadpool_postgres::{Client, Pool, PoolError};
 
