@@ -905,9 +905,19 @@ Each field is either the matched object (same shape as its individual endpoint) 
 
 ### GET /masternodes
 
-Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
+Returns a list of masternodes, ordered by `lastPaidBlock`. If neither `page` nor `limit` is supplied, the full set is returned without pagination; otherwise standard pagination is applied (defaults: `page=1`, `limit=10`).
 
 **Query Parameters:** [Pagination](#pagination-query-parameters)
+
+Additional optional filters:
+
+| Parameter          | Type    | Constraints                       | Description                                                         |
+|--------------------|---------|-----------------------------------|---------------------------------------------------------------------|
+| `status`           | string  | `ENABLED` \| `POSE_BANNED`        | Filter by masternode status                                         |
+| `type`             | string  | `REGULAR` \| `EVO`                | Filter by masternode type (case-insensitive at DB level)            |
+| `last_paid_before` | string  | ISO 8601 date-time                | Only masternodes whose `lastPaidTime` is strictly before this point |
+| `has_penalty`      | boolean |                                   | `true` → `posPenaltyScore > 0`; `false` → `posPenaltyScore = 0`     |
+| `country`          | string  | ISO 3166-1 alpha-2 (e.g. `US`)    | Filter by GeoIP country code resolved from the masternode address   |
 
 **Response `200`**
 
@@ -922,7 +932,7 @@ Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
       "type": "Regular",
       "posPenaltyScore": 0,
       "consecutivePayments": 0,
-      "lastPaidTime": 1741305600,
+      "lastPaidTime": "2026-05-20T01:59:22.000Z",
       "lastPaidBlock": 1999000,
       "ownerAddress": "XoBC...",
       "votingAddress": "XvBC...",
@@ -979,7 +989,39 @@ Returns a paginated list of masternodes, ordered by `lastPaidBlock` ascending.
 | latitude    | number | Latitude on global map of ip address             |
 | longitude   | number | Longitude on global map of ip address            |
 
+> GeoIP data is derived from the [IP to City Lite database by DB-IP](https://db-ip.com/db/download/ip-to-city-lite), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
+---
+
+### GET /masternodes/stats
+
+Returns aggregate counts of masternodes by type and status.
+
+**Response `200`**
+
+```json
+{
+  "total": 2944,
+  "evo": 363,
+  "regular": 2581,
+  "evoEnabled": 356,
+  "evoDisabled": 7,
+  "regularEnabled": 1697,
+  "regularDisabled": 884,
+  "requiredProposalVotes": 312
+}
+```
+
+| Field                   | Type   | Description                                                                                   |
+|-------------------------|--------|-----------------------------------------------------------------------------------------------|
+| `total`                 | number | Total number of indexed masternodes                                                           |
+| `evo`                   | number | Count of Evo-type masternodes                                                                 |
+| `regular`               | number | Count of Regular-type masternodes                                                             |
+| `evoEnabled`            | number | Evo masternodes with status `ENABLED`                                                         |
+| `evoDisabled`           | number | Evo masternodes not in `ENABLED` status                                                       |
+| `regularEnabled`        | number | Regular masternodes with status `ENABLED`                                                     |
+| `regularDisabled`       | number | Regular masternodes not in `ENABLED` status                                                   |
+| `requiredProposalVotes` | number | Proposal-approval voting-weight threshold: `ceil((regularEnabled + evoEnabled * 4) * 0.1)`    |
 
 ---
 
