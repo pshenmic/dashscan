@@ -287,6 +287,31 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/governance/proposal/:hash/votes/chart',
+      method: 'get',
+      handler: governanceController.getProposalVoteSeries,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            hash: { $ref: 'hash#' },
+          },
+          required: ['hash'],
+        },
+        querystring: {
+          allOf: [
+            { $ref: 'timeInterval#' },
+            {
+              type: 'object',
+              properties: {
+                running_total: { type: 'boolean' },
+              },
+            },
+          ],
+        },
+      },
+    },
+    {
       path: '/governance/proposals',
       method: 'get',
       handler: governanceController.getProposals,

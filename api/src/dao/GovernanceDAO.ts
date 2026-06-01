@@ -1,16 +1,20 @@
+import {Knex} from 'knex';
 import {DashCoreRPC, GovernanceInfoRPC, GovernanceObjectSignal} from "../dashcoreRPC";
 import {GovernanceObject} from "../models/GovernanceObject";
 import {ProposalVote} from "../models/ProposalVote";
+import SeriesData from "../models/SeriesData";
 import MasternodesDAO from "./MasternodesDAO";
 import {Cache} from "../cache";
 import {PROTX_OUTPOINT_MAP_LIFE_TIME} from "../constants";
 
 export default class GovernanceDAO {
+  knex: Knex;
   dashCoreRPC: DashCoreRPC;
   masternodesDAO: MasternodesDAO;
   cache: Cache;
 
-  constructor(dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO, cache: Cache) {
+  constructor(knex: Knex, dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO, cache: Cache) {
+    this.knex = knex
     this.dashCoreRPC = dashCoreRPC
     this.masternodesDAO = masternodesDAO
     this.cache = cache
@@ -171,6 +175,72 @@ export default class GovernanceDAO {
       })
 
     return proposal
+  }
+
+  getProposalVoteSeries = async (
+    proposalHash: string,
+    start: Date,
+    end: Date,
+    interval: string,
+    intervalInMs: number,
+    runningTotal: boolean,
+  ): Promise<SeriesData[]> => {
+    const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
+    const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
+
+    const proposalIdSubquery = this.knex('proposals')
+      .select('id')
+      .where('hash', proposalHash);
+
+    const ranges = this.knex
+      .from(this.knex.raw(`generate_series(${startSql}, ${endSql}, '${interval}'::interval) date_to`))
+      .select('date_to')
+      .select(
+        this.knex.raw(
+          'LAG(date_to, 1, ?::timestamptz) OVER (ORDER BY date_to ASC) AS date_from',
+          [start.toISOString()]
+        )
+      );
+
+    const votesCTE = this.knex('proposal_votes')
+      .select('vote_time', 'outcome')
+      .whereIn('proposal_id', proposalIdSubquery)
+      .whereLike('signal', 'funding%');
+
+    const bucketsCTE = this.knex('ranges')
+      .select('date_from')
+      .select(this.knex.raw(`COUNT(*) FILTER (WHERE votes.outcome = 'yes')::bigint AS yes`))
+      .select(this.knex.raw(`COUNT(*) FILTER (WHERE votes.outcome = 'no')::bigint AS no`))
+      .select(this.knex.raw(`COUNT(*) FILTER (WHERE votes.outcome = 'abstain')::bigint AS abstain`))
+      .leftJoin('votes', function () {
+        this.on('votes.vote_time', '>', 'ranges.date_from')
+          .andOn('votes.vote_time', '<=', 'ranges.date_to');
+      })
+      .groupBy('date_from');
+
+    const valueSelect = (column: string): Knex.Raw => runningTotal
+      ? this.knex.raw(`SUM(${column}) OVER (ORDER BY date_from ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS ${column}`)
+      : this.knex.raw(`${column}`);
+
+    const rows = await this.knex
+      .with('ranges', ranges)
+      .with('votes', votesCTE)
+      .with('buckets', bucketsCTE)
+      .select('date_from')
+      .select(valueSelect('yes'))
+      .select(valueSelect('no'))
+      .select(valueSelect('abstain'))
+      .from('buckets')
+      .orderBy('date_from', 'asc');
+
+    return rows.map((row: any) => new SeriesData(
+      new Date(row.date_from),
+      {
+        yes: Number(row.yes),
+        no: Number(row.no),
+        abstain: Number(row.abstain),
+      },
+    ));
   }
 
   getBudgetInfo = async (superblockHeight: number): Promise<number> => {

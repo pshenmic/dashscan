@@ -7,6 +7,8 @@ import {GovernanceObject} from "../models/GovernanceObject";
 import MasternodesDAO from "../dao/MasternodesDAO";
 import GeoIPService from "../services/GeoIPService";
 import {Cache} from "../cache";
+import {calculateInterval, iso8601duration} from "../utils";
+import Intervals from "../enums/Intervals";
 
 export default class GovernanceController {
   governanceDAO: GovernanceDAO
@@ -15,7 +17,7 @@ export default class GovernanceController {
 
   constructor(knex: Knex, dashCoreRPC: DashCoreRPC, geoIPService: GeoIPService, cache: Cache) {
     this.masternodesDAO = new MasternodesDAO(knex, geoIPService)
-    this.governanceDAO = new GovernanceDAO(dashCoreRPC, this.masternodesDAO, cache)
+    this.governanceDAO = new GovernanceDAO(knex, dashCoreRPC, this.masternodesDAO, cache)
     this.blocksDAO = new BlocksDAO(knex)
   }
 
@@ -25,6 +27,47 @@ export default class GovernanceController {
     const votes = await this.governanceDAO.getMasternodeVotes(proTxHash)
 
     response.send(votes)
+  }
+
+  getProposalVoteSeries = async (
+    request: FastifyRequest<{
+      Params: { hash: string };
+      Querystring: { timestamp_start: string; timestamp_end: string; intervals_count: number; running_total: boolean }
+    }>,
+    response: FastifyReply
+  ): Promise<void> => {
+    const {hash} = request.params
+
+    const {
+      timestamp_start: start = new Date(new Date().getTime() - 3600000).toISOString(),
+      timestamp_end: end = new Date().toISOString(),
+      intervals_count: intervalsCount,
+      running_total: runningTotal = false,
+    } = request.query;
+
+    if (new Date(start).getTime() > new Date(end).getTime()) {
+      return response.status(400).send({error: 'start timestamp cannot be more than end timestamp'});
+    }
+
+    const intervalInMs =
+      Math.ceil(
+        (new Date(end).getTime() - new Date(start).getTime()) / Number(intervalsCount ?? NaN) / 1000
+      ) * 1000;
+
+    const interval = intervalsCount
+      ? iso8601duration(intervalInMs)
+      : calculateInterval(new Date(start), new Date(end));
+
+    const series = await this.governanceDAO.getProposalVoteSeries(
+      hash,
+      new Date(start),
+      new Date(end),
+      interval,
+      isNaN(intervalInMs) ? Intervals[interval] : intervalInMs,
+      runningTotal,
+    );
+
+    response.send(series);
   }
 
   getProposalByHash = async (request: FastifyRequest<{ Params: { hash: string } }>, response: FastifyReply): Promise<void> => {
