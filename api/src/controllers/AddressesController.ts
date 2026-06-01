@@ -48,7 +48,7 @@ export default class AddressesController {
   getAddressBalanceSeries = async (
     request: FastifyRequest<{
       Params: { address: string };
-      Querystring: { timestamp_start: string; timestamp_end: string; timespan: string; intervals_count: number }
+      Querystring: { timestamp_start: string; timestamp_end: string; intervals_count: number }
     }>,
     response: FastifyReply
   ): Promise<void> => {

@@ -648,7 +648,11 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
 |-----------|--------|--------------------------------------------|--------------|
 | `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
 
-**Query Parameters:** [Pagination](#pagination-query-parameters)
+**Query Parameters:** [Pagination](#pagination-query-parameters), plus optional filter:
+
+| Parameter          | Type   | Constraints                                                                          | Description                                                                                       |
+|--------------------|--------|--------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `transaction_type` | string | one of the [transaction type](#transaction-types) names (e.g. `CLASSIC`, `COINBASE`) | Filter by transaction type. Use `COINBASE` to list only coinbase payouts received by the address  |
 
 **Response `200`**
 
@@ -824,7 +828,14 @@ Returns a time series of transaction counts over a configurable time range, with
 
 ### GET /transactions/stats
 
-Returns counts of confirmed transactions over the last 24 hours, partitioned into mutually exclusive categories.
+Returns counts of confirmed transactions over a given time range, partitioned into mutually exclusive categories. Defaults to the last 24 hours when no range is supplied.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default                 | Description             |
+|-------------------|--------|-------------------------|-------------------------|
+| `timestamp_start` | string | 24 hours ago (ISO 8601) | Start of the time range |
+| `timestamp_end`   | string | now (ISO 8601)          | End of the time range   |
 
 **Categorization (in priority order):**
 
@@ -852,10 +863,10 @@ Pending (mempool) transactions are excluded.
 | Field      | Type           | Description                                                                          |
 |------------|----------------|--------------------------------------------------------------------------------------|
 | `total`    | number \| null | Sum of `special + coinjoin + multisig + normal`                                      |
-| `special`  | number \| null | Confirmed special transactions (`type > 0`) in the last 24h                          |
-| `coinjoin` | number \| null | Confirmed CoinJoin transactions in the last 24h (excludes special)                   |
-| `multisig` | number \| null | Confirmed multisig transactions in the last 24h (excludes special and CoinJoin)      |
-| `normal`   | number \| null | Confirmed transactions that are none of the above in the last 24h                    |
+| `special`  | number \| null | Confirmed special transactions (`type > 0`) in the range                             |
+| `coinjoin` | number \| null | Confirmed CoinJoin transactions in the range (excludes special)                      |
+| `multisig` | number \| null | Confirmed multisig transactions in the range (excludes special and CoinJoin)         |
+| `normal`   | number \| null | Confirmed transactions that are none of the above in the range                       |
 
 > All fields are `null` when no rows can be derived (e.g. no indexed blocks). Otherwise counts are `0` or positive integers.
 

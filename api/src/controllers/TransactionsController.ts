@@ -96,21 +96,39 @@ export default class TransactionsController {
     response.send(series);
   }
 
-  getTransactionStats = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
-    const stats = await this.transactionsDAO.getTransactionStats24h();
+  getTransactionStats = async (
+    request: FastifyRequest<{ Querystring: { timestamp_start: string; timestamp_end: string } }>,
+    response: FastifyReply
+  ): Promise<void> => {
+    const {
+      timestamp_start: start = new Date(new Date().getTime() - 86400000).toISOString(),
+      timestamp_end: end = new Date().toISOString(),
+    } = request.query;
 
-    if(stats==null) {
-      return response.status(500).send({error: "No indexed transactions"})
+    if (new Date(start).getTime() > new Date(end).getTime()) {
+      return response.status(400).send({ error: 'start timestamp cannot be more than end timestamp' });
+    }
+
+    const stats = await this.transactionsDAO.getTransactionStats(new Date(start), new Date(end));
+
+    if (stats == null) {
+      return response.status(500).send({ error: "No indexed transactions" });
     }
 
     response.send(stats);
   }
 
   getAddressTransactions = async (request: FastifyRequest<{ Params: {address: string}, Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
-    const { page = 1, limit = 10, order = 'asc' } = request.query;
+    const { page = 1, limit = 10, order = 'asc', transaction_type: transactionType } = request.query;
     const { address } = request.params;
 
-    const transactions = await this.transactionsDAO.getAddressTransactions(address, page, limit, order);
+    const transactions = await this.transactionsDAO.getAddressTransactions(
+      address,
+      page,
+      limit,
+      order,
+      transactionType != null ? TransactionType[transactionType] : undefined,
+    );
 
     response.send(transactions)
   }
