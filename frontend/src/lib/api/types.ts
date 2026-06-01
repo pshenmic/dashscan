@@ -180,13 +180,15 @@ export interface ApiTransaction {
   type: string | null;
   blockHeight: number;
   blockHash: string;
-  amount: number | null;
+  amount: string | null;
   version: number;
   vIn: ApiVIn[];
   vOut: ApiVOut[];
   confirmations: number;
   instantLock: boolean | string | null;
   chainLocked?: boolean | null;
+  coinjoin: boolean;
+  multisig: boolean;
   size?: number | null;
   timestamp: string;
   extraPayload?: ApiExtraPayload | null;
@@ -203,8 +205,10 @@ export interface ApiAddress {
 export interface ApiAddressDetail {
   address: string;
   firstSeenBlock: string | null;
+  firstSeenBlockTimestamp: string | null;
   firstSeenTx: string | null;
   lastSeenBlock: string | null;
+  lastSeenBlockTimestamp: string | null;
   lastSeenTx: string | null;
   txCount: string;
   received: string;

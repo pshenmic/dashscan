@@ -1,14 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { ArrowRight, MapPin, X } from "lucide-react";
+import {
+  ArrowRight,
+  CircleCheck,
+  Globe,
+  MapPin,
+  Server,
+  ServerCrash,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   allMasternodesGeoQueryOptions,
   type MasternodeGeoPoint,
 } from "@/lib/api/masternodes";
+import { getMnTypeBucket } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import {
   Card,
@@ -22,6 +33,9 @@ import { ClusterList } from "./cluster-list";
 import { CountryLegend } from "./country-legend";
 import { countryFlagEmoji, countryName } from "./iso-codes";
 import { MasternodeMapCanvas } from "./map-canvas";
+
+type MapStatusFilter = "all" | "enabled" | "disabled";
+type MapTypeFilter = "all" | "evolution" | "regular";
 
 export { CountryLegend } from "./country-legend";
 export { MasternodeMapCanvas } from "./map-canvas";
@@ -43,6 +57,8 @@ export function MasternodeMap({
   const [clusterLeaves, setClusterLeaves] = useState<
     MasternodeGeoPoint[] | null
   >(null);
+  const [statusFilter, setStatusFilter] = useState<MapStatusFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<MapTypeFilter>("all");
   const isControlled = controlledCountry !== undefined;
   const selectedCountry = isControlled ? controlledCountry : internalCountry;
   const setSelectedCountry = useCallback(
@@ -54,7 +70,25 @@ export function MasternodeMap({
     [isControlled, controlledOnSelect],
   );
 
-  const points = data ?? [];
+  const allPoints = data ?? [];
+  const statusFilteredPoints = useMemo(() => {
+    let result = allPoints;
+    if (statusFilter === "enabled")
+      result = result.filter((p) => p.status.toUpperCase() === "ENABLED");
+    else if (statusFilter === "disabled")
+      result = result.filter((p) => p.status.toUpperCase() !== "ENABLED");
+    if (typeFilter === "evolution")
+      result = result.filter((p) => getMnTypeBucket(p.type) === "evo");
+    else if (typeFilter === "regular")
+      result = result.filter((p) => getMnTypeBucket(p.type) === "regular");
+    return result;
+  }, [allPoints, statusFilter, typeFilter]);
+  const points = useMemo(() => {
+    if (!selectedCountry) return statusFilteredPoints;
+    return statusFilteredPoints.filter(
+      (p) => p.countryCode === selectedCountry,
+    );
+  }, [statusFilteredPoints, selectedCountry]);
   const total = points.length;
   const countries = useMemo(
     () => new Set(points.map((p) => p.countryCode)).size,
@@ -62,10 +96,21 @@ export function MasternodeMap({
   );
   const countrySubset = useMemo(() => {
     if (!selectedCountry) return null;
-    const subset = points.filter((p) => p.countryCode === selectedCountry);
-    const cities = new Set(subset.map((p) => p.city).filter(Boolean)).size;
-    return { count: subset.length, cities };
+    const cities = new Set(points.map((p) => p.city).filter(Boolean)).size;
+    return { count: points.length, cities };
   }, [points, selectedCountry]);
+
+  const handleStatusFilterChange = useCallback((value: string) => {
+    if (!value) return;
+    setClusterLeaves(null);
+    setStatusFilter(value as MapStatusFilter);
+  }, []);
+
+  const handleTypeFilterChange = useCallback((value: string) => {
+    if (!value) return;
+    setClusterLeaves(null);
+    setTypeFilter(value as MapTypeFilter);
+  }, []);
 
   const isPage = variant === "page";
   const height = isPage ? 540 : 420;
@@ -76,47 +121,6 @@ export function MasternodeMap({
         <CardDescription className="flex items-center gap-1.5">
           <MapPin className="size-3.5" /> Masternode Network Map
         </CardDescription>
-        <CardTitle className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-2xl tabular-nums text-accent">
-          {isLoading ? (
-            <Skeleton className="h-7 w-24" />
-          ) : clusterLeaves ? (
-            <>
-              <span>
-                {clusterLeaves.length}{" "}
-                {clusterLeaves.length === 1 ? "node" : "nodes"}
-              </span>
-              <span className="text-sm font-normal text-muted-foreground">
-                in selected cluster
-              </span>
-              <ClearPill onClick={() => setClusterLeaves(null)} />
-            </>
-          ) : selectedCountry && countrySubset ? (
-            <>
-              <span className="flex items-baseline gap-2">
-                <span className="text-xl leading-none" aria-hidden="true">
-                  {countryFlagEmoji(selectedCountry)}
-                </span>
-                <span>
-                  {countrySubset.count}{" "}
-                  {countrySubset.count === 1 ? "node" : "nodes"}
-                </span>
-              </span>
-              <span className="text-sm font-normal text-muted-foreground">
-                in {countryName(selectedCountry)}
-                {countrySubset.cities > 0 &&
-                  ` · ${countrySubset.cities} ${countrySubset.cities === 1 ? "city" : "cities"}`}
-              </span>
-              <ClearPill onClick={() => setSelectedCountry(null)} />
-            </>
-          ) : (
-            <>
-              <span>{total} nodes</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                across {countries} {countries === 1 ? "country" : "countries"}
-              </span>
-            </>
-          )}
-        </CardTitle>
         {!isPage && (
           <CardAction>
             <Button asChild variant="ghost" size="sm" className="h-8">
@@ -129,7 +133,108 @@ export function MasternodeMap({
       </CardHeader>
       <CardContent>
         <div className="grid gap-4 lg:grid-cols-12">
-          <div className="lg:col-span-9">
+          <div className="flex flex-col gap-3 lg:col-span-9">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-2xl tabular-nums text-accent">
+                {isLoading ? (
+                  <Skeleton className="h-7 w-24" />
+                ) : clusterLeaves ? (
+                  <>
+                    <span>
+                      {clusterLeaves.length}{" "}
+                      {clusterLeaves.length === 1 ? "node" : "nodes"}
+                    </span>
+                    <span className="text-sm font-normal text-muted-foreground">
+                      in selected cluster
+                    </span>
+                    <ClearPill onClick={() => setClusterLeaves(null)} />
+                  </>
+                ) : selectedCountry && countrySubset ? (
+                  <>
+                    <span className="flex items-baseline gap-2">
+                      <span className="text-xl leading-none" aria-hidden="true">
+                        {countryFlagEmoji(selectedCountry)}
+                      </span>
+                      <span>
+                        {countrySubset.count}{" "}
+                        {countrySubset.count === 1 ? "node" : "nodes"}
+                      </span>
+                    </span>
+                    <span className="text-sm font-normal text-muted-foreground">
+                      in {countryName(selectedCountry)}
+                      {countrySubset.cities > 0 &&
+                        ` · ${countrySubset.cities} ${countrySubset.cities === 1 ? "city" : "cities"}`}
+                    </span>
+                    <ClearPill onClick={() => setSelectedCountry(null)} />
+                  </>
+                ) : (
+                  <>
+                    <span>{total} nodes</span>
+                    <span className="text-sm font-normal text-muted-foreground">
+                      across {countries}{" "}
+                      {countries === 1 ? "country" : "countries"}
+                    </span>
+                  </>
+                )}
+              </CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <ToggleGroup
+                  type="single"
+                  value={statusFilter}
+                  onValueChange={handleStatusFilterChange}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="all" aria-label="All masternodes">
+                    <Globe className="size-3" />
+                    All
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="enabled"
+                    aria-label="Enabled masternodes"
+                    className="data-[state=on]:bg-success/15 data-[state=on]:text-success data-[state=on]:border-success/40"
+                  >
+                    <CircleCheck className="size-3" />
+                    Enabled
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="disabled"
+                    aria-label="Disabled masternodes"
+                    className="data-[state=on]:bg-destructive/15 data-[state=on]:text-destructive data-[state=on]:border-destructive/40"
+                  >
+                    <ServerCrash className="size-3" />
+                    Disabled
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <ToggleGroup
+                  type="single"
+                  value={typeFilter}
+                  onValueChange={handleTypeFilterChange}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="all" aria-label="All types">
+                    <Globe className="size-3" />
+                    All
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="evolution"
+                    aria-label="Evolution masternodes"
+                    className="data-[state=on]:bg-accent-violet/15 data-[state=on]:text-[color:var(--accent-violet)] data-[state=on]:border-[color:var(--accent-violet)]/40"
+                  >
+                    <Sparkles className="size-3" />
+                    Evolution
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="regular"
+                    aria-label="Regular masternodes"
+                  >
+                    <Server className="size-3" />
+                    Regular
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            </div>
             {isLoading ? (
               <Skeleton className="w-full rounded-2xl" style={{ height }} />
             ) : (
@@ -153,8 +258,8 @@ export function MasternodeMap({
               <ClusterList leaves={clusterLeaves} maxHeight={height} />
             ) : (
               <CountryLegend
-                points={points}
-                total={total}
+                points={statusFilteredPoints}
+                total={statusFilteredPoints.length}
                 selected={selectedCountry}
                 onSelect={setSelectedCountry}
               />

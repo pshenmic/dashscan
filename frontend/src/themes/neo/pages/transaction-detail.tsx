@@ -218,41 +218,35 @@ function CalloutCell({
 function CoinbaseRewardPill({ reward }: { reward: number | null }) {
   if (reward == null) return null;
   return (
-    <div
-      className="relative isolate overflow-hidden rounded-2xl border p-4 sm:p-5"
-      style={{
-        background:
-          "linear-gradient(135deg, color-mix(in oklab, var(--accent-amber) 18%, transparent) 0%, color-mix(in oklab, var(--accent) 14%, transparent) 60%, color-mix(in oklab, var(--accent-violet) 10%, transparent) 100%)",
-        borderColor:
-          "color-mix(in oklab, var(--accent-amber) 38%, var(--border))",
-      }}
-    >
-      <Sparkles
-        className="pointer-events-none absolute -right-2 -top-2 size-24 opacity-10"
-        style={{ color: "var(--accent-amber)" }}
-      />
-      <div className="flex items-center gap-4">
-        <div
-          className="flex size-12 shrink-0 items-center justify-center rounded-full"
-          style={{
-            background:
-              "linear-gradient(135deg, var(--accent-amber) 0%, color-mix(in oklab, var(--accent-amber) 70%, black) 100%)",
-            boxShadow:
-              "0 8px 18px -6px color-mix(in oklab, var(--accent-amber) 50%, transparent)",
-          }}
-        >
-          <Trophy className="size-5 text-white" />
+    <Card className="relative isolate overflow-hidden">
+      <CardContent className="py-1">
+        <Sparkles
+          className="pointer-events-none absolute -right-2 -top-2 size-24 opacity-10"
+          style={{ color: "var(--accent)" }}
+        />
+        <div className="flex items-center gap-4">
+          <div
+            className="flex size-12 shrink-0 items-center justify-center rounded-full"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--accent) 0%, color-mix(in oklab, var(--accent) 70%, black) 100%)",
+              boxShadow:
+                "0 8px 18px -6px color-mix(in oklab, var(--accent) 50%, transparent)",
+            }}
+          >
+            <Trophy className="size-5 text-white" />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Coinbase · Block reward
+            </span>
+            <span className="font-display text-2xl tabular-nums sm:text-3xl">
+              {(reward / 1e8).toFixed(8)} <DashIcon className="inline" />
+            </span>
+          </div>
         </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Coinbase · Block reward
-          </span>
-          <span className="font-display text-2xl tabular-nums sm:text-3xl">
-            {(reward / 1e8).toFixed(8)} <DashIcon className="inline" />
-          </span>
-        </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
