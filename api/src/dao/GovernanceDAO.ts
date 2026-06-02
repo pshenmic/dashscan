@@ -1,4 +1,5 @@
 import {Knex} from 'knex';
+import Redis from 'ioredis';
 import {DashCoreRPC, GovernanceInfoRPC, GovernanceObjectSignal} from "../dashcoreRPC";
 import {GovernanceObject} from "../models/GovernanceObject";
 import {ProposalVote} from "../models/ProposalVote";
@@ -9,12 +10,14 @@ import {PROTX_OUTPOINT_MAP_LIFE_TIME} from "../constants";
 
 export default class GovernanceDAO {
   knex: Knex;
+  redis: Redis;
   dashCoreRPC: DashCoreRPC;
   masternodesDAO: MasternodesDAO;
   cache: Cache;
 
-  constructor(knex: Knex, dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO, cache: Cache) {
+  constructor(knex: Knex, redis: Redis, dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO, cache: Cache) {
     this.knex = knex
+    this.redis = redis
     this.dashCoreRPC = dashCoreRPC
     this.masternodesDAO = masternodesDAO
     this.cache = cache
@@ -181,66 +184,62 @@ export default class GovernanceDAO {
     proposalHash: string,
     start: Date,
     end: Date,
-    interval: string,
     intervalInMs: number,
     runningTotal: boolean,
   ): Promise<SeriesData[]> => {
-    const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
-    const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    const stepMs = intervalInMs;
 
-    const proposalIdSubquery = this.knex('proposals')
-      .select('id')
-      .where('hash', proposalHash);
+    // Fixed-step buckets [from, to]; mirrors the previous
+    // generate_series(start + step, end, step) with date_from = previous date_to.
+    const buckets: { from: number; yes: number; no: number; abstain: number }[] = [];
 
-    const ranges = this.knex
-      .from(this.knex.raw(`generate_series(${startSql}, ${endSql}, '${interval}'::interval) date_to`))
-      .select('date_to')
-      .select(
-        this.knex.raw(
-          'LAG(date_to, 1, ?::timestamptz) OVER (ORDER BY date_to ASC) AS date_from',
-          [start.toISOString()]
-        )
-      );
+    if (stepMs > 0) {
+      for (let to = startMs + stepMs; to <= endMs; to += stepMs) {
+        buckets.push({from: to - stepMs, yes: 0, no: 0, abstain: 0});
+      }
+    }
 
-    const votesCTE = this.knex('proposal_votes')
-      .select('vote_time', 'outcome')
-      .whereIn('proposal_id', proposalIdSubquery)
-      .whereLike('signal', 'funding%');
+    const rawVotes = await this.redis.hvals(`dao:votes:${proposalHash}`);
 
-    const bucketsCTE = this.knex('ranges')
-      .select('date_from')
-      .select(this.knex.raw(`COUNT(*) FILTER (WHERE votes.outcome = 'yes')::bigint AS yes`))
-      .select(this.knex.raw(`COUNT(*) FILTER (WHERE votes.outcome = 'no')::bigint AS no`))
-      .select(this.knex.raw(`COUNT(*) FILTER (WHERE votes.outcome = 'abstain')::bigint AS abstain`))
-      .leftJoin('votes', function () {
-        this.on('votes.vote_time', '>', 'ranges.date_from')
-          .andOn('votes.vote_time', '<=', 'ranges.date_to');
-      })
-      .groupBy('date_from');
+    for (const raw of rawVotes) {
+      const vote = ProposalVote.fromRaw(raw);
 
-    const valueSelect = (column: string): Knex.Raw => runningTotal
-      ? this.knex.raw(`SUM(${column}) OVER (ORDER BY date_from ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS ${column}`)
-      : this.knex.raw(`${column}`);
+      // Only funding-signal votes feed the series, matching the old `signal LIKE 'funding%'`.
+      if (vote == null || !vote.signal.startsWith('funding')) {
+        continue;
+      }
 
-    const rows = await this.knex
-      .with('ranges', ranges)
-      .with('votes', votesCTE)
-      .with('buckets', bucketsCTE)
-      .select('date_from')
-      .select(valueSelect('yes'))
-      .select(valueSelect('no'))
-      .select(valueSelect('abstain'))
-      .from('buckets')
-      .orderBy('date_from', 'asc');
+      // Bucket by vote_time > date_from AND <= date_to.
+      const index = Math.ceil((vote.time.getTime() - startMs) / stepMs) - 1;
 
-    return rows.map((row: any) => new SeriesData(
-      new Date(row.date_from),
-      {
-        yes: Number(row.yes),
-        no: Number(row.no),
-        abstain: Number(row.abstain),
-      },
-    ));
+      if (index < 0 || index >= buckets.length) {
+        continue;
+      }
+
+      const bucket = buckets[index];
+
+      if (vote.outcome === 'yes') bucket.yes += 1;
+      else if (vote.outcome === 'no') bucket.no += 1;
+      else if (vote.outcome === 'abstain') bucket.abstain += 1;
+    }
+
+    let yesTotal = 0;
+    let noTotal = 0;
+    let abstainTotal = 0;
+
+    return buckets.map(bucket => {
+      if (runningTotal) {
+        yesTotal += bucket.yes;
+        noTotal += bucket.no;
+        abstainTotal += bucket.abstain;
+
+        return new SeriesData(new Date(bucket.from), {yes: yesTotal, no: noTotal, abstain: abstainTotal});
+      }
+
+      return new SeriesData(new Date(bucket.from), {yes: bucket.yes, no: bucket.no, abstain: bucket.abstain});
+    });
   }
 
   getBudgetInfo = async (superblockHeight: number): Promise<number> => {

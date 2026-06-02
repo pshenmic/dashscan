@@ -1,4 +1,5 @@
 import {Knex} from 'knex';
+import Redis from 'ioredis';
 import {DashCoreRPC, GovernanceObjectSignal} from "../dashcoreRPC";
 import {FastifyReply, FastifyRequest} from "fastify";
 import GovernanceDAO from "../dao/GovernanceDAO";
@@ -7,7 +8,7 @@ import {GovernanceObject} from "../models/GovernanceObject";
 import MasternodesDAO from "../dao/MasternodesDAO";
 import GeoIPService from "../services/GeoIPService";
 import {Cache} from "../cache";
-import {calculateInterval, iso8601duration} from "../utils";
+import {calculateInterval} from "../utils";
 import Intervals from "../enums/Intervals";
 
 export default class GovernanceController {
@@ -15,9 +16,9 @@ export default class GovernanceController {
   masternodesDAO: MasternodesDAO
   blocksDAO: BlocksDAO
 
-  constructor(knex: Knex, dashCoreRPC: DashCoreRPC, geoIPService: GeoIPService, cache: Cache) {
+  constructor(knex: Knex, redis: Redis, dashCoreRPC: DashCoreRPC, geoIPService: GeoIPService, cache: Cache) {
     this.masternodesDAO = new MasternodesDAO(knex, geoIPService)
-    this.governanceDAO = new GovernanceDAO(knex, dashCoreRPC, this.masternodesDAO, cache)
+    this.governanceDAO = new GovernanceDAO(knex, redis, dashCoreRPC, this.masternodesDAO, cache)
     this.blocksDAO = new BlocksDAO(knex)
   }
 
@@ -45,25 +46,25 @@ export default class GovernanceController {
       running_total: runningTotal = false,
     } = request.query;
 
-    if (new Date(start).getTime() > new Date(end).getTime()) {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (startDate.getTime() > endDate.getTime()) {
       return response.status(400).send({error: 'start timestamp cannot be more than end timestamp'});
     }
 
-    const intervalInMs =
-      Math.ceil(
-        (new Date(end).getTime() - new Date(start).getTime()) / Number(intervalsCount ?? NaN) / 1000
-      ) * 1000;
-
-    const interval = intervalsCount
-      ? iso8601duration(intervalInMs)
-      : calculateInterval(new Date(start), new Date(end));
+    // Resolve the bucket width: split the range into `intervals_count` equal
+    // buckets (rounded to whole seconds) when the caller asks for a count,
+    // otherwise fall back to a preset step sized to the range.
+    const intervalInMs = intervalsCount
+      ? Math.ceil((endDate.getTime() - startDate.getTime()) / Number(intervalsCount) / 1000) * 1000
+      : Intervals[calculateInterval(startDate, endDate)];
 
     const series = await this.governanceDAO.getProposalVoteSeries(
       hash,
-      new Date(start),
-      new Date(end),
-      interval,
-      isNaN(intervalInMs) ? Intervals[interval] : intervalInMs,
+      startDate,
+      endDate,
+      intervalInMs,
       runningTotal,
     );
 
