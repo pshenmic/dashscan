@@ -6,6 +6,7 @@ mod miner;
 mod utxo_cache;
 
 use crate::config::superblock_interval;
+use crate::dao::DaoStore;
 use crate::db::Database;
 use crate::errors::block_index_error::BlockIndexError;
 use crate::miner_pool::MinerPool;
@@ -18,6 +19,7 @@ use tracing::{debug, error, info};
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
     pub db: Database,
+    pub dao: DaoStore,
     pub network: dashcore::Network,
     pub superblock_interval: i64,
     pub miner_pools: Vec<MinerPool>,
@@ -29,6 +31,7 @@ impl BlockProcessor {
     pub fn new(
         rpc: DashRpcClient,
         db: Database,
+        dao: DaoStore,
         network: dashcore::Network,
         miner_pools: Vec<MinerPool>,
         miner_pool_ids: HashMap<String, i32>,
@@ -36,6 +39,7 @@ impl BlockProcessor {
         Self {
             rpc,
             db,
+            dao,
             network,
             superblock_interval: superblock_interval(network),
             miner_pools,

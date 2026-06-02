@@ -1,4 +1,5 @@
 mod config;
+mod dao;
 mod db;
 mod errors;
 mod p2p;
@@ -9,6 +10,7 @@ mod zmq;
 mod miner_pool;
 mod utils;
 
+use dao::DaoStore;
 use db::Database;
 use processor::BlockProcessor;
 use rpc::DashRpcClient;
@@ -122,6 +124,12 @@ async fn main() {
 
     let db = Database::new(pool);
 
+    // Connect to Redis (DAO/governance cache)
+    let redis_pool = deadpool_redis::Config::from_url(config.redis_url.clone())
+        .create_pool(Some(deadpool_redis::Runtime::Tokio1))
+        .expect("Failed to create Redis pool");
+    let dao = DaoStore::new(redis_pool);
+
     // Sync miner pools from embedded pools.json
     let (miner_pools, miner_pool_ids) = match init_miners_pools() {
         Ok(pools) => {
@@ -155,7 +163,7 @@ async fn main() {
     }
 
     // Create block processor
-    let processor = Arc::new(BlockProcessor::new(rpc, db, config.network, miner_pools, miner_pool_ids));
+    let processor = Arc::new(BlockProcessor::new(rpc, db, dao, config.network, miner_pools, miner_pool_ids));
 
     // Catch up with the blockchain
     let last_height = match processor.catch_up(&config).await {
