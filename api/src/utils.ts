@@ -1,4 +1,5 @@
 import knex, { Knex } from 'knex';
+import Redis from 'ioredis';
 import Intervals from './enums/Intervals'
 
 export const getKnex = (): Knex => {
@@ -6,6 +7,10 @@ export const getKnex = (): Knex => {
     client: 'pg',
     connection: process.env.DATABASE_URL,
   });
+};
+
+export const getRedis = (): Redis => {
+  return new Redis(process.env.REDIS_URL as string);
 };
 
 // https://github.com/wking/milliseconds-to-iso-8601-duration
