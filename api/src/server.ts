@@ -55,7 +55,7 @@ export const start = async (): Promise<FastifyInstance> => {
 
   const cache = new Cache()
 
-  const geoIPService = new GeoIPService();
+  const geoIPService = new GeoIPService(cache);
   const marketService = new MarketService();
 
   const preCacheUtxoInfo = await dashcoreRPC.getUtxoInfo()

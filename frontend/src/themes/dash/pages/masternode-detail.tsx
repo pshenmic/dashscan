@@ -169,7 +169,7 @@ export default function ClassicMasternodeDetailPage({
               <DetailRow label="Last Paid:">
                 <span className="font-medium">
                   {mn.lastPaidTime
-                    ? new Date(mn.lastPaidTime * 1000).toLocaleString()
+                    ? new Date(mn.lastPaidTime).toLocaleString()
                     : "—"}
                 </span>
                 {mn.lastPaidTime ? (

@@ -208,7 +208,9 @@ export default function RedesignMasternodesListPage() {
       )
         return false;
       if (filters.lastPaid !== "any") {
-        const lp = Number(m.lastPaidTime ?? 0);
+        const lp = m.lastPaidTime
+          ? Math.floor(new Date(m.lastPaidTime).getTime() / 1000)
+          : 0;
         const windowSec = LAST_PAID_WINDOW_SEC[filters.lastPaid];
         if (windowSec === 0) {
           if (lp > 0) return false;

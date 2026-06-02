@@ -121,7 +121,7 @@ const columns: ColumnDef<ApiMasternode>[] = [
     header: "Last Paid",
     cell: ({ getValue }) => (
       <span className="text-muted-foreground">
-        {formatRelativeTime(getValue<number>())}
+        {formatRelativeTime(getValue<string>())}
       </span>
     ),
   },

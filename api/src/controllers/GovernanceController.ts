@@ -23,7 +23,6 @@ export default class GovernanceController {
   }
 
   getBudgetInfo = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
-
     const {resultSet: superblocks} = await this.blocksDAO.getBlocks(1, 2, 'desc', true)
     const [lastSuperblock, prevSuperblock] = superblocks
 

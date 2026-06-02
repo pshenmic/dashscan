@@ -246,7 +246,7 @@ export interface ApiMasternode {
   type: string;
   posPenaltyScore: number;
   consecutivePayments: number;
-  lastPaidTime: number;
+  lastPaidTime: string | null;
   lastPaidBlock: number;
   ownerAddress: string;
   votingAddress: string;

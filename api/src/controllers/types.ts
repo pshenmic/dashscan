@@ -9,4 +9,9 @@ export interface PaginatedQuery {
   coinjoin?: boolean
   multisig?: boolean
   block_height?: number
+  status?: string
+  type?: string
+  last_paid_before?: string
+  has_penalty?: boolean
+  country?: string
 }
