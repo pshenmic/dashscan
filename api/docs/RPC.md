@@ -1273,8 +1273,8 @@ Each entry of `votes` is parsed from the Core string `"<masternode-outpoint>:<un
 | `outpoint`  | string         | Masternode collateral outpoint as `txid-vout`                     |
 | `proTxHash` | string \| null | ProRegTx hash of the voting masternode (when resolvable)          |
 | `time`      | string         | ISO 8601 timestamp when the vote was cast                         |
-| `outcome`   | string         | `"funding"`, `"valid"`, `"delete"`, or `"endorsed"`               |
-| `signal`    | string         | `"yes"`, `"no"`, or `"abstain"`                                   |
+| `outcome`   | string         | `"yes"`, `"no"`, or `"abstain"`                                   |
+| `signal`    | string         | `"funding"`, `"valid"`, `"delete"`, or `"endorsed"`               |
 
 **Path Parameters**
 
@@ -1285,6 +1285,63 @@ Each entry of `votes` is parsed from the Core string `"<masternode-outpoint>:<un
 **Response `200`** — single [Governance Proposal Object](#governance-proposal-object).
 
 **Response `404`** — Proposal not found.
+
+---
+
+### GET /governance/proposal/:hash/votes/chart
+
+Returns a time series of a proposal's **funding** votes, bucketed by the time each vote was cast, with optional running total. Used to render the vote-over-time chart on the proposal page.
+
+Unlike `/governance/proposal/:hash` (which fans out to `gobject getcurrentvotes` live), this endpoint reads the indexer's cached vote set from Redis (`dao:votes:<hash>`). That cache is **current-cycle only** — it is dropped and rebuilt when the chain crosses a superblock boundary — so the series covers votes for the proposal's current superblock cycle, not its full history.
+
+Only votes whose signal is `funding` are counted; `valid` / `delete` / `endorsed` signals are ignored. Within each bucket, votes are tallied by outcome into `yes` / `no` / `abstain` counts.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                            | Description            |
+|-----------|--------|----------------------------------------|------------------------|
+| `hash`    | string | 64-char hex (`[A-Za-z0-9]`, length 64) | Governance object hash |
+
+**Query Parameters**
+
+| Parameter         | Type    | Default               | Constraints          | Description                                                                                                          |
+|-------------------|---------|-----------------------|----------------------|----------------------------------------------------------------------------------------------------------------------|
+| `timestamp_start` | string  | 1 hour ago (ISO 8601) |                      | Start of the time range                                                                                              |
+| `timestamp_end`   | string  | now (ISO 8601)        |                      | End of the time range                                                                                               |
+| `intervals_count` | number  | auto                  | minimum: 2, max: 100 | Number of equal buckets. When omitted, the bucket width is chosen automatically via `calculateInterval`             |
+| `running_total`   | boolean | `false`               |                      | When `true`, each bucket's counts are the cumulative totals from `timestamp_start` through the end of that bucket   |
+
+A vote falls in a bucket when `from < vote_time <= to`. `timestamp` is the bucket's **start** (`from`).
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "yes": 12, "no": 3, "abstain": 1 }
+  },
+  {
+    "timestamp": "2024-01-01T01:00:00.000Z",
+    "data": { "yes": 5, "no": 0, "abstain": 0 }
+  }
+]
+```
+
+| Field           | Type   | Description                                                                                  |
+|-----------------|--------|----------------------------------------------------------------------------------------------|
+| `timestamp`     | string | ISO 8601 start of the bucket                                                                 |
+| `data.yes`      | number | Funding `yes` votes in the bucket, or cumulative total if `running_total=true`               |
+| `data.no`       | number | Funding `no` votes in the bucket, or cumulative total if `running_total=true`                |
+| `data.abstain`  | number | Funding `abstain` votes in the bucket, or cumulative total if `running_total=true`           |
+
+> Empty buckets are included with all counts `0`. A proposal hash with no cached funding votes returns a series of all-zero buckets (not a `404`).
+
+**Response `400`**
+
+```json
+{ "error": "start timestamp cannot be more than end timestamp" }
+```
 
 ---
 
