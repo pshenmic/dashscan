@@ -1208,6 +1208,68 @@ Returns DASH trading volume for the past 24 hours, compacted to one point per ho
 
 Returns a single governance proposal by its hash, fetched directly via `gobject get`, plus the full per-vote list from `gobject getcurrentvotes <hash>` on the `votes` field. `enoughVotes` is computed against `requiredProposalVotes` from `/masternodes/stats`. `enoughFunds` is not set on this endpoint — that flag depends on global ranking and is only meaningful on the list view.
 
+```json
+{
+  "dataHex": "7b22656e645f65706f6368223a313738353835313036302c226e616d65223a224443472d4f7065726174696f6e732d4d61792d4a756c792d3236222c227061796d656e745f61646472657373223a22376d5579617537354154793163364c6f5a6547334435376a4b426b523469484a6b45222c227061796d656e745f616d6f756e74223a353139362c2273746172745f65706f6368223a313737353534393134302c2274797065223a312c2275726c223a2268747470733a2f2f7777772e6461736863656e7472616c2e6f72672f702f4443475f4f7065726174696f6e735f4d61795f4a756c795f32303236227d",
+  "data": {
+    "endEpoch": 1785851060,
+    "startEpoch": 1775549140,
+    "name": "ProposalExample",
+    "paymentAddress": "XgNfgrEB9n6uCY9Pi1hb2foimxPdtiZ4Z2",
+    "paymentAmount": 5196,
+    "type": 1,
+    "url": "https://www.dashcentral.org/p/..."
+  },
+  "hash": "8e64a3f572ee7151f9c5b7cda5d51979e52e35936ff61a78f50b0dfe9e0e150d",
+  "collateralHash": "ac0edf63982a8ccb8ddae45e70d78fab81c0cada02385564d7f9789e76260185",
+  "objectType": "Proposal",
+  "creationTime": "2026-04-10T19:58:00.000Z",
+  "signingMasternode": null,
+  "absoluteYesCount": 447,
+  "yesCount": 578,
+  "noCount": 131,
+  "abstainCount": 12,
+  "localValidity": true,
+  "isValidReason": "",
+  "enoughVotes": true,
+  "enoughFunds": null,
+  "fundingResult": {
+    "absoluteYesCount": 447,
+    "yesCount": 578,
+    "noCount": 131,
+    "abstainCount": 12
+  },
+  "validResult": {
+    "absoluteYesCount": 0,
+    "yesCount": 0,
+    "noCount": 0,
+    "abstainCount": 0
+  },
+  "deleteResult": {
+    "absoluteYesCount": 0,
+    "yesCount": 0,
+    "noCount": 0,
+    "abstainCount": 0
+  },
+  "endorsedResult": {
+    "absoluteYesCount": 0,
+    "yesCount": 0,
+    "noCount": 0,
+    "abstainCount": 0
+  },
+  "votes": [
+    {
+      "outpoint": "6fa3098d0a220075f15012f85673ccf611dd1df7a43b449e5b9c0480f69ea100-1",
+      "proTxHash": "d1ebf1f5be1af16a40d79bea6520a0f17c654fd2c1519dfac024ba3b5eadf38e",
+      "proposalHash": null,
+      "time": "2026-05-25T10:58:45.000Z",
+      "outcome": "no",
+      "signal": "funding"
+    }
+  ]
+}
+```
+
 Each entry of `votes` is parsed from the Core string `"<masternode-outpoint>:<unix-time>:<outcome>:<signal>"`. The outpoint is resolved to `proTxHash` via a cached `protx list registered` lookup (5-minute TTL); if a vote's outpoint isn't in the current registered set (e.g. revoked/banned MN), `proTxHash` is `null`.
 
 | Field       | Type           | Description                                                       |
