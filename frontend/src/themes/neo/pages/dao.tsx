@@ -156,7 +156,7 @@ export default function RedesignDaoPage() {
   const proposals = useMemo(
     () =>
       (allProposals ?? []).filter(
-        (p) => p.objectType === "Proposal" && p.data !== null,
+        (p) => p.objectType === "Proposal" && p.name !== null,
       ),
     [allProposals],
   );
@@ -166,8 +166,8 @@ export default function RedesignDaoPage() {
     const q = search.toLowerCase();
     return proposals.filter(
       (p) =>
-        p.data?.name?.toLowerCase().includes(q) ||
-        p.data?.paymentAddress?.toLowerCase().includes(q) ||
+        p.name?.toLowerCase().includes(q) ||
+        p.paymentAddress?.toLowerCase().includes(q) ||
         p.hash?.toLowerCase().includes(q),
     );
   }, [proposals, search]);
@@ -211,8 +211,8 @@ export default function RedesignDaoPage() {
           return ra - rb;
         }
         case "name": {
-          const na = a.data?.name ?? "";
-          const nb = b.data?.name ?? "";
+          const na = a.name ?? "";
+          const nb = b.name ?? "";
           return na.localeCompare(nb);
         }
         case "time": {
@@ -226,8 +226,8 @@ export default function RedesignDaoPage() {
           return va - vb;
         }
         case "funding": {
-          const fa = a.data?.paymentAmount ?? 0;
-          const fb = b.data?.paymentAmount ?? 0;
+          const fa = a.paymentAmount ?? 0;
+          const fb = b.paymentAmount ?? 0;
           return fa - fb;
         }
         default:
@@ -307,9 +307,9 @@ export default function RedesignDaoPage() {
         </SortHeader>
       ),
       cell: (row) => {
-        const name = row.data?.name ?? "Untitled";
-        const url = row.data?.url;
-        const addr = row.data?.paymentAddress;
+        const name = row.name ?? "Untitled";
+        const url = row.url;
+        const addr = row.paymentAddress;
         return (
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex min-w-0 items-center gap-1.5">
@@ -407,7 +407,7 @@ export default function RedesignDaoPage() {
         </SortHeader>
       ),
       cell: (row) => {
-        const amount = row.data?.paymentAmount;
+        const amount = row.paymentAmount;
         if (amount == null)
           return <span className="text-muted-foreground">—</span>;
         return (

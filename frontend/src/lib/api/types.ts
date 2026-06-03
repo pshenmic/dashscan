@@ -279,16 +279,6 @@ export interface SearchResponse {
   address: ApiAddress | null;
 }
 
-export interface ApiProposalData {
-  endEpoch: number | null;
-  startEpoch: number | null;
-  name: string | null;
-  paymentAddress: string | null;
-  paymentAmount: number | null;
-  type: number | null;
-  url: string | null;
-}
-
 export interface ApiGovernanceBudget {
   totalBudget: number;
   totalProposals: number;
@@ -331,12 +321,17 @@ export interface ApiTransactionsBreakdown {
 
 export interface ApiGovernanceObject {
   dataHex: string | null;
-  data: ApiProposalData | null;
+  endEpoch: number | null;
+  startEpoch: number | null;
+  name: string | null;
+  paymentAddress: string | null;
+  paymentAmount: number | null;
+  type: number | null;
+  url: string | null;
   hash: string | null;
   collateralHash: string | null;
   objectType: "Unknown" | "Proposal" | "Trigger" | null;
   creationTime: string | null;
-  signingMasternode?: string | null;
   absoluteYesCount: number | null;
   yesCount: number | null;
   noCount: number | null;
