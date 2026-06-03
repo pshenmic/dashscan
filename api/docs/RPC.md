@@ -1044,8 +1044,8 @@ Returns all current-cycle governance votes cast by a single masternode, aggregat
     "proTxHash": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
     "proposalHash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
     "time": "2026-05-19T11:37:22.402Z",
-    "outcome": "funding",
-    "signal": "yes"
+    "outcome": "yes",
+    "signal": "funding"
   }
 ]
 ```
@@ -1252,7 +1252,6 @@ Returns a single governance proposal by its hash, fetched directly via `gobject 
     {
       "outpoint": "6fa3098d0a220075f15012f85673ccf611dd1df7a43b449e5b9c0480f69ea100-1",
       "proTxHash": "d1ebf1f5be1af16a40d79bea6520a0f17c654fd2c1519dfac024ba3b5eadf38e",
-      "proposalHash": null,
       "time": "2026-05-25T10:58:45.000Z",
       "outcome": "no",
       "signal": "funding"
@@ -1261,7 +1260,7 @@ Returns a single governance proposal by its hash, fetched directly via `gobject 
 }
 ```
 
-Each entry of `votes` is parsed from the Core string `"<masternode-outpoint>:<unix-time>:<outcome>:<signal>"`. The outpoint is resolved to `proTxHash` via a cached `protx list registered` lookup (5-minute TTL); if a vote's outpoint isn't in the current registered set (e.g. revoked/banned MN), `proTxHash` is `null`.
+Each entry of `votes` is parsed from the Core string `"<masternode-outpoint>:<unix-time>:<outcome>:<signal>"`. The outpoint is resolved to `proTxHash` via a cached `protx list registered` lookup (5-minute TTL); if a vote's outpoint isn't in the current registered set (e.g. revoked/banned MN), `proTxHash` is `null`. The `proposalHash` field is omitted here — every vote belongs to the proposal in the root `hash` — and is only populated on [`/masternode/:proTxHash/votes`](#get-masternodeprotxhashvotes).
 
 | Field       | Type           | Description                                                       |
 |-------------|----------------|-------------------------------------------------------------------|
