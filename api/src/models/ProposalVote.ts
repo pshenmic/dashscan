@@ -1,5 +1,5 @@
-export type VoteOutcome = 'funding' | 'valid' | 'delete' | 'endorsed';
-export type VoteSignal = 'yes' | 'no' | 'abstain';
+export type VoteOutcome = 'yes' | 'no' | 'abstain';
+export type VoteSignal = 'funding' | 'valid' | 'delete' | 'endorsed';
 
 export class ProposalVote {
   outpoint: string;
