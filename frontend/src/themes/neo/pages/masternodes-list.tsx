@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/tooltip";
 import {
   allMasternodesGeoQueryOptions,
+  allMasternodesQueryOptions,
   masternodesInfiniteQueryOptions,
   masternodesQueryOptions,
 } from "@/lib/api/masternodes";
@@ -124,8 +125,8 @@ export default function RedesignMasternodesListPage() {
     enabled: !isInfinite,
   });
 
-  const { data: statsData } = useQuery(
-    masternodesQueryOptions({ network, page: 1, limit: 100, order: "desc" }),
+  const { data: allMasternodes } = useQuery(
+    allMasternodesQueryOptions({ network }),
   );
 
   const { data: geoData } = useQuery(
@@ -207,7 +208,9 @@ export default function RedesignMasternodesListPage() {
       )
         return false;
       if (filters.lastPaid !== "any") {
-        const lp = Number(m.lastPaidTime ?? 0);
+        const lp = m.lastPaidTime
+          ? Math.floor(new Date(m.lastPaidTime).getTime() / 1000)
+          : 0;
         const windowSec = LAST_PAID_WINDOW_SEC[filters.lastPaid];
         if (windowSec === 0) {
           if (lp > 0) return false;
@@ -228,31 +231,28 @@ export default function RedesignMasternodesListPage() {
     () =>
       buildTypeConfig(
         Object.entries(
-          (statsData?.resultSet ?? []).reduce<Record<string, number>>(
-            (acc, n) => {
-              const key = getMnTypeLabel(n.type);
-              acc[key] = (acc[key] ?? 0) + 1;
-              return acc;
-            },
-            {},
-          ),
+          (allMasternodes ?? []).reduce<Record<string, number>>((acc, n) => {
+            const key = getMnTypeLabel(n.type);
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+          }, {}),
         ).map(([name, value]) => ({ name, value })),
       ),
-    [statsData],
+    [allMasternodes],
   );
 
   const stats = useMemo(() => {
-    const sample = statsData?.resultSet ?? [];
-    const totalAll = statsData?.pagination?.total ?? null;
-    const banned = sample.filter((n) =>
+    const all = allMasternodes ?? [];
+    const totalAll = all.length > 0 ? all.length : null;
+    const banned = all.filter((n) =>
       n.status.toUpperCase().includes("BANNED"),
     ).length;
-    const enabled = sample.filter(
+    const enabled = all.filter(
       (n) => n.status.toUpperCase() === "ENABLED",
     ).length;
-    const other = sample.length - banned - enabled;
+    const other = all.length - banned - enabled;
 
-    const typeCounts = sample.reduce<Record<string, number>>((acc, n) => {
+    const typeCounts = all.reduce<Record<string, number>>((acc, n) => {
       const key = getMnTypeLabel(n.type);
       acc[key] = (acc[key] ?? 0) + 1;
       return acc;
@@ -272,11 +272,11 @@ export default function RedesignMasternodesListPage() {
       totalAll,
       banned,
       enabled,
-      sampled: sample.length,
+      loaded: all.length,
       typeChart,
       statusChart,
     };
-  }, [statsData]);
+  }, [allMasternodes]);
 
   const columns: DataTableColumn<ApiMasternode>[] = [
     {
@@ -389,9 +389,9 @@ export default function RedesignMasternodesListPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardDescription>Enabled (sampled)</CardDescription>
+                <CardDescription>Enabled</CardDescription>
                 <CardTitle className="text-2xl tabular-nums text-accent">
-                  {stats.sampled > 0 ? stats.enabled.toLocaleString() : "—"}
+                  {stats.loaded > 0 ? stats.enabled.toLocaleString() : "—"}
                 </CardTitle>
                 <CardAction>
                   <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
@@ -399,15 +399,12 @@ export default function RedesignMasternodesListPage() {
                   </div>
                 </CardAction>
               </CardHeader>
-              <CardContent className="text-xs text-muted-foreground">
-                In latest {stats.sampled} nodes
-              </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardDescription>Banned (sampled)</CardDescription>
+                <CardDescription>Banned</CardDescription>
                 <CardTitle className="text-2xl tabular-nums text-accent">
-                  {stats.sampled > 0 ? stats.banned.toLocaleString() : "—"}
+                  {stats.loaded > 0 ? stats.banned.toLocaleString() : "—"}
                 </CardTitle>
                 <CardAction>
                   <div className="flex size-9 items-center justify-center rounded-full bg-destructive/12 [&_svg]:text-destructive">
@@ -415,9 +412,6 @@ export default function RedesignMasternodesListPage() {
                   </div>
                 </CardAction>
               </CardHeader>
-              <CardContent className="text-xs text-muted-foreground">
-                In latest {stats.sampled} nodes
-              </CardContent>
             </Card>
           </div>
 
@@ -425,7 +419,7 @@ export default function RedesignMasternodesListPage() {
             <CardHeader>
               <CardDescription>Distribution</CardDescription>
               <CardTitle className="text-xl tabular-nums text-accent">
-                {stats.sampled} nodes sampled
+                {stats.loaded.toLocaleString()} nodes
               </CardTitle>
             </CardHeader>
             <CardContent>

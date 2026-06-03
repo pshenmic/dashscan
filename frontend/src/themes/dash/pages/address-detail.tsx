@@ -129,7 +129,7 @@ const txColumns: ColumnDef<ApiTransaction>[] = [
     header: "Amount",
     cell: ({ row }) => {
       const tx = row.original;
-      const duffs = tx.amount ?? sumVOut(tx.vOut);
+      const duffs = tx.amount != null ? Number(tx.amount) : sumVOut(tx.vOut);
       return <span className="font-mono font-medium">{formatDash(duffs)}</span>;
     },
   },
