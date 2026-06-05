@@ -139,6 +139,20 @@ export default function Routes({ fastify, mainController, blocksController, tran
       handler: masternodesController.getMasternodeStats,
     },
     {
+      path: '/masternode/:proTxHash/votes',
+      method: 'get',
+      handler: governanceController.getMasternodeVotes,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            proTxHash: { $ref: 'hash#' },
+          },
+          required: ['proTxHash'],
+        },
+      },
+    },
+    {
       path: '/price/:currency',
       method: 'get',
       handler: marketController.getPrice,
@@ -241,6 +255,20 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/governance/proposal/:hash',
+      method: 'get',
+      handler: governanceController.getProposalByHash,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            hash: { $ref: 'hash#' },
+          },
+          required: ['hash'],
+        },
+      },
+    },
+    {
       path: '/governance/proposals',
       method: 'get',
       handler: governanceController.getProposals,
@@ -251,6 +279,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
             proposalType: {
               type: ['string', 'null'],
               enum: ['valid', 'funding', 'delete', 'endorsed', 'all'],
+            },
+            order: {
+              type: ['string', 'null'],
+              enum: ['asc', 'desc'],
+            },
+            order_by: {
+              type: ['string', 'null'],
+              enum: ['creation_time', 'name', 'votes', 'payment_amount'],
             },
           },
         },
