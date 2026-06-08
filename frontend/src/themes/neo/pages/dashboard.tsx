@@ -2184,7 +2184,7 @@ function ProposalsListCard({
             )}
             {proposals.map((p) => (
               <ProposalRow
-                key={p.hash ?? p.collateralHash ?? p.data?.name ?? "p"}
+                key={p.hash ?? p.collateralHash ?? p.name ?? "p"}
                 proposal={p}
                 usdPrice={usdPrice}
               />
@@ -2203,15 +2203,15 @@ function ProposalRow({
   proposal: ApiGovernanceObject;
   usdPrice: number | null;
 }) {
-  const name = proposal.data?.name ?? "Untitled";
-  const url = proposal.data?.url ?? null;
+  const name = proposal.name ?? "Untitled";
+  const url = proposal.url ?? null;
   const yes = proposal.yesCount ?? 0;
   const no = proposal.noCount ?? 0;
   const net = proposal.absoluteYesCount ?? yes - no;
   const total = Math.max(yes + no, 1);
   const yesPct = (yes / total) * 100;
   const isPassing = net > 0;
-  const amount = proposal.data?.paymentAmount ?? null;
+  const amount = proposal.paymentAmount ?? null;
   return (
     <TableRow className="row-lift">
       <TableCell className="max-w-[200px]">

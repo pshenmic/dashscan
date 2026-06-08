@@ -45,27 +45,16 @@ const LLMQ_TYPES: Record<number, string> = {
   107: "LLMQ_DEVNET_PLATFORM",
 };
 
-const PAYLOAD_META: Record<
-  number,
-  { name: string; tone: "violet" | "amber" | "cyan" | "emerald" | "rose" }
-> = {
-  1: { name: "ProRegTx", tone: "violet" },
-  2: { name: "ProUpServTx", tone: "violet" },
-  3: { name: "ProUpRegTx", tone: "violet" },
-  4: { name: "ProUpRevTx", tone: "rose" },
-  5: { name: "CbTx", tone: "amber" },
-  6: { name: "QcTx", tone: "cyan" },
-  7: { name: "MnHfTx", tone: "amber" },
-  8: { name: "AssetLockTx", tone: "emerald" },
-  9: { name: "AssetUnlockTx", tone: "emerald" },
-};
-
-const TONE_VARS: Record<string, string> = {
-  violet: "var(--accent-violet, #8b5cf6)",
-  amber: "var(--accent-amber, #f59e0b)",
-  cyan: "var(--accent-cyan, #06b6d4)",
-  emerald: "var(--success, #10b981)",
-  rose: "var(--destructive, #f43f5e)",
+const PAYLOAD_META: Record<number, { name: string }> = {
+  1: { name: "ProRegTx" },
+  2: { name: "ProUpServTx" },
+  3: { name: "ProUpRegTx" },
+  4: { name: "ProUpRevTx" },
+  5: { name: "CbTx" },
+  6: { name: "QcTx" },
+  7: { name: "MnHfTx" },
+  8: { name: "AssetLockTx" },
+  9: { name: "AssetUnlockTx" },
 };
 
 interface ExtraPayloadSectionProps {
@@ -80,23 +69,17 @@ export function ExtraPayloadSection({
   if (!payload) return null;
   const typeNum = txTypeNum(txType);
   const meta = PAYLOAD_META[typeNum];
-  const accent = TONE_VARS[meta?.tone ?? "violet"];
+  const accent = "var(--accent)";
   const Icon = iconFor(typeNum);
 
   return (
-    <Card className="overflow-hidden">
-      <div
-        className="relative px-5 py-4 sm:px-6"
-        style={{
-          background: `linear-gradient(135deg, color-mix(in oklab, ${accent} 14%, transparent) 0%, color-mix(in oklab, ${accent} 4%, transparent) 60%, transparent 100%)`,
-          borderBottom: `1px solid color-mix(in oklab, ${accent} 22%, var(--border))`,
-        }}
-      >
+    <Card>
+      <CardContent className="flex flex-col gap-5">
         <div className="flex items-center gap-3">
           <div
             className="flex size-9 shrink-0 items-center justify-center rounded-full"
             style={{
-              background: `color-mix(in oklab, ${accent} 18%, transparent)`,
+              background: `color-mix(in oklab, ${accent} 14%, transparent)`,
               color: accent,
             }}
           >
@@ -113,18 +96,13 @@ export function ExtraPayloadSection({
           <Badge
             variant="outline"
             className="ml-auto font-mono text-[10px] tabular-nums"
-            style={{
-              color: accent,
-              borderColor: `color-mix(in oklab, ${accent} 38%, var(--border))`,
-              background: `color-mix(in oklab, ${accent} 10%, transparent)`,
-            }}
           >
             DIP-2 · type {typeNum}
           </Badge>
         </div>
-      </div>
-      <CardContent className="grid gap-x-12 gap-y-4 pt-5 lg:grid-cols-2">
-        {renderBody(typeNum, payload)}
+        <div className="grid gap-x-12 gap-y-4 lg:grid-cols-2">
+          {renderBody(typeNum, payload)}
+        </div>
       </CardContent>
     </Card>
   );

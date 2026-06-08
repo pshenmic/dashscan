@@ -1,15 +1,15 @@
-export type VoteOutcome = 'funding' | 'valid' | 'delete' | 'endorsed';
-export type VoteSignal = 'yes' | 'no' | 'abstain';
+export type VoteOutcome = 'yes' | 'no' | 'abstain';
+export type VoteSignal = 'funding' | 'valid' | 'delete' | 'endorsed';
 
 export class ProposalVote {
   outpoint: string;
   proTxHash: string | null;
-  proposalHash: string | null;
+  proposalHash?: string;
   time: Date;
   outcome: VoteOutcome | string;
   signal: VoteSignal | string;
 
-  constructor(outpoint: string, time: Date, outcome: string, signal: string, proTxHash: string | null = null, proposalHash: string | null = null) {
+  constructor(outpoint: string, time: Date, outcome: string, signal: string, proTxHash: string | null = null, proposalHash?: string) {
     this.outpoint = outpoint;
     this.proTxHash = proTxHash;
     this.proposalHash = proposalHash;

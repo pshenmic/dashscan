@@ -180,13 +180,15 @@ export interface ApiTransaction {
   type: string | null;
   blockHeight: number;
   blockHash: string;
-  amount: number | null;
+  amount: string | null;
   version: number;
   vIn: ApiVIn[];
   vOut: ApiVOut[];
   confirmations: number;
   instantLock: boolean | string | null;
   chainLocked?: boolean | null;
+  coinjoin: boolean;
+  multisig: boolean;
   size?: number | null;
   timestamp: string;
   extraPayload?: ApiExtraPayload | null;
@@ -203,8 +205,10 @@ export interface ApiAddress {
 export interface ApiAddressDetail {
   address: string;
   firstSeenBlock: string | null;
+  firstSeenBlockTimestamp: string | null;
   firstSeenTx: string | null;
   lastSeenBlock: string | null;
+  lastSeenBlockTimestamp: string | null;
   lastSeenTx: string | null;
   txCount: string;
   received: string;
@@ -242,7 +246,7 @@ export interface ApiMasternode {
   type: string;
   posPenaltyScore: number;
   consecutivePayments: number;
-  lastPaidTime: number;
+  lastPaidTime: string | null;
   lastPaidBlock: number;
   ownerAddress: string;
   votingAddress: string;
@@ -273,16 +277,6 @@ export interface SearchResponse {
   transaction: ApiTransaction | null;
   masternode: ApiMasternode | null;
   address: ApiAddress | null;
-}
-
-export interface ApiProposalData {
-  endEpoch: number | null;
-  startEpoch: number | null;
-  name: string | null;
-  paymentAddress: string | null;
-  paymentAmount: number | null;
-  type: number | null;
-  url: string | null;
 }
 
 export interface ApiGovernanceBudget {
@@ -327,12 +321,17 @@ export interface ApiTransactionsBreakdown {
 
 export interface ApiGovernanceObject {
   dataHex: string | null;
-  data: ApiProposalData | null;
+  endEpoch: number | null;
+  startEpoch: number | null;
+  name: string | null;
+  paymentAddress: string | null;
+  paymentAmount: number | null;
+  type: number | null;
+  url: string | null;
   hash: string | null;
   collateralHash: string | null;
   objectType: "Unknown" | "Proposal" | "Trigger" | null;
   creationTime: string | null;
-  signingMasternode?: string | null;
   absoluteYesCount: number | null;
   yesCount: number | null;
   noCount: number | null;
