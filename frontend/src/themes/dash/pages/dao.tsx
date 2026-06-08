@@ -56,10 +56,10 @@ const columns: ColumnDef<ApiGovernanceObject>[] = [
   {
     id: "name",
     header: "Proposal Name",
-    accessorFn: (row) => row.data?.name ?? "",
+    accessorFn: (row) => row.name ?? "",
     cell: ({ row }) => {
-      const name = row.original.data?.name;
-      const url = row.original.data?.url;
+      const name = row.original.name;
+      const url = row.original.url;
       if (!name) return <span className="text-muted-foreground">—</span>;
       if (url) {
         return (
@@ -80,9 +80,9 @@ const columns: ColumnDef<ApiGovernanceObject>[] = [
   {
     id: "paymentAddress",
     header: "Payment Address",
-    accessorFn: (row) => row.data?.paymentAddress ?? "",
+    accessorFn: (row) => row.paymentAddress ?? "",
     cell: ({ row }) => {
-      const addr = row.original.data?.paymentAddress;
+      const addr = row.original.paymentAddress;
       if (!addr) return <span className="text-muted-foreground">—</span>;
       return (
         <div className="flex items-center gap-1.5">
@@ -115,9 +115,9 @@ const columns: ColumnDef<ApiGovernanceObject>[] = [
   {
     id: "funding",
     header: "Funding",
-    accessorFn: (row) => row.data?.paymentAmount ?? 0,
+    accessorFn: (row) => row.paymentAmount ?? 0,
     cell: ({ row }) => {
-      const amount = row.original.data?.paymentAmount;
+      const amount = row.original.paymentAmount;
       if (amount == null)
         return <span className="text-muted-foreground">—</span>;
       return (
@@ -166,7 +166,7 @@ export default function ClassicDaoPage() {
   const proposals = useMemo(
     () =>
       (allProposals ?? []).filter(
-        (p) => p.objectType === "Proposal" && p.data !== null,
+        (p) => p.objectType === "Proposal" && p.name !== null,
       ),
     [allProposals],
   );

@@ -121,20 +121,20 @@ export default class GovernanceController {
 
     const proposals = allProposals.filter(p =>
       p.objectType === 'Proposal' &&
-      (p.data?.endEpoch ?? 0) > nextSuperblockTimeSec
+      (p.endEpoch ?? 0) > nextSuperblockTimeSec
     )
     const voteThreshold = governanceInfo.governanceminquorum
 
     const totalRequested = proposals
       .reduce(
-        (acc, curr) => acc + (curr.data?.paymentAmount ?? 0),
+        (acc, curr) => acc + (curr.paymentAmount ?? 0),
         0
       )
 
     const enoughVotes = proposals
       .filter(p => (p.absoluteYesCount ?? 0) >= voteThreshold)
     const enoughVotesTotal = enoughVotes
-      .reduce((acc, curr) => acc + (curr.data?.paymentAmount ?? 0), 0)
+      .reduce((acc, curr) => acc + (curr.paymentAmount ?? 0), 0)
 
     const rankedByVotes = [...enoughVotes].sort(
       (a, b) => b.absoluteYesCount - a.absoluteYesCount
@@ -142,7 +142,7 @@ export default class GovernanceController {
 
     let running = 0
     const enoughFunds = rankedByVotes.filter((p: GovernanceObject) => {
-      const amount = p.data?.paymentAmount ?? 0
+      const amount = p.paymentAmount ?? 0
       if (running + amount <= totalBudget) {
         running += amount
         return true

@@ -112,12 +112,12 @@ export function masternodesInfiniteQueryOptions(
   });
 }
 
-interface FetchAllMasternodesGeoInput {
+interface FetchAllMasternodesInput {
   network: Network;
 }
 
-const GEO_PAGE_LIMIT = 100;
-const GEO_MAX_PAGES = 20;
+const ALL_PAGE_LIMIT = 100;
+const ALL_MAX_PAGES = 200;
 
 function toGeoPoint(mn: ApiMasternode): MasternodeGeoPoint | null {
   const geo = mn.geoIpInfo;
@@ -140,18 +140,18 @@ function toGeoPoint(mn: ApiMasternode): MasternodeGeoPoint | null {
   };
 }
 
-async function getAllMasternodesGeo(
-  params: FetchAllMasternodesGeoInput,
-): Promise<MasternodeGeoPoint[]> {
+async function getAllMasternodes(
+  params: FetchAllMasternodesInput,
+): Promise<ApiMasternode[]> {
   const first = await getMasternodes({
     network: params.network,
     page: 1,
-    limit: GEO_PAGE_LIMIT,
+    limit: ALL_PAGE_LIMIT,
     order: "desc",
   });
   const pageCount = Math.min(
-    GEO_MAX_PAGES,
-    Math.max(1, Math.ceil(first.pagination.total / GEO_PAGE_LIMIT)),
+    ALL_MAX_PAGES,
+    Math.max(1, Math.ceil(first.pagination.total / ALL_PAGE_LIMIT)),
   );
   const rest =
     pageCount > 1
@@ -160,28 +160,49 @@ async function getAllMasternodesGeo(
             getMasternodes({
               network: params.network,
               page: i + 2,
-              limit: GEO_PAGE_LIMIT,
+              limit: ALL_PAGE_LIMIT,
               order: "desc",
             }),
           ),
         )
       : [];
-  const points: MasternodeGeoPoint[] = [];
+  const masternodes: ApiMasternode[] = [];
   for (const response of [first, ...rest]) {
-    for (const mn of response.resultSet) {
-      const point = toGeoPoint(mn);
-      if (point) points.push(point);
-    }
+    for (const mn of response.resultSet) masternodes.push(mn);
+  }
+  return masternodes;
+}
+
+export const fetchAllMasternodes = createServerFn({ method: "POST" })
+  .inputValidator((input: FetchAllMasternodesInput) => input)
+  .handler(({ data }) => getAllMasternodes(data));
+
+export function allMasternodesQueryOptions(params: FetchAllMasternodesInput) {
+  return queryOptions({
+    queryKey: ["masternodes-all", params.network],
+    queryFn: () => getAllMasternodes(params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+async function getAllMasternodesGeo(
+  params: FetchAllMasternodesInput,
+): Promise<MasternodeGeoPoint[]> {
+  const masternodes = await getAllMasternodes(params);
+  const points: MasternodeGeoPoint[] = [];
+  for (const mn of masternodes) {
+    const point = toGeoPoint(mn);
+    if (point) points.push(point);
   }
   return points;
 }
 
 export const fetchAllMasternodesGeo = createServerFn({ method: "POST" })
-  .inputValidator((input: FetchAllMasternodesGeoInput) => input)
+  .inputValidator((input: FetchAllMasternodesInput) => input)
   .handler(({ data }) => getAllMasternodesGeo(data));
 
 export function allMasternodesGeoQueryOptions(
-  params: FetchAllMasternodesGeoInput,
+  params: FetchAllMasternodesInput,
 ) {
   return queryOptions({
     queryKey: ["masternodes-geo-all", params.network],

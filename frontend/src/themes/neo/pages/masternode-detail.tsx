@@ -432,7 +432,7 @@ export default function RedesignMasternodeDetailPage({
                 {mn.lastPaidTime ? (
                   <>
                     <span>
-                      {new Date(mn.lastPaidTime * 1000).toLocaleString()}
+                      {new Date(mn.lastPaidTime).toLocaleString()}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       ({formatRelativeTime(mn.lastPaidTime)})

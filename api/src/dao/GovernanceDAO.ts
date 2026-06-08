@@ -72,7 +72,7 @@ export default class GovernanceDAO {
     [...proposals]
       .sort((a, b) => (b.absoluteYesCount ?? 0) - (a.absoluteYesCount ?? 0))
       .reduce((running, proposal) => {
-        const amount = proposal.data?.paymentAmount ?? 0
+        const amount = proposal.paymentAmount ?? 0
 
         if (running + amount > totalBudget) {
           return running
@@ -97,14 +97,14 @@ export default class GovernanceDAO {
         case 'creation_time':
           return compareNumbers(a.creationTime?.getTime() ?? 0, b.creationTime?.getTime() ?? 0)
         case 'name':
-          return compareStrings(a.data?.name ?? '', b.data?.name ?? '')
+          return compareStrings(a.name ?? '', b.name ?? '')
         case 'votes':
           return compareNumbers(
             (a.yesCount ?? 0) - (a.noCount ?? 0),
             (b.yesCount ?? 0) - (b.noCount ?? 0),
           )
         case 'payment_amount':
-          return compareNumbers(a.data?.paymentAmount ?? 0, b.data?.paymentAmount ?? 0)
+          return compareNumbers(a.paymentAmount ?? 0, b.paymentAmount ?? 0)
         default:
           return 0
       }

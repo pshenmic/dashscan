@@ -6,12 +6,17 @@ import {ProposalVote} from "./ProposalVote";
 
 export class GovernanceObject {
   dataHex: string | null;
-  data: ProposalData | null;
+  endEpoch: number | null;
+  startEpoch: number | null;
+  name: string | null;
+  paymentAddress: string | null;
+  paymentAmount: number | null;
+  type: number | null;
+  url: string | null;
   hash: string | null;
   collateralHash: string | null;
   objectType: (keyof typeof GovernanceObjectType) | null;
   creationTime: Date | null;
-  signingMasternode?: string | null;
   absoluteYesCount: number | null;
   yesCount: number | null;
   noCount: number | null;
@@ -21,14 +26,13 @@ export class GovernanceObject {
   enoughVotes: boolean | null;
   enoughFunds: boolean | null;
   fundingResult: VoteResult | null;
-  validResult: VoteResult | null;
   deleteResult: VoteResult | null;
   endorsedResult: VoteResult | null;
   votes: ProposalVote[] | null;
 
   constructor(
     dataHex?: string,
-    data?: ProposalData,
+    data?: ProposalData | null,
     hash?: string,
     collateralHash?: string,
     objectType?: keyof typeof GovernanceObjectType,
@@ -39,16 +43,20 @@ export class GovernanceObject {
     abstainCount?: number,
     localValidity?: boolean,
     isValidReason?: string,
-    signingMasternode?: string,
     enoughVotes?: boolean,
     enoughFunds?: boolean,
     fundingResult?: VoteResult | null,
-    validResult?: VoteResult | null,
     deleteResult?: VoteResult | null,
     endorsedResult?: VoteResult | null,
   ) {
     this.dataHex = dataHex ?? null;
-    this.data = data ?? null;
+    this.endEpoch = data?.endEpoch ?? null;
+    this.startEpoch = data?.startEpoch ?? null;
+    this.name = data?.name ?? null;
+    this.paymentAddress = data?.paymentAddress ?? null;
+    this.paymentAmount = data?.paymentAmount ?? null;
+    this.type = data?.type ?? null;
+    this.url = data?.url ?? null;
     this.hash = hash ?? null;
     this.collateralHash = collateralHash ?? null;
     this.objectType = objectType ?? null;
@@ -59,11 +67,9 @@ export class GovernanceObject {
     this.abstainCount = abstainCount ?? null;
     this.localValidity = localValidity ?? null;
     this.isValidReason = isValidReason ?? null;
-    this.signingMasternode = signingMasternode ?? null;
     this.enoughVotes = enoughVotes ?? null;
     this.enoughFunds = enoughFunds ?? null;
     this.fundingResult = fundingResult ?? null;
-    this.validResult = validResult ?? null;
     this.deleteResult = deleteResult ?? null;
     this.endorsedResult = endorsedResult ?? null;
     this.votes = null;
@@ -85,11 +91,9 @@ export class GovernanceObject {
       obj.AbstainCount,
       obj.fLocalValidity,
       obj.IsValidReason,
-      obj.SigningMasternode,
       undefined,
       undefined,
       VoteResult.fromRaw((obj as any).FundingResult),
-      VoteResult.fromRaw((obj as any).ValidResult),
       VoteResult.fromRaw((obj as any).DeleteResult),
       VoteResult.fromRaw((obj as any).EndorsedResult),
     );
