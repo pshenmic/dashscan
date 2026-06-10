@@ -110,6 +110,7 @@ import {
   getPreviousSuperblockHeight,
   getVotingDeadlineHeight,
   getVotingProgress,
+  resolveNetworkFromChain,
 } from "@/lib/governance";
 import { appStore, type Network } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -212,6 +213,7 @@ export default function RedesignDashboardPage() {
     refetchInterval: 15000,
     refetchIntervalInBackground: false,
   });
+  const resolvedNetwork = resolveNetworkFromChain(chainStats?.chain, network);
   const { data: budget } = useQuery(budgetQueryOptions({ network }));
   const { data: proposals } = useQuery(proposalsQueryOptions({ network }));
   const { data: mempoolData } = useQuery(
@@ -435,7 +437,7 @@ export default function RedesignDashboardPage() {
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-6">
         <DashboardHero
-          network={network}
+          network={resolvedNetwork}
           latestHeight={chainStats?.latestHeight ?? latestBlock?.height ?? null}
           blockTimeMs={chainStats?.blockTime ?? null}
           usdPrice={usdPrice?.usd ?? null}
@@ -969,7 +971,7 @@ export default function RedesignDashboardPage() {
               blockTimeMs={chainStats?.blockTime ?? null}
               budgetDash={budget?.totalBudget ?? null}
               usdPrice={usdPrice?.usd ?? null}
-              network={network}
+              network={resolvedNetwork}
               className="lg:col-span-12 flex-1"
             />
             <div className="grid gap-4 sm:grid-cols-2">
