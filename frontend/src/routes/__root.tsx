@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import {
@@ -75,6 +76,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             ]}
           />
         </TanStackQueryProvider>
+        <Analytics />
         <Scripts />
       </body>
     </html>
