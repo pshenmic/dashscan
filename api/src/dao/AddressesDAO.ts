@@ -4,6 +4,12 @@ import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
 import VIn from "../models/VIn";
 import AddressBalance from "../models/AddressBalance";
+import {
+  ADDRESSES_ACTIVITY_DAILY_MIN_TX_COUNT,
+  ADDRESSES_ACTIVITY_LOW_PRECISION_AFTER,
+  ADDRESSES_ACTIVITY_WEEKLY_AFTER,
+  ADDRESSES_ACTIVITY_WEEKLY_MIN_TX_COUNT,
+} from "../constants";
 
 export default class AddressesDAO {
   private knex: Knex;
@@ -230,5 +236,175 @@ export default class AddressesDAO {
     const [row] = rows;
 
     return new PaginatedResultSet(rows, page, limit, row?.total_count ?? -1);
+  }
+
+  getAddressesActivity = async (start: Date, end: Date, page: number, limit: number, order: string): Promise<PaginatedResultSet<Address>> => {
+    const fromRank = (page - 1) * limit;
+    const msPerDay = 86400000;
+    const fmtDay = (d: Date) => d.toISOString().slice(0, 10);
+
+    // Window boundary math (plain dates, no queries yet). Short windows (≤3d)
+    // run fully live; longer ones are stitched from the coarsest source able
+    // to serve each stretch, keeping the partial edge days live so results
+    // stay exact to the timestamp at any interval:
+    //
+    //   start ─live─ midnight ─daily─ Monday ─weekly─ Monday ─daily─ midnight ─live─ end
+    //
+    const isShortWindow = end.getTime() - start.getTime() <= ADDRESSES_ACTIVITY_LOW_PRECISION_AFTER;
+
+    const startNextDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + 1));
+    const endDayStart = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+    const startsAtMidnight = startNextDay.getTime() - start.getTime() === msPerDay;
+
+    // First whole-day boundary; whatever lies before it is served live.
+    const dayLo = startsAtMidnight ? start : startNextDay;
+
+    // Whole ISO weeks inside [dayLo, endDayStart): first Monday at or after
+    // dayLo, last Monday at or before endDayStart (date_trunc('week') weeks
+    // start on Monday; getUTCDay() is 0=Sun..6=Sat). Days outside that span
+    // stay on the daily table.
+    const weekLo = new Date(dayLo.getTime() + ((8 - dayLo.getUTCDay()) % 7) * msPerDay);
+    const weekHi = new Date(endDayStart.getTime() - ((endDayStart.getUTCDay() + 6) % 7) * msPerDay);
+    const useWeekly = !isShortWindow
+      && end.getTime() - start.getTime() > ADDRESSES_ACTIVITY_WEEKLY_AFTER
+      && weekLo < weekHi;
+
+    // Timestamp slices computed live from the tx tables, and [lo, hi) day
+    // ranges served by the daily rollup. The -1ms keeps the start slice
+    // exclusive of the midnight the day buckets own, so nothing is counted
+    // twice; the end slice [endDayStart, end] overlaps nothing because the
+    // bucket of end's own day is never in the interior.
+    const liveWindows: Array<{ from: Date; to: Date }> = [];
+    const dayWindows: Array<{ from: Date; to: Date }> = [];
+
+    if (isShortWindow) {
+      liveWindows.push({ from: start, to: end });
+    } else {
+      if (!startsAtMidnight) liveWindows.push({ from: start, to: new Date(startNextDay.getTime() - 1) });
+      if (end.getTime() > endDayStart.getTime()) liveWindows.push({ from: endDayStart, to: end });
+
+      if (useWeekly) {
+        if (dayLo < weekLo) dayWindows.push({ from: dayLo, to: weekLo });
+        if (weekHi < endDayStart) dayWindows.push({ from: weekHi, to: endDayStart });
+      } else if (dayLo < endDayStart) {
+        dayWindows.push({ from: dayLo, to: endDayStart });
+      }
+    }
+
+    // Subqueries — every part returns the same (address_id, tx_count) shape,
+    // so any mix of them can be UNION ALL'ed and summed per address.
+    const parts: Knex.QueryBuilder[] = [];
+
+    for (const { from, to } of liveWindows) {
+      // Resolve the slice to literal block heights first: concrete bounds let
+      // the planner pick index nested-loops into the huge tx tables.
+      const heightRanges = await this.knex('blocks')
+        .whereBetween('timestamp', [from.toISOString(), to.toISOString()])
+        .select(
+          this.knex.raw('min(height) as height_from'),
+          this.knex.raw('max(height) as height_to'),
+        );
+
+      const [heights] = heightRanges as any[];
+
+      if (heights?.height_from == null) {
+        continue; // no blocks inside this slice
+      }
+
+      const windowTxs = this.knex('transactions')
+        .whereBetween('block_height', [heights.height_from, heights.height_to])
+        .select('id as tx_id');
+
+      // UNION dedups (address_id, tx_id) pairs, so an address counts a
+      // transaction once even when it appears on both the input and output
+      // side. Derived tables (not CTEs) so both live slices can sit in one
+      // statement without name collisions.
+      const addressTxs = this.knex('tx_outputs')
+        .join(windowTxs.clone().as('window_txs'), 'window_txs.tx_id', 'tx_outputs.tx_id')
+        .whereNotNull('tx_outputs.address_id')
+        .select('tx_outputs.address_id', 'tx_outputs.tx_id')
+        .union(
+          this.knex('tx_inputs')
+            .join(windowTxs.clone().as('window_txs'), 'window_txs.tx_id', 'tx_inputs.tx_id')
+            .whereNotNull('tx_inputs.address_id')
+            .select('tx_inputs.address_id', 'tx_inputs.tx_id'),
+        );
+
+      parts.push(
+        this.knex(addressTxs.as('address_txs'))
+          .select('address_id')
+          .count('* as tx_count')
+          .groupBy('address_id'),
+      );
+    }
+
+    for (const { from, to } of dayWindows) {
+      parts.push(
+        this.knex('address_activity')
+          .where('day', '>=', fmtDay(from))
+          .andWhere('day', '<', fmtDay(to))
+          .andWhere('tx_count', '>', ADDRESSES_ACTIVITY_DAILY_MIN_TX_COUNT)
+          .select('address_id', 'tx_count'),
+      );
+    }
+
+    if (useWeekly) {
+      parts.push(
+        this.knex('address_activity_weekly')
+          .where('week', '>=', fmtDay(weekLo))
+          .andWhere('week', '<', fmtDay(weekHi))
+          .andWhere('tx_count', '>', ADDRESSES_ACTIVITY_WEEKLY_MIN_TX_COUNT)
+          .select('address_id', 'tx_count'),
+      );
+    }
+
+    if (parts.length === 0) {
+      return new PaginatedResultSet([], page, limit, -1);
+    }
+
+
+    // Union from an empty base builder: hanging the unions off parts[0] would
+    // render that part's GROUP BY after the union list (knex places the base
+    // query's trailing clauses last), which is invalid SQL.
+    const activity = this.knex.queryBuilder().unionAll(parts, true);
+
+    const ranked = this.knex('activity')
+      .select('address_id')
+      .sum('tx_count as tx_count')
+      .groupBy('address_id');
+
+    // Paginate over the narrow (address_id, tx_count) ranking first and only
+    // then join addresses, so the join and the final sort touch `limit` rows
+    // instead of the whole ranking (which can exceed a million addresses).
+    // The tie-break is address_id, not address, for the same reason. Keeping
+    // total_count as a scalar subquery instead of count(*) OVER () lets the
+    // pagination sort run as an in-memory top-N heapsort rather than a full
+    // sort feeding a window aggregate.
+    const rankedPage = this.knex('ranked')
+      .select('address_id', 'tx_count')
+      .orderBy('tx_count', order)
+      .orderBy('address_id', 'asc')
+      .limit(limit)
+      .offset(fromRank);
+
+    const rows = await this.knex('ranked_page')
+      .with('activity', activity)
+      .with('ranked', ranked)
+      .with('ranked_page', rankedPage)
+      .join('addresses', 'addresses.id', 'ranked_page.address_id')
+      .select('addresses.address')
+      .select(this.knex.raw('ranked_page.tx_count::text as tx_count'))
+      .select(this.knex('ranked').count('*').as('total_count'))
+      .orderBy('ranked_page.tx_count', order)
+      .orderBy('ranked_page.address_id', 'asc');
+
+    const [row] = rows;
+
+    return new PaginatedResultSet(
+      rows.map((r: any) => Address.fromRow(r)),
+      page,
+      limit,
+      row?.total_count ?? -1,
+    );
   }
 }

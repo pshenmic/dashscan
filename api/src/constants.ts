@@ -15,3 +15,11 @@ export const SUPERBLOCK_INTERVALS = {
 
 export const GEOIP_PROVIDER = '@ip-location-db/dbip-city-mmdb'
 export const GEOIP_TABLE_NAME = 'dbip-city-ipv4.mmdb'
+
+// 3d
+export const ADDRESSES_ACTIVITY_LOW_PRECISION_AFTER = 259200000
+// 8d
+export const ADDRESSES_ACTIVITY_WEEKLY_AFTER = 691200000
+
+export const ADDRESSES_ACTIVITY_WEEKLY_MIN_TX_COUNT = 10
+export const ADDRESSES_ACTIVITY_DAILY_MIN_TX_COUNT = 2
