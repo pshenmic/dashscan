@@ -783,6 +783,81 @@ Returns a paginated rich-list view: addresses sorted by current UTXO balance, ea
 
 ---
 
+### GET /addresses/activity
+
+Returns a paginated ranking of the most active addresses within a time window: addresses sorted by the number of transactions they appeared in, on either the input or the output side. A transaction is counted once per address even when the address occurs on both sides.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters) plus a time interval:
+
+| Parameter         | Type   | Default                 | Description             |
+|-------------------|--------|-------------------------|-------------------------|
+| `timestamp_start` | string | 24 hours ago (ISO 8601) | Start of the time range |
+| `timestamp_end`   | string | now (ISO 8601)          | End of the time range   |
+
+`order=desc` (default) returns the most active addresses first. Ties are broken by internal address id, so pagination is deterministic.
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "address": "XmZQkfLtk3xLtbBMenTdaZMxsUBYAsRz1o",
+      "firstSeenBlock": null,
+      "firstSeenBlockTimestamp": null,
+      "firstSeenTx": null,
+      "lastSeenBlock": null,
+      "lastSeenBlockTimestamp": null,
+      "lastSeenTx": null,
+      "txCount": 132952,
+      "received": null,
+      "sent": null,
+      "balance": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 570622
+  }
+}
+```
+
+| Field     | Type   | Description                                                  |
+|-----------|--------|--------------------------------------------------------------|
+| `address` | string | Dash address                                                 |
+| `txCount` | number | Transactions the address appeared in within the window      |
+
+Entries are Address objects with only `address` and `txCount` populated; all other fields are `null` for this endpoint. `pagination.total` is the number of distinct addresses in the ranking (see precision notes below).
+
+**Response `400`**
+
+```json
+{ "error": "start timestamp cannot be more than end timestamp" }
+```
+
+**Sources & precision.** The ranking is composed from tiered sources depending on the window length, so long windows stay fast. The window is split as:
+
+```
+start ─live─ midnight ─daily─ Monday ─weekly─ Monday ─daily─ midnight ─live─ end
+```
+
+| Window  | Sources                                                                                       | Precision                  |
+|---------|-----------------------------------------------------------------------------------------------|----------------------------|
+| ≤ 3d    | Live query over `tx_inputs`/`tx_outputs`                                                      | Exact to the timestamp     |
+| 3d – 8d | Daily rollup (`address_activity`) for whole days + live queries for the partial edge days     | Exact edges, see threshold |
+| > 8d    | Weekly rollup (`address_activity_weekly`) for whole ISO weeks + daily rollup + live edge days | Exact edges, see threshold |
+
+The rollup tables are maintained incrementally by the indexer in the same database transaction as each block, so they are current to the chain tip.
+
+**Activity thresholds.** For speed, low-activity rollup rows are excluded from long-window rankings: daily rows with `tx_count ≤ 2` and weekly rows with `tx_count ≤ 10` (see `ADDRESSES_ACTIVITY_DAILY_MIN_TX_COUNT` / `ADDRESSES_ACTIVITY_WEEKLY_MIN_TX_COUNT` in `src/constants.ts`, floors tied to partial indexes). Consequences:
+
+- Addresses below the thresholds in every bucket are missing from the ranking entirely, and `pagination.total` therefore undercounts the true number of active addresses — treat it as the size of the *ranked* set, not an exact "active addresses" statistic.
+- Ranked addresses can be slightly undercounted when some of their days/weeks fall below the thresholds. For genuinely active addresses (the top of the list) the numbers are effectively exact.
+- Windows ≤ 3d have no thresholds and are fully exact.
+
+---
+
 ### GET /transactions/chart
 
 Returns a time series of transaction counts over a configurable time range, with optional running total.
