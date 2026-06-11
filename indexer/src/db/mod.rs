@@ -1,3 +1,4 @@
+mod address_activity;
 mod addresses;
 mod blocks;
 mod inputs;

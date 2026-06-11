@@ -53,6 +53,10 @@ async fn main() {
                     .batch_execute(
                         "BEGIN; \
                          DROP MATERIALIZED VIEW IF EXISTS address_balances; \
+                         DROP TABLE IF EXISTS address_activity; \
+                         DROP TABLE IF EXISTS address_activity_weekly; \
+                         DROP TABLE IF EXISTS proposals; \
+                         DROP TABLE IF EXISTS masternodes; \
                          DROP TABLE IF EXISTS masternodes; \
                          DROP TABLE IF EXISTS utxo; \
                          DROP TABLE IF EXISTS special_transactions; \
