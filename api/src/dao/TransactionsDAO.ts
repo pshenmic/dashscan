@@ -49,8 +49,10 @@ export default class TransactionsDAO {
         this.knex.raw('transactions.amount::text as amount'),
         'transactions.coinjoin',
         'transactions.multisig',
-        'transactions.size'
+        'transactions.size',
+        'transactions.is_coinbase'
       )
+      .whereNotNull('transactions.block_height')
       .modify((builder) => {
         if (transactionType != null) builder.where('transactions.type', transactionType);
         if (coinjoin != null) builder.where('transactions.coinjoin', coinjoin);
@@ -58,6 +60,8 @@ export default class TransactionsDAO {
         if (blockHeight != null) builder.where('transactions.block_height', blockHeight);
       })
       .orderBy('transactions.block_height', order)
+      .orderBy('transactions.is_coinbase', 'desc')
+      .orderBy('transactions.id', 'asc')
       .limit(limit)
       .offset(fromRank)
 
@@ -105,7 +109,10 @@ export default class TransactionsDAO {
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .leftJoin('blocks', 'blocks.height', 'block_height')
-      .from('subquery');
+      .from('subquery')
+      .orderBy('subquery.block_height', order)
+      .orderBy('subquery.is_coinbase', 'desc')
+      .orderBy('subquery.id', 'asc');
 
 
     const [row] = rows;
@@ -204,8 +211,10 @@ export default class TransactionsDAO {
         this.knex.raw('transactions.amount::text as amount'),
         'transactions.coinjoin',
         'transactions.multisig',
+        'transactions.is_coinbase',
       )
       .where('transactions.block_height', height)
+      .orderBy('transactions.is_coinbase', 'desc')
       .orderBy('transactions.id', order)
       .limit(limit)
       .offset(fromRank)
@@ -261,6 +270,8 @@ export default class TransactionsDAO {
       .leftJoin('blocks', 'blocks.height', 'block_height')
       .leftJoin('special_transactions', 'special_transactions.tx_id', 'subquery.id')
       .from('subquery')
+      .orderBy('subquery.is_coinbase', 'desc')
+      .orderBy('subquery.id', order)
 
     const [row] = rows;
 
