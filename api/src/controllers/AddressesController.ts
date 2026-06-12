@@ -48,7 +48,7 @@ export default class AddressesController {
   getAddressBalanceSeries = async (
     request: FastifyRequest<{
       Params: { address: string };
-      Querystring: { timestamp_start: string; timestamp_end: string; timespan: string; intervals_count: number }
+      Querystring: { timestamp_start: string; timestamp_end: string; intervals_count: number }
     }>,
     response: FastifyReply
   ): Promise<void> => {
@@ -135,5 +135,22 @@ export default class AddressesController {
     balances.pagination.limit = limit
 
     response.send(balances)
+  }
+
+  getAddressesActivity = async (request: FastifyRequest<{
+    Querystring: PaginatedQuery & { timestamp_start?: string; timestamp_end?: string }
+  }>, response: FastifyReply): Promise<void> => {
+    const {timestamp_start, timestamp_end, page = 1, limit = 10, order = 'desc'} = request.query;
+
+    const end = timestamp_end ? new Date(timestamp_end) : new Date();
+    const start = timestamp_start ? new Date(timestamp_start) : new Date(end.getTime() - 24 * 3600 * 1000);
+
+    if (start.getTime() > end.getTime()) {
+      return response.status(400).send({error: 'start timestamp cannot be more than end timestamp'});
+    }
+
+    const addresses = await this.addressesDAO.getAddressesActivity(start, end, Number(page), Number(limit), order);
+
+    response.send(addresses);
   }
 }

@@ -68,6 +68,9 @@ export default function Routes({ fastify, mainController, blocksController, tran
       path: '/transactions/stats',
       method: 'get',
       handler: transactionsController.getTransactionStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
     },
     {
       path: '/transactions/chart',
@@ -284,6 +287,31 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/governance/proposal/:hash/votes/chart',
+      method: 'get',
+      handler: governanceController.getProposalVoteSeries,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            hash: { $ref: 'hash#' },
+          },
+          required: ['hash'],
+        },
+        querystring: {
+          allOf: [
+            { $ref: 'timeInterval#' },
+            {
+              type: 'object',
+              properties: {
+                running_total: { type: 'boolean' },
+              },
+            },
+          ],
+        },
+      },
+    },
+    {
       path: '/governance/proposals',
       method: 'get',
       handler: governanceController.getProposals,
@@ -373,6 +401,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       handler: addressesController.getBalancesInfo,
       schema: {
         querystring: { $ref: 'paginationOptions#' },
+      }
+    },
+    {
+      path: '/addresses/activity',
+      method: 'get',
+      handler: addressesController.getAddressesActivity,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
       }
     },
     {

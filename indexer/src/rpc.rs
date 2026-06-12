@@ -1,6 +1,7 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tracing::{debug, warn};
 use crate::errors::rpc_error::RpcError;
@@ -52,6 +53,9 @@ pub struct MasternodeEntry {
     pub votingaddress: String,
     pub collateraladdress: String,
     pub pubkeyoperator: String,
+    /// Collateral outpoint (`txid-vout`); populated from the response map key.
+    #[serde(default)]
+    pub outpoint: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -291,13 +295,56 @@ impl DashRpcClient {
             .ok_or_else(|| RpcError { code: 0, message: "masternode list: expected object".to_string() })?;
 
         let mut entries = Vec::with_capacity(map.len());
-        for val in map.values() {
-            let entry: MasternodeEntry = serde_json::from_value(val.clone())
+        for (outpoint, val) in map.iter() {
+            let mut entry: MasternodeEntry = serde_json::from_value(val.clone())
                 .map_err(|e| RpcError { code: 0, message: format!("Failed to parse masternode entry: {e}") })?;
+            entry.outpoint = outpoint.clone();
             entries.push(entry);
         }
 
         Ok(entries)
+    }
+
+    /// `gobject list all proposals` — returns a map of `governance_hash → object`.
+    pub async fn get_governance_objects(&self) -> Result<HashMap<String, Value>, RpcError> {
+        let result = self
+            .call(
+                "gobject",
+                vec![Value::from("list"), Value::from("all"), Value::from("proposals")],
+            )
+            .await?;
+
+        let map = result
+            .as_object()
+            .ok_or_else(|| RpcError { code: 0, message: "gobject list: expected object".to_string() })?;
+
+        Ok(map.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+    }
+
+    /// `gobject getcurrentvotes <hash>` — returns a map of
+    /// `vote_hash → "outpoint:time:outcome:signal"`.
+    pub async fn get_governance_object_votes(
+        &self,
+        proposal_hash: &str,
+    ) -> Result<HashMap<String, String>, RpcError> {
+        let result = self
+            .call(
+                "gobject",
+                vec![Value::from("getcurrentvotes"), Value::from(proposal_hash)],
+            )
+            .await?;
+
+        let map = result
+            .as_object()
+            .ok_or_else(|| RpcError { code: 0, message: "gobject getcurrentvotes: expected object".to_string() })?;
+
+        let mut out = HashMap::with_capacity(map.len());
+        for (k, v) in map.iter() {
+            if let Some(s) = v.as_str() {
+                out.insert(k.clone(), s.to_string());
+            }
+        }
+        Ok(out)
     }
 
     /// Fetch a transaction by txid (verbosity=1 for decoded output).

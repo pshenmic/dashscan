@@ -2,7 +2,8 @@ import Fastify, { FastifyInstance, FastifyError, FastifyRequest, FastifyReply } 
 import metricsPlugin from 'fastify-metrics';
 import {DashCoreRPC} from "./dashcoreRPC";
 import { Knex } from 'knex';
-import { getKnex } from './utils';
+import Redis from 'ioredis';
+import { getKnex, getRedis } from './utils';
 import cors from '@fastify/cors';
 import schemas from './schemas';
 import Routes from './routes';
@@ -32,6 +33,7 @@ function errorHandler(err: FastifyError, req: FastifyRequest, reply: FastifyRepl
 }
 
 let knex: Knex;
+let redis: Redis;
 let fastify: FastifyInstance;
 
 export const start = async (): Promise<FastifyInstance> => {
@@ -51,6 +53,8 @@ export const start = async (): Promise<FastifyInstance> => {
 
   await knex.raw('select 1')
 
+  redis = getRedis();
+
   const dashcoreRPC = new DashCoreRPC();
 
   const cache = new Cache()
@@ -69,7 +73,7 @@ export const start = async (): Promise<FastifyInstance> => {
   const masternodesController = new MasternodesController(knex, geoIPService);
   const marketController = new MarketController(marketService);
   const searchController = new SearchController(knex);
-  const governanceController = new GovernanceController(knex, dashcoreRPC, geoIPService, cache);
+  const governanceController = new GovernanceController(knex, redis, dashcoreRPC, geoIPService, cache);
 
   Routes({
     fastify,
@@ -95,6 +99,7 @@ export const stop = async (): Promise<void> => {
 
   await fastify.close();
   await knex.destroy();
+  redis.disconnect();
 };
 
 export const listen = async (server: FastifyInstance): Promise<void> => {

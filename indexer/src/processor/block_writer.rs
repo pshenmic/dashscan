@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use dashcore::consensus::encode::deserialize_partial;
 use deadpool_postgres::Client;
 use futures::stream::{self, StreamExt};
@@ -454,6 +454,41 @@ impl BlockProcessor {
             }
         }
         self.db.delete_utxo_batch(client, &utxo_deletes).await?;
+
+        // ── 7c. Per-day address activity rollup (feeds GET /addresses/active).
+        // An address counts a transaction once even when it appears on both the
+        // input and output side. A transaction belongs to exactly one block and
+        // therefore one day, so adding per-batch counts onto the rollup never
+        // double-counts across batches.
+        let mut activity: HashMap<(NaiveDate, i32), i64> = HashMap::new();
+        for p in pending {
+            let day = p.timestamp.date_naive();
+            for tx in &p.block.tx {
+                let mut tx_addr_ids: HashSet<i32> = HashSet::new();
+                for vout in &tx.vout {
+                    if let Some(&addr_id) = addresses_map.get(&(vout.n, tx.txid.clone())) {
+                        tx_addr_ids.insert(addr_id);
+                    }
+                }
+                for vin in &tx.vin {
+                    if let (Some(h), Some(v)) = (&vin.txid, vin.vout) {
+                        if let Some(&addr_id) = input_address_ids.get(&(h.clone(), v)) {
+                            tx_addr_ids.insert(addr_id);
+                        }
+                    }
+                }
+                for addr_id in tx_addr_ids {
+                    *activity.entry((day, addr_id)).or_insert(0) += 1;
+                }
+            }
+        }
+        let activity_rows: Vec<(NaiveDate, i32, i64)> = activity
+            .into_iter()
+            .map(|((day, addr_id), count)| (day, addr_id, count))
+            .collect();
+        self.db
+            .upsert_address_activity_batch(client, &activity_rows)
+            .await?;
 
         // ── 8. Special transactions
         let mut special_records: Vec<(i32, i16, Value)> = Vec::new();
