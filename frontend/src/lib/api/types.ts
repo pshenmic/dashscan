@@ -338,4 +338,38 @@ export interface ApiGovernanceObject {
   abstainCount: number | null;
   localValidity: boolean | null;
   isValidReason: string | null;
+  enoughVotes?: boolean | null;
+  enoughFunds?: boolean | null;
+}
+
+export type ApiVoteOutcome = "yes" | "no" | "abstain";
+
+export type ApiVoteSignal = "funding" | "valid" | "delete" | "endorsed";
+
+export interface ApiVoteResult {
+  absoluteYesCount: number;
+  yesCount: number;
+  noCount: number;
+  abstainCount: number;
+}
+
+export interface ApiProposalVote {
+  outpoint: string;
+  proTxHash: string | null;
+  proposalHash?: string | null;
+  time: string;
+  outcome: ApiVoteOutcome;
+  signal: ApiVoteSignal;
+}
+
+export interface ApiProposalDetail extends ApiGovernanceObject {
+  fundingResult: ApiVoteResult | null;
+  deleteResult: ApiVoteResult | null;
+  endorsedResult: ApiVoteResult | null;
+  votes: ApiProposalVote[] | null;
+}
+
+export interface ApiProposalVotesChartPoint {
+  timestamp: string;
+  data: { yes: number; no: number; abstain: number };
 }

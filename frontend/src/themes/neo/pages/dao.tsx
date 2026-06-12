@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
   ArrowDown,
@@ -104,6 +105,7 @@ function SortHeader({
 
 export default function RedesignDaoPage() {
   const storeNetwork = useStore(appStore, (state) => state.network);
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(PROPOSALS_PAGE_SIZE);
   const [viewMode, setViewMode] = useTableViewMode("dao");
@@ -313,26 +315,34 @@ export default function RedesignDaoPage() {
         return (
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex min-w-0 items-center gap-1.5">
-              {url ? (
+              {row.hash ? (
                 <Button
                   asChild
                   variant="link"
                   className="h-auto truncate p-0 text-sm font-medium"
                 >
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to="/dao/$hash"
+                    params={{ hash: row.hash }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {name}
-                  </a>
+                  </Link>
                 </Button>
               ) : (
                 <span className="truncate text-sm font-medium">{name}</span>
               )}
               {url && (
-                <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Open full proposal"
+                  className="shrink-0 text-muted-foreground hover:text-accent"
+                >
+                  <ExternalLink className="size-3" />
+                </a>
               )}
             </div>
             {addr ? (
@@ -510,14 +520,17 @@ export default function RedesignDaoPage() {
                     })}
                   </span>
                   {msUntilVoteCutoff > 0 ? (
-                      <Badge variant="soft-accent">
-                        in {formatDuration(msUntilVoteCutoff)}
-                      </Badge>
+                    <Badge variant="soft-accent">
+                      in {formatDuration(msUntilVoteCutoff)}
+                    </Badge>
                   ) : (
-                      <Badge variant="soft-destructive">Voting closed</Badge>
+                    <Badge variant="soft-destructive">Voting closed</Badge>
                   )}
                 </DetailRow>
-                <DetailRow label="Next superblock payment" className="border-b-0 pb-0">
+                <DetailRow
+                  label="Next superblock payment"
+                  className="border-b-0 pb-0"
+                >
                   <span>
                     {nextSuperblockDate.toLocaleString("en-US", {
                       year: "numeric",
@@ -533,30 +546,22 @@ export default function RedesignDaoPage() {
                     {requiredVotes.toLocaleString()} Yes
                   </span>
                 </DetailRow>
-                <DetailRow
-                    label="Remaining budget"
-                    className="border-b-0 pb-0"
-                >
+                <DetailRow label="Remaining budget" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
                     {Math.round(remainingBudget).toLocaleString()} <DashIcon />
                   </span>
                 </DetailRow>
-                <DetailRow
-                  label="Passes funding"
-                  className="border-b-0 pb-0"
-                >
+                <DetailRow label="Passes funding" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
                     {enoughFundsProposalCount} proposals ·{" "}
                     {Math.round(enoughFundsTotal).toLocaleString()} <DashIcon />
                   </span>
                 </DetailRow>
-                <DetailRow
-                  label="Not enough votes"
-                  className="border-b-0 pb-0"
-                >
+                <DetailRow label="Not enough votes" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
                     {missingVotesCount} proposals ·{" "}
-                    {Math.round(missingVotesAmount).toLocaleString()} <DashIcon />
+                    {Math.round(missingVotesAmount).toLocaleString()}{" "}
+                    <DashIcon />
                   </span>
                 </DetailRow>
               </dl>
@@ -584,6 +589,11 @@ export default function RedesignDaoPage() {
           data={paged}
           isLoading={isFetching && filteredProposals.length === 0}
           rowKey={(row, idx) => row.hash ?? `proposal-${idx}`}
+          onRowClick={(row) => {
+            if (row.hash) {
+              navigate({ to: "/dao/$hash", params: { hash: row.hash } });
+            }
+          }}
           search={{
             value: search,
             onChange: handleSearchChange,

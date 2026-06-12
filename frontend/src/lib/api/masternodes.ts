@@ -4,6 +4,7 @@ import type { Network } from "@/lib/store";
 import { getBaseUrl } from "./client";
 import type {
   ApiMasternode,
+  ApiProposalVote,
   PaginatedResponse,
   PaginationParams,
   SearchResponse,
@@ -68,6 +69,27 @@ export function masternodeQueryOptions(params: FetchMasternodeInput) {
   return queryOptions({
     queryKey: ["masternode", params.network, params.hash],
     queryFn: () => getMasternode(params),
+  });
+}
+
+async function getMasternodeVotes(params: FetchMasternodeInput) {
+  const url = new URL(
+    `/masternode/${params.hash}/votes`,
+    getBaseUrl(params.network),
+  );
+  const response = await fetch(url);
+  if (response.status === 404) return [];
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<ApiProposalVote[]>;
+}
+
+export function masternodeVotesQueryOptions(params: FetchMasternodeInput) {
+  return queryOptions({
+    queryKey: ["masternode-votes", params.network, params.hash],
+    queryFn: () => getMasternodeVotes(params),
+    staleTime: 60 * 1000,
   });
 }
 
