@@ -1,4 +1,5 @@
 import {Knex} from 'knex';
+import Redis from 'ioredis';
 import {DashCoreRPC, GovernanceObjectSignal} from "../dashcoreRPC";
 import {FastifyReply, FastifyRequest} from "fastify";
 import GovernanceDAO from "../dao/GovernanceDAO";
@@ -7,15 +8,17 @@ import {GovernanceObject} from "../models/GovernanceObject";
 import MasternodesDAO from "../dao/MasternodesDAO";
 import GeoIPService from "../services/GeoIPService";
 import {Cache} from "../cache";
+import {calculateInterval} from "../utils";
+import Intervals from "../enums/Intervals";
 
 export default class GovernanceController {
   governanceDAO: GovernanceDAO
   masternodesDAO: MasternodesDAO
   blocksDAO: BlocksDAO
 
-  constructor(knex: Knex, dashCoreRPC: DashCoreRPC, geoIPService: GeoIPService, cache: Cache) {
+  constructor(knex: Knex, redis: Redis, dashCoreRPC: DashCoreRPC, geoIPService: GeoIPService, cache: Cache) {
     this.masternodesDAO = new MasternodesDAO(knex, geoIPService)
-    this.governanceDAO = new GovernanceDAO(dashCoreRPC, this.masternodesDAO, cache)
+    this.governanceDAO = new GovernanceDAO(knex, redis, dashCoreRPC, this.masternodesDAO, cache)
     this.blocksDAO = new BlocksDAO(knex)
   }
 
@@ -25,6 +28,47 @@ export default class GovernanceController {
     const votes = await this.governanceDAO.getMasternodeVotes(proTxHash)
 
     response.send(votes)
+  }
+
+  getProposalVoteSeries = async (
+    request: FastifyRequest<{
+      Params: { hash: string };
+      Querystring: { timestamp_start: string; timestamp_end: string; intervals_count: number; running_total: boolean }
+    }>,
+    response: FastifyReply
+  ): Promise<void> => {
+    const {hash} = request.params
+
+    const {
+      timestamp_start: start = new Date(new Date().getTime() - 3600000).toISOString(),
+      timestamp_end: end = new Date().toISOString(),
+      intervals_count: intervalsCount,
+      running_total: runningTotal = false,
+    } = request.query;
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (startDate.getTime() > endDate.getTime()) {
+      return response.status(400).send({error: 'start timestamp cannot be more than end timestamp'});
+    }
+
+    // Resolve the bucket width: split the range into `intervals_count` equal
+    // buckets (rounded to whole seconds) when the caller asks for a count,
+    // otherwise fall back to a preset step sized to the range.
+    const intervalInMs = intervalsCount
+      ? Math.ceil((endDate.getTime() - startDate.getTime()) / Number(intervalsCount) / 1000) * 1000
+      : Intervals[calculateInterval(startDate, endDate)];
+
+    const series = await this.governanceDAO.getProposalVoteSeries(
+      hash,
+      startDate,
+      endDate,
+      intervalInMs,
+      runningTotal,
+    );
+
+    response.send(series);
   }
 
   getProposalByHash = async (request: FastifyRequest<{ Params: { hash: string } }>, response: FastifyReply): Promise<void> => {

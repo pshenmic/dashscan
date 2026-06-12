@@ -1,0 +1,21 @@
+-- Covering indexes for the active-addresses query (GET /addresses/active).
+--
+-- That query resolves a time window to a block-height range, collects the
+-- transaction ids in it, then probes tx_outputs / tx_inputs by tx_id to gather
+-- the (address_id, tx_id) pairs it ranks.
+--
+-- The existing join indexes lead with tx_id but do NOT contain address_id:
+--   idx_tx_outputs_tx_id_vout (tx_id, vout_index)
+--   idx_tx_inputs_tx_id       (tx_id)
+-- so every matching row needs a heap fetch just to read address_id. Over a day
+-- that is cheap; over a month it is hundreds of thousands of random heap fetches
+-- and dominates the runtime.
+--
+-- These partial covering indexes carry address_id in the index itself, turning
+-- the probes into index-only scans (no heap fetch). Partial on address_id IS NOT
+-- NULL keeps them lean and matches the query's predicate exactly.
+--
+-- NOTE: plain CREATE INDEX takes a write lock while building. On a live node
+-- build these with CREATE INDEX CONCURRENTLY (outside a transaction) instead.
+CREATE INDEX idx_tx_outputs_tx_id_address ON tx_outputs (tx_id, address_id) WHERE address_id IS NOT NULL;
+CREATE INDEX idx_tx_inputs_tx_id_address  ON tx_inputs  (tx_id, address_id) WHERE address_id IS NOT NULL;

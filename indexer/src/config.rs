@@ -13,6 +13,7 @@ pub struct Config {
     pub start_height: i64,
     pub zmq_url: String,
     pub database_url: String,
+    pub redis_url: String,
     pub poll_interval_secs: u64,
     pub catch_up_batch_size: usize,
     pub p2p_batch_size: usize,
@@ -47,6 +48,7 @@ impl Config {
                 .expect("Invalid network value"),
             zmq_url: env::var("CORE_ZMQ_URL").expect("CORE_ZMQ_URL must be set (tcp://....)"),
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
+            redis_url: env::var("REDIS_URL").expect("REDIS_URL must be set (redis://...)"),
             start_height: env::var("START_HEIGHT")
                 .unwrap_or_else(|_| "0".to_string())
                 .parse()

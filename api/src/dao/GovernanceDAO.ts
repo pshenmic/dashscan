@@ -1,16 +1,23 @@
+import {Knex} from 'knex';
+import Redis from 'ioredis';
 import {DashCoreRPC, GovernanceInfoRPC, GovernanceObjectSignal} from "../dashcoreRPC";
 import {GovernanceObject} from "../models/GovernanceObject";
 import {ProposalVote} from "../models/ProposalVote";
+import SeriesData from "../models/SeriesData";
 import MasternodesDAO from "./MasternodesDAO";
 import {Cache} from "../cache";
 import {PROTX_OUTPOINT_MAP_LIFE_TIME} from "../constants";
 
 export default class GovernanceDAO {
+  knex: Knex;
+  redis: Redis;
   dashCoreRPC: DashCoreRPC;
   masternodesDAO: MasternodesDAO;
   cache: Cache;
 
-  constructor(dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO, cache: Cache) {
+  constructor(knex: Knex, redis: Redis, dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO, cache: Cache) {
+    this.knex = knex
+    this.redis = redis
     this.dashCoreRPC = dashCoreRPC
     this.masternodesDAO = masternodesDAO
     this.cache = cache
@@ -171,6 +178,68 @@ export default class GovernanceDAO {
       })
 
     return proposal
+  }
+
+  getProposalVoteSeries = async (
+    proposalHash: string,
+    start: Date,
+    end: Date,
+    intervalInMs: number,
+    runningTotal: boolean,
+  ): Promise<SeriesData[]> => {
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    const stepMs = intervalInMs;
+
+    // Fixed-step buckets [from, to]; mirrors the previous
+    // generate_series(start + step, end, step) with date_from = previous date_to.
+    const buckets: { from: number; yes: number; no: number; abstain: number }[] = [];
+
+    if (stepMs > 0) {
+      for (let to = startMs + stepMs; to <= endMs; to += stepMs) {
+        buckets.push({from: to - stepMs, yes: 0, no: 0, abstain: 0});
+      }
+    }
+
+    const rawVotes = await this.redis.hvals(`dao:votes:${proposalHash}`);
+
+    for (const raw of rawVotes) {
+      const vote = ProposalVote.fromRaw(raw);
+
+      // Only funding-signal votes feed the series, matching the old `signal LIKE 'funding%'`.
+      if (vote == null || !vote.signal.startsWith('funding')) {
+        continue;
+      }
+
+      // Bucket by vote_time > date_from AND <= date_to.
+      const index = Math.ceil((vote.time.getTime() - startMs) / stepMs) - 1;
+
+      if (index < 0 || index >= buckets.length) {
+        continue;
+      }
+
+      const bucket = buckets[index];
+
+      if (vote.outcome === 'yes') bucket.yes += 1;
+      else if (vote.outcome === 'no') bucket.no += 1;
+      else if (vote.outcome === 'abstain') bucket.abstain += 1;
+    }
+
+    let yesTotal = 0;
+    let noTotal = 0;
+    let abstainTotal = 0;
+
+    return buckets.map(bucket => {
+      if (runningTotal) {
+        yesTotal += bucket.yes;
+        noTotal += bucket.no;
+        abstainTotal += bucket.abstain;
+
+        return new SeriesData(new Date(bucket.from), {yes: yesTotal, no: noTotal, abstain: abstainTotal});
+      }
+
+      return new SeriesData(new Date(bucket.from), {yes: bucket.yes, no: bucket.no, abstain: bucket.abstain});
+    });
   }
 
   getBudgetInfo = async (superblockHeight: number): Promise<number> => {

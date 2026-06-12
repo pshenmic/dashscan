@@ -648,7 +648,11 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
 |-----------|--------|--------------------------------------------|--------------|
 | `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
 
-**Query Parameters:** [Pagination](#pagination-query-parameters)
+**Query Parameters:** [Pagination](#pagination-query-parameters), plus optional filter:
+
+| Parameter          | Type   | Constraints                                                                          | Description                                                                                       |
+|--------------------|--------|--------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `transaction_type` | string | one of the [transaction type](#transaction-types) names (e.g. `CLASSIC`, `COINBASE`) | Filter by transaction type. Use `COINBASE` to list only coinbase payouts received by the address  |
 
 **Response `200`**
 
@@ -779,6 +783,81 @@ Returns a paginated rich-list view: addresses sorted by current UTXO balance, ea
 
 ---
 
+### GET /addresses/activity
+
+Returns a paginated ranking of the most active addresses within a time window: addresses sorted by the number of transactions they appeared in, on either the input or the output side. A transaction is counted once per address even when the address occurs on both sides.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters) plus a time interval:
+
+| Parameter         | Type   | Default                 | Description             |
+|-------------------|--------|-------------------------|-------------------------|
+| `timestamp_start` | string | 24 hours ago (ISO 8601) | Start of the time range |
+| `timestamp_end`   | string | now (ISO 8601)          | End of the time range   |
+
+`order=desc` (default) returns the most active addresses first. Ties are broken by internal address id, so pagination is deterministic.
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "address": "XmZQkfLtk3xLtbBMenTdaZMxsUBYAsRz1o",
+      "firstSeenBlock": null,
+      "firstSeenBlockTimestamp": null,
+      "firstSeenTx": null,
+      "lastSeenBlock": null,
+      "lastSeenBlockTimestamp": null,
+      "lastSeenTx": null,
+      "txCount": 132952,
+      "received": null,
+      "sent": null,
+      "balance": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 570622
+  }
+}
+```
+
+| Field     | Type   | Description                                                  |
+|-----------|--------|--------------------------------------------------------------|
+| `address` | string | Dash address                                                 |
+| `txCount` | number | Transactions the address appeared in within the window      |
+
+Entries are Address objects with only `address` and `txCount` populated; all other fields are `null` for this endpoint. `pagination.total` is the number of distinct addresses in the ranking (see precision notes below).
+
+**Response `400`**
+
+```json
+{ "error": "start timestamp cannot be more than end timestamp" }
+```
+
+**Sources & precision.** The ranking is composed from tiered sources depending on the window length, so long windows stay fast. The window is split as:
+
+```
+start ─live─ midnight ─daily─ Monday ─weekly─ Monday ─daily─ midnight ─live─ end
+```
+
+| Window  | Sources                                                                                       | Precision                  |
+|---------|-----------------------------------------------------------------------------------------------|----------------------------|
+| ≤ 3d    | Live query over `tx_inputs`/`tx_outputs`                                                      | Exact to the timestamp     |
+| 3d – 8d | Daily rollup (`address_activity`) for whole days + live queries for the partial edge days     | Exact edges, see threshold |
+| > 8d    | Weekly rollup (`address_activity_weekly`) for whole ISO weeks + daily rollup + live edge days | Exact edges, see threshold |
+
+The rollup tables are maintained incrementally by the indexer in the same database transaction as each block, so they are current to the chain tip.
+
+**Activity thresholds.** For speed, low-activity rollup rows are excluded from long-window rankings: daily rows with `tx_count ≤ 2` and weekly rows with `tx_count ≤ 10` (see `ADDRESSES_ACTIVITY_DAILY_MIN_TX_COUNT` / `ADDRESSES_ACTIVITY_WEEKLY_MIN_TX_COUNT` in `src/constants.ts`, floors tied to partial indexes). Consequences:
+
+- Addresses below the thresholds in every bucket are missing from the ranking entirely, and `pagination.total` therefore undercounts the true number of active addresses — treat it as the size of the *ranked* set, not an exact "active addresses" statistic.
+- Ranked addresses can be slightly undercounted when some of their days/weeks fall below the thresholds. For genuinely active addresses (the top of the list) the numbers are effectively exact.
+- Windows ≤ 3d have no thresholds and are fully exact.
+
+---
+
 ### GET /transactions/chart
 
 Returns a time series of transaction counts over a configurable time range, with optional running total.
@@ -824,7 +903,14 @@ Returns a time series of transaction counts over a configurable time range, with
 
 ### GET /transactions/stats
 
-Returns counts of confirmed transactions over the last 24 hours, partitioned into mutually exclusive categories.
+Returns counts of confirmed transactions over a given time range, partitioned into mutually exclusive categories. Defaults to the last 24 hours when no range is supplied.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default                 | Description             |
+|-------------------|--------|-------------------------|-------------------------|
+| `timestamp_start` | string | 24 hours ago (ISO 8601) | Start of the time range |
+| `timestamp_end`   | string | now (ISO 8601)          | End of the time range   |
 
 **Categorization (in priority order):**
 
@@ -852,10 +938,10 @@ Pending (mempool) transactions are excluded.
 | Field      | Type           | Description                                                                          |
 |------------|----------------|--------------------------------------------------------------------------------------|
 | `total`    | number \| null | Sum of `special + coinjoin + multisig + normal`                                      |
-| `special`  | number \| null | Confirmed special transactions (`type > 0`) in the last 24h                          |
-| `coinjoin` | number \| null | Confirmed CoinJoin transactions in the last 24h (excludes special)                   |
-| `multisig` | number \| null | Confirmed multisig transactions in the last 24h (excludes special and CoinJoin)      |
-| `normal`   | number \| null | Confirmed transactions that are none of the above in the last 24h                    |
+| `special`  | number \| null | Confirmed special transactions (`type > 0`) in the range                             |
+| `coinjoin` | number \| null | Confirmed CoinJoin transactions in the range (excludes special)                      |
+| `multisig` | number \| null | Confirmed multisig transactions in the range (excludes special and CoinJoin)         |
+| `normal`   | number \| null | Confirmed transactions that are none of the above in the range                       |
 
 > All fields are `null` when no rows can be derived (e.g. no indexed blocks). Otherwise counts are `0` or positive integers.
 
@@ -1053,6 +1139,53 @@ Returns all current-cycle governance votes cast by a single masternode, aggregat
 Each entry uses the same shape as `ProposalVote` on `/governance/proposal/:hash` (see [there](#get-governanceproposalhash)), with `proposalHash` filled in instead of being implied by the route.
 
 > Cost note: this is a fan-out of N RPC calls (one per active proposal). N is typically 10–50 on mainnet. Each call returns one entry per voting masternode; filtering happens in-process. Total latency is bounded by the slowest individual `getcurrentvotes` call, not the sum.
+
+---
+
+### GET /masternode/:proTxHash/transactions
+
+Returns a paginated list of transactions involving any address tied to the given masternode — its `payee`, `ownerAddress`, `votingAddress`, or `collateralAddress` — either as an input or an output.
+
+**Path Parameters**
+
+| Parameter   | Type   | Constraints                            | Description              |
+|-------------|--------|----------------------------------------|--------------------------|
+| `proTxHash` | string | 64-char hex (`[A-Za-z0-9]`, length 64) | Masternode ProRegTx hash |
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "hash": "abcdef1234...",
+      "type": "CLASSIC",
+      "blockHeight": 100000,
+      "blockHash": "000000000000abcd1234...",
+      "timestamp": "2023-01-01T00:00:00.000Z",
+      "amount": "100000000",
+      "version": 3,
+      "vIn": [...],
+      "vOut": [...],
+      "confirmations": 10,
+      "instantLock": "0102375e...d571d32a0a",
+      "chainLocked": true,
+      "coinjoin": false,
+      "multisig": false,
+      "extraPayload": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 42
+  }
+}
+```
+
+Entries use the [Transaction Object](#transaction-object) shape. `total` reflects the distinct count of transactions across all the masternode's addresses.
 
 ---
 
@@ -1289,6 +1422,63 @@ Each block is a [VoteResult Object](#voteresult-object): `{ absoluteYesCount (= 
 **Response `200`** — single [Governance Proposal Object](#governance-proposal-object).
 
 **Response `404`** — Proposal not found.
+
+---
+
+### GET /governance/proposal/:hash/votes/chart
+
+Returns a time series of a proposal's **funding** votes, bucketed by the time each vote was cast, with optional running total. Used to render the vote-over-time chart on the proposal page.
+
+Unlike `/governance/proposal/:hash` (which fans out to `gobject getcurrentvotes` live), this endpoint reads the indexer's cached vote set from Redis (`dao:votes:<hash>`). That cache is **current-cycle only** — it is dropped and rebuilt when the chain crosses a superblock boundary — so the series covers votes for the proposal's current superblock cycle, not its full history.
+
+Only votes whose signal is `funding` are counted; `valid` / `delete` / `endorsed` signals are ignored. Within each bucket, votes are tallied by outcome into `yes` / `no` / `abstain` counts.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                            | Description            |
+|-----------|--------|----------------------------------------|------------------------|
+| `hash`    | string | 64-char hex (`[A-Za-z0-9]`, length 64) | Governance object hash |
+
+**Query Parameters**
+
+| Parameter         | Type    | Default               | Constraints          | Description                                                                                                          |
+|-------------------|---------|-----------------------|----------------------|----------------------------------------------------------------------------------------------------------------------|
+| `timestamp_start` | string  | 1 hour ago (ISO 8601) |                      | Start of the time range                                                                                              |
+| `timestamp_end`   | string  | now (ISO 8601)        |                      | End of the time range                                                                                               |
+| `intervals_count` | number  | auto                  | minimum: 2, max: 100 | Number of equal buckets. When omitted, the bucket width is chosen automatically via `calculateInterval`             |
+| `running_total`   | boolean | `false`               |                      | When `true`, each bucket's counts are the cumulative totals from `timestamp_start` through the end of that bucket   |
+
+A vote falls in a bucket when `from < vote_time <= to`. `timestamp` is the bucket's **start** (`from`).
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "yes": 12, "no": 3, "abstain": 1 }
+  },
+  {
+    "timestamp": "2024-01-01T01:00:00.000Z",
+    "data": { "yes": 5, "no": 0, "abstain": 0 }
+  }
+]
+```
+
+| Field           | Type   | Description                                                                                  |
+|-----------------|--------|----------------------------------------------------------------------------------------------|
+| `timestamp`     | string | ISO 8601 start of the bucket                                                                 |
+| `data.yes`      | number | Funding `yes` votes in the bucket, or cumulative total if `running_total=true`               |
+| `data.no`       | number | Funding `no` votes in the bucket, or cumulative total if `running_total=true`                |
+| `data.abstain`  | number | Funding `abstain` votes in the bucket, or cumulative total if `running_total=true`           |
+
+> Empty buckets are included with all counts `0`. A proposal hash with no cached funding votes returns a series of all-zero buckets (not a `404`).
+
+**Response `400`**
+
+```json
+{ "error": "start timestamp cannot be more than end timestamp" }
+```
 
 ---
 

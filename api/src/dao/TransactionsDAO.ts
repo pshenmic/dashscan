@@ -49,8 +49,10 @@ export default class TransactionsDAO {
         this.knex.raw('transactions.amount::text as amount'),
         'transactions.coinjoin',
         'transactions.multisig',
-        'transactions.size'
+        'transactions.size',
+        'transactions.is_coinbase'
       )
+      .whereNotNull('transactions.block_height')
       .modify((builder) => {
         if (transactionType != null) builder.where('transactions.type', transactionType);
         if (coinjoin != null) builder.where('transactions.coinjoin', coinjoin);
@@ -58,6 +60,8 @@ export default class TransactionsDAO {
         if (blockHeight != null) builder.where('transactions.block_height', blockHeight);
       })
       .orderBy('transactions.block_height', order)
+      .orderBy('transactions.is_coinbase', 'desc')
+      .orderBy('transactions.id', 'asc')
       .limit(limit)
       .offset(fromRank)
 
@@ -105,7 +109,10 @@ export default class TransactionsDAO {
       .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .leftJoin('blocks', 'blocks.height', 'block_height')
-      .from('subquery');
+      .from('subquery')
+      .orderBy('subquery.block_height', order)
+      .orderBy('subquery.is_coinbase', 'desc')
+      .orderBy('subquery.id', 'asc');
 
 
     const [row] = rows;
@@ -204,8 +211,10 @@ export default class TransactionsDAO {
         this.knex.raw('transactions.amount::text as amount'),
         'transactions.coinjoin',
         'transactions.multisig',
+        'transactions.is_coinbase',
       )
       .where('transactions.block_height', height)
+      .orderBy('transactions.is_coinbase', 'desc')
       .orderBy('transactions.id', order)
       .limit(limit)
       .offset(fromRank)
@@ -261,6 +270,8 @@ export default class TransactionsDAO {
       .leftJoin('blocks', 'blocks.height', 'block_height')
       .leftJoin('special_transactions', 'special_transactions.tx_id', 'subquery.id')
       .from('subquery')
+      .orderBy('subquery.is_coinbase', 'desc')
+      .orderBy('subquery.id', order)
 
     const [row] = rows;
 
@@ -381,7 +392,7 @@ export default class TransactionsDAO {
     ));
   }
 
-  getAddressTransactions = async (address: string, page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
+  getAddressTransactions = async (address: string, page: number, limit: number, order: string, transactionType?: TransactionType): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
     const addressIdSubquery = this.knex('addresses').select('id').where('address', address);
@@ -395,7 +406,12 @@ export default class TransactionsDAO {
           .where('address_id', addressIdSubquery),
       );
 
-    const countSubquery = this.knex('address_tx_ids').count('*');
+    const countSubquery = transactionType != null
+      ? this.knex('transactions')
+          .whereIn('id', this.knex('address_tx_ids').select('tx_id'))
+          .where('type', transactionType)
+          .count('*')
+      : this.knex('address_tx_ids').count('*');
 
     const blockMaxHeightSubquery = this.knex('blocks')
       .select(this.knex.raw('MAX(height) as max_height'))
@@ -416,6 +432,9 @@ export default class TransactionsDAO {
         'transactions.multisig',
       )
       .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'))
+      .modify((builder) => {
+        if (transactionType != null) builder.where('transactions.type', transactionType);
+      })
       .orderBy('transactions.block_height', order)
       .limit(limit)
       .offset(fromRank)
@@ -475,19 +494,124 @@ export default class TransactionsDAO {
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
   }
 
-  getTransactionStats24h = async (): Promise<TransactionStats | null> => {
-    const minHeightSubquery = this.knex('blocks')
-      .min('height')
-      .where('timestamp', '>', this.knex.raw("NOW() - INTERVAL '24 hours'"));
+  getMasternodeTransactions = async (proTxHash: string, page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
+    const fromRank = (page - 1) * limit;
+
+    const masternodeAddressIdsCTE = this.knex('addresses')
+      .join('masternodes', function () {
+        this.on('addresses.address', '=', 'masternodes.payee')
+          .orOn('addresses.address', '=', 'masternodes.owner_address')
+          .orOn('addresses.address', '=', 'masternodes.voting_address')
+          .orOn('addresses.address', '=', 'masternodes.collateral_address');
+      })
+      .where('masternodes.pro_tx_hash', proTxHash)
+      .select('addresses.id');
+
+    const addressTxIdsCTE = this.knex('tx_outputs')
+      .select('tx_id')
+      .whereIn('address_id', this.knex('masternode_address_ids').select('id'))
+      .union(
+        this.knex('tx_inputs')
+          .select('tx_id')
+          .whereIn('address_id', this.knex('masternode_address_ids').select('id')),
+      );
+
+    const countSubquery = this.knex('address_tx_ids').count('*');
+
+    const blockMaxHeightSubquery = this.knex('blocks')
+      .select(this.knex.raw('MAX(height) as max_height'))
+      .as('height_subquery');
+
+    const subquery = this.knex('transactions')
+      .select(
+        'transactions.hash',
+        'transactions.type',
+        'transactions.block_height',
+        'transactions.chain_locked',
+        'transactions.instant_lock',
+        'transactions.version',
+        'transactions.size',
+        'transactions.id',
+        this.knex.raw('transactions.amount::text as amount'),
+        'transactions.coinjoin',
+        'transactions.multisig',
+      )
+      .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'))
+      .orderBy('transactions.block_height', order)
+      .limit(limit)
+      .offset(fromRank);
+
+    const outputsCTE = this.knex('tx_outputs')
+      .select('tx_id')
+      .select(this.knex.raw('json_agg(tx_outputs.*) as outputs'))
+      .whereIn('tx_id', this.knex('subquery').select('id'))
+      .groupBy('tx_id');
+
+    const inputsCTE = this.knex('tx_inputs')
+      .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
+      .leftJoin('tx_outputs', function () {
+        this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
+          .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
+      })
+      .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
+      .select('tx_inputs.tx_id')
+      .select(this.knex.raw(`
+        json_agg(
+          json_build_object(
+            'prev_tx_hash', tx_inputs.prev_tx_hash,
+            'prev_vout_index', tx_inputs.prev_vout_index,
+            'address', addresses.address,
+            'amount', tx_outputs.value::text
+          )
+        ) as inputs
+      `))
+      .groupBy('tx_inputs.tx_id');
+
+    const rows = await this.knex
+      .with('masternode_address_ids', masternodeAddressIdsCTE)
+      .with('address_tx_ids', addressTxIdsCTE)
+      .with('subquery', subquery)
+      .with('total_count', countSubquery)
+      .with('agg_outputs', outputsCTE)
+      .with('agg_inputs', inputsCTE)
+      .select(this.knex.raw('max_height - block_height + 1 AS confirmations'))
+      .select(this.knex('total_count').as('total_count'))
+      .select(
+        'subquery.hash', 'type', 'block_height',
+        'blocks.timestamp as timestamp', 'chain_locked',
+        'blocks.hash as block_hash', 'instant_lock',
+        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
+        'subquery.amount', 'subquery.coinjoin', 'subquery.multisig',
+        'special_transactions.payload as extra_payload', 'subquery.size',
+      )
+      .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
+      .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
+      .leftJoin('special_transactions', 'special_transactions.tx_id', 'subquery.id')
+      .join(blockMaxHeightSubquery, this.knex.raw('true'))
+      .leftJoin('blocks', 'blocks.height', 'block_height')
+      .orderBy('subquery.id', order)
+      .from('subquery');
+
+    const [row] = rows;
+
+    return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
+  }
+
+  getTransactionStats = async (start: Date, end: Date): Promise<TransactionStats | null> => {
+    const heightRangeSubquery = this.knex('blocks')
+      .select(this.knex.raw('MIN(height) AS min_height'), this.knex.raw('MAX(height) AS max_height'))
+      .whereBetween('timestamp', [start, end]);
 
     const [row] = await this.knex
+      .with('height_range', heightRangeSubquery)
       .select(
         this.knex.raw('COUNT(*) FILTER (WHERE type > 0)::bigint AS special'),
         this.knex.raw('COUNT(*) FILTER (WHERE coinjoin)::bigint AS coinjoin'),
         this.knex.raw('COUNT(*) FILTER (WHERE multisig)::bigint AS multisig'),
         this.knex.raw('COUNT(*) FILTER (WHERE type = 0 AND NOT coinjoin AND NOT multisig)::bigint AS normal')
       )
-      .where('block_height', '>=', minHeightSubquery)
+      .where('block_height', '>=', this.knex('height_range').select('min_height'))
+      .andWhere('block_height', '<=', this.knex('height_range').select('max_height'))
       .limit(1)
       .from('transactions');
 
