@@ -2225,7 +2225,17 @@ function ProposalRow({
             <div className="flex min-w-0 items-center gap-1.5">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="truncate text-sm font-medium">{name}</span>
+                  {proposal.hash ? (
+                    <Link
+                      to="/dao/$hash"
+                      params={{ hash: proposal.hash }}
+                      className="truncate text-sm font-medium no-underline hover:text-accent"
+                    >
+                      {name}
+                    </Link>
+                  ) : (
+                    <span className="truncate text-sm font-medium">{name}</span>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent>{name}</TooltipContent>
               </Tooltip>

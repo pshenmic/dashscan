@@ -11,7 +11,7 @@ import { useActiveTheme } from "@/themes/active";
 import ClassicDaoPage from "@/themes/dash/pages/dao";
 import RedesignDaoPage from "@/themes/neo/pages/dao";
 
-export const Route = createFileRoute("/dao")({
+export const Route = createFileRoute("/dao/")({
   component: DaoRoute,
   head: () => ({
     meta: [{ title: "DAO | Dashscan" }],
