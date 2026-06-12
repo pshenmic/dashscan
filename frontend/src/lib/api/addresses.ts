@@ -4,6 +4,7 @@ import type { Network } from "@/lib/store";
 import { getBaseUrl } from "./client";
 import type {
   ApiAddress,
+  ApiAddressActivityEntry,
   ApiAddressBalanceEntry,
   ApiAddressBalancePoint,
   ApiAddressDetail,
@@ -266,6 +267,54 @@ export const fetchRichList = createServerFn({ method: "POST" })
   .inputValidator((input: FetchRichListInput) => input)
   .handler(({ data }) => getRichList(data));
 
+interface FetchAddressesActivityInput extends PaginationParams {
+  network: Network;
+  timestampStart?: string;
+  timestampEnd?: string;
+}
+
+async function getAddressesActivity(params: FetchAddressesActivityInput) {
+  const url = new URL("/addresses/activity", getBaseUrl(params.network));
+  if (params.page !== undefined)
+    url.searchParams.set("page", String(params.page));
+  if (params.limit !== undefined)
+    url.searchParams.set("limit", String(params.limit));
+  if (params.order !== undefined) url.searchParams.set("order", params.order);
+  if (params.timestampStart !== undefined)
+    url.searchParams.set("timestamp_start", params.timestampStart);
+  if (params.timestampEnd !== undefined)
+    url.searchParams.set("timestamp_end", params.timestampEnd);
+
+  const response = await fetch(url);
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<PaginatedResponse<ApiAddressActivityEntry>>;
+}
+
+export const fetchAddressesActivity = createServerFn({ method: "POST" })
+  .inputValidator((input: FetchAddressesActivityInput) => input)
+  .handler(({ data }) => getAddressesActivity(data));
+
+export function addressesActivityQueryOptions(
+  params: FetchAddressesActivityInput,
+) {
+  return queryOptions({
+    queryKey: [
+      "addresses-activity",
+      params.network,
+      params.page,
+      params.limit,
+      params.order,
+      params.timestampStart,
+      params.timestampEnd,
+    ],
+    queryFn: () => getAddressesActivity(params),
+    retry: 1,
+  });
+}
+
 export function richListQueryOptions(params: FetchRichListInput) {
   return queryOptions({
     queryKey: [
@@ -276,5 +325,72 @@ export function richListQueryOptions(params: FetchRichListInput) {
       params.order,
     ],
     queryFn: () => getRichList(params),
+  });
+}
+
+interface InfiniteAddressesActivityInput {
+  network: Network;
+  limit?: number;
+  order?: "asc" | "desc";
+  timestampStart?: string;
+  timestampEnd?: string;
+}
+
+export function addressesActivityInfiniteQueryOptions(
+  params: InfiniteAddressesActivityInput,
+) {
+  const limit = params.limit ?? 25;
+  const order = params.order ?? "desc";
+  return infiniteQueryOptions({
+    queryKey: [
+      "addresses-activity-infinite",
+      params.network,
+      limit,
+      order,
+      params.timestampStart,
+      params.timestampEnd,
+    ],
+    queryFn: ({ pageParam }) =>
+      getAddressesActivity({
+        network: params.network,
+        page: pageParam,
+        limit,
+        order,
+        timestampStart: params.timestampStart,
+        timestampEnd: params.timestampEnd,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage) return undefined;
+      const { page, limit: pageLimit, total } = lastPage.pagination;
+      return page * pageLimit < total ? page + 1 : undefined;
+    },
+    retry: 1,
+  });
+}
+
+interface InfiniteRichListInput {
+  network: Network;
+  limit?: number;
+  order?: "asc" | "desc";
+}
+
+export function richListInfiniteQueryOptions(params: InfiniteRichListInput) {
+  const limit = params.limit ?? 25;
+  const order = params.order ?? "desc";
+  return infiniteQueryOptions({
+    queryKey: ["rich-list-infinite", params.network, limit, order],
+    queryFn: ({ pageParam }) =>
+      getRichList({
+        network: params.network,
+        page: pageParam,
+        limit,
+        order,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const { page, limit: pageLimit, total } = lastPage.pagination;
+      return page * pageLimit < total ? page + 1 : undefined;
+    },
   });
 }
