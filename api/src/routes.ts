@@ -404,6 +404,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       }
     },
     {
+      path: '/addresses/activity',
+      method: 'get',
+      handler: addressesController.getAddressesActivity,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      }
+    },
+    {
       path: '/governance/budget',
       method: 'get',
       handler: governanceController.getBudgetInfo,
