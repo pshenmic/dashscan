@@ -63,7 +63,6 @@ import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import { priceQueryOptions } from "@/lib/api/price";
 import type {
   ApiProposalVote,
-  ApiProposalVotesChartPoint,
   ApiVoteOutcome,
   ApiVoteResult,
 } from "@/lib/api/types";
@@ -132,46 +131,6 @@ const chartConfig: ChartConfig = {
   no: { label: "No", color: "var(--destructive)" },
   abstain: { label: "Abstain", color: "var(--chart-3)" },
 };
-
-function bucketFundingVotes(
-  votes: ApiProposalVote[],
-  startMs: number,
-  endMs: number,
-  buckets: number,
-  cumulative: boolean,
-): ApiProposalVotesChartPoint[] {
-  const span = (endMs - startMs) / buckets;
-  if (span <= 0) return [];
-  const points: ApiProposalVotesChartPoint[] = Array.from(
-    { length: buckets },
-    (_, i) => ({
-      timestamp: new Date(startMs + i * span).toISOString(),
-      data: { yes: 0, no: 0, abstain: 0 },
-    }),
-  );
-  for (const vote of votes) {
-    if (vote.signal !== "funding") continue;
-    const t = Date.parse(vote.time);
-    if (Number.isNaN(t) || t <= startMs || t > endMs) continue;
-    const idx = Math.min(
-      buckets - 1,
-      Math.max(0, Math.ceil((t - startMs) / span) - 1),
-    );
-    points[idx].data[vote.outcome] += 1;
-  }
-  if (cumulative) {
-    let yes = 0;
-    let no = 0;
-    let abstain = 0;
-    for (const point of points) {
-      yes += point.data.yes;
-      no += point.data.no;
-      abstain += point.data.abstain;
-      point.data = { yes, no, abstain };
-    }
-  }
-  return points;
-}
 
 function VoteTallyBlock({
   result,
@@ -291,7 +250,7 @@ export default function RedesignProposalDetailPage({
   hash,
 }: RedesignProposalDetailPageProps) {
   const storeNetwork = useStore(appStore, (state) => state.network);
-  const [range, setRange] = useState<ChartRange>("30d");
+  const [range, setRange] = useState<ChartRange>("all");
   const [mode, setMode] = useState<ChartMode>("cumulative");
   const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>("all");
   const [search, setSearch] = useState("");
@@ -378,7 +337,7 @@ export default function RedesignProposalDetailPage({
     return { start, end };
   }, [range, proposal?.creationTime]);
 
-  const { data: apiChart } = useQuery({
+  const { data: apiChart, isFetching: isChartFetching } = useQuery({
     ...proposalVotesChartQueryOptions({
       network: storeNetwork,
       hash,
@@ -390,27 +349,18 @@ export default function RedesignProposalDetailPage({
     enabled: !!proposal,
   });
 
-  const chartPoints = useMemo(() => {
-    if (apiChart) return apiChart;
-    return bucketFundingVotes(
-      votes,
-      rangeBounds.start.getTime(),
-      rangeBounds.end.getTime(),
-      RANGE_BUCKETS[range],
-      mode === "cumulative",
-    );
-  }, [apiChart, votes, rangeBounds, range, mode]);
-
   const chartData = useMemo(
     () =>
-      chartPoints.map((p) => ({
+      (apiChart ?? []).map((p) => ({
         timestamp: p.timestamp,
         yes: p.data.yes,
         no: p.data.no,
         abstain: p.data.abstain,
       })),
-    [chartPoints],
+    [apiChart],
   );
+  const isChartLoading = isChartFetching && apiChart === undefined;
+  const chartUnavailable = apiChart === null;
   const chartHasVotes = chartData.some(
     (p) => p.yes > 0 || p.no > 0 || p.abstain > 0,
   );
@@ -811,7 +761,16 @@ export default function RedesignProposalDetailPage({
               </CardAction>
             </CardHeader>
             <CardContent>
-              {chartHasVotes ? (
+              {isChartLoading ? (
+                <Skeleton className="h-[280px] w-full" />
+              ) : chartUnavailable ? (
+                <EmptyState
+                  title="Vote dynamics unavailable"
+                  description="This network's API doesn't expose the votes chart yet. Check back soon."
+                  icon={<ChartNoAxesColumn className="size-6" />}
+                  className="h-[280px]"
+                />
+              ) : chartHasVotes ? (
                 <ChartContainer
                   config={chartConfig}
                   className="aspect-auto h-[280px] w-full"
