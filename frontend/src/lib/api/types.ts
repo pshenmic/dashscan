@@ -311,6 +311,11 @@ export interface ApiAddressBalanceEntry {
   concentration: string | null;
 }
 
+export interface ApiAddressActivityEntry {
+  address: string | null;
+  txCount: number | null;
+}
+
 export interface ApiTransactionsBreakdown {
   total: number | null;
   special: number | null;

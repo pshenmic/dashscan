@@ -43,6 +43,7 @@ const TABS: TabItem[] = [
 ];
 
 const MORE_ITEMS = [
+  { to: "/addresses", label: "Addresses" },
   { to: "/masternodes", label: "Masternodes" },
   { to: "/dao", label: "DAO" },
 ] as const;

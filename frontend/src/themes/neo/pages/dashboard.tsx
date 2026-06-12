@@ -27,7 +27,6 @@ import {
   Server,
   ShieldAlert,
   Trophy,
-  Users,
   Vote,
   Zap,
 } from "lucide-react";
@@ -57,7 +56,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { richListQueryOptions } from "@/lib/api/addresses";
+import {
+  addressesActivityQueryOptions,
+  richListQueryOptions,
+} from "@/lib/api/addresses";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
@@ -82,6 +84,7 @@ import {
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type {
+  ApiAddressActivityEntry,
   ApiAddressBalanceEntry,
   ApiBlock,
   ApiGovernanceObject,
@@ -221,6 +224,24 @@ export default function RedesignDashboardPage() {
   );
   const { data: richList } = useQuery(
     richListQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
+  );
+  const activityBounds = useMemo(() => {
+    const end = new Date();
+    end.setMinutes(0, 0, 0);
+    const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+    return {
+      timestampStart: start.toISOString(),
+      timestampEnd: end.toISOString(),
+    };
+  }, []);
+  const { data: activeAddresses } = useQuery(
+    addressesActivityQueryOptions({
+      network,
+      page: 1,
+      limit: 10,
+      order: "desc",
+      ...activityBounds,
+    }),
   );
   const { data: txBreakdown } = useQuery({
     ...transactionsBreakdown24hQueryOptions({ network }),
@@ -1020,6 +1041,13 @@ export default function RedesignDashboardPage() {
             </div>
           </div>
         </div>
+
+        {activeAddresses?.resultSet?.length ? (
+          <ActiveAddressesCard
+            entries={activeAddresses.resultSet}
+            total={activeAddresses.pagination?.total ?? null}
+          />
+        ) : null}
 
         <MasternodeMap variant="dashboard" />
       </div>
@@ -2198,6 +2226,86 @@ function ProposalsListCard({
   );
 }
 
+function ActiveAddressesCard({
+  entries,
+  total,
+}: {
+  entries: ApiAddressActivityEntry[];
+  total: number | null;
+}) {
+  const max = entries.reduce(
+    (acc, entry) => Math.max(acc, Number(entry.txCount ?? 0)),
+    0,
+  );
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          Active Addresses
+          <Badge variant="soft-accent" className="font-mono">
+            <Activity className="size-3" />
+            24h
+          </Badge>
+        </CardTitle>
+        <CardDescription>
+          {total != null
+            ? `${formatCompact(total)} addresses transacted in the last 24 hours`
+            : "Busiest addresses in the last 24 hours"}
+        </CardDescription>
+        <CardAction>
+          <Button asChild variant="ghost" size="sm" className="h-8">
+            <Link to="/addresses">
+              View all <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
+          {entries.slice(0, 10).map((entry, i) => {
+            const txCount = Number(entry.txCount ?? 0);
+            const pct = max > 0 ? Math.max(3, (txCount / max) * 100) : 0;
+            return (
+              <div
+                key={entry.address ?? `active-${i}`}
+                className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-secondary/50"
+              >
+                <Badge
+                  variant={i < 3 ? "soft-accent" : "soft"}
+                  className="min-w-9 justify-center font-mono tabular-nums"
+                >
+                  #{i + 1}
+                </Badge>
+                {entry.address ? (
+                  <HashDisplay
+                    value={entry.address}
+                    href="/address/$address"
+                    params={{ address: entry.address }}
+                    copy={false}
+                  />
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+                <div className="ml-auto flex items-center gap-2">
+                  <div className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-secondary sm:flex">
+                    <div
+                      className="rounded-full bg-accent/70"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="font-mono text-sm font-medium tabular-nums text-accent">
+                    {txCount.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ProposalRow({
   proposal,
   usdPrice,
@@ -2559,9 +2667,11 @@ function TopHoldersCard({
             : "Largest addresses by UTXO balance"}
         </CardDescription>
         <CardAction>
-          <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
-            <Users className="size-4" />
-          </div>
+          <Button asChild variant="ghost" size="sm" className="h-8">
+            <Link to="/addresses" search={{ tab: "rich" }}>
+              View all <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
         </CardAction>
       </CardHeader>
       <CardContent>
