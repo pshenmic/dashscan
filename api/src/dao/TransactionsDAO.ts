@@ -397,21 +397,35 @@ export default class TransactionsDAO {
 
     const addressIdSubquery = this.knex('addresses').select('id').where('address', address);
 
-    const addressTxIdsCTE = this.knex('tx_outputs')
-      .select('tx_id')
-      .where('address_id', addressIdSubquery)
-      .union(
-        this.knex('tx_inputs')
-          .select('tx_id')
-          .where('address_id', addressIdSubquery),
-      );
+    // address_transactions holds one row per (address_id, tx_id) carrying block_height, so
+    // a single address's page is an index range scan over (address_id,
+    // block_height DESC) that stops at LIMIT — no tx_outputs/tx_inputs union.
+    // A type filter lives on transactions, so join it in only when present.
+    const addressTxIdsCTE = this.knex('address_transactions')
+      .where('address_transactions.address_id', addressIdSubquery)
+      .select('address_transactions.tx_id')
+      .select('address_transactions.block_height')
+      .modify((builder) => {
+        if (transactionType != null) {
+          builder
+            .join('transactions', 'transactions.id', 'address_transactions.tx_id')
+            .where('transactions.type', transactionType);
+        }
+      })
+      .orderBy('address_transactions.block_height', order)
+      .limit(limit)
+      .offset(fromRank);
 
-    const countSubquery = transactionType != null
-      ? this.knex('transactions')
-          .whereIn('id', this.knex('address_tx_ids').select('tx_id'))
-          .where('type', transactionType)
-          .count('*')
-      : this.knex('address_tx_ids').count('*');
+    const countSubquery = this.knex('address_transactions')
+      .where('address_transactions.address_id', addressIdSubquery)
+      .modify((builder) => {
+        if (transactionType != null) {
+          builder
+            .join('transactions', 'transactions.id', 'address_transactions.tx_id')
+            .where('transactions.type', transactionType);
+        }
+      })
+      .count('*');
 
     const blockMaxHeightSubquery = this.knex('blocks')
       .select(this.knex.raw('MAX(height) as max_height'))
@@ -432,12 +446,7 @@ export default class TransactionsDAO {
         'transactions.multisig',
       )
       .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'))
-      .modify((builder) => {
-        if (transactionType != null) builder.where('transactions.type', transactionType);
-      })
       .orderBy('transactions.block_height', order)
-      .limit(limit)
-      .offset(fromRank)
 
     const outputsCTE = this.knex('tx_outputs')
       .select('tx_id')
@@ -498,25 +507,28 @@ export default class TransactionsDAO {
     const fromRank = (page - 1) * limit;
 
     const masternodeAddressIdsCTE = this.knex('addresses')
-      .join('masternodes', function () {
-        this.on('addresses.address', '=', 'masternodes.payee')
-          .orOn('addresses.address', '=', 'masternodes.owner_address')
-          .orOn('addresses.address', '=', 'masternodes.voting_address')
-          .orOn('addresses.address', '=', 'masternodes.collateral_address');
-      })
-      .where('masternodes.pro_tx_hash', proTxHash)
+      .whereIn('addresses.address', this.knex('masternodes')
+        .where('pro_tx_hash', proTxHash)
+        .select(this.knex.raw('unnest(ARRAY[payee, owner_address, voting_address, collateral_address])')))
       .select('addresses.id');
 
-    const addressTxIdsCTE = this.knex('tx_outputs')
-      .select('tx_id')
+    // address_transactions is the per-address tx index: one row per (address_id, tx_id)
+    // carrying block_height. Ranging it by (address_id, block_height DESC) gives
+    // the page directly off the index — no full-history scan or sort. A tx can
+    // appear under several of the masternode's addresses, so dedup per tx_id
+    // (MAX block_height is identical across them — same tx, same block).
+    const addressTxIdsCTE = this.knex('address_transactions')
       .whereIn('address_id', this.knex('masternode_address_ids').select('id'))
-      .union(
-        this.knex('tx_inputs')
-          .select('tx_id')
-          .whereIn('address_id', this.knex('masternode_address_ids').select('id')),
-      );
+      .select('tx_id')
+      .max('block_height as block_height')
+      .groupBy('tx_id')
+      .orderBy('block_height', order)
+      .limit(limit)
+      .offset(fromRank);
 
-    const countSubquery = this.knex('address_tx_ids').count('*');
+    const countSubquery = this.knex('address_activity_weekly')
+      .whereIn('address_id', this.knex('masternode_address_ids').select('id'))
+      .select(this.knex.raw('COALESCE(SUM(tx_count), 0) AS count'));
 
     const blockMaxHeightSubquery = this.knex('blocks')
       .select(this.knex.raw('MAX(height) as max_height'))
@@ -537,9 +549,7 @@ export default class TransactionsDAO {
         'transactions.multisig',
       )
       .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'))
-      .orderBy('transactions.block_height', order)
-      .limit(limit)
-      .offset(fromRank);
+      .orderBy('transactions.block_height', order);
 
     const outputsCTE = this.knex('tx_outputs')
       .select('tx_id')
