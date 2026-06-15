@@ -242,13 +242,14 @@ function VotingRecord({ proTxHash }: { proTxHash: string }) {
             params={{ hash: row.proposalHash }}
             className="flex min-w-0 flex-col gap-0.5 no-underline"
           >
-            <span className="truncate text-sm font-medium text-accent hover:underline">
-              {name ??
-                `${row.proposalHash.slice(0, 10)}…${row.proposalHash.slice(-6)}`}
+            <span className="text-sm font-medium text-accent hover:underline">
+              {name ?? (
+                <span className="font-mono break-all">{row.proposalHash}</span>
+              )}
             </span>
             {name && (
-              <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                {row.proposalHash.slice(0, 10)}…{row.proposalHash.slice(-6)}
+              <span className="font-mono text-[11px] tabular-nums text-muted-foreground break-all">
+                {row.proposalHash}
               </span>
             )}
           </Link>
@@ -736,7 +737,7 @@ export default function RedesignMasternodeDetailPage({
               </DetailRow>
               <DetailRow label="Operator PubKey">
                 {mn.pubKeyOperator ? (
-                  <HashDisplay value={mn.pubKeyOperator} variant="compact" />
+                  <HashDisplay value={mn.pubKeyOperator} />
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}

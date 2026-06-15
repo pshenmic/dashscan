@@ -22,7 +22,7 @@ export function HashDisplay({
   value,
   href,
   params,
-  variant = "compact",
+  variant = "full",
   copy = true,
   className,
   head = 8,

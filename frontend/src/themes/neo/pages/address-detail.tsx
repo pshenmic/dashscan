@@ -1015,8 +1015,8 @@ function UtxosTable({
             <Coins className="size-4 shrink-0 text-muted-foreground group-hover:text-accent" />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-center gap-1.5">
-                <span className="truncate font-mono text-xs text-accent">
-                  {u.prevTxHash.slice(0, 12)}…{u.prevTxHash.slice(-8)}
+                <span className="break-all font-mono text-xs text-accent">
+                  {u.prevTxHash}
                 </span>
                 <Badge variant="soft" className="font-mono">
                   #{u.vOutIndex}
