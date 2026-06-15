@@ -165,11 +165,7 @@ function HexPlain({ value }: { value: string | null | undefined }) {
   if (!value) return <Muted />;
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
-      <code className="font-mono text-xs tabular-nums break-all">
-        {value.length > 24
-          ? `${value.slice(0, 12)}…${value.slice(-10)}`
-          : value}
-      </code>
+      <code className="font-mono text-xs tabular-nums break-all">{value}</code>
       <CopyButton value={value} />
     </span>
   );
