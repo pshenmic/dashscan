@@ -447,8 +447,8 @@ export default function RedesignProposalDetailPage({
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="font-mono text-sm tabular-nums text-muted-foreground">
-                {row.outpoint.slice(0, 8)}…{row.outpoint.slice(-6)}
+              <span className="font-mono text-sm tabular-nums text-muted-foreground break-all">
+                {row.outpoint}
               </span>
             </TooltipTrigger>
             <TooltipContent className="max-w-72">
