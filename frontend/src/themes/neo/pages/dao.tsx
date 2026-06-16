@@ -552,7 +552,7 @@ export default function RedesignDaoPage() {
                     {Math.round(enoughVotesTotal).toLocaleString()} <DashIcon />
                   </span>
                 </DetailRow>
-                <DetailRow label="Passes voting & funding" className="border-b-0 pb-0">
+                <DetailRow label="Enough funds for" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
                     {enoughFundsProposalCount} proposals ·{" "}
                     {Math.round(enoughFundsTotal).toLocaleString()} <DashIcon />
