@@ -32,6 +32,10 @@ export default class GovernanceDAO {
 
     const list = await this.dashCoreRPC.getProTxList()
 
+    if (list.length === 0) {
+      throw new Error('protx list returned empty; not caching outpoint map')
+    }
+
     const map: Record<string, string> = {}
 
     list.forEach(entry => {

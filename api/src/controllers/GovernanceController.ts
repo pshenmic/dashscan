@@ -123,8 +123,6 @@ export default class GovernanceController {
       p.objectType === 'Proposal' &&
       (p.endEpoch ?? 0) > nextSuperblockTimeSec
     )
-    const voteThreshold = governanceInfo.governanceminquorum
-
     const totalRequested = proposals
       .reduce(
         (acc, curr) => acc + (curr.paymentAmount ?? 0),
@@ -132,11 +130,11 @@ export default class GovernanceController {
       )
 
     const enoughVotes = proposals
-      .filter(p => (p.absoluteYesCount ?? 0) >= voteThreshold)
+      .filter(p => (p.absoluteYesCount ?? 0) >= masternodeStats.requiredProposalVotes)
     const enoughVotesTotal = enoughVotes
       .reduce((acc, curr) => acc + (curr.paymentAmount ?? 0), 0)
 
-    const rankedByVotes = [...enoughVotes].sort(
+    const rankedByVotes = [...proposals].sort(
       (a, b) => b.absoluteYesCount - a.absoluteYesCount
     )
 
