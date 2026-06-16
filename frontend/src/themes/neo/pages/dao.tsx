@@ -256,12 +256,7 @@ export default function RedesignDaoPage() {
   const enoughVotesTotal = budget?.enoughVotesTotal ?? 0;
   const enoughVotesProposalCount = budget?.enoughVotesCount ?? 0;
   const totalRequested = budget?.totalRequested ?? 0;
-  const missingVotesAmount = Math.max(0, totalRequested - enoughVotesTotal);
-  const missingVotesCount = Math.max(
-    0,
-    proposalCount - enoughVotesProposalCount,
-  );
-  const remainingBudget = Math.max(0, availableBudget - enoughFundsTotal);
+  const remainingBudget = budget?.remainingEnoughVotes ?? 0
 
   const msUntilSuperblock = getMsUntilSuperblock(
     currentHeight,
@@ -470,9 +465,9 @@ export default function RedesignDaoPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardDescription>Funded</CardDescription>
+              <CardDescription>{fundedLabel}</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {enoughFundsTotal}{" "}
+                {votingOpen ? totalRequested : enoughFundsTotal }{" "}
                 <span className="text-muted-foreground text-base">
                   / {availableBudget.toFixed(1)} <DashIcon />
                 </span>
@@ -551,17 +546,16 @@ export default function RedesignDaoPage() {
                     {Math.round(remainingBudget).toLocaleString()} <DashIcon />
                   </span>
                 </DetailRow>
-                <DetailRow label="Passes funding" className="border-b-0 pb-0">
+                <DetailRow label="Passes voting" className="border-b-0 pb-0">
+                  <span className="font-mono tabular-nums">
+                    {enoughVotesProposalCount} proposals ·{" "}
+                    {Math.round(enoughVotesTotal).toLocaleString()} <DashIcon />
+                  </span>
+                </DetailRow>
+                <DetailRow label="Enough funds for" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
                     {enoughFundsProposalCount} proposals ·{" "}
                     {Math.round(enoughFundsTotal).toLocaleString()} <DashIcon />
-                  </span>
-                </DetailRow>
-                <DetailRow label="Not enough votes" className="border-b-0 pb-0">
-                  <span className="font-mono tabular-nums">
-                    {missingVotesCount} proposals ·{" "}
-                    {Math.round(missingVotesAmount).toLocaleString()}{" "}
-                    <DashIcon />
                   </span>
                 </DetailRow>
               </dl>
