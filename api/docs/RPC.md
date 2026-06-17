@@ -1694,6 +1694,7 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
   "enoughVotesCount": 9,
   "enoughFundsTotal": 7337.0,
   "enoughFundsCount": 8,
+  "enoughVotesAndFundsTotal": 7287.0,
   "enoughVotesAndFundsCount": 6,
   "remainingAllPass": -1069.48518384,
   "remainingEnoughVotes": -257.48518384,
