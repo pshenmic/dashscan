@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::{BufReader, Write};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
 use std::sync::mpsc::SyncSender;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use dashcore::consensus::{Decodable, encode};
 use dashcore::hashes::Hash;
@@ -17,13 +17,52 @@ pub struct P2PClient {
     network: Network,
     stream: TcpStream,
     reader: BufReader<TcpStream>,
+    /// The peer's `version` message, captured during the handshake.
+    peer_version: Option<message_network::VersionMessage>,
+}
+
+/// A peer address discovered through a `getaddr` round, normalized to a
+/// routable `SocketAddr`. Tor/I2P/CJDNS addresses are dropped — they can't be
+/// probed over plain TCP.
+#[derive(Debug, Clone)]
+pub struct DiscoveredAddr {
+    pub addr: SocketAddr,
+    /// Last-seen timestamp the advertising peer reported (unix seconds).
+    pub last_seen: u32,
+}
+
+/// Liveness + identity metadata captured from a peer's `version` handshake.
+#[derive(Debug, Clone)]
+pub struct PeerInfo {
+    pub version: u32,
+    pub services: u64,
+    pub user_agent: String,
+    pub start_height: i32,
 }
 
 impl P2PClient {
-    /// Connect to a Dash peer and perform the version/verack handshake.
+    /// Connect to a Dash peer and perform the version/verack handshake, using
+    /// the default timeouts (suited to block streaming).
     pub fn connect(address: SocketAddr, network: Network) -> Result<Self, P2PError> {
-        let stream = TcpStream::connect_timeout(&address, Duration::from_secs(10))
-            .map_err(P2PError::Connection)?;
+        Self::connect_with(
+            address,
+            network,
+            Duration::from_secs(10),
+            Duration::from_secs(15),
+        )
+    }
+
+    /// Connect with explicit connect/handshake timeouts. The peer crawler uses
+    /// short timeouts here — most discovered addresses are dead, and a long
+    /// connect timeout is what makes a full crawl slow.
+    pub fn connect_with(
+        address: SocketAddr,
+        network: Network,
+        connect_timeout: Duration,
+        handshake_timeout: Duration,
+    ) -> Result<Self, P2PError> {
+        let stream =
+            TcpStream::connect_timeout(&address, connect_timeout).map_err(P2PError::Connection)?;
         // No global read timeout — we manage timeouts per-phase instead.
         // During block streaming the socket can sit idle while the channel
         // back-pressures (DB processing is slower than network).
@@ -38,10 +77,91 @@ impl P2PClient {
             network,
             stream,
             reader,
+            peer_version: None,
         };
 
-        client.handshake()?;
+        client.handshake(handshake_timeout)?;
         Ok(client)
+    }
+
+    /// The version metadata this peer advertised during the handshake, if any.
+    /// A connected client always has it; used by the crawler to record liveness
+    /// + subversion/services/height alongside a `getaddr` on the same socket.
+    pub fn peer_info(&self) -> Option<PeerInfo> {
+        self.peer_version.as_ref().map(|v| PeerInfo {
+            version: v.version,
+            services: v.services.as_u64(),
+            user_agent: v.user_agent.clone(),
+            start_height: v.start_height,
+        })
+    }
+
+    /// Ask this peer for the addresses it knows about (`getaddr`).
+    ///
+    /// Uses the v1 `getaddr`/`addr` exchange (universally supported, unlike
+    /// BIP155 `sendaddrv2` which Dash Core's protocol may not recognize and can
+    /// disconnect on). Any `addrv2` the peer volunteers is still accepted.
+    /// Collects replies until `max_addrs` is reached, the socket goes idle for
+    /// `idle_timeout`, or the overall `deadline` elapses — whichever comes
+    /// first. A peer is free to never answer, so the timeouts bound this call.
+    pub fn get_addresses(
+        &mut self,
+        max_addrs: usize,
+        idle_timeout: Duration,
+        deadline: Duration,
+    ) -> Result<Vec<DiscoveredAddr>, P2PError> {
+        self.set_read_timeout(Some(idle_timeout))?;
+        self.send(message::NetworkMessage::GetAddr)?;
+
+        let mut out: Vec<DiscoveredAddr> = Vec::new();
+        let start = Instant::now();
+
+        while out.len() < max_addrs && start.elapsed() < deadline {
+            match self.recv() {
+                Ok(message::NetworkMessage::Addr(addrs)) => {
+                    for (time, addr) in addrs {
+                        if let Ok(socket_addr) = addr.socket_addr() {
+                            out.push(DiscoveredAddr {
+                                addr: socket_addr,
+                                last_seen: time,
+                            });
+                        }
+                    }
+                }
+                Ok(message::NetworkMessage::AddrV2(addrs)) => {
+                    for msg in addrs {
+                        if let Ok(socket_addr) = msg.socket_addr() {
+                            out.push(DiscoveredAddr {
+                                addr: socket_addr,
+                                last_seen: msg.time,
+                            });
+                        }
+                    }
+                }
+                Ok(_) => {}
+                // Terminal read conditions during a getaddr exchange are normal:
+                //   WouldBlock/TimedOut — idle socket, peer is done sending.
+                //   UnexpectedEof/ConnectionReset/… — peer closed the connection.
+                // In all cases we stop and return whatever addresses we collected.
+                Err(P2PError::Io(e))
+                    if matches!(
+                        e.kind(),
+                        std::io::ErrorKind::WouldBlock
+                            | std::io::ErrorKind::TimedOut
+                            | std::io::ErrorKind::UnexpectedEof
+                            | std::io::ErrorKind::ConnectionReset
+                            | std::io::ErrorKind::ConnectionAborted
+                            | std::io::ErrorKind::BrokenPipe
+                    ) =>
+                {
+                    debug!("getaddr stream ended ({}): {} addresses collected", e.kind(), out.len());
+                    break;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(out)
     }
 
     /// Fetch a single block by its hash.
@@ -252,8 +372,8 @@ impl P2PClient {
         self.stream.set_read_timeout(timeout).map_err(P2PError::Io)
     }
 
-    fn handshake(&mut self) -> Result<(), P2PError> {
-        self.set_read_timeout(Some(Duration::from_secs(15)))?;
+    fn handshake(&mut self, timeout: Duration) -> Result<(), P2PError> {
+        self.set_read_timeout(Some(timeout))?;
         self.send(self.build_version_message())?;
         debug!("Sent version message");
 
@@ -262,8 +382,9 @@ impl P2PClient {
 
         while !got_version || !got_verack {
             match self.recv()? {
-                message::NetworkMessage::Version(_) => {
+                message::NetworkMessage::Version(version) => {
                     debug!("Received version message");
+                    self.peer_version = Some(version);
                     self.send(message::NetworkMessage::Verack)?;
                     debug!("Sent verack message");
                     got_version = true;
