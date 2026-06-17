@@ -220,7 +220,7 @@ export default class GovernanceDAO {
     }
 
     const [rawVotes, { weightMap }] = await Promise.all([
-      this.redis.hvals(`dao:votes:${proposalHash}`),
+      this.redis.hvals(`${REDIS_VOTES_KEY_PART}${proposalHash}`),
       this.getProtxOutpoint(),
     ]);
 
