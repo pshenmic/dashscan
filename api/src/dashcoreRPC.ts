@@ -112,6 +112,7 @@ export interface ProTxEntry {
   proTxHash: string;
   collateralHash: string;
   collateralIndex: number;
+  type?: string;
   state?: Record<string, any>;
 }
 

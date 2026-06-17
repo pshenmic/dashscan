@@ -1762,8 +1762,11 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
   "enoughVotesCount": 9,
   "enoughFundsTotal": 7337.0,
   "enoughFundsCount": 8,
+  "enoughVotesAndFundsTotal": 7287.0,
+  "enoughVotesAndFundsCount": 6,
   "remainingAllPass": -1069.48518384,
   "remainingEnoughVotes": -257.48518384,
+  "remainingEnoughVotesAndFunds": 50,
   "requiredVotes": 312,
   "votingDeadline": "2026-05-18T01:23:45.000Z"
 }
@@ -1776,10 +1779,13 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
 | `totalRequested`       | number | Sum of `paymentAmount` across all pending proposals                                                                                                                             |
 | `enoughVotesCount`     | number | Count of pending proposals whose `absoluteYesCount >= governanceminquorum`                                                                                                      |
 | `enoughVotesTotal`     | number | Sum of `paymentAmount` across the `enoughVotes` subset                                                                                                                          |
-| `enoughFundsCount`     | number | Count of proposals that would actually be paid: vote-qualified proposals selected greedily (descending by `absoluteYesCount`) while the cumulative amount fits in `totalBudget` |
+| `enoughFundsCount`     | number | Count of proposals that would fit in the budget: all proposals ranked greedily by `absoluteYesCount` while the cumulative amount fits in `totalBudget`, regardless of whether they clear the vote threshold |
 | `enoughFundsTotal`     | number | Sum of `paymentAmount` across the `enoughFunds` subset                                                                                                                          |
+| `enoughVotesAndFundsCount` | number | Count of proposals that would actually be paid: vote-qualified proposals (the `enoughVotes` subset) selected greedily (descending by `absoluteYesCount`) while the cumulative amount fits in `totalBudget` |
+| `enoughVotesAndFundsTotal` | number | Sum of `paymentAmount` across the `enoughVotesAndFunds` subset                                                                                                              |
 | `remainingAllPass`     | number | `totalBudget - totalRequested` (negative when proposals are oversubscribed)                                                                                                     |
 | `remainingEnoughVotes` | number | `totalBudget - enoughVotesTotal` (negative when vote-passing proposals exceed budget)                                                                                           |
+| `remainingEnoughVotesAndFunds` | number | `totalBudget - enoughVotesAndFundsTotal` (budget left after funding the proposals that actually get paid)                                                            |
 | `requiredVotes`        | number | Net-yes-vote threshold for proposal approval (from `/masternodes/stats.requiredProposalVotes`)                                                                                  |
 | `votingDeadline`       | string | ISO 8601 timestamp after which new votes won't be reflected in the upcoming superblock's payouts. Computed as `nextSuperblockTime − superblockmaturitywindow × avgBlockTime`, where `avgBlockTime = cycleMs / superblockcycle`. |
 
