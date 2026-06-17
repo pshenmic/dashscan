@@ -23,8 +23,13 @@ export default class GovernanceDAO {
     this.cache = cache
   }
 
-  private getProtxOutpointMap = async (): Promise<Record<string, string>> => {
-    const cached = this.cache.get('protxOutpointMap')
+  // Builds (and caches) both outpoint maps from a single protx list:
+  //   hashMap:   outpoint → proTxHash
+  //   weightMap: outpoint → governance vote weight (Evo/HPMN = 4, Regular = 1)
+  // Evo masternodes carry 4 votes, so the weighted sum matches the node's
+  // gobject tally; raw vote records would undercount.
+  private getProtxOutpoint = async (): Promise<{ hashMap: Record<string, string>; weightMap: Record<string, number> }> => {
+    const cached = this.cache.get('protxOutpoint')
 
     if (cached != null) {
       return cached
@@ -36,15 +41,24 @@ export default class GovernanceDAO {
       throw new Error('protx list returned empty; not caching outpoint map')
     }
 
-    const map: Record<string, string> = {}
+    const hashMap: Record<string, string> = {}
+    const weightMap: Record<string, number> = {}
 
     list.forEach(entry => {
-      map[`${entry.collateralHash}-${entry.collateralIndex}`] = entry.proTxHash
+      const outpoint = `${entry.collateralHash}-${entry.collateralIndex}`
+      hashMap[outpoint] = entry.proTxHash
+      weightMap[outpoint] = entry.type === 'Evo' ? 4 : 1
     })
 
-    this.cache.set('protxOutpointMap', map, PROTX_OUTPOINT_MAP_LIFE_TIME)
+    const result = { hashMap, weightMap }
 
-    return map
+    this.cache.set('protxOutpoint', result, PROTX_OUTPOINT_MAP_LIFE_TIME)
+
+    return result
+  }
+
+  private getProtxOutpointMap = async (): Promise<Record<string, string>> => {
+    return (await this.getProtxOutpoint()).hashMap
   }
 
   getProposals = async (
@@ -205,7 +219,17 @@ export default class GovernanceDAO {
       }
     }
 
-    const rawVotes = await this.redis.hvals(`dao:votes:${proposalHash}`);
+    const [rawVotes, { weightMap }] = await Promise.all([
+      this.redis.hvals(`dao:votes:${proposalHash}`),
+      this.getProtxOutpoint(),
+    ]);
+
+    // Votes cast before the window seed the running total so a windowed
+    // runningTotal series ends at the all-time tally (matching the proposal's
+    // vote counts) instead of only summing votes inside the window.
+    let yesBase = 0;
+    let noBase = 0;
+    let abstainBase = 0;
 
     for (const raw of rawVotes) {
       const vote = ProposalVote.fromRaw(raw);
@@ -218,20 +242,31 @@ export default class GovernanceDAO {
       // Bucket by vote_time > date_from AND <= date_to.
       const index = Math.ceil((vote.time.getTime() - startMs) / stepMs) - 1;
 
-      if (index < 0 || index >= buckets.length) {
+      // After the window — ignore entirely.
+      if (index >= buckets.length) {
+        continue;
+      }
+
+      const weight = weightMap[vote.outpoint] ?? 1;
+
+      // Before the window — feeds the running-total baseline only.
+      if (index < 0) {
+        if (vote.outcome === 'yes') yesBase += weight;
+        else if (vote.outcome === 'no') noBase += weight;
+        else if (vote.outcome === 'abstain') abstainBase += weight;
         continue;
       }
 
       const bucket = buckets[index];
 
-      if (vote.outcome === 'yes') bucket.yes += 1;
-      else if (vote.outcome === 'no') bucket.no += 1;
-      else if (vote.outcome === 'abstain') bucket.abstain += 1;
+      if (vote.outcome === 'yes') bucket.yes += weight;
+      else if (vote.outcome === 'no') bucket.no += weight;
+      else if (vote.outcome === 'abstain') bucket.abstain += weight;
     }
 
-    let yesTotal = 0;
-    let noTotal = 0;
-    let abstainTotal = 0;
+    let yesTotal = yesBase;
+    let noTotal = noBase;
+    let abstainTotal = abstainBase;
 
     return buckets.map(bucket => {
       if (runningTotal) {

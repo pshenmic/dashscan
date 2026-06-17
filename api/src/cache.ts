@@ -3,7 +3,12 @@ import {UtxoInfoRPC} from "./dashcoreRPC";
 interface CacheStorage {
   utxoInfo?: UtxoInfoRPC;
   geoipStorage?: { [key: string | number]: any };
-  protxOutpointMap?: Record<string, string>;
+  // hashMap: outpoint → proTxHash. weightMap: outpoint → governance vote weight
+  // (Evo/HPMN = 4, Regular = 1). Cached together so they never desync.
+  protxOutpoint?: {
+    hashMap: Record<string, string>;
+    weightMap: Record<string, number>;
+  };
 }
 
 export class Cache {
