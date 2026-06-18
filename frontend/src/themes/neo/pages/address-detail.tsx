@@ -40,11 +40,11 @@ import {
 } from "@/lib/api/addresses";
 import type { ApiTransaction, ApiUtxoEntry } from "@/lib/api/types";
 import {
+  addressNetAmount,
   DUFFS_PER_DASH,
   formatCompact,
   formatDuffs,
   formatRelativeTime,
-  sumVOut,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
@@ -266,12 +266,10 @@ export default function RedesignAddressDetailPage({
     let cumIn = 0;
     let cumOut = 0;
     return ordered.map((t) => {
-      const inAddr = t.vIn?.some((v) => v.address === address) ?? false;
-      const outAddr = t.vOut?.some((v) => v.address === address) ?? false;
-      const duffs = t.amount != null ? Number(t.amount) : sumVOut(t.vOut);
-      const value = duffs / DUFFS_PER_DASH;
-      if (outAddr && !inAddr) cumIn += value;
-      else if (inAddr && !outAddr) cumOut += value;
+      const net = addressNetAmount(t, address);
+      const value = Math.abs(net) / DUFFS_PER_DASH;
+      if (net > 0) cumIn += value;
+      else if (net < 0) cumOut += value;
       return {
         ts: new Date(t.timestamp).getTime(),
         received: cumIn,
@@ -397,8 +395,7 @@ export default function RedesignAddressDetailPage({
       align: "right",
       cell: (row) => {
         const dir = direction(row);
-        const duffs =
-          row.amount != null ? Number(row.amount) : sumVOut(row.vOut);
+        const duffs = Math.abs(addressNetAmount(row, address));
         const dash = duffs / DUFFS_PER_DASH;
         const formatted = dash >= 1 ? dash.toFixed(2) : dash.toFixed(4);
         const tone =
