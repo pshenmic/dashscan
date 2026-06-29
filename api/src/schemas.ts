@@ -56,6 +56,7 @@ const schemas = [
         enum: ['ENABLED', 'POSE_BANNED'],
       },
       type: { type: ['string', 'null'], enum: ['REGULAR', 'EVO'] },
+      available: { type: ['boolean', 'null'] },
       last_paid_before: {
         type: ['string', 'null'],
         format: 'date-time',

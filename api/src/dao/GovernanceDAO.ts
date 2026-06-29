@@ -6,7 +6,7 @@ import {ProposalVote} from "../models/ProposalVote";
 import SeriesData from "../models/SeriesData";
 import MasternodesDAO from "./MasternodesDAO";
 import {Cache} from "../cache";
-import {PROTX_OUTPOINT_MAP_LIFE_TIME} from "../constants";
+import {PROTX_OUTPOINT_MAP_LIFE_TIME, REDIS_VOTES_KEY_PART} from "../constants";
 
 export default class GovernanceDAO {
   knex: Knex;
@@ -220,7 +220,7 @@ export default class GovernanceDAO {
     }
 
     const [rawVotes, { weightMap }] = await Promise.all([
-      this.redis.hvals(`dao:votes:${proposalHash}`),
+      this.redis.hvals(`${REDIS_VOTES_KEY_PART}${proposalHash}`),
       this.getProtxOutpoint(),
     ]);
 

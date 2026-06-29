@@ -15,4 +15,5 @@ export interface PaginatedQuery {
   last_paid_before?: string
   has_penalty?: boolean
   country?: string
+  available?: boolean
 }

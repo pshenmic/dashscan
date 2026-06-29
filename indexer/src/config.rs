@@ -18,6 +18,11 @@ pub struct Config {
     pub catch_up_batch_size: usize,
     pub p2p_batch_size: usize,
     pub address_balances_refresh_blocks: u64,
+    pub peer_crawl_every_blocks: u64,
+    pub peer_crawl_max_peers: usize,
+    pub peer_crawl_concurrency: usize,
+    pub peer_crawl_deadline_secs: u64,
+    pub peer_crawl_connect_timeout_secs: u64,
 }
 
 pub fn superblock_interval(network: Network) -> i64 {
@@ -69,6 +74,26 @@ impl Config {
                 .unwrap_or_else(|_| "5".to_string())
                 .parse()
                 .expect("ADDRESS_BALANCES_REFRESH_BLOCKS must be a number"),
+            peer_crawl_every_blocks: env::var("PEER_CRAWL_EVERY_BLOCKS")
+                .unwrap_or_else(|_| "25".to_string())
+                .parse()
+                .expect("PEER_CRAWL_EVERY_BLOCKS must be a number"),
+            peer_crawl_max_peers: env::var("PEER_CRAWL_MAX_PEERS")
+                .unwrap_or_else(|_| "100000".to_string())
+                .parse()
+                .expect("PEER_CRAWL_MAX_PEERS must be a number"),
+            peer_crawl_concurrency: env::var("PEER_CRAWL_CONCURRENCY")
+                .unwrap_or_else(|_| "512".to_string())
+                .parse()
+                .expect("PEER_CRAWL_CONCURRENCY must be a number"),
+            peer_crawl_deadline_secs: env::var("PEER_CRAWL_DEADLINE_SECS")
+                .unwrap_or_else(|_| "600".to_string())
+                .parse()
+                .expect("PEER_CRAWL_DEADLINE_SECS must be a number"),
+            peer_crawl_connect_timeout_secs: env::var("PEER_CRAWL_CONNECT_TIMEOUT_SECS")
+                .unwrap_or_else(|_| "3".to_string())
+                .parse()
+                .expect("PEER_CRAWL_CONNECT_TIMEOUT_SECS must be a number"),
         }
     }
 
