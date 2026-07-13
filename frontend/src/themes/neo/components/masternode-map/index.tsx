@@ -176,9 +176,7 @@ export function MasternodeMap({
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="cursor-help decoration-dotted underline-offset-4 [text-decoration-line:underline]">
-                          {total} nodes
-                        </span>
+                        <span className="cursor-help">{total} nodes</span>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-56">
                         Only nodes with valid geo data are shown on the map;
