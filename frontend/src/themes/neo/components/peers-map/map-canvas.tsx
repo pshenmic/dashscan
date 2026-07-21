@@ -139,12 +139,14 @@ export function PeersMapCanvas({
   highlightedCountry,
   onSelectCountry,
   onSelectCluster,
+  onSelectPeer,
   height = 460,
 }: {
   points: PeerGeoPoint[];
   highlightedCountry?: string | null;
   onSelectCountry?: (code: string | null) => void;
   onSelectCluster?: (leaves: PeerGeoPoint[]) => void;
+  onSelectPeer?: (peer: PeerGeoPoint) => void;
   height?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -435,6 +437,7 @@ export function PeersMapCanvas({
                   point={point}
                   lng={lng}
                   lat={lat}
+                  onClick={onSelectPeer}
                   onShowTooltip={showTooltip}
                   onHideTooltip={hideTooltip}
                 />
@@ -620,12 +623,14 @@ const NodeMarker = memo(function NodeMarker({
   point,
   lng,
   lat,
+  onClick,
   onShowTooltip,
   onHideTooltip,
 }: {
   point: PeerGeoPoint;
   lng: number;
   lat: number;
+  onClick?: (peer: PeerGeoPoint) => void;
   onShowTooltip: (
     event: ReactMouseEvent,
     state: Exclude<TooltipState, { kind: "none" }>,
@@ -647,11 +652,12 @@ const NodeMarker = memo(function NodeMarker({
   return (
     <Marker
       coordinates={[lng, lat]}
+      onClick={onClick ? () => onClick(point) : undefined}
       onMouseEnter={(e) =>
         onShowTooltip(e as unknown as ReactMouseEvent, payload)
       }
       onMouseLeave={onHideTooltip}
-      style={MARKER_PASSIVE_STYLE}
+      style={onClick ? MARKER_CURSOR_STYLE : MARKER_PASSIVE_STYLE}
     >
       <g transform={`scale(${inv})`} style={MARKER_SCALE_STYLE}>
         <circle

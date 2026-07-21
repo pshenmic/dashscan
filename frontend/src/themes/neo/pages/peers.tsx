@@ -1,12 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import { CircleCheck, Network, Server, ServerCrash } from "lucide-react";
-import { useMemo, useState } from "react";
-import {
-  type ApiPeer,
-  allPeersQueryOptions,
-  peersQueryOptions,
-} from "@/lib/api/peers";
+import { CircleCheck, Globe, Network, Server, ServerCrash } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { type ApiPeer, allPeersQueryOptions } from "@/lib/api/peers";
 import { formatCompact, formatRelativeTime } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import {
@@ -26,6 +23,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/themes/neo/components/ui/card";
+
+type StatusFilter = "all" | "available" | "unavailable";
 
 const PAGINATION_PAGE_SIZE = 10;
 
@@ -107,39 +106,61 @@ export default function RedesignPeersListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
   const [country, setCountry] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusFilter>("all");
 
-  const { data: pagedData, isFetching } = useQuery(
-    peersQueryOptions({ network, page, limit: pageSize, order: "desc" }),
+  const { data: allPeers, isFetching } = useQuery(
+    allPeersQueryOptions({ network }),
   );
 
-  const { data: allPeers } = useQuery(allPeersQueryOptions({ network }));
-
-  const peers = pagedData?.resultSet ?? [];
-  const total = pagedData?.pagination?.total ?? 0;
+  const peers = useMemo(() => allPeers ?? [], [allPeers]);
 
   const stats = useMemo(() => {
-    const all = allPeers ?? [];
-    const available = all.filter((p) => p.available).length;
+    const available = peers.filter((p) => p.available).length;
     return {
-      total: all.length,
+      total: peers.length,
       available,
-      unavailable: all.length - available,
+      unavailable: peers.length - available,
     };
-  }, [allPeers]);
+  }, [peers]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
     return peers.filter((p) => {
+      if (status === "available" && !p.available) return false;
+      if (status === "unavailable" && p.available) return false;
+      if (country && p.geo?.countryCode !== country) return false;
       if (q) {
         const match =
           p.address.toLowerCase().includes(q) ||
-          p.userAgent?.toLowerCase().includes(q);
+          p.userAgent?.toLowerCase().includes(q) ||
+          p.geo?.city?.toLowerCase().includes(q) ||
+          (p.geo?.countryCode &&
+            countryName(p.geo.countryCode).toLowerCase().includes(q));
         if (!match) return false;
       }
-      if (country && p.geo?.countryCode !== country) return false;
       return true;
     });
-  }, [search, peers, country]);
+  }, [search, peers, country, status]);
+
+  const total = filtered.length;
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    setPage(1);
+  }, []);
+  const handleStatusChange = useCallback((value: StatusFilter) => {
+    setStatus(value);
+    setPage(1);
+  }, []);
+  const handleCountryChange = useCallback((code: string | null) => {
+    setCountry(code);
+    setPage(1);
+  }, []);
+
+  const pageData = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
@@ -198,19 +219,51 @@ export default function RedesignPeersListPage() {
         <PeersMap
           variant="page"
           selectedCountry={country}
-          onSelectCountry={setCountry}
+          onSelectCountry={handleCountryChange}
         />
 
         <DataTable
           columns={columns}
-          data={filtered}
+          data={pageData}
           isLoading={isFetching && peers.length === 0}
           rowKey={(row) => row.address}
           search={{
             value: search,
-            onChange: setSearch,
-            placeholder: "Filter visible page by address or user agent…",
+            onChange: handleSearchChange,
+            placeholder: "Search peers by address, user agent or location…",
           }}
+          toolbar={
+            <ToggleGroup
+              type="single"
+              value={status}
+              onValueChange={(value) =>
+                value && handleStatusChange(value as StatusFilter)
+              }
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="all" aria-label="All peers">
+                <Globe className="size-3" />
+                All
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="available"
+                aria-label="Available peers"
+                className="data-[state=on]:bg-success/15 data-[state=on]:text-success data-[state=on]:border-success/40"
+              >
+                <CircleCheck className="size-3" />
+                Available
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="unavailable"
+                aria-label="Unavailable peers"
+                className="data-[state=on]:bg-destructive/15 data-[state=on]:text-destructive data-[state=on]:border-destructive/40"
+              >
+                <ServerCrash className="size-3" />
+                Unavailable
+              </ToggleGroupItem>
+            </ToggleGroup>
+          }
           emptyTitle="No peers"
           pagination={{
             pageIndex: page,
