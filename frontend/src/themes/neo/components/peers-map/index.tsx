@@ -5,7 +5,9 @@ import {
   ArrowRight,
   CircleCheck,
   Globe,
+  Layers,
   MapPin,
+  Server,
   ServerCrash,
   X,
 } from "lucide-react";
@@ -31,9 +33,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/themes/neo/components/ui/card";
-import { ClusterList } from "./cluster-list";
 import { CountryLegend } from "./country-legend";
 import { PeersMapCanvas } from "./map-canvas";
+import { PeerDetail } from "./peer-detail";
+import { PeerList } from "./peer-list";
 
 type MapStatusFilter = "all" | "available" | "unavailable";
 
@@ -57,17 +60,23 @@ export function PeersMap({
   const [clusterLeaves, setClusterLeaves] = useState<PeerGeoPoint[] | null>(
     null,
   );
+  const [selectedPeer, setSelectedPeer] = useState<PeerGeoPoint | null>(null);
   const [statusFilter, setStatusFilter] = useState<MapStatusFilter>("all");
   const isControlled = controlledCountry !== undefined;
   const selectedCountry = isControlled ? controlledCountry : internalCountry;
   const setSelectedCountry = useCallback(
     (code: string | null) => {
       setClusterLeaves(null);
+      setSelectedPeer(null);
       if (isControlled) controlledOnSelect?.(code);
       else setInternalCountry(code);
     },
     [isControlled, controlledOnSelect],
   );
+  const handleSelectCluster = useCallback((leaves: PeerGeoPoint[]) => {
+    setSelectedPeer(null);
+    setClusterLeaves(leaves);
+  }, []);
 
   const allPoints = data ?? EMPTY_POINTS;
   const statusFilteredPoints = useMemo(() => {
@@ -97,6 +106,7 @@ export function PeersMap({
   const handleStatusFilterChange = useCallback((value: string) => {
     if (!value) return;
     setClusterLeaves(null);
+    setSelectedPeer(null);
     setStatusFilter(value as MapStatusFilter);
   }, []);
 
@@ -202,7 +212,8 @@ export function PeersMap({
                 points={points}
                 highlightedCountry={selectedCountry}
                 onSelectCountry={setSelectedCountry}
-                onSelectCluster={setClusterLeaves}
+                onSelectCluster={handleSelectCluster}
+                onSelectPeer={setSelectedPeer}
                 height={height}
               />
             )}
@@ -214,8 +225,28 @@ export function PeersMap({
                   <Skeleton key={i} className="h-12 w-full rounded-xl" />
                 ))}
               </div>
+            ) : selectedPeer ? (
+              <PeerDetail
+                peer={selectedPeer}
+                maxHeight={height}
+                onBack={() => setSelectedPeer(null)}
+              />
             ) : clusterLeaves ? (
-              <ClusterList leaves={clusterLeaves} maxHeight={height} />
+              <PeerList
+                peers={clusterLeaves}
+                title="Cluster Peers"
+                icon={<Layers />}
+                maxHeight={height}
+                onSelect={setSelectedPeer}
+              />
+            ) : selectedCountry ? (
+              <PeerList
+                peers={points}
+                title="Peers"
+                icon={<Server />}
+                maxHeight={height}
+                onSelect={setSelectedPeer}
+              />
             ) : (
               <CountryLegend
                 points={statusFilteredPoints}
