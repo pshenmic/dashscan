@@ -13,6 +13,7 @@ import {
 import {
   countryFlagEmoji,
   countryName,
+  formatLocation,
 } from "@/themes/neo/components/masternode-map/iso-codes";
 import { PeersMap } from "@/themes/neo/components/peers-map";
 import { Badge } from "@/themes/neo/components/ui/badge";
@@ -27,6 +28,19 @@ import {
 type StatusFilter = "all" | "available" | "unavailable";
 
 const PAGINATION_PAGE_SIZE = 10;
+
+const EMPTY_PEERS: ApiPeer[] = [];
+
+function searchHaystack(peer: ApiPeer): string {
+  return [
+    peer.address,
+    peer.userAgent ?? "",
+    peer.geo?.city ?? "",
+    peer.geo ? countryName(peer.geo.countryCode) : "",
+  ]
+    .join(" ")
+    .toLowerCase();
+}
 
 const columns: DataTableColumn<ApiPeer>[] = [
   {
@@ -44,9 +58,7 @@ const columns: DataTableColumn<ApiPeer>[] = [
           </span>
           {row.geo && (
             <span className="truncate text-[11px] text-muted-foreground">
-              {[row.geo.city, countryName(row.geo.countryCode)]
-                .filter(Boolean)
-                .join(", ")}
+              {formatLocation(row.geo)}
             </span>
           )}
         </div>
@@ -112,7 +124,7 @@ export default function RedesignPeersListPage() {
     allPeersQueryOptions({ network }),
   );
 
-  const peers = useMemo(() => allPeers ?? [], [allPeers]);
+  const peers = allPeers ?? EMPTY_PEERS;
 
   const stats = useMemo(() => {
     const available = peers.filter((p) => p.available).length;
@@ -123,24 +135,23 @@ export default function RedesignPeersListPage() {
     };
   }, [peers]);
 
+  const searchable = useMemo(
+    () => peers.map((peer) => ({ peer, haystack: searchHaystack(peer) })),
+    [peers],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return peers.filter((p) => {
-      if (status === "available" && !p.available) return false;
-      if (status === "unavailable" && p.available) return false;
-      if (country && p.geo?.countryCode !== country) return false;
-      if (q) {
-        const match =
-          p.address.toLowerCase().includes(q) ||
-          p.userAgent?.toLowerCase().includes(q) ||
-          p.geo?.city?.toLowerCase().includes(q) ||
-          (p.geo?.countryCode &&
-            countryName(p.geo.countryCode).toLowerCase().includes(q));
-        if (!match) return false;
-      }
-      return true;
-    });
-  }, [search, peers, country, status]);
+    const out: ApiPeer[] = [];
+    for (const { peer, haystack } of searchable) {
+      if (status === "available" && !peer.available) continue;
+      if (status === "unavailable" && peer.available) continue;
+      if (country && peer.geo?.countryCode !== country) continue;
+      if (q && !haystack.includes(q)) continue;
+      out.push(peer);
+    }
+    return out;
+  }, [searchable, search, country, status]);
 
   const total = filtered.length;
 

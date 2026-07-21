@@ -28,15 +28,9 @@ export interface ApiPeer {
 
 export interface PeerGeoPoint {
   address: string;
-  host: string;
-  port: number;
   available: boolean;
   userAgent: string | null;
   protocolVersion: number | null;
-  services: number | null;
-  startHeight: number | null;
-  lastSeen: string;
-  probedAt: string;
   ipv4: string;
   countryCode: string;
   city: string;
@@ -63,23 +57,6 @@ async function getPeers(params: FetchPeersInput) {
   return response.json() as Promise<PaginatedResponse<ApiPeer>>;
 }
 
-export const fetchPeers = createServerFn({ method: "POST" })
-  .inputValidator((input: FetchPeersInput) => input)
-  .handler(({ data }) => getPeers(data));
-
-export function peersQueryOptions(params: FetchPeersInput) {
-  return queryOptions({
-    queryKey: [
-      "peers",
-      params.network,
-      params.page,
-      params.limit,
-      params.order,
-    ],
-    queryFn: () => getPeers(params),
-  });
-}
-
 interface FetchAllPeersInput {
   network: Network;
 }
@@ -97,15 +74,9 @@ export function toGeoPoint(peer: ApiPeer): PeerGeoPoint | null {
     return null;
   return {
     address: peer.address,
-    host: peer.host,
-    port: peer.port,
     available: peer.available,
     userAgent: peer.userAgent,
     protocolVersion: peer.protocolVersion,
-    services: peer.services,
-    startHeight: peer.startHeight,
-    lastSeen: peer.lastSeen,
-    probedAt: peer.probedAt,
     ipv4: geo.ipv4,
     countryCode: geo.countryCode,
     city: geo.city,
@@ -114,28 +85,27 @@ export function toGeoPoint(peer: ApiPeer): PeerGeoPoint | null {
   };
 }
 
-const SERVICE_FLAGS: { bit: number; name: string }[] = [
-  { bit: 0, name: "NETWORK" },
-  { bit: 1, name: "GETUTXO" },
-  { bit: 2, name: "BLOOM" },
-  { bit: 4, name: "XTHIN" },
-  { bit: 6, name: "COMPACT_FILTERS" },
-  { bit: 10, name: "NETWORK_LIMITED" },
-];
+const SERVICE_FLAG_NAMES = new Map<number, string>([
+  [0, "NETWORK"],
+  [1, "GETUTXO"],
+  [2, "BLOOM"],
+  [4, "XTHIN"],
+  [6, "COMPACT_FILTERS"],
+  [10, "NETWORK_LIMITED"],
+]);
 
 export function decodeServices(services: number | null): {
   names: string[];
   unknownBits: number[];
 } {
-  if (services == null || services <= 0) return { names: [], unknownBits: [] };
-  const known = new Set(SERVICE_FLAGS.map((f) => f.bit));
   const names: string[] = [];
-  for (const { bit, name } of SERVICE_FLAGS) {
-    if (services & (1 << bit)) names.push(name);
-  }
   const unknownBits: number[] = [];
+  if (services == null || services <= 0) return { names, unknownBits };
   for (let bit = 0; bit < 32; bit++) {
-    if (services & (1 << bit) && !known.has(bit)) unknownBits.push(bit);
+    if (!(services & (1 << bit))) continue;
+    const name = SERVICE_FLAG_NAMES.get(bit);
+    if (name) names.push(name);
+    else unknownBits.push(bit);
   }
   return { names, unknownBits };
 }
@@ -181,6 +151,10 @@ export function allPeersQueryOptions(params: FetchAllPeersInput) {
     queryFn: () => getAllPeers(params),
     staleTime: 5 * 60 * 1000,
   });
+}
+
+export function peersByAddress(peers: ApiPeer[]): Map<string, ApiPeer> {
+  return new Map(peers.map((peer) => [peer.address, peer]));
 }
 
 export function peersToGeoPoints(peers: ApiPeer[]): PeerGeoPoint[] {

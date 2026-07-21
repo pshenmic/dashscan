@@ -16,14 +16,12 @@ export function PeerList({
   title,
   icon,
   maxHeight,
-  selectedAddress,
   onSelect,
 }: {
   peers: PeerGeoPoint[];
   title: string;
   icon: ReactNode;
   maxHeight: number;
-  selectedAddress?: string | null;
   onSelect: (peer: PeerGeoPoint) => void;
 }) {
   const annotated = useMemo(
@@ -90,40 +88,36 @@ export function PeerList({
         className="flex flex-col gap-1 overflow-y-auto pr-1"
         style={{ maxHeight }}
       >
-        {sorted.map(({ point, bucket }) => {
-          const isSelected = selectedAddress === point.address;
-          return (
-            <li key={point.address}>
-              <button
-                type="button"
-                onClick={() => onSelect(point)}
-                className={cn(
-                  "group flex w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 text-left transition-colors",
-                  "hover:border-border/60 hover:bg-secondary/60",
-                  isSelected && "border-accent/40 bg-accent/10",
-                )}
-              >
-                <span
-                  className="inline-block size-2 shrink-0 rounded-full"
-                  style={{ background: AVAILABILITY_COLOR[bucket] }}
-                  aria-hidden="true"
-                />
-                <span className="text-sm leading-none" aria-hidden="true">
-                  {countryFlagEmoji(point.countryCode)}
+        {sorted.map(({ point, bucket }) => (
+          <li key={point.address}>
+            <button
+              type="button"
+              onClick={() => onSelect(point)}
+              className={cn(
+                "group flex w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 text-left transition-colors",
+                "hover:border-border/60 hover:bg-secondary/60",
+              )}
+            >
+              <span
+                className="inline-block size-2 shrink-0 rounded-full"
+                style={{ background: AVAILABILITY_COLOR[bucket] }}
+                aria-hidden="true"
+              />
+              <span className="text-sm leading-none" aria-hidden="true">
+                {countryFlagEmoji(point.countryCode)}
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate font-mono text-xs">
+                  {point.address}
                 </span>
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate font-mono text-xs">
-                    {point.address}
-                  </span>
-                  <span className="truncate text-[10px] text-muted-foreground">
-                    {point.userAgent || formatLocation(point)}
-                  </span>
-                </div>
-                <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
-              </button>
-            </li>
-          );
-        })}
+                <span className="truncate text-[10px] text-muted-foreground">
+                  {point.userAgent || formatLocation(point)}
+                </span>
+              </div>
+              <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          </li>
+        ))}
       </ul>
     </div>
   );
