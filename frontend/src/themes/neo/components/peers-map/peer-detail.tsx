@@ -1,10 +1,10 @@
 import { ArrowLeft, CircleCheck, Server, ServerCrash } from "lucide-react";
-import { decodeServices, type PeerGeoPoint } from "@/lib/api/peers";
+import { type ApiPeer, decodeServices } from "@/lib/api/peers";
 import { formatRelativeTime } from "@/lib/format";
 import { CopyButton } from "@/themes/neo/components/copy-button";
 import { DetailRow } from "@/themes/neo/components/detail-row";
 import { Badge } from "@/themes/neo/components/ui/badge";
-import { countryFlagEmoji, countryName } from "../masternode-map/iso-codes";
+import { countryFlagEmoji, formatLocation } from "../masternode-map/iso-codes";
 
 function TimeValue({ value }: { value: string }) {
   const date = new Date(value);
@@ -26,11 +26,12 @@ export function PeerDetail({
   maxHeight,
   onBack,
 }: {
-  peer: PeerGeoPoint;
+  peer: ApiPeer;
   maxHeight: number;
   onBack: () => void;
 }) {
   const services = decodeServices(peer.services);
+  const geo = peer.geo;
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -45,7 +46,7 @@ export function PeerDetail({
 
       <div className="flex items-start gap-2.5">
         <span className="text-xl leading-none" aria-hidden="true">
-          {countryFlagEmoji(peer.countryCode)}
+          {geo ? countryFlagEmoji(geo.countryCode) : "🌐"}
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex items-center gap-1.5 break-all font-mono text-sm font-medium">
@@ -78,17 +79,15 @@ export function PeerDetail({
           <span className="font-mono text-sm tabular-nums">{peer.port}</span>
         </DetailRow>
         <DetailRow label="Location">
-          <span>
-            {[peer.city, countryName(peer.countryCode)]
-              .filter(Boolean)
-              .join(", ") || "—"}
-          </span>
+          <span>{geo ? formatLocation(geo) : "—"}</span>
         </DetailRow>
-        <DetailRow label="Coordinates">
-          <span className="font-mono text-xs tabular-nums text-muted-foreground">
-            {peer.lat.toFixed(4)}, {peer.lng.toFixed(4)}
-          </span>
-        </DetailRow>
+        {geo && (
+          <DetailRow label="Coordinates">
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+              {geo.latitude.toFixed(4)}, {geo.longitude.toFixed(4)}
+            </span>
+          </DetailRow>
+        )}
         <DetailRow label="User Agent">
           {peer.userAgent ? (
             <span className="break-all font-mono text-xs">

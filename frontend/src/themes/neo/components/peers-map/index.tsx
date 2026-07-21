@@ -18,6 +18,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   allPeersQueryOptions,
   type PeerGeoPoint,
+  peersByAddress,
   peersToGeoPoints,
 } from "@/lib/api/peers";
 import { appStore } from "@/lib/store";
@@ -56,27 +57,38 @@ export function PeersMap({
     ...allPeersQueryOptions({ network }),
     select: peersToGeoPoints,
   });
+  const { data: peerByAddress } = useQuery({
+    ...allPeersQueryOptions({ network }),
+    select: peersByAddress,
+  });
   const [internalCountry, setInternalCountry] = useState<string | null>(null);
   const [clusterLeaves, setClusterLeaves] = useState<PeerGeoPoint[] | null>(
     null,
   );
-  const [selectedPeer, setSelectedPeer] = useState<PeerGeoPoint | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<MapStatusFilter>("all");
   const isControlled = controlledCountry !== undefined;
   const selectedCountry = isControlled ? controlledCountry : internalCountry;
+  const selectedPeer = selectedAddress
+    ? (peerByAddress?.get(selectedAddress) ?? null)
+    : null;
   const setSelectedCountry = useCallback(
     (code: string | null) => {
       setClusterLeaves(null);
-      setSelectedPeer(null);
+      setSelectedAddress(null);
       if (isControlled) controlledOnSelect?.(code);
       else setInternalCountry(code);
     },
     [isControlled, controlledOnSelect],
   );
   const handleSelectCluster = useCallback((leaves: PeerGeoPoint[]) => {
-    setSelectedPeer(null);
+    setSelectedAddress(null);
     setClusterLeaves(leaves);
   }, []);
+  const handleSelectPeer = useCallback(
+    (point: PeerGeoPoint) => setSelectedAddress(point.address),
+    [],
+  );
 
   const allPoints = data ?? EMPTY_POINTS;
   const statusFilteredPoints = useMemo(() => {
@@ -106,7 +118,7 @@ export function PeersMap({
   const handleStatusFilterChange = useCallback((value: string) => {
     if (!value) return;
     setClusterLeaves(null);
-    setSelectedPeer(null);
+    setSelectedAddress(null);
     setStatusFilter(value as MapStatusFilter);
   }, []);
 
@@ -213,7 +225,7 @@ export function PeersMap({
                 highlightedCountry={selectedCountry}
                 onSelectCountry={setSelectedCountry}
                 onSelectCluster={handleSelectCluster}
-                onSelectPeer={setSelectedPeer}
+                onSelectPeer={handleSelectPeer}
                 height={height}
               />
             )}
@@ -229,7 +241,7 @@ export function PeersMap({
               <PeerDetail
                 peer={selectedPeer}
                 maxHeight={height}
-                onBack={() => setSelectedPeer(null)}
+                onBack={() => setSelectedAddress(null)}
               />
             ) : clusterLeaves ? (
               <PeerList
@@ -237,7 +249,7 @@ export function PeersMap({
                 title="Cluster Peers"
                 icon={<Layers />}
                 maxHeight={height}
-                onSelect={setSelectedPeer}
+                onSelect={handleSelectPeer}
               />
             ) : selectedCountry ? (
               <PeerList
@@ -245,7 +257,7 @@ export function PeersMap({
                 title="Peers"
                 icon={<Server />}
                 maxHeight={height}
-                onSelect={setSelectedPeer}
+                onSelect={handleSelectPeer}
               />
             ) : (
               <CountryLegend
