@@ -461,8 +461,10 @@ impl BlockProcessor {
         // therefore one day, so adding per-batch counts onto the rollup never
         // double-counts across batches.
         let mut activity: HashMap<(NaiveDate, i32), i64> = HashMap::new();
+        let mut address_transactions_rows: Vec<(i32, i32, i32)> = Vec::new();
         for p in pending {
             let day = p.timestamp.date_naive();
+            let height = p.block.height as i32;
             for tx in &p.block.tx {
                 let mut tx_addr_ids: HashSet<i32> = HashSet::new();
                 for vout in &tx.vout {
@@ -477,8 +479,10 @@ impl BlockProcessor {
                         }
                     }
                 }
+                let tx_id = tx_map[&tx.txid];
                 for addr_id in tx_addr_ids {
                     *activity.entry((day, addr_id)).or_insert(0) += 1;
+                    address_transactions_rows.push((addr_id, tx_id, height));
                 }
             }
         }
@@ -488,6 +492,9 @@ impl BlockProcessor {
             .collect();
         self.db
             .upsert_address_activity_batch(client, &activity_rows)
+            .await?;
+        self.db
+            .insert_address_transactions_batch(client, &address_transactions_rows)
             .await?;
 
         // ── 8. Special transactions
