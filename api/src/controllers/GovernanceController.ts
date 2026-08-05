@@ -123,8 +123,6 @@ export default class GovernanceController {
       p.objectType === 'Proposal' &&
       (p.endEpoch ?? 0) > nextSuperblockTimeSec
     )
-    const voteThreshold = governanceInfo.governanceminquorum
-
     const totalRequested = proposals
       .reduce(
         (acc, curr) => acc + (curr.paymentAmount ?? 0),
@@ -132,11 +130,11 @@ export default class GovernanceController {
       )
 
     const enoughVotes = proposals
-      .filter(p => (p.absoluteYesCount ?? 0) >= voteThreshold)
+      .filter(p => (p.absoluteYesCount ?? 0) >= masternodeStats.requiredProposalVotes)
     const enoughVotesTotal = enoughVotes
       .reduce((acc, curr) => acc + (curr.paymentAmount ?? 0), 0)
 
-    const rankedByVotes = [...enoughVotes].sort(
+    const rankedByVotes = [...proposals].sort(
       (a, b) => b.absoluteYesCount - a.absoluteYesCount
     )
 
@@ -150,6 +148,21 @@ export default class GovernanceController {
       return false
     })
 
+    // The set that actually gets funded: proposals that pass the vote threshold,
+    // ranked by votes, greedily filling the budget. (enoughFunds above ranks all
+    // proposals by votes regardless of whether they clear the threshold.)
+    let runningVotesAndFunds = 0
+    const enoughVotesAndFunds = [...enoughVotes]
+      .sort((a, b) => b.absoluteYesCount - a.absoluteYesCount)
+      .filter((p: GovernanceObject) => {
+        const amount = p.paymentAmount ?? 0
+        if (runningVotesAndFunds + amount <= totalBudget) {
+          runningVotesAndFunds += amount
+          return true
+        }
+        return false
+      })
+
     response.send({
       totalBudget,
       totalProposals: proposals.length,
@@ -158,8 +171,11 @@ export default class GovernanceController {
       enoughVotesCount: enoughVotes.length,
       enoughFundsTotal: running,
       enoughFundsCount: enoughFunds.length,
+      enoughVotesAndFundsTotal: runningVotesAndFunds,
+      enoughVotesAndFundsCount: enoughVotesAndFunds.length,
       remainingAllPass: totalBudget - totalRequested,
       remainingEnoughVotes: totalBudget - enoughVotesTotal,
+      remainingEnoughVotesAndFunds: totalBudget - runningVotesAndFunds,
       requiredVotes: masternodeStats.requiredProposalVotes,
       votingDeadline,
     })

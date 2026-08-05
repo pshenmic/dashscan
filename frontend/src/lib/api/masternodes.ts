@@ -5,6 +5,7 @@ import { getBaseUrl } from "./client";
 import type {
   ApiMasternode,
   ApiProposalVote,
+  ApiTransaction,
   PaginatedResponse,
   PaginationParams,
   SearchResponse,
@@ -90,6 +91,84 @@ export function masternodeVotesQueryOptions(params: FetchMasternodeInput) {
     queryKey: ["masternode-votes", params.network, params.hash],
     queryFn: () => getMasternodeVotes(params),
     staleTime: 60 * 1000,
+  });
+}
+
+interface FetchMasternodeTransactionsInput
+  extends PaginationParams,
+    FetchMasternodeInput {}
+
+async function getMasternodeTransactions(
+  params: FetchMasternodeTransactionsInput,
+) {
+  const url = new URL(
+    `/masternode/${params.hash}/transactions`,
+    getBaseUrl(params.network),
+  );
+  if (params.page !== undefined)
+    url.searchParams.set("page", String(params.page));
+  if (params.limit !== undefined)
+    url.searchParams.set("limit", String(params.limit));
+  if (params.order !== undefined) url.searchParams.set("order", params.order);
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<PaginatedResponse<ApiTransaction>>;
+}
+
+export const fetchMasternodeTransactions = createServerFn({ method: "POST" })
+  .inputValidator((input: FetchMasternodeTransactionsInput) => input)
+  .handler(({ data }) => getMasternodeTransactions(data));
+
+export function masternodeTransactionsQueryOptions(
+  params: FetchMasternodeTransactionsInput,
+) {
+  return queryOptions({
+    queryKey: [
+      "masternode-transactions",
+      params.network,
+      params.hash,
+      params.page,
+      params.limit,
+      params.order,
+    ],
+    queryFn: () => getMasternodeTransactions(params),
+  });
+}
+
+interface InfiniteMasternodeTransactionsInput extends FetchMasternodeInput {
+  limit?: number;
+  order?: "asc" | "desc";
+}
+
+export function masternodeTransactionsInfiniteQueryOptions(
+  params: InfiniteMasternodeTransactionsInput,
+) {
+  const limit = params.limit ?? 25;
+  const order = params.order ?? "desc";
+  return infiniteQueryOptions({
+    queryKey: [
+      "masternode-transactions-infinite",
+      params.network,
+      params.hash,
+      limit,
+      order,
+    ],
+    queryFn: ({ pageParam }) =>
+      getMasternodeTransactions({
+        network: params.network,
+        hash: params.hash,
+        page: pageParam,
+        limit,
+        order,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const { page, limit: pageLimit, total } = lastPage.pagination;
+      return page * pageLimit < total ? page + 1 : undefined;
+    },
   });
 }
 

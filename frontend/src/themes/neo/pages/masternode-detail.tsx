@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Avatar } from "dash-ui-kit/react";
 import {
   Activity,
+  ArrowLeftRight,
   Award,
   Boxes,
   Coins,
@@ -20,6 +21,7 @@ import {
   Vote,
 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
+import { DashIcon } from "@/components/dash-icon";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -33,10 +35,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { proposalsQueryOptions } from "@/lib/api/governance";
 import {
   masternodeQueryOptions,
+  masternodeTransactionsInfiniteQueryOptions,
+  masternodeTransactionsQueryOptions,
   masternodeVotesQueryOptions,
 } from "@/lib/api/masternodes";
-import type { ApiProposalVote } from "@/lib/api/types";
-import { formatRelativeTime, getIp } from "@/lib/format";
+import type { ApiProposalVote, ApiTransaction } from "@/lib/api/types";
+import {
+  DUFFS_PER_DASH,
+  formatRelativeTime,
+  getIp,
+  sumVOut,
+} from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { cn } from "@/lib/utils";
@@ -50,8 +59,10 @@ import { EmptyState, NotFoundState } from "@/themes/neo/components/empty-state";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
 import { ShareButton } from "@/themes/neo/components/share-button";
 import {
+  InstantLockBadge,
   MnStatusBadge,
   MnTypeBadge,
+  TxTypeBadge,
 } from "@/themes/neo/components/status-badge";
 import { Badge } from "@/themes/neo/components/ui/badge";
 import {
@@ -65,6 +76,7 @@ import {
 import { OutcomeBadge, SignalBadge } from "@/themes/neo/components/vote-badges";
 
 const VOTES_PAGE_SIZE = 10;
+const TX_PAGE_SIZE = 25;
 
 function AddressOrDash({ value }: { value?: string | null }) {
   if (!value) return <span className="text-muted-foreground">—</span>;
@@ -230,13 +242,14 @@ function VotingRecord({ proTxHash }: { proTxHash: string }) {
             params={{ hash: row.proposalHash }}
             className="flex min-w-0 flex-col gap-0.5 no-underline"
           >
-            <span className="truncate text-sm font-medium text-accent hover:underline">
-              {name ??
-                `${row.proposalHash.slice(0, 10)}…${row.proposalHash.slice(-6)}`}
+            <span className="text-sm font-medium text-accent hover:underline">
+              {name ?? (
+                <span className="font-mono break-all">{row.proposalHash}</span>
+              )}
             </span>
             {name && (
-              <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                {row.proposalHash.slice(0, 10)}…{row.proposalHash.slice(-6)}
+              <span className="font-mono text-[11px] tabular-nums text-muted-foreground break-all">
+                {row.proposalHash}
               </span>
             )}
           </Link>
@@ -319,6 +332,164 @@ function VotingRecord({ proTxHash }: { proTxHash: string }) {
             pageSize: VOTES_PAGE_SIZE,
             total: sortedVotes.length,
             onPageChange: setPage,
+          }}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+function MasternodeTransactions({ proTxHash }: { proTxHash: string }) {
+  const network = useStore(appStore, (state) => state.network);
+  const navigate = useNavigate();
+  const [viewMode, setViewMode] = useTableViewMode("masternode-transactions");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(TX_PAGE_SIZE);
+  const isInfinite = viewMode === "infinite";
+
+  const {
+    data: infiniteData,
+    isFetching: isInfiniteFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    ...masternodeTransactionsInfiniteQueryOptions({
+      network,
+      hash: proTxHash,
+      limit: TX_PAGE_SIZE,
+      order: "desc",
+    }),
+    enabled: isInfinite,
+  });
+
+  const { data: pagedData, isFetching: isPagedFetching } = useQuery({
+    ...masternodeTransactionsQueryOptions({
+      network,
+      hash: proTxHash,
+      page,
+      limit: pageSize,
+      order: "desc",
+    }),
+    enabled: !isInfinite,
+  });
+
+  const infiniteTransactions = useMemo(
+    () => infiniteData?.pages.flatMap((p) => p.resultSet) ?? [],
+    [infiniteData],
+  );
+  const transactions = isInfinite
+    ? infiniteTransactions
+    : (pagedData?.resultSet ?? []);
+  const total = isInfinite
+    ? (infiniteData?.pages[0]?.pagination?.total ?? 0)
+    : (pagedData?.pagination?.total ?? 0);
+
+  const columns: DataTableColumn<ApiTransaction>[] = [
+    {
+      id: "hash",
+      header: "Transaction",
+      cell: (row) => (
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
+            <ArrowLeftRight className="size-4" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <HashDisplay
+              value={row.hash}
+              href="/transactions/$hash"
+              params={{ hash: row.hash }}
+              copy={false}
+            />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <TxTypeBadge type={row.type} />
+              <InstantLockBadge locked={row.instantLock} />
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "block",
+      header: "Block",
+      cell: (row) => (
+        <Link
+          to="/blocks/$hashOrHeight"
+          params={{ hashOrHeight: String(row.blockHeight) }}
+          className="font-mono text-sm tabular-nums text-accent no-underline hover:underline"
+        >
+          {row.blockHeight.toLocaleString()}
+        </Link>
+      ),
+    },
+    {
+      id: "amount",
+      header: "Amount",
+      align: "right",
+      cell: (row) => {
+        const duffs =
+          row.amount != null ? Number(row.amount) : sumVOut(row.vOut);
+        const dash = duffs / DUFFS_PER_DASH;
+        const formatted = dash >= 1 ? dash.toFixed(2) : dash.toFixed(4);
+        return (
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="font-mono text-sm font-medium tabular-nums">
+              {formatted} <DashIcon />
+            </span>
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              {row.timestamp ? formatRelativeTime(row.timestamp) : "Pending"}
+            </span>
+          </div>
+        );
+      },
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ArrowLeftRight className="size-4 text-accent" />
+          Transactions
+        </CardTitle>
+        <CardDescription>
+          Transactions involving any address tied to this masternode — its
+          payout, owner, voting, or collateral address.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <DataTable
+          columns={columns}
+          data={transactions}
+          isLoading={
+            (isInfinite ? isInfiniteFetching : isPagedFetching) &&
+            transactions.length === 0
+          }
+          rowKey={(row) => row.hash}
+          onRowClick={(tx) =>
+            navigate({ to: "/transactions/$hash", params: { hash: tx.hash } })
+          }
+          emptyTitle="No transactions"
+          emptyDescription="No transactions are associated with this masternode's addresses yet."
+          emptyIcon={<ArrowLeftRight className="size-6" />}
+          viewMode={{ value: viewMode, onChange: setViewMode }}
+          infiniteScroll={{
+            hasNextPage,
+            isFetchingNextPage,
+            onLoadMore: () => fetchNextPage(),
+            total,
+            loaded: transactions.length,
+            skeletonRows: 5,
+          }}
+          pagination={{
+            pageIndex: page,
+            pageSize,
+            total,
+            onPageChange: setPage,
+            onPageSizeChange: (size) => {
+              setPageSize(size);
+              setPage(1);
+            },
           }}
         />
       </CardContent>
@@ -566,7 +737,7 @@ export default function RedesignMasternodeDetailPage({
               </DetailRow>
               <DetailRow label="Operator PubKey">
                 {mn.pubKeyOperator ? (
-                  <HashDisplay value={mn.pubKeyOperator} variant="compact" />
+                  <HashDisplay value={mn.pubKeyOperator} />
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}
@@ -604,6 +775,9 @@ export default function RedesignMasternodeDetailPage({
             <TabsTrigger value="votes" className="gap-1.5">
               <Vote className="size-3.5" /> Voting record
             </TabsTrigger>
+            <TabsTrigger value="transactions" className="gap-1.5">
+              <ArrowLeftRight className="size-3.5" /> Transactions
+            </TabsTrigger>
             <TabsTrigger value="blocks" className="gap-1.5">
               <Boxes className="size-3.5" /> Proposed blocks
             </TabsTrigger>
@@ -611,6 +785,10 @@ export default function RedesignMasternodeDetailPage({
 
           <TabsContent value="votes">
             <VotingRecord proTxHash={mn.proTxHash} />
+          </TabsContent>
+
+          <TabsContent value="transactions">
+            <MasternodeTransactions proTxHash={mn.proTxHash} />
           </TabsContent>
 
           <TabsContent value="blocks">

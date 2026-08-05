@@ -1,6 +1,23 @@
-import type { ApiVOut } from "@/lib/api/types";
+import type { ApiTransaction, ApiVOut } from "@/lib/api/types";
 
 export const DUFFS_PER_DASH = 100_000_000;
+
+export function addressNetAmount(
+  tx: Pick<ApiTransaction, "vIn" | "vOut">,
+  address: string,
+): number {
+  const received = (tx.vOut ?? []).reduce(
+    (sum, out) =>
+      out.address === address ? sum + Number(out.value ?? 0) : sum,
+    0,
+  );
+  const spent = (tx.vIn ?? []).reduce(
+    (sum, vin) =>
+      vin.address === address ? sum + Number(vin.amount ?? 0) : sum,
+    0,
+  );
+  return received - spent;
+}
 
 export function formatDash(duffs: number): string {
   const dash = duffs / DUFFS_PER_DASH;
@@ -132,7 +149,9 @@ const TX_TYPE_LABELS: Record<number, string> = {
   9: "Asset Unlock",
 };
 
-export function getTxTypeLabel(type: string | number | null | undefined): string {
+export function getTxTypeLabel(
+  type: string | number | null | undefined,
+): string {
   const n = txTypeNum(type);
   return TX_TYPE_LABELS[n] ?? `Type ${type}`;
 }
@@ -150,9 +169,12 @@ const TX_TYPE_STYLES: Record<number, string> = {
   9: "border-teal-500 bg-teal-500/12 text-teal-500",
 };
 
-export function getTxTypeBadgeStyle(type: string | number | null | undefined): string {
+export function getTxTypeBadgeStyle(
+  type: string | number | null | undefined,
+): string {
   return (
-    TX_TYPE_STYLES[txTypeNum(type)] ?? "border-slate-500 bg-slate-500/12 text-slate-500"
+    TX_TYPE_STYLES[txTypeNum(type)] ??
+    "border-slate-500 bg-slate-500/12 text-slate-500"
   );
 }
 

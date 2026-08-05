@@ -1,3 +1,6 @@
+import Redis from "ioredis";
+import GeoIPService from "./services/GeoIPService";
+
 export const NETWORK: "testnet" | "mainnet" = process.env.NETWORK as "testnet" | "mainnet";
 // 30 minutes
 export const UTXO_INFO_LIFE_TIME = 1000 * 60 * 30;
@@ -23,3 +26,8 @@ export const ADDRESSES_ACTIVITY_WEEKLY_AFTER = 691200000
 
 export const ADDRESSES_ACTIVITY_WEEKLY_MIN_TX_COUNT = 10
 export const ADDRESSES_ACTIVITY_DAILY_MIN_TX_COUNT = 2
+
+export const REDIS_VOTES_KEY_PART = 'dao:votes:'
+
+export const REDIS_AVAILABLE_KEY = 'peers:available';
+export const REDIS_UNAVAILABLE_KEY = 'peers:unavailable';

@@ -25,11 +25,11 @@ import {
 } from "@/lib/api/addresses";
 import type { ApiTransaction } from "@/lib/api/types";
 import {
+  addressNetAmount,
   formatDash,
   formatRelativeTime,
   getTxTypeBadgeStyle,
   getTxTypeLabel,
-  sumVOut,
 } from "@/lib/format";
 import { getPageCount, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
@@ -68,7 +68,7 @@ function getRangeBounds(range: ChartRange) {
   };
 }
 
-const txColumns: ColumnDef<ApiTransaction>[] = [
+const makeTxColumns = (address: string): ColumnDef<ApiTransaction>[] => [
   {
     accessorKey: "timestamp",
     header: "Time",
@@ -128,9 +128,20 @@ const txColumns: ColumnDef<ApiTransaction>[] = [
     id: "amount",
     header: "Amount",
     cell: ({ row }) => {
-      const tx = row.original;
-      const duffs = tx.amount != null ? Number(tx.amount) : sumVOut(tx.vOut);
-      return <span className="font-mono font-medium">{formatDash(duffs)}</span>;
+      const net = addressNetAmount(row.original, address);
+      const duffs = Math.abs(net);
+      return (
+        <span
+          className={cn(
+            "font-mono font-medium",
+            net > 0 && "text-success",
+            net < 0 && "text-destructive",
+          )}
+        >
+          {net > 0 ? "+" : net < 0 ? "−" : ""}
+          {formatDash(duffs)}
+        </span>
+      );
     },
   },
   {
@@ -201,6 +212,8 @@ export default function ClassicAddressDetailPage({
       ),
     [transactions, globalFilter],
   );
+
+  const txColumns = useMemo(() => makeTxColumns(address), [address]);
 
   const table = useReactTable({
     data: filteredTxs,

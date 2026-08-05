@@ -14,6 +14,7 @@ import AddressesController from './controllers/AddressesController';
 import MasternodesController from './controllers/MasternodesController';
 import MarketController from './controllers/MarketController';
 import GovernanceController from "./controllers/GovernanceController";
+import PeersController from "./controllers/PeersController";
 import MarketService from './services/MarketService';
 import GeoIPService from './services/GeoIPService';
 import SearchController from './controllers/SearchController';
@@ -74,6 +75,7 @@ export const start = async (): Promise<FastifyInstance> => {
   const marketController = new MarketController(marketService);
   const searchController = new SearchController(knex);
   const governanceController = new GovernanceController(knex, redis, dashcoreRPC, geoIPService, cache);
+  const peersController = new PeersController(redis, geoIPService);
 
   Routes({
     fastify,
@@ -85,6 +87,7 @@ export const start = async (): Promise<FastifyInstance> => {
     marketController,
     searchController,
     governanceController,
+    peersController,
   });
 
   fastify.setErrorHandler(errorHandler);

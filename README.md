@@ -56,8 +56,15 @@ cargo run --release
 | `CORE_RPC_HOST` / `CORE_RPC_PORT` | Dash Core RPC address |
 | `CORE_RPC_USER` / `CORE_RPC_PASSWORD` | Dash Core RPC credentials |
 | `CORE_ZMQ_URL` | ZMQ endpoint for new-block notifications |
+| `CORE_P2P_HOST` / `CORE_P2P_PORT` | Dash Core P2P address (block catch-up + peer crawler seed) |
+| `REDIS_URL` | Redis connection string (governance + peer caches) |
 | `NETWORK` | `mainnet` or `testnet` |
 | `START_HEIGHT` | Block height to begin indexing from |
+| `PEER_CRAWL_EVERY_BLOCKS` | Run a peer crawl every N live-sync blocks (default `25`; `0` disables) |
+| `PEER_CRAWL_MAX_PEERS` | Safety cap on addresses visited per crawl round (default `100000`) |
+| `PEER_CRAWL_CONCURRENCY` | Concurrent peer connections per crawl (default `512`) |
+| `PEER_CRAWL_DEADLINE_SECS` | Wall-clock ceiling for one crawl round (default `600`) |
+| `PEER_CRAWL_CONNECT_TIMEOUT_SECS` | Per-peer connect/handshake timeout (default `3`) |
 
 ### 3. API
 

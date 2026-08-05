@@ -6,6 +6,7 @@ import MasternodesController from './controllers/MasternodesController';
 import MarketController from './controllers/MarketController';
 import SearchController from './controllers/SearchController';
 import GovernanceController from "./controllers/GovernanceController";
+import PeersController from "./controllers/PeersController";
 import MainController from './controllers/MainController';
 
 interface RoutesOptions {
@@ -18,9 +19,10 @@ interface RoutesOptions {
   marketController: MarketController;
   searchController: SearchController;
   governanceController: GovernanceController;
+  peersController: PeersController;
 }
 
-export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController }: RoutesOptions): void {
+export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController, peersController }: RoutesOptions): void {
   const routes = [
     {
       path: '/status',
@@ -420,6 +422,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       path: '/chain/stats',
       method: 'get',
       handler: mainController.getChainStats,
+    },
+    {
+      path: '/peers',
+      method: 'get',
+      handler: peersController.getPeers,
+      schema: {
+        querystring: { $ref: 'paginationOptions#' },
+      },
     }
   ];
 

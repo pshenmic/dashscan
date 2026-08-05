@@ -1189,6 +1189,74 @@ Entries use the [Transaction Object](#transaction-object) shape. `total` reflect
 
 ---
 
+### GET /peers
+
+Returns the P2P network peers discovered by the indexer's crawler, geo-enriched and ordered by `lastSeen`. If neither `page` nor `limit` is supplied, the full set is returned without pagination; otherwise standard pagination is applied (defaults: `page=1`, `limit=10`).
+
+The crawler performs a breadth-first walk of the network starting from the indexer's configured P2P node, harvesting peer addresses via `getaddr` and probing each for liveness. It runs once when live sync starts and again every `PEER_CRAWL_EVERY_BLOCKS` blocks, overwriting the result set each round. **Every** discovered address is stored — including ones that did not answer — split into two Redis sets (`peers:available` / `peers:unavailable`) and exposed here via the `available` flag.
+
+`available: false` means the crawler could not complete a version handshake with the peer this round (connection refused/timed out, or not reached before the round ended) — a reachability snapshot from the indexer's vantage point, not a definitive "node is down". The version-derived fields (`protocolVersion`, `services`, `userAgent`, `startHeight`) are populated only for available peers.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+Additional optional filters:
+
+| Parameter   | Type    | Constraints                    | Description                                                                       |
+|-------------|---------|--------------------------------|-----------------------------------------------------------------------------------|
+| `available` | boolean |                                | `true` → reachable peers only; `false` → unreachable only; omitted → both         |
+| `country`   | string  | ISO 3166-1 alpha-2 (e.g. `US`) | Filter by GeoIP country code resolved from the peer address                       |
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "address": "1.2.3.4:9999",
+      "host": "1.2.3.4",
+      "port": 9999,
+      "available": true,
+      "protocolVersion": 70227,
+      "services": 1037,
+      "userAgent": "/Dash Core:22.0.0/",
+      "startHeight": 1999000,
+      "lastSeen": "2026-06-17T11:00:00.000Z",
+      "probedAt": "2026-06-17T11:46:00.000Z",
+      "geo": {
+        "ipv4": "1.2.3.4",
+        "countryCode": "NL",
+        "city": "Amsterdam",
+        "latitude": 12.3456789101112131,
+        "longitude": 12.3456789101112131
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 4200
+  }
+}
+```
+
+#### Peer Object
+
+| Field             | Type              | Description                                                                |
+|-------------------|-------------------|----------------------------------------------------------------------------|
+| `address`         | string            | Peer address as `ip:port`                                                  |
+| `host`            | string            | Host portion of `address`                                                  |
+| `port`            | number            | Port portion of `address`                                                  |
+| `available`       | boolean           | Whether the peer answered a version handshake this crawl round             |
+| `protocolVersion` | number \| null    | Advertised protocol version (only when `available`)                        |
+| `services`        | number \| null    | Advertised service bits (only when `available`)                            |
+| `userAgent`       | string \| null    | Advertised user agent / subversion (only when `available`)                 |
+| `startHeight`     | number \| null    | Block height the peer reported at probe time (only when `available`)       |
+| `lastSeen`        | string            | ISO 8601 timestamp the gossiping peer last saw this address                |
+| `probedAt`        | string            | ISO 8601 timestamp the crawler last probed this address                    |
+| `geo`             | GeoIpInfo \| null | GeoIP for the peer host (see [GeoIpInfo](#geoipinfo-object)); null if unresolved |
+
+---
+
 ### GET /price/:currency
 
 Returns the current DASH price for the given currency. Cached for 60 minutes. Falls back to Kraken if CoinGecko is unavailable.
@@ -1694,8 +1762,11 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
   "enoughVotesCount": 9,
   "enoughFundsTotal": 7337.0,
   "enoughFundsCount": 8,
+  "enoughVotesAndFundsTotal": 7287.0,
+  "enoughVotesAndFundsCount": 6,
   "remainingAllPass": -1069.48518384,
   "remainingEnoughVotes": -257.48518384,
+  "remainingEnoughVotesAndFunds": 50,
   "requiredVotes": 312,
   "votingDeadline": "2026-05-18T01:23:45.000Z"
 }
@@ -1708,10 +1779,13 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
 | `totalRequested`       | number | Sum of `paymentAmount` across all pending proposals                                                                                                                             |
 | `enoughVotesCount`     | number | Count of pending proposals whose `absoluteYesCount >= governanceminquorum`                                                                                                      |
 | `enoughVotesTotal`     | number | Sum of `paymentAmount` across the `enoughVotes` subset                                                                                                                          |
-| `enoughFundsCount`     | number | Count of proposals that would actually be paid: vote-qualified proposals selected greedily (descending by `absoluteYesCount`) while the cumulative amount fits in `totalBudget` |
+| `enoughFundsCount`     | number | Count of proposals that would fit in the budget: all proposals ranked greedily by `absoluteYesCount` while the cumulative amount fits in `totalBudget`, regardless of whether they clear the vote threshold |
 | `enoughFundsTotal`     | number | Sum of `paymentAmount` across the `enoughFunds` subset                                                                                                                          |
+| `enoughVotesAndFundsCount` | number | Count of proposals that would actually be paid: vote-qualified proposals (the `enoughVotes` subset) selected greedily (descending by `absoluteYesCount`) while the cumulative amount fits in `totalBudget` |
+| `enoughVotesAndFundsTotal` | number | Sum of `paymentAmount` across the `enoughVotesAndFunds` subset                                                                                                              |
 | `remainingAllPass`     | number | `totalBudget - totalRequested` (negative when proposals are oversubscribed)                                                                                                     |
 | `remainingEnoughVotes` | number | `totalBudget - enoughVotesTotal` (negative when vote-passing proposals exceed budget)                                                                                           |
+| `remainingEnoughVotesAndFunds` | number | `totalBudget - enoughVotesAndFundsTotal` (budget left after funding the proposals that actually get paid)                                                            |
 | `requiredVotes`        | number | Net-yes-vote threshold for proposal approval (from `/masternodes/stats.requiredProposalVotes`)                                                                                  |
 | `votingDeadline`       | string | ISO 8601 timestamp after which new votes won't be reflected in the upcoming superblock's payouts. Computed as `nextSuperblockTime − superblockmaturitywindow × avgBlockTime`, where `avgBlockTime = cycleMs / superblockcycle`. |
 
