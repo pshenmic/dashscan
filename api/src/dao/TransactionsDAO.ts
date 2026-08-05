@@ -278,6 +278,24 @@ export default class TransactionsDAO {
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count);
   };
 
+  getTransactionHashesByBlockHash = async (blockHash: string, page: number, limit: number, order: string): Promise<PaginatedResultSet<string>> => {
+    const fromRank = (page - 1) * limit;
+
+    const rows = await this.knex('transactions')
+      .select('transactions.hash')
+      .select('blocks.tx_count as total_count')
+      .join('blocks', 'blocks.height', 'transactions.block_height')
+      .where('blocks.hash', blockHash)
+      .orderBy('transactions.is_coinbase', 'desc')
+      .orderBy('transactions.id', order)
+      .limit(limit)
+      .offset(fromRank)
+
+    const [row] = rows;
+
+    return new PaginatedResultSet(rows.map((row) => row.hash), page, limit, row?.total_count);
+  };
+
   getPendingTransactions = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 

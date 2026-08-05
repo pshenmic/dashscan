@@ -295,15 +295,55 @@ Returns a time series of the average transaction count per block over a configur
 
 ---
 
-### GET /block/:hash
+### GET /blocks/difficulty/chart
 
-Returns a single block by its hash.
+Returns a time series of the average mining difficulty over a configurable time range.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default               | Constraints          | Description                                              |
+|-------------------|--------|-----------------------|----------------------|----------------------------------------------------------|
+| `timestamp_start` | string | 1 hour ago (ISO 8601) |                      | Start of the time range                                  |
+| `timestamp_end`   | string | now (ISO 8601)        |                      | End of the time range                                    |
+| `intervals_count` | number | auto                  | minimum: 2, max: 100 | Number of buckets. When omitted, chosen automatically via `calculateInterval` |
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2026-07-12T06:00:00.000Z",
+    "data": { "avg": 103483713.33 }
+  },
+  {
+    "timestamp": "2026-07-12T10:00:00.000Z",
+    "data": { "avg": 97596905.48 }
+  }
+]
+```
+
+| Field      | Type   | Description                                                             |
+|------------|--------|-------------------------------------------------------------------------|
+| `timestamp`| string | ISO 8601 start of the bucket                                            |
+| `data.avg` | number | Average `difficulty` across all blocks in the bucket. `0` if no blocks fell in the bucket |
+
+**Response `400`**
+
+```json
+{ "message": "start timestamp cannot be more than end timestamp" }
+```
+
+---
+
+### GET /block/:identifier
+
+Returns a single block by its hash or height.
 
 **Path Parameters**
 
-| Parameter | Type   | Constraints                    | Description      |
-|-----------|--------|--------------------------------|------------------|
-| `hash`    | string | 64-char alphanumeric           | Block hash       |
+| Parameter    | Type   | Constraints                                          | Description          |
+|--------------|--------|------------------------------------------------------|----------------------|
+| `identifier` | string | 64-char alphanumeric (hash) or 1–9 digits (height)   | Block hash or height |
 
 **Response `200`** — [Block Object](#block-object)
 
@@ -332,6 +372,38 @@ Returns a single block by its hash.
   "error": "Block not found"
 }
 ```
+
+---
+
+### GET /block/:hash/transactions
+
+Returns a paginated list of transaction hashes for the block with the given hash. Coinbase transaction first, then by insertion order. For full transaction objects use [`GET /transactions/height/:height`](#get-transactionsheightheight).
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints          | Description |
+|-----------|--------|----------------------|-------------|
+| `hash`    | string | 64-char alphanumeric | Block hash  |
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    "9d778417705481977761c27e835666d02da820e51505add96e64ebfc36f3e7d2",
+    "0eb957d2edee426a1848c6f9b9a2bedcc0db2df1c82ae9af54e435c129f50d8a"
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 39
+  }
+}
+```
+
+> `total` comes from the block's `tx_count`. An unknown block hash yields an empty `resultSet` with `total: -1`.
 
 ---
 
