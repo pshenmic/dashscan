@@ -27,6 +27,9 @@ export const ADDRESSES_ACTIVITY_WEEKLY_AFTER = 691200000
 export const ADDRESSES_ACTIVITY_WEEKLY_MIN_TX_COUNT = 10
 export const ADDRESSES_ACTIVITY_DAILY_MIN_TX_COUNT = 2
 
+export const SCRIPT_TYPE_MULTISIG = 'multisig'
+export const PUBKEY_PUSH_OPCODES = [33, 65]
+
 export const REDIS_VOTES_KEY_PART = 'dao:votes:'
 
 export const REDIS_AVAILABLE_KEY = 'peers:available';

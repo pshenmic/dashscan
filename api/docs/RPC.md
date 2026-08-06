@@ -457,10 +457,10 @@ Returns a single transaction by its hash.
 | `blockHash`      | string \| null | Hash of the block containing this transaction                                                |
 | `timestamp`      | string \| null | ISO 8601 block timestamp, or `null` for pending transactions                                 |
 | `amount`         | string \| null | Transferred value in duffs (sum of outputs less change), `null` if unavailable               |
-| `version`        | number \| null | Transaction version (only populated on single-tx endpoint)                                   |
-| `size`           | number \| null | Transaction size in bytes (only populated on single-tx endpoint)                             |
-| `vIn`            | VIn[]          | Array of transaction inputs                                                                  |
-| `vOut`           | VOut[]         | Array of transaction outputs                                                                 |
+| `version`        | number \| null | Transaction version                                                                          |
+| `size`           | number \| null | Transaction size in bytes                                                                    |
+| `vIn`            | VIn[]          | Array of transaction inputs, in on-chain input order                                         |
+| `vOut`           | VOut[]         | Array of transaction outputs, in on-chain output order                                        |
 | `confirmations`  | number \| null | Number of confirmations                                                                      |
 | `instantLock`    | string \| null | Raw InstantSend lock hex (ISLOCK), or `null` if not IS-locked                                |
 | `chainLocked`    | boolean        | Whether the transaction's block has a ChainLock                                              |
@@ -496,12 +496,22 @@ DIP-2 special-transaction type values. The numeric value is returned in the `typ
 
 #### VOut Object
 
-| Field             | Type           | Description                                  |
-|-------------------|----------------|----------------------------------------------|
-| `value`           | string \| null | Output value in duffs                        |
-| `number`          | number \| null | Output index within the transaction          |
-| `scriptPubKeyASM` | string \| null | Output script in ASM format                  |
-| `address`         | string \| null | Recipient address, or `null` if unresolvable |
+| Field              | Type             | Description                                                                                     |
+|--------------------|------------------|-------------------------------------------------------------------------------------------------|
+| `value`            | string \| null   | Output value in duffs                                                                           |
+| `number`           | number \| null   | Output index within the transaction                                                             |
+| `scriptPubKeyASM`  | string \| null   | Output script in ASM format. Display form — disassembly is not byte-reversible                   |
+| `scriptPubKeyHex`  | string \| null   | Raw output script hex, exactly as it appears on chain. Use this to sign                          |
+| `scriptPubKeyType` | string \| null   | `pubkeyhash`, `scripthash`, `multisig`, `nulldata` or `nonstandard`                              |
+| `address`          | string \| null   | Recipient address, or `null` if unresolvable. First entry of `addresses` for bare multisig       |
+| `addresses`        | string[] \| null | Every address the output pays. One entry except for bare multisig, which lists each key's address |
+| `spentTxId`        | string \| null   | Hash of the transaction that spent this output, or `null` if unspent                            |
+| `spentIndex`       | number \| null   | Input index within the spending transaction                                                     |
+| `spentHeight`      | number \| null   | Height of the block that spent it; `null` when the spend is still in the mempool                |
+
+`addresses` is derived from the script for bare multisig, where the indexer resolves
+no single address. When an output has both a mempool and a confirmed spend, the
+confirmed one is reported.
 
 ---
 
@@ -638,6 +648,60 @@ Returns a single address with aggregated balance and activity stats.
 
 ---
 
+### GET /addresses/info
+
+Returns balance and transaction count for up to 100 addresses in one call.
+
+**Query Parameters**
+
+| Parameter   | Type   | Constraints                                             | Description                          |
+|-------------|--------|---------------------------------------------------------|--------------------------------------|
+| `addresses` | string | 1–100 addresses, comma-separated, each length 33–35 alphanumeric (`[0-9A-Za-z]`) | Addresses to look up. Required. |
+
+```
+GET /addresses/info?addresses=XwykuvxKBWT2dGN2Q9Y4Dqwo5riyf3C2At,XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw
+```
+
+**Response `200`**
+
+```json
+[
+  {
+    "address": "XwykuvxKBWT2dGN2Q9Y4Dqwo5riyf3C2At",
+    "balance": "950718575",
+    "txCount": 2
+  },
+  {
+    "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+    "balance": "0",
+    "txCount": 0
+  }
+]
+```
+
+#### Address Info Object
+
+| Field     | Type   | Description                                              |
+|-----------|--------|----------------------------------------------------------|
+| `address` | string | Dash address                                             |
+| `balance` | string | Current balance in duffs                                 |
+| `txCount` | number | Total number of transactions involving this address       |
+
+Entries come back in the order they were requested, one per requested address — a
+repeated address yields a repeated entry. Addresses absent from the index have
+never appeared on chain, so they return `"0"` and `0` rather than being skipped;
+there is no `404` for this endpoint.
+
+Unlike [`GET /address/:address`](#get-addressaddress) this endpoint omits the
+first/last-seen fields and `received`/`sent`, which is what lets it serve a
+100-address batch: `balance` is summed from the address's unspent outputs and
+`txCount` read off the per-address transaction index, instead of aggregating each
+address's full history.
+
+**Response `400`** — `addresses` missing, malformed, or over 100 entries.
+
+---
+
 ### GET /address/:address/transactions
 
 Returns a paginated list of transactions (confirmed and pending) involving the given address — either as input sender or output recipient.
@@ -711,6 +775,9 @@ Returns a paginated list of unspent transaction outputs (UTXOs) for the given ad
       "vOutIndex": 0,
       "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
       "amount": "100000000",
+      "scriptPubKeyHex": "76a9141b2a522cc8d42b0be7ceb8db711416794d50c84688ac",
+      "blockHeight": 2200000,
+      "confirmations": 12,
       "sequence": null,
       "scriptSigASM": null
     }
@@ -723,7 +790,77 @@ Returns a paginated list of unspent transaction outputs (UTXOs) for the given ad
 }
 ```
 
-Entries use the [VIn Object](#vin-object) shape. `prevTxHash` and `vOutIndex` identify the unspent output; `amount` is in duffs as a string. `sequence` and `scriptSigASM` are always `null` for UTXOs (they apply only to inputs that have spent the output).
+#### UTXO Object
+
+| Field             | Type           | Description                                                                       |
+|-------------------|----------------|-----------------------------------------------------------------------------------|
+| `prevTxHash`      | string \| null | Hash of the transaction holding the unspent output                                |
+| `vOutIndex`       | number \| null | Output index within that transaction                                              |
+| `address`         | string \| null | Address the output pays                                                           |
+| `amount`          | string \| null | Output value in duffs                                                             |
+| `scriptPubKeyHex` | string \| null | Raw output script hex — the script that must be signed to spend this UTXO          |
+| `blockHeight`     | number \| null | Height of the block containing the output; `null` while it is still unconfirmed    |
+| `confirmations`   | number \| null | Confirmations for that block; `null` while unconfirmed                            |
+| `sequence`        | number \| null | Always `null`                                                                     |
+| `scriptSigASM`    | string \| null | Always `null`                                                                     |
+
+`sequence` and `scriptSigASM` belong to inputs, not to unspent outputs. They are
+retained, always `null`, so clients written against the previous VIn-shaped
+response keep working.
+
+Unconfirmed outputs are included, so a wallet sees its own change before it is
+mined: those carry `blockHeight` and `confirmations` of `null`. An output spent by
+a mempool transaction leaves the set immediately, so the same coins are never
+counted twice across an unconfirmed chain. Balances derived from this set —
+[`GET /addresses/info`](#get-addressesinfo) and
+[`GET /addresses/rich-list`](#get-addressesrich-list) — therefore include
+unconfirmed value.
+
+---
+
+### GET /addresses/utxo
+
+Returns every unspent output held by up to 100 addresses, as one flat array. Serves
+HD wallets that spend across a whole address set in a single call.
+
+**Query Parameters**
+
+| Parameter   | Type   | Constraints                                             | Description                          |
+|-------------|--------|---------------------------------------------------------|--------------------------------------|
+| `addresses` | string | 1–100 addresses, comma-separated, each length 33–35 alphanumeric (`[0-9A-Za-z]`) | Addresses to look up. Required. |
+
+```
+GET /addresses/utxo?addresses=XwykuvxKBWT2dGN2Q9Y4Dqwo5riyf3C2At,XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw
+```
+
+**Response `200`**
+
+```json
+[
+  {
+    "prevTxHash": "abcdef1234...",
+    "vOutIndex": 0,
+    "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+    "amount": "100000000",
+    "scriptPubKeyHex": "76a9141b2a522cc8d42b0be7ceb8db711416794d50c84688ac",
+    "blockHeight": 2200000,
+    "confirmations": 12,
+    "sequence": null,
+    "scriptSigASM": null
+  }
+]
+```
+
+Entries use the [UTXO Object](#utxo-object) shape and are grouped by address, largest
+amount first within each address. The response is **not paginated** — a wallet
+building a spend needs the complete set — so an address set holding a very large
+number of UTXOs produces a correspondingly large response.
+
+Addresses with no unspent outputs contribute no entries, so the array may be
+shorter than the request or empty; unlike
+[`GET /addresses/info`](#get-addressesinfo) there is no zero-filled placeholder.
+
+**Response `400`** — `addresses` missing, malformed, or over 100 entries.
 
 ---
 

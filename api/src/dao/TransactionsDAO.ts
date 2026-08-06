@@ -12,6 +12,58 @@ export default class TransactionsDAO {
     this.knex = knex;
   }
 
+  // LATERAL with LIMIT 1 keeps one row per output: an output with both a mempool
+  // and a mined spend has two tx_inputs rows, and a plain join would duplicate
+  // the output. Confirmed spends sort first.
+  private outputsAggregate = (): Knex.QueryBuilder => this.knex('tx_outputs')
+    .leftJoin('addresses', 'addresses.id', 'tx_outputs.address_id')
+    .joinRaw(`LEFT JOIN LATERAL (
+        SELECT spend_tx.hash, spend_tx.block_height, spent_input.vin_index
+        FROM tx_inputs spent_input
+        JOIN transactions spend_tx ON spend_tx.id = spent_input.tx_id
+        WHERE spent_input.prev_tx_id = tx_outputs.tx_id
+          AND spent_input.prev_vout_index = tx_outputs.vout_index
+        ORDER BY spend_tx.block_height NULLS LAST
+        LIMIT 1
+      ) spend ON true`)
+    .whereIn('tx_outputs.tx_id', this.knex('subquery').select('id'))
+    .select('tx_outputs.tx_id')
+    .select(this.knex.raw(`
+        json_agg(
+          json_build_object(
+            'value', tx_outputs.value,
+            'vout_index', tx_outputs.vout_index,
+            'script_pub_key', tx_outputs.script_pub_key,
+            'script_type', tx_outputs.script_type,
+            'address', addresses.address,
+            'spent_tx_id', spend.hash,
+            'spent_index', spend.vin_index,
+            'spent_height', spend.block_height
+          ) ORDER BY tx_outputs.vout_index
+        ) as outputs
+      `))
+    .groupBy('tx_outputs.tx_id');
+
+  private inputsAggregate = (): Knex.QueryBuilder => this.knex('tx_inputs')
+    .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
+    .leftJoin('tx_outputs', function () {
+      this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
+        .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
+    })
+    .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
+    .select('tx_inputs.tx_id')
+    .select(this.knex.raw(`
+        json_agg(
+          json_build_object(
+            'prev_tx_hash', tx_inputs.prev_tx_hash,
+            'prev_vout_index', tx_inputs.prev_vout_index,
+            'address', addresses.address,
+            'amount', tx_outputs.value::text
+          ) ORDER BY tx_inputs.vin_index
+        ) as inputs
+      `))
+    .groupBy('tx_inputs.tx_id');
+
   getTransactions = async (page: number, limit: number, order: string, transactionType?: TransactionType, coinjoin?: boolean, multisig?: boolean, blockHeight?: number): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
@@ -65,31 +117,9 @@ export default class TransactionsDAO {
       .limit(limit)
       .offset(fromRank)
 
-    const outputsCTE = this.knex('tx_outputs')
-      .select('tx_id')
-      .select(this.knex.raw('json_agg(tx_outputs.*) as outputs'))
-      .whereIn('tx_id', this.knex('subquery').select('id'))
-      .groupBy('tx_id');
+    const outputsCTE = this.outputsAggregate();
 
-    const inputsCTE = this.knex('tx_inputs')
-      .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
-      .leftJoin('tx_outputs', function () {
-        this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
-          .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
-      })
-      .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
-      .select('tx_inputs.tx_id')
-      .select(this.knex.raw(`
-        json_agg(
-          json_build_object(
-            'prev_tx_hash', tx_inputs.prev_tx_hash,
-            'prev_vout_index', tx_inputs.prev_vout_index,
-            'address', addresses.address,
-            'amount', tx_outputs.value::text
-          )
-        ) as inputs
-      `))
-      .groupBy('tx_inputs.tx_id');
+    const inputsCTE = this.inputsAggregate();
 
     const rows = await this.knex
       .with('subquery', subquery)
@@ -125,31 +155,9 @@ export default class TransactionsDAO {
       .select(this.knex.raw('MAX(height) as max_height'))
       .as('height_subquery')
 
-    const outputsCTE = this.knex('tx_outputs')
-      .select('tx_id')
-      .select(this.knex.raw('json_agg(tx_outputs.*) as outputs'))
-      .whereIn('tx_id', this.knex('subquery').select('id'))
-      .groupBy('tx_id');
+    const outputsCTE = this.outputsAggregate();
 
-    const inputsCTE = this.knex('tx_inputs')
-      .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
-      .leftJoin('tx_outputs', function () {
-        this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
-          .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
-      })
-      .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
-      .select('tx_inputs.tx_id')
-      .select(this.knex.raw(`
-        json_agg(
-          json_build_object(
-            'prev_tx_hash', tx_inputs.prev_tx_hash,
-            'prev_vout_index', tx_inputs.prev_vout_index,
-            'address', addresses.address,
-            'amount', tx_outputs.value::text
-          )
-        ) as inputs
-      `))
-      .groupBy('tx_inputs.tx_id');
+    const inputsCTE = this.inputsAggregate();
 
     const subquery = this.knex('transactions')
       .where('transactions.hash', hash.trim())
@@ -219,31 +227,9 @@ export default class TransactionsDAO {
       .limit(limit)
       .offset(fromRank)
 
-    const outputsCTE = this.knex('tx_outputs')
-      .select('tx_id')
-      .select(this.knex.raw('json_agg(tx_outputs.*) as outputs'))
-      .whereIn('tx_id', this.knex('subquery').select('id'))
-      .groupBy('tx_id');
+    const outputsCTE = this.outputsAggregate();
 
-    const inputsCTE = this.knex('tx_inputs')
-      .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
-      .leftJoin('tx_outputs', function () {
-        this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
-          .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
-      })
-      .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
-      .select('tx_inputs.tx_id')
-      .select(this.knex.raw(`
-        json_agg(
-          json_build_object(
-            'prev_tx_hash', tx_inputs.prev_tx_hash,
-            'prev_vout_index', tx_inputs.prev_vout_index,
-            'address', addresses.address,
-            'amount', tx_outputs.value::text
-          )
-        ) as inputs
-      `))
-      .groupBy('tx_inputs.tx_id');
+    const inputsCTE = this.inputsAggregate();
 
     const rows = await this.knex
       .with('subquery', subquery)
@@ -303,31 +289,9 @@ export default class TransactionsDAO {
       .limit(limit)
       .offset(fromRank)
 
-    const outputsCTE = this.knex('tx_outputs')
-      .select('tx_id')
-      .select(this.knex.raw('json_agg(tx_outputs.*) as outputs'))
-      .whereIn('tx_id', this.knex('subquery').select('id'))
-      .groupBy('tx_id');
+    const outputsCTE = this.outputsAggregate();
 
-    const inputsCTE = this.knex('tx_inputs')
-      .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
-      .leftJoin('tx_outputs', function () {
-        this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
-          .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
-      })
-      .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
-      .select('tx_inputs.tx_id')
-      .select(this.knex.raw(`
-        json_agg(
-          json_build_object(
-            'prev_tx_hash', tx_inputs.prev_tx_hash,
-            'prev_vout_index', tx_inputs.prev_vout_index,
-            'address', addresses.address,
-            'amount', tx_outputs.value::text
-          )
-        ) as inputs
-      `))
-      .groupBy('tx_inputs.tx_id');
+    const inputsCTE = this.inputsAggregate();
 
     const rows = await this.knex
       .with('subquery', subquery)
@@ -448,31 +412,9 @@ export default class TransactionsDAO {
       .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'))
       .orderBy('transactions.block_height', order)
 
-    const outputsCTE = this.knex('tx_outputs')
-      .select('tx_id')
-      .select(this.knex.raw('json_agg(tx_outputs.*) as outputs'))
-      .whereIn('tx_id', this.knex('subquery').select('id'))
-      .groupBy('tx_id');
+    const outputsCTE = this.outputsAggregate();
 
-    const inputsCTE = this.knex('tx_inputs')
-      .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
-      .leftJoin('tx_outputs', function () {
-        this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
-          .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
-      })
-      .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
-      .select('tx_inputs.tx_id')
-      .select(this.knex.raw(`
-        json_agg(
-          json_build_object(
-            'prev_tx_hash', tx_inputs.prev_tx_hash,
-            'prev_vout_index', tx_inputs.prev_vout_index,
-            'address', addresses.address,
-            'amount', tx_outputs.value::text
-          )
-        ) as inputs
-      `))
-      .groupBy('tx_inputs.tx_id');
+    const inputsCTE = this.inputsAggregate();
 
     const rows = await this.knex
       .with('address_tx_ids', addressTxIdsCTE)
@@ -551,31 +493,9 @@ export default class TransactionsDAO {
       .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'))
       .orderBy('transactions.block_height', order);
 
-    const outputsCTE = this.knex('tx_outputs')
-      .select('tx_id')
-      .select(this.knex.raw('json_agg(tx_outputs.*) as outputs'))
-      .whereIn('tx_id', this.knex('subquery').select('id'))
-      .groupBy('tx_id');
+    const outputsCTE = this.outputsAggregate();
 
-    const inputsCTE = this.knex('tx_inputs')
-      .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
-      .leftJoin('tx_outputs', function () {
-        this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
-          .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
-      })
-      .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
-      .select('tx_inputs.tx_id')
-      .select(this.knex.raw(`
-        json_agg(
-          json_build_object(
-            'prev_tx_hash', tx_inputs.prev_tx_hash,
-            'prev_vout_index', tx_inputs.prev_vout_index,
-            'address', addresses.address,
-            'amount', tx_outputs.value::text
-          )
-        ) as inputs
-      `))
-      .groupBy('tx_inputs.tx_id');
+    const inputsCTE = this.inputsAggregate();
 
     const rows = await this.knex
       .with('masternode_address_ids', masternodeAddressIdsCTE)

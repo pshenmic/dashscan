@@ -45,6 +45,16 @@ export default class AddressesController {
     response.send(result);
   }
 
+  getAddressesInfo = async (request: FastifyRequest<{
+    Querystring: { addresses: string }
+  }>, response: FastifyReply): Promise<void> => {
+    const {addresses} = request.query;
+
+    const result = await this.addressesDAO.getAddressesInfo(addresses.split(','));
+
+    response.send(result);
+  }
+
   getAddressBalanceSeries = async (
     request: FastifyRequest<{
       Params: { address: string };
@@ -89,6 +99,16 @@ export default class AddressesController {
     const {address} = request.params;
 
     const utxo = await this.addressesDAO.getAddressUtxo(address, page, limit, order);
+
+    response.send(utxo)
+  }
+
+  getAddressesUtxo = async (request: FastifyRequest<{
+    Querystring: { addresses: string }
+  }>, response: FastifyReply): Promise<void> => {
+    const {addresses} = request.query;
+
+    const utxo = await this.addressesDAO.getAddressesUtxo(addresses.split(','));
 
     response.send(utxo)
   }
