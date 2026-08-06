@@ -1,6 +1,8 @@
 import knex, { Knex } from 'knex';
 import Redis from 'ioredis';
 import Intervals from './enums/Intervals'
+import {Network, Script, utils as sdkUtils} from 'dash-core-sdk';
+import {NETWORK, PUBKEY_PUSH_OPCODES} from './constants';
 
 export const getKnex = (): Knex => {
   return knex({
@@ -12,6 +14,19 @@ export const getKnex = (): Knex => {
 export const getRedis = (): Redis => {
   return new Redis(process.env.REDIS_URL as string);
 };
+
+// Bare multisig lists every key inline, and the indexer resolves no address for
+// it, so each key's address is derived here from its pubkey push.
+export const multisigAddresses = (scriptPubKey: string): string[] => {
+  const {parsedScriptChunks} = Script.fromHex(scriptPubKey);
+
+  return parsedScriptChunks
+    .filter((chunk) => PUBKEY_PUSH_OPCODES.includes(chunk.opcode) && chunk.data != null)
+    .map((chunk) => sdkUtils.publicKeyHashToAddress(
+      sdkUtils.SHA256RIPEMD160(new Uint8Array(chunk.data as ArrayBuffer)),
+      NETWORK === 'mainnet' ? Network.Mainnet : Network.Testnet,
+    ));
+}
 
 // https://github.com/wking/milliseconds-to-iso-8601-duration
 export const iso8601duration = function (milliseconds: number | string): string {
