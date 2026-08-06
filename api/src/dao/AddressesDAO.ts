@@ -2,8 +2,9 @@ import {Knex} from 'knex';
 import Address from '../models/Address';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
-import VIn from "../models/VIn";
 import AddressBalance from "../models/AddressBalance";
+import AddressInfo from "../models/AddressInfo";
+import Utxo from "../models/Utxo";
 import {
   ADDRESSES_ACTIVITY_DAILY_MIN_TX_COUNT,
   ADDRESSES_ACTIVITY_LOW_PRECISION_AFTER,
@@ -108,6 +109,44 @@ export default class AddressesDAO {
     });
   }
 
+  getAddressesInfo = async (addresses: string[]): Promise<AddressInfo[]> => {
+    const unique = [...new Set(addresses)];
+
+    const idsCTE = this.knex('addresses')
+      .whereIn('address', unique)
+      .select('id', 'address');
+
+    const balancesCTE = this.knex('utxo')
+      .whereIn('address_id', this.knex('ids').select('id'))
+      .groupBy('address_id')
+      .select('address_id', this.knex.raw('SUM(amount)::bigint as balance'));
+
+    const txCountsCTE = this.knex('address_transactions')
+      .whereIn('address_id', this.knex('ids').select('id'))
+      .groupBy('address_id')
+      .select('address_id', this.knex.raw('COUNT(*)::bigint as tx_count'));
+
+    const rows = await this.knex('ids')
+      .with('ids', idsCTE)
+      .with('balances', balancesCTE)
+      .with('tx_counts', txCountsCTE)
+      .leftJoin('balances', 'balances.address_id', 'ids.id')
+      .leftJoin('tx_counts', 'tx_counts.address_id', 'ids.id')
+      .select('ids.address')
+      .select(this.knex.raw('COALESCE(balances.balance, 0)::text as balance'))
+      .select(this.knex.raw('COALESCE(tx_counts.tx_count, 0)::text as tx_count'));
+
+    const byAddress = new Map<string, any>(rows.map((row: any) => [row.address, row]));
+
+    return addresses.map((address) => {
+      const row = byAddress.get(address);
+
+      return row
+        ? AddressInfo.fromRow(row)
+        : AddressInfo.fromObject({address, balance: '0', txCount: 0});
+    });
+  }
+
   getAddressBalanceSeries = async (address: string, start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
     const addressIdSubquery = this.knex('addresses').select('id').where('address', address);
 
@@ -183,7 +222,7 @@ export default class AddressesDAO {
       })
   }
 
-  getAddressUtxo = async (address: string, page: number, limit: number, order: string): Promise<PaginatedResultSet<VIn>> => {
+  getAddressUtxo = async (address: string, page: number, limit: number, order: string): Promise<PaginatedResultSet<Utxo>> => {
     const fromRank = (page - 1) * limit;
 
     const addressIdSubquery = this.knex('addresses').select('id').where('address', address);
@@ -192,14 +231,26 @@ export default class AddressesDAO {
       .where('address_id', addressIdSubquery)
       .count('* as total');
 
+    const blockMaxHeightSubquery = this.knex('blocks')
+      .select(this.knex.raw('MAX(height) as max_height'))
+      .as('height_subquery');
+
     const rows = await this.knex('utxo')
       .with('total_count', countSubquery)
       .leftJoin('transactions', 'transactions.id', 'utxo.tx_id')
+      .leftJoin('tx_outputs', function () {
+        this.on('tx_outputs.tx_id', '=', 'utxo.tx_id')
+          .andOn('tx_outputs.vout_index', '=', 'utxo.vout_index');
+      })
+      .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .where('utxo.address_id', addressIdSubquery)
       .select(
         'transactions.hash as prev_tx_hash',
         'utxo.vout_index as prev_vout_index',
+        'transactions.block_height',
+        'tx_outputs.script_pub_key',
         this.knex.raw('utxo.amount::text as amount'),
+        this.knex.raw('max_height - transactions.block_height + 1 as confirmations'),
       )
       .select(this.knex('total_count').select('total').as('total_count'))
       .orderBy('utxo.amount', order)
@@ -209,11 +260,44 @@ export default class AddressesDAO {
     const [row] = rows;
 
     return new PaginatedResultSet(
-      rows.map((r: any) => VIn.fromRow({...r, address})),
+      rows.map((r: any) => Utxo.fromRow({...r, address})),
       page,
       limit,
       row?.total_count ?? -1,
     );
+  }
+
+  getAddressesUtxo = async (addresses: string[]): Promise<Utxo[]> => {
+    const idsCTE = this.knex('addresses')
+      .whereIn('address', [...new Set(addresses)])
+      .select('id', 'address');
+
+    const blockMaxHeightSubquery = this.knex('blocks')
+      .select(this.knex.raw('MAX(height) as max_height'))
+      .as('height_subquery');
+
+    const rows = await this.knex('utxo')
+      .with('ids', idsCTE)
+      .join('ids', 'ids.id', 'utxo.address_id')
+      .leftJoin('transactions', 'transactions.id', 'utxo.tx_id')
+      .leftJoin('tx_outputs', function () {
+        this.on('tx_outputs.tx_id', '=', 'utxo.tx_id')
+          .andOn('tx_outputs.vout_index', '=', 'utxo.vout_index');
+      })
+      .join(blockMaxHeightSubquery, this.knex.raw('true'))
+      .select(
+        'ids.address',
+        'transactions.hash as prev_tx_hash',
+        'utxo.vout_index as prev_vout_index',
+        'transactions.block_height',
+        'tx_outputs.script_pub_key',
+        this.knex.raw('utxo.amount::text as amount'),
+        this.knex.raw('max_height - transactions.block_height + 1 as confirmations'),
+      )
+      .orderBy('ids.address', 'asc')
+      .orderBy('utxo.amount', 'desc');
+
+    return Utxo.fromRows(rows);
   }
 
   getBalancesInfo = async (page: number, limit: number, order: string): Promise<PaginatedResultSet<AddressBalance>> => {
