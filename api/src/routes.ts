@@ -398,6 +398,22 @@ export default function Routes({ fastify, mainController, blocksController, tran
       }
     },
     {
+      path: '/addresses/info',
+      method: 'get',
+      handler: addressesController.getAddressesInfo,
+      schema: {
+        querystring: { $ref: 'addressList#' },
+      }
+    },
+    {
+      path: '/addresses/utxo',
+      method: 'get',
+      handler: addressesController.getAddressesUtxo,
+      schema: {
+        querystring: { $ref: 'addressList#' },
+      }
+    },
+    {
       path: '/addresses/rich-list',
       method: 'get',
       handler: addressesController.getBalancesInfo,

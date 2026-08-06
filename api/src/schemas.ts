@@ -14,6 +14,18 @@ const schemas = [
     pattern: '^[A-Za-z0-9]+$',
   },
   {
+    $id: 'addressList',
+    type: 'object',
+    properties: {
+      addresses: {
+        type: 'string',
+        maxLength: 3599,
+        pattern: '^[A-Za-z0-9]{33,35}(,[A-Za-z0-9]{33,35}){0,99}$',
+      },
+    },
+    required: ['addresses'],
+  },
+  {
     $id: 'paginationOptions',
     type: 'object',
     properties: {
