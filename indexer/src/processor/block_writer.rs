@@ -197,6 +197,24 @@ impl BlockProcessor {
         }
         self.db.insert_utxo_batch(client, &utxo_inserts).await?;
 
+        // A still-pending child may already spend one of these outputs, when the
+        // parent confirms first. The insert above would hand that output back to
+        // the UTXO set, so drop whatever the mempool already spends.
+        let batch_tx_ids: Vec<i32> = tx_map.values().copied().collect();
+        let mempool_spent: Vec<(i32, i32)> = client
+            .query(
+                "SELECT i.prev_tx_id, i.prev_vout_index \
+                 FROM tx_inputs i \
+                 JOIN transactions t ON t.id = i.tx_id AND t.block_height IS NULL \
+                 WHERE i.prev_tx_id = ANY($1::int[]) AND i.prev_vout_index IS NOT NULL",
+                &[&batch_tx_ids],
+            )
+            .await?
+            .iter()
+            .map(|r| (r.get(0), r.get(1)))
+            .collect();
+        self.db.delete_utxo_batch(client, &mempool_spent).await?;
+
         // In-memory output index for resolving in-batch inputs without a DB hit.
         // Same loop also feeds the persistent UtxoCache so the *next* batch's
         // Phase 6a-bis can hit on these outputs without a DB round-trip.
@@ -579,6 +597,18 @@ impl BlockProcessor {
             .insert_tx_outputs_batch(&*db_tx, &flat_txs, &addresses_map, &tx_map)
             .await?;
 
+        // Unconfirmed outputs join the UTXO set so wallets can see and spend
+        // their own change before it is mined. Re-inserted by write_batch when
+        // the transaction is mined, which is a no-op (ON CONFLICT DO NOTHING).
+        let mut utxo_inserts: Vec<(i32, i32, Option<i32>, i64)> = Vec::new();
+        for (vout_index, vout) in tx.vout.iter().enumerate() {
+            let idx = vout_index as i32;
+            let addr_id = addresses_map.get(&(idx, tx.txid.clone())).copied();
+            let amount = (vout.value * 100_000_000.0).round() as i64;
+            utxo_inserts.push((tx_id, idx, addr_id, amount));
+        }
+        self.db.insert_utxo_batch(&*db_tx, &utxo_inserts).await?;
+
         // Inputs: DB join first, then RPC fallback
         let mut needed: HashMap<String, Vec<i32>> = HashMap::new();
         for vin in &tx.vin {
@@ -684,6 +714,19 @@ impl BlockProcessor {
                 &prev_tx_id_map,
             )
             .await?;
+
+        // Outputs this transaction spends leave the UTXO set now. Without this
+        // an unconfirmed chain would count the same coins twice — the parent's
+        // output and the child's — inflating every balance derived from `utxo`.
+        let mut utxo_deletes: Vec<(i32, i32)> = Vec::new();
+        for vin in &tx.vin {
+            if let (Some(h), Some(v)) = (&vin.txid, vin.vout) {
+                if let Some(&prev_tx_id) = prev_tx_id_map.get(h) {
+                    utxo_deletes.push((prev_tx_id, v));
+                }
+            }
+        }
+        self.db.delete_utxo_batch(&*db_tx, &utxo_deletes).await?;
 
         db_tx.commit().await?;
         Ok(true)
