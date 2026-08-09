@@ -1328,7 +1328,7 @@ Entries use the [Transaction Object](#transaction-object) shape. `total` reflect
 
 ### GET /peers
 
-Returns the P2P network peers discovered by the indexer's crawler, geo-enriched and ordered by `lastSeen`. If neither `page` nor `limit` is supplied, the full set is returned without pagination; otherwise standard pagination is applied (defaults: `page=1`, `limit=10`).
+Returns the P2P network peers discovered by the indexer's crawler, geo-enriched and ordered by `lastSeen`. Pagination is optional: without `limit` the full set is returned in one page, otherwise the set is sliced by `limit` (`page` defaults to `1`).
 
 The crawler performs a breadth-first walk of the network starting from the indexer's configured P2P node, harvesting peer addresses via `getaddr` and probing each for liveness. It runs once when live sync starts and again every `PEER_CRAWL_EVERY_BLOCKS` blocks, overwriting the result set each round. **Every** discovered address is stored — including ones that did not answer — split into two Redis sets (`peers:available` / `peers:unavailable`) and exposed here via the `available` flag.
 
@@ -1340,8 +1340,9 @@ Additional optional filters:
 
 | Parameter   | Type    | Constraints                    | Description                                                                       |
 |-------------|---------|--------------------------------|-----------------------------------------------------------------------------------|
-| `available` | boolean |                                | `true` → reachable peers only; `false` → unreachable only; omitted → both         |
-| `country`   | string  | ISO 3166-1 alpha-2 (e.g. `US`) | Filter by GeoIP country code resolved from the peer address                       |
+| `available`  | boolean |                                | `true` → reachable peers only; `false` → unreachable only; omitted → both        |
+| `country`    | string  | ISO 3166-1 alpha-2 (e.g. `US`) | Filter by GeoIP country code resolved from the peer address                      |
+| `user_agent` | string  | `^[A-Za-z0-9]+$`, 1–64 chars   | Case-insensitive regular expression matched against `userAgent`; peers without a user agent never match |
 
 **Response `200`**
 
@@ -1391,6 +1392,45 @@ Additional optional filters:
 | `lastSeen`        | string            | ISO 8601 timestamp the gossiping peer last saw this address                |
 | `probedAt`        | string            | ISO 8601 timestamp the crawler last probed this address                    |
 | `geo`             | GeoIpInfo \| null | GeoIP for the peer host (see [GeoIpInfo](#geoipinfo-object)); null if unresolved |
+
+---
+
+### GET /peers/user-agents
+
+Returns the distinct user agents advertised by the peers of the crawler's latest round, ordered by the number of peers running each of them (most popular first). Pagination is optional: without `limit` the full set is returned in one page, otherwise the set is sliced by `limit` (`page` defaults to `1`).
+
+Only available peers advertise a user agent (see [GET /peers](#get-peers)), so unavailable ones are never counted. Ties on `count` are broken alphabetically by `userAgent`.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters) (`order` defaults to `desc` here — `asc` returns the least used agents first)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "userAgent": "/Dash Core:22.0.0/",
+      "count": 1420
+    },
+    {
+      "userAgent": "/Dash Core:21.1.1/",
+      "count": 310
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 27
+  }
+}
+```
+
+#### Peer User Agent Object
+
+| Field       | Type   | Description                                     |
+|-------------|--------|---------------------------------------------------|
+| `userAgent` | string | Advertised user agent / subversion              |
+| `count`     | number | Number of available peers running this user agent |
 
 ---
 
