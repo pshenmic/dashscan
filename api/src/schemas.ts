@@ -98,6 +98,18 @@ const schemas = [
     },
   },
   {
+    $id: 'peersOptions',
+    type: 'object',
+    properties: {
+      user_agent: {
+        type: ['string', 'null'],
+        pattern: '^[A-Za-z0-9\\s]+$',
+        minLength: 3,
+        maxLength: 64,
+      },
+    },
+  },
+  {
     $id: 'timeInterval',
     type: 'object',
     properties: {

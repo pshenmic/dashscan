@@ -15,10 +15,29 @@ export default class PeersController {
     request: FastifyRequest<{ Querystring: PaginatedQuery }>,
     response: FastifyReply,
   ): Promise<void> => {
-    const {page, limit, order = 'asc', available, country} = request.query;
+    const {page = 1, limit = 10, order = 'asc', available, country, user_agent} = request.query;
 
-    const peers = await this.peersDAO.getPeers(page, limit, order, available, country);
+    let userAgent: RegExp | undefined;
+
+    try {
+      userAgent = user_agent != null ? new RegExp(user_agent, 'i') : undefined;
+    } catch {
+      return response.status(400).send({error: 'user_agent must be a valid regular expression'});
+    }
+
+    const peers = await this.peersDAO.getPeers(page, limit, order, available, country, userAgent);
 
     response.send(peers);
+  };
+
+  getPeerUserAgents = async (
+    request: FastifyRequest<{ Querystring: PaginatedQuery }>,
+    response: FastifyReply,
+  ): Promise<void> => {
+    const {page = 1, limit, order = 'desc'} = request.query;
+
+    const userAgents = await this.peersDAO.getUserAgents(page, limit, order);
+
+    response.send(userAgents);
   };
 }
