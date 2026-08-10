@@ -17,4 +17,5 @@ export interface PaginatedQuery {
   country?: string
   available?: boolean
   user_agent?: string
+  ip?: string
 }

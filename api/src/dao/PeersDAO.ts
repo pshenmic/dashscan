@@ -27,6 +27,7 @@ export default class PeersDAO {
     available?: boolean,
     country?: string,
     userAgent?: RegExp,
+    ip?: string,
   ): Promise<PaginatedResultSet<Peer>> => {
     const keys = available === true
       ? [REDIS_AVAILABLE_KEY]
@@ -34,7 +35,7 @@ export default class PeersDAO {
         ? [REDIS_UNAVAILABLE_KEY]
         : [REDIS_AVAILABLE_KEY, REDIS_UNAVAILABLE_KEY];
 
-    const peers = this.filterPeers(await this.loadPeers(keys, true), country, userAgent);
+    const peers = this.filterPeers(await this.loadPeers(keys, true), country, userAgent, ip);
 
     const direction = order === 'desc' ? -1 : 1;
     peers.sort((a, b) => (a.lastSeen.getTime() - b.lastSeen.getTime()) * direction);
@@ -97,7 +98,7 @@ export default class PeersDAO {
       .filter((peer): peer is Peer => peer != null);
   };
 
-  private filterPeers = (peers: Peer[], country?: string, userAgent?: RegExp): Peer[] => {
+  private filterPeers = (peers: Peer[], country?: string, userAgent?: RegExp, ip?: string): Peer[] => {
     let filtered = peers;
 
     if (country != null) {
@@ -106,6 +107,10 @@ export default class PeersDAO {
 
     if (userAgent != null) {
       filtered = filtered.filter(peer => peer.userAgent != null && userAgent.test(peer.userAgent));
+    }
+
+    if (ip != null) {
+      filtered = filtered.filter(peer => peer.host === ip);
     }
 
     return filtered;

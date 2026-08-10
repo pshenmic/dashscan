@@ -1342,7 +1342,8 @@ Additional optional filters:
 |-------------|---------|--------------------------------|-----------------------------------------------------------------------------------|
 | `available`  | boolean |                                | `true` → reachable peers only; `false` → unreachable only; omitted → both        |
 | `country`    | string  | ISO 3166-1 alpha-2 (e.g. `US`) | Filter by GeoIP country code resolved from the peer address                      |
-| `user_agent` | string  | `^[A-Za-z0-9]+$`, 1–64 chars   | Case-insensitive regular expression matched against `userAgent`; peers without a user agent never match |
+| `user_agent` | string  | `^[A-Za-z0-9\s]+$`, 3–64 chars | Case-insensitive regular expression matched against `userAgent`; peers without a user agent never match |
+| `ip`         | string  | IPv4, `^(\d{1,3}\.){3}\d{1,3}$` | Exact match against the peer `host` (port excluded)                             |
 
 **Response `200`**
 

@@ -107,6 +107,10 @@ const schemas = [
         minLength: 3,
         maxLength: 64,
       },
+      ip: {
+        type: ['string', 'null'],
+        pattern: '^(\\d{1,3}\\.){3}\\d{1,3}$',
+      },
     },
   },
   {

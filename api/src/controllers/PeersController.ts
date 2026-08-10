@@ -15,7 +15,7 @@ export default class PeersController {
     request: FastifyRequest<{ Querystring: PaginatedQuery }>,
     response: FastifyReply,
   ): Promise<void> => {
-    const {page = 1, limit = 10, order = 'asc', available, country, user_agent} = request.query;
+    const {page = 1, limit = 10, order = 'asc', available, country, user_agent, ip} = request.query;
 
     let userAgent: RegExp | undefined;
 
@@ -25,7 +25,7 @@ export default class PeersController {
       return response.status(400).send({error: 'user_agent must be a valid regular expression'});
     }
 
-    const peers = await this.peersDAO.getPeers(page, limit, order, available, country, userAgent);
+    const peers = await this.peersDAO.getPeers(page, limit, order, available, country, userAgent, ip);
 
     response.send(peers);
   };
