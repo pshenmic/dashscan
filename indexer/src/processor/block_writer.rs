@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Timelike, Utc};
 use dashcore::consensus::encode::deserialize_partial;
 use deadpool_postgres::Client;
 use futures::stream::{self, StreamExt};
@@ -13,10 +13,11 @@ use tracing::{error, info};
 const RPC_FALLBACK_CONCURRENCY: usize = 32;
 
 use crate::config::Config;
-use crate::db::BATCH_SIZE;
+use crate::db::{BATCH_SIZE, ChainStatsHour};
 use crate::errors::block_index_error::BlockIndexError;
 use crate::p2p_converter;
 use crate::rpc::{Block, Transaction};
+use crate::utils::transaction::{to_sat, TransactionUtils};
 
 use super::utxo_cache::UtxoCache;
 use super::BlockProcessor;
@@ -218,16 +219,23 @@ impl BlockProcessor {
         // In-memory output index for resolving in-batch inputs without a DB hit.
         // Same loop also feeds the persistent UtxoCache so the *next* batch's
         // Phase 6a-bis can hit on these outputs without a DB round-trip.
+        //
+        // `output_values` covers every output, not just address-bearing ones:
+        // tx_inputs.amount (V29) is wanted even where the script yields no
+        // address, whereas `output_cache` stays address-only as before.
         let mut output_cache: HashMap<(i32, i32), i32> = HashMap::new();
+        let mut output_values: HashMap<(i32, i32), i64> = HashMap::new();
         for p in pending {
             for tx in &p.block.tx {
                 let tx_id = tx_map[&tx.txid];
-                let mut outputs_for_cache: Vec<(i32, i32)> = Vec::new();
+                let mut outputs_for_cache: Vec<(i32, i32, i64)> = Vec::new();
                 for vout in &tx.vout {
+                    let value = to_sat(vout.value);
+                    output_values.insert((tx_id, vout.n), value);
                     if let Some(addr) = vout.script_pub_key.first_address() {
                         if let Some(&addr_id) = out_addr_id_map.get(&addr) {
                             output_cache.insert((tx_id, vout.n), addr_id);
-                            outputs_for_cache.push((vout.n, addr_id));
+                            outputs_for_cache.push((vout.n, addr_id, value));
                         }
                     }
                 }
@@ -248,6 +256,9 @@ impl BlockProcessor {
         }
 
         let mut input_address_ids: HashMap<(String, i32), i32> = HashMap::new();
+        // (prev_hash, vout_idx) → spent output's value, feeding tx_inputs.amount
+        // (V29) and the `sent` side of the address rollups (V28/V31).
+        let mut input_amounts: HashMap<(String, i32), i64> = HashMap::new();
         let mut prev_tx_id_map: HashMap<String, i32> = HashMap::new();
 
         if !needed.is_empty() {
@@ -267,6 +278,9 @@ impl BlockProcessor {
                 if let Some(&prev_tx_id) = tx_map.get(prev_hash) {
                     prev_tx_id_map.insert(prev_hash.clone(), prev_tx_id);
                     for &vout_idx in vouts {
+                        if let Some(&value) = output_values.get(&(prev_tx_id, vout_idx)) {
+                            input_amounts.insert((prev_hash.clone(), vout_idx), value);
+                        }
                         if let Some(&addr_id) = output_cache.get(&(prev_tx_id, vout_idx)) {
                             input_address_ids.insert((prev_hash.clone(), vout_idx), addr_id);
                             inbatch_hits += 1;
@@ -293,9 +307,10 @@ impl BlockProcessor {
                     if input_address_ids.contains_key(&(prev_hash.clone(), vout_idx)) {
                         continue;
                     }
-                    if let Some((prev_tx_id, addr_id)) = cache.lookup(&prev_hash, vout_idx) {
+                    if let Some((prev_tx_id, addr_id, value)) = cache.lookup(&prev_hash, vout_idx) {
                         prev_tx_id_map.insert(prev_hash.clone(), prev_tx_id);
                         input_address_ids.insert((prev_hash.clone(), vout_idx), addr_id);
+                        input_amounts.insert((prev_hash.clone(), vout_idx), value);
                         cache_hits += 1;
                     } else {
                         all_resolved = false;
@@ -313,11 +328,13 @@ impl BlockProcessor {
             if !miss_hashes.is_empty() {
                 db_misses = miss_hashes.len();
                 let miss_list: Vec<String> = miss_hashes.into_iter().collect();
+                // The join is no longer filtered on address_id IS NOT NULL: the
+                // value is wanted for every spent output, address-bearing or not
+                // (V29). address_id simply stays NULL for the rest.
                 let query = "SELECT t.hash AS hash, t.id AS tx_id, \
-                                    o.vout_index, o.address_id \
+                                    o.vout_index, o.address_id, o.value \
                              FROM transactions t \
-                             LEFT JOIN tx_outputs o \
-                                    ON o.tx_id = t.id AND o.address_id IS NOT NULL \
+                             LEFT JOIN tx_outputs o ON o.tx_id = t.id \
                              WHERE t.hash = ANY($1::bpchar[])";
 
                 let phase6b_start = std::time::Instant::now();
@@ -331,8 +348,14 @@ impl BlockProcessor {
 
                         let vout_idx: Option<i32> = row.get("vout_index");
                         let addr_id: Option<i32> = row.get("address_id");
-                        if let (Some(vout_idx), Some(addr_id)) = (vout_idx, addr_id) {
-                            output_cache.insert((tx_id, vout_idx), addr_id);
+                        let value: Option<i64> = row.get("value");
+                        if let Some(vout_idx) = vout_idx {
+                            if let Some(addr_id) = addr_id {
+                                output_cache.insert((tx_id, vout_idx), addr_id);
+                            }
+                            if let Some(value) = value {
+                                output_values.insert((tx_id, vout_idx), value);
+                            }
                         }
                     }
                 }
@@ -343,6 +366,9 @@ impl BlockProcessor {
                         for &vout_idx in vout_indices {
                             if let Some(&addr_id) = output_cache.get(&(prev_tx_id, vout_idx)) {
                                 input_address_ids.insert((prev_hash.clone(), vout_idx), addr_id);
+                            }
+                            if let Some(&value) = output_values.get(&(prev_tx_id, vout_idx)) {
+                                input_amounts.insert((prev_hash.clone(), vout_idx), value);
                             }
                         }
                     }
@@ -398,6 +424,8 @@ impl BlockProcessor {
                             };
                             for &vout_idx in vout_indices {
                                 if let Some(vout) = fetched_tx.vout.get(vout_idx as usize) {
+                                    input_amounts
+                                        .insert((prev_hash.clone(), vout_idx), to_sat(vout.value));
                                     if let Some(addr) = vout.script_pub_key.first_address() {
                                         if seen_rpc.insert(addr.clone()) {
                                             let (spending_tx_id, height) = spending_meta
@@ -456,30 +484,51 @@ impl BlockProcessor {
 
         // ── 7. COPY tx_inputs
         self.db
-            .insert_tx_inputs_batch(client, &flat_txs, &tx_map, &input_address_ids, &prev_tx_id_map)
+            .insert_tx_inputs_batch(
+                client,
+                &flat_txs,
+                &tx_map,
+                &input_address_ids,
+                &input_amounts,
+                &prev_tx_id_map,
+            )
             .await?;
 
-        // ── 7b. Delete spent UTXOs. Skips coinbase (no prev) and prev txs that
-        // weren't in our index (nothing to delete — they were never inserted).
+        // ── 7b. Delete spent UTXOs and record the spender on the output it
+        // spends (V30). Skips coinbase (no prev) and prev txs that weren't in
+        // our index (nothing to delete — they were never inserted).
         let mut utxo_deletes: Vec<(i32, i32)> = Vec::new();
+        let mut spent_marks: Vec<(i32, i32, i32, i32)> = Vec::new();
         for tx in &flat_txs {
-            for vin in &tx.vin {
+            let spending_tx_id = tx_map[&tx.txid];
+            for (vin_index, vin) in tx.vin.iter().enumerate() {
                 if let (Some(h), Some(v)) = (&vin.txid, vin.vout) {
                     if let Some(&prev_tx_id) = prev_tx_id_map.get(h) {
                         utxo_deletes.push((prev_tx_id, v));
+                        spent_marks.push((prev_tx_id, v, spending_tx_id, vin_index as i32));
                     }
                 }
             }
         }
         self.db.delete_utxo_batch(client, &utxo_deletes).await?;
+        // Confirmed spends always win over a mempool spender already recorded.
+        self.db
+            .mark_outputs_spent_batch(client, &spent_marks, true)
+            .await?;
 
         // ── 7c. Per-day address activity rollup (feeds GET /addresses/active).
         // An address counts a transaction once even when it appears on both the
         // input and output side. A transaction belongs to exactly one block and
         // therefore one day, so adding per-batch counts onto the rollup never
         // double-counts across batches.
+        // The same walk also accumulates the cumulative per-address totals (V28)
+        // and the per-day net flow (V31). received/sent are per appearance, not
+        // per distinct address: a transaction paying one address twice adds both
+        // outputs, while tx_count still counts the transaction once.
         let mut activity: HashMap<(NaiveDate, i32), i64> = HashMap::new();
         let mut address_transactions_rows: Vec<(i32, i32, i32)> = Vec::new();
+        let mut addr_totals: HashMap<i32, (i64, i64, i64)> = HashMap::new();
+        let mut balance_deltas: HashMap<(i32, NaiveDate), (i64, i64)> = HashMap::new();
         for p in pending {
             let day = p.timestamp.date_naive();
             let height = p.block.height as i32;
@@ -488,12 +537,21 @@ impl BlockProcessor {
                 for vout in &tx.vout {
                     if let Some(&addr_id) = addresses_map.get(&(vout.n, tx.txid.clone())) {
                         tx_addr_ids.insert(addr_id);
+                        let value = to_sat(vout.value);
+                        addr_totals.entry(addr_id).or_default().0 += value;
+                        balance_deltas.entry((addr_id, day)).or_default().0 += value;
                     }
                 }
                 for vin in &tx.vin {
                     if let (Some(h), Some(v)) = (&vin.txid, vin.vout) {
                         if let Some(&addr_id) = input_address_ids.get(&(h.clone(), v)) {
                             tx_addr_ids.insert(addr_id);
+                            // Unresolved prev outputs contribute no address
+                            // either, so this lookup only misses when the value
+                            // is genuinely unknown.
+                            let value = input_amounts.get(&(h.clone(), v)).copied().unwrap_or(0);
+                            addr_totals.entry(addr_id).or_default().1 += value;
+                            balance_deltas.entry((addr_id, day)).or_default().1 += value;
                         }
                     }
                 }
@@ -501,6 +559,7 @@ impl BlockProcessor {
                 for addr_id in tx_addr_ids {
                     *activity.entry((day, addr_id)).or_insert(0) += 1;
                     address_transactions_rows.push((addr_id, tx_id, height));
+                    addr_totals.entry(addr_id).or_default().2 += 1;
                 }
             }
         }
@@ -513,6 +572,89 @@ impl BlockProcessor {
             .await?;
         self.db
             .insert_address_transactions_batch(client, &address_transactions_rows)
+            .await?;
+
+        let addr_stats_rows: Vec<(i32, i64, i64, i64)> = addr_totals
+            .into_iter()
+            .map(|(addr_id, (received, sent, tx_count))| (addr_id, received, sent, tx_count))
+            .collect();
+        self.db
+            .bump_address_stats_batch(client, &addr_stats_rows)
+            .await?;
+
+        let delta_rows: Vec<(i32, NaiveDate, i64, i64)> = balance_deltas
+            .into_iter()
+            .map(|((addr_id, day), (received, sent))| (addr_id, day, received, sent))
+            .collect();
+        self.db
+            .upsert_address_balance_deltas_batch(client, &delta_rows)
+            .await?;
+
+        // ── 7d. Global hourly rollup (V32) and per-filter transaction totals
+        // (V33). Confirmed transactions only — this is the confirmed path, and a
+        // mempool transaction reaches it exactly once, when it is mined.
+        let mut hourly: HashMap<NaiveDateTime, ChainStatsHour> = HashMap::new();
+        let mut type_counts: HashMap<(i16, bool, bool), i64> = HashMap::new();
+        for p in pending {
+            let hour = p
+                .timestamp
+                .naive_utc()
+                .with_minute(0)
+                .and_then(|t| t.with_second(0))
+                .and_then(|t| t.with_nanosecond(0))
+                .ok_or_else(|| {
+                    BlockIndexError::UnexpectedError("Invalid block timestamp".to_string())
+                })?;
+
+            let bucket = hourly.entry(hour).or_insert_with(|| ChainStatsHour {
+                hour,
+                block_count: 0,
+                tx_count: 0,
+                size: 0,
+                difficulty_sum: 0.0,
+                normal: 0,
+                special: 0,
+                coinjoin: 0,
+                multisig: 0,
+            });
+
+            bucket.block_count += 1;
+            bucket.size += p.block.size;
+            bucket.difficulty_sum += p.block.difficulty;
+
+            for tx in &p.block.tx {
+                let tx_type = tx.tx_type.unwrap_or(0);
+                let coinjoin = tx.check_coinjoin();
+                let multisig = tx.multisig;
+
+                bucket.tx_count += 1;
+                if tx_type > 0 {
+                    bucket.special += 1;
+                }
+                if coinjoin {
+                    bucket.coinjoin += 1;
+                }
+                if multisig {
+                    bucket.multisig += 1;
+                }
+                if tx_type == 0 && !coinjoin && !multisig {
+                    bucket.normal += 1;
+                }
+
+                *type_counts.entry((tx_type, coinjoin, multisig)).or_insert(0) += 1;
+            }
+        }
+        let hourly_rows: Vec<ChainStatsHour> = hourly.into_values().collect();
+        self.db
+            .upsert_chain_stats_hourly_batch(client, &hourly_rows)
+            .await?;
+
+        let type_count_rows: Vec<(i16, bool, bool, i64)> = type_counts
+            .into_iter()
+            .map(|((tx_type, coinjoin, multisig), count)| (tx_type, coinjoin, multisig, count))
+            .collect();
+        self.db
+            .bump_transaction_type_counts_batch(client, &type_count_rows)
             .await?;
 
         // ── 8. Special transactions
@@ -617,16 +759,17 @@ impl BlockProcessor {
             }
         }
         let mut input_address_ids: HashMap<(String, i32), i32> = HashMap::new();
+        let mut input_amounts: HashMap<(String, i32), i64> = HashMap::new();
         let mut prev_tx_id_map: HashMap<String, i32> = HashMap::new();
         let mut output_cache: HashMap<(i32, i32), i32> = HashMap::new();
+        let mut output_values: HashMap<(i32, i32), i64> = HashMap::new();
 
         if !needed.is_empty() {
             let miss_list: Vec<String> = needed.keys().cloned().collect();
             let query = "SELECT TRIM(t.hash) AS hash, t.id AS tx_id, \
-                                o.vout_index, o.address_id \
+                                o.vout_index, o.address_id, o.value \
                          FROM transactions t \
-                         LEFT JOIN tx_outputs o \
-                                ON o.tx_id = t.id AND o.address_id IS NOT NULL \
+                         LEFT JOIN tx_outputs o ON o.tx_id = t.id \
                          WHERE t.hash = ANY($1::bpchar[])";
             for chunk in miss_list.chunks(BATCH_SIZE) {
                 let chunk_refs: Vec<&str> = chunk.iter().map(|s| s.as_str()).collect();
@@ -636,8 +779,14 @@ impl BlockProcessor {
                     prev_tx_id_map.insert(hash.clone(), tx_id_prev);
                     let vout_idx: Option<i32> = row.get("vout_index");
                     let addr_id: Option<i32> = row.get("address_id");
-                    if let (Some(vout_idx), Some(addr_id)) = (vout_idx, addr_id) {
-                        output_cache.insert((tx_id_prev, vout_idx), addr_id);
+                    let value: Option<i64> = row.get("value");
+                    if let Some(vout_idx) = vout_idx {
+                        if let Some(addr_id) = addr_id {
+                            output_cache.insert((tx_id_prev, vout_idx), addr_id);
+                        }
+                        if let Some(value) = value {
+                            output_values.insert((tx_id_prev, vout_idx), value);
+                        }
                     }
                 }
             }
@@ -646,6 +795,9 @@ impl BlockProcessor {
                     for &vout_idx in vout_indices {
                         if let Some(&addr_id) = output_cache.get(&(prev_tx_id, vout_idx)) {
                             input_address_ids.insert((prev_hash.clone(), vout_idx), addr_id);
+                        }
+                        if let Some(&value) = output_values.get(&(prev_tx_id, vout_idx)) {
+                            input_amounts.insert((prev_hash.clone(), vout_idx), value);
                         }
                     }
                 }
@@ -682,6 +834,8 @@ impl BlockProcessor {
                             };
                             for &vout_idx in vout_indices {
                                 if let Some(vout) = fetched_tx.vout.get(vout_idx as usize) {
+                                    input_amounts
+                                        .insert((prev_hash.clone(), vout_idx), to_sat(vout.value));
                                     if let Some(addr) = vout.script_pub_key.first_address() {
                                         if seen_rpc.insert(addr.clone()) {
                                             rpc_upserts.push((addr.clone(), tx_id, None));
@@ -711,6 +865,7 @@ impl BlockProcessor {
                 &flat_txs,
                 &tx_map,
                 &input_address_ids,
+                &input_amounts,
                 &prev_tx_id_map,
             )
             .await?;
@@ -719,14 +874,21 @@ impl BlockProcessor {
         // an unconfirmed chain would count the same coins twice — the parent's
         // output and the child's — inflating every balance derived from `utxo`.
         let mut utxo_deletes: Vec<(i32, i32)> = Vec::new();
-        for vin in &tx.vin {
+        let mut spent_marks: Vec<(i32, i32, i32, i32)> = Vec::new();
+        for (vin_index, vin) in tx.vin.iter().enumerate() {
             if let (Some(h), Some(v)) = (&vin.txid, vin.vout) {
                 if let Some(&prev_tx_id) = prev_tx_id_map.get(h) {
                     utxo_deletes.push((prev_tx_id, v));
+                    spent_marks.push((prev_tx_id, v, tx_id, vin_index as i32));
                 }
             }
         }
         self.db.delete_utxo_batch(&*db_tx, &utxo_deletes).await?;
+        // Mempool spender: recorded only while no confirmed spend is set, so a
+        // conflicting unconfirmed transaction can't displace the mined one.
+        self.db
+            .mark_outputs_spent_batch(&*db_tx, &spent_marks, false)
+            .await?;
 
         db_tx.commit().await?;
         Ok(true)

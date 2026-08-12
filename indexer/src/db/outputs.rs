@@ -107,4 +107,84 @@ impl Database {
 
         Ok(())
     }
+
+    /// Record which input spent each output, so the API's outputs aggregate
+    /// stops running a LATERAL lookup per output (V30). Rows are
+    /// `(prev_tx_id, prev_vout_index, spending_tx_id, vin_index)`.
+    ///
+    /// `confirmed` selects the precedence rule the LATERAL's
+    /// `ORDER BY block_height NULLS LAST` used to encode: a confirmed spend
+    /// always wins, a mempool spend is only recorded while the column is still
+    /// NULL. Without that guard a mempool double-spend attempt would overwrite
+    /// the mined spender.
+    pub async fn mark_outputs_spent_batch(
+        &self,
+        client: &Transaction<'_>,
+        rows: &[(i32, i32, i32, i32)],
+        confirmed: bool,
+    ) -> Result<(), PoolError> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+
+        client
+            .batch_execute(
+                "CREATE TEMP TABLE IF NOT EXISTS tx_outputs_spent_stage (\
+                    prev_tx_id INT, \
+                    prev_vout_index INT, \
+                    spent_by_tx_id INT, \
+                    spent_by_vin_index INT\
+                 ); \
+                 TRUNCATE tx_outputs_spent_stage",
+            )
+            .await?;
+
+        let sink = client
+            .copy_in(
+                "COPY tx_outputs_spent_stage \
+                 (prev_tx_id, prev_vout_index, spent_by_tx_id, spent_by_vin_index) \
+                 FROM STDIN BINARY",
+            )
+            .await?;
+        let types = [Type::INT4, Type::INT4, Type::INT4, Type::INT4];
+        let writer = BinaryCopyInWriter::new(sink, &types);
+        pin_mut!(writer);
+
+        for (prev_tx_id, prev_vout_index, spent_by_tx_id, spent_by_vin_index) in rows {
+            let values: [&(dyn ToSql + Sync); 4] = [
+                prev_tx_id,
+                prev_vout_index,
+                spent_by_tx_id,
+                spent_by_vin_index,
+            ];
+            writer.as_mut().write(&values).await?;
+        }
+        writer.finish().await?;
+
+        // DISTINCT ON: one batch can contain two inputs spending the same
+        // outpoint only if it carries a double spend, but the staging table is
+        // also replayed on retry. Collapsing here keeps the UPDATE single-valued.
+        let sql = if confirmed {
+            "UPDATE tx_outputs o \
+             SET spent_by_tx_id = s.spent_by_tx_id, \
+                 spent_by_vin_index = s.spent_by_vin_index \
+             FROM (SELECT DISTINCT ON (prev_tx_id, prev_vout_index) * \
+                   FROM tx_outputs_spent_stage \
+                   ORDER BY prev_tx_id, prev_vout_index, spent_by_tx_id) s \
+             WHERE o.tx_id = s.prev_tx_id AND o.vout_index = s.prev_vout_index"
+        } else {
+            "UPDATE tx_outputs o \
+             SET spent_by_tx_id = s.spent_by_tx_id, \
+                 spent_by_vin_index = s.spent_by_vin_index \
+             FROM (SELECT DISTINCT ON (prev_tx_id, prev_vout_index) * \
+                   FROM tx_outputs_spent_stage \
+                   ORDER BY prev_tx_id, prev_vout_index, spent_by_tx_id) s \
+             WHERE o.tx_id = s.prev_tx_id AND o.vout_index = s.prev_vout_index \
+               AND o.spent_by_tx_id IS NULL"
+        };
+
+        client.execute(sql, &[]).await?;
+
+        Ok(())
+    }
 }

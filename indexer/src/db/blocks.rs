@@ -45,6 +45,143 @@ impl Database {
         let client = self.pool.get().await?;
         let h = height as i32;
 
+        // Reverse the incrementally-maintained rollups before the rows they were
+        // derived from are gone. Each is the exact inverse of what block_writer
+        // phase 7c/7d added for this block.
+        client
+            .execute(
+                "UPDATE addresses a \
+                 SET received = a.received - s.received, \
+                     sent     = a.sent - s.sent, \
+                     tx_count = a.tx_count - s.tx_count \
+                 FROM (SELECT address_id, \
+                              SUM(received) AS received, \
+                              SUM(sent) AS sent, \
+                              COUNT(DISTINCT tx_id) AS tx_count \
+                       FROM (SELECT o.address_id, o.tx_id, o.value AS received, 0 AS sent \
+                             FROM tx_outputs o \
+                             JOIN transactions t ON t.id = o.tx_id \
+                             WHERE t.block_height = $1 AND o.address_id IS NOT NULL \
+                             UNION ALL \
+                             SELECT i.address_id, i.tx_id, 0, COALESCE(i.amount, 0) \
+                             FROM tx_inputs i \
+                             JOIN transactions t ON t.id = i.tx_id \
+                             WHERE t.block_height = $1 AND i.address_id IS NOT NULL) f \
+                       GROUP BY address_id) s \
+                 WHERE a.id = s.address_id",
+                &[&h],
+            )
+            .await?;
+
+        client
+            .execute(
+                "UPDATE address_balance_deltas d \
+                 SET received = d.received - s.received, sent = d.sent - s.sent \
+                 FROM (SELECT f.address_id, b.timestamp::date AS day, \
+                              SUM(f.received) AS received, SUM(f.sent) AS sent \
+                       FROM (SELECT o.address_id, o.tx_id, o.value AS received, 0 AS sent \
+                             FROM tx_outputs o \
+                             JOIN transactions t ON t.id = o.tx_id \
+                             WHERE t.block_height = $1 AND o.address_id IS NOT NULL \
+                             UNION ALL \
+                             SELECT i.address_id, i.tx_id, 0, COALESCE(i.amount, 0) \
+                             FROM tx_inputs i \
+                             JOIN transactions t ON t.id = i.tx_id \
+                             WHERE t.block_height = $1 AND i.address_id IS NOT NULL) f \
+                       JOIN blocks b ON b.height = $1 \
+                       GROUP BY 1, 2) s \
+                 WHERE d.address_id = s.address_id AND d.day = s.day",
+                &[&h],
+            )
+            .await?;
+
+        // address_activity / _weekly count a transaction once per address, which
+        // is what address_transactions already stores for this block.
+        client
+            .execute(
+                "UPDATE address_activity a \
+                 SET tx_count = a.tx_count - s.tx_count \
+                 FROM (SELECT at.address_id, b.timestamp::date AS day, COUNT(*) AS tx_count \
+                       FROM address_transactions at \
+                       JOIN blocks b ON b.height = at.block_height \
+                       WHERE at.block_height = $1 \
+                       GROUP BY 1, 2) s \
+                 WHERE a.address_id = s.address_id AND a.day = s.day",
+                &[&h],
+            )
+            .await?;
+
+        client
+            .execute(
+                "UPDATE address_activity_weekly w \
+                 SET tx_count = w.tx_count - s.tx_count \
+                 FROM (SELECT at.address_id, date_trunc('week', b.timestamp)::date AS week, \
+                              COUNT(*) AS tx_count \
+                       FROM address_transactions at \
+                       JOIN blocks b ON b.height = at.block_height \
+                       WHERE at.block_height = $1 \
+                       GROUP BY 1, 2) s \
+                 WHERE w.address_id = s.address_id AND w.week = s.week",
+                &[&h],
+            )
+            .await?;
+
+        client
+            .execute(
+                "UPDATE chain_stats_hourly c \
+                 SET block_count    = c.block_count - s.block_count, \
+                     tx_count       = c.tx_count - s.tx_count, \
+                     size           = c.size - s.size, \
+                     difficulty_sum = c.difficulty_sum - s.difficulty_sum, \
+                     normal         = c.normal - s.normal, \
+                     special        = c.special - s.special, \
+                     coinjoin       = c.coinjoin - s.coinjoin, \
+                     multisig       = c.multisig - s.multisig \
+                 FROM (SELECT date_trunc('hour', b.timestamp) AS hour, 1 AS block_count, \
+                              b.size, b.difficulty AS difficulty_sum, \
+                              COUNT(t.id) AS tx_count, \
+                              COUNT(*) FILTER (WHERE t.type = 0 AND NOT t.coinjoin AND NOT t.multisig) AS normal, \
+                              COUNT(*) FILTER (WHERE t.type > 0) AS special, \
+                              COUNT(*) FILTER (WHERE t.coinjoin) AS coinjoin, \
+                              COUNT(*) FILTER (WHERE t.multisig) AS multisig \
+                       FROM blocks b \
+                       LEFT JOIN transactions t ON t.block_height = b.height \
+                       WHERE b.height = $1 \
+                       GROUP BY b.timestamp, b.size, b.difficulty) s \
+                 WHERE c.hour = s.hour",
+                &[&h],
+            )
+            .await?;
+
+        client
+            .execute(
+                "UPDATE transaction_type_counts c \
+                 SET count = c.count - s.count \
+                 FROM (SELECT type, coinjoin, multisig, COUNT(*) AS count \
+                       FROM transactions WHERE block_height = $1 \
+                       GROUP BY 1, 2, 3) s \
+                 WHERE c.type = s.type AND c.coinjoin = s.coinjoin AND c.multisig = s.multisig",
+                &[&h],
+            )
+            .await?;
+
+        client
+            .execute(
+                "DELETE FROM address_transactions WHERE block_height = $1",
+                &[&h],
+            )
+            .await?;
+
+        // Outputs spent by this block's inputs go back to unspent.
+        client
+            .execute(
+                "UPDATE tx_outputs o SET spent_by_tx_id = NULL, spent_by_vin_index = NULL \
+                 WHERE o.spent_by_tx_id IN \
+                 (SELECT id FROM transactions WHERE block_height = $1)",
+                &[&h],
+            )
+            .await?;
+
         // Delete in correct order due to foreign keys
         client
             .execute(

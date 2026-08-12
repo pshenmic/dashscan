@@ -60,6 +60,9 @@ async fn main() {
                          DROP TABLE IF EXISTS address_activity; \
                          DROP TABLE IF EXISTS address_activity_weekly; \
                          DROP TABLE IF EXISTS address_transactions; \
+                         DROP TABLE IF EXISTS address_balance_deltas; \
+                         DROP TABLE IF EXISTS chain_stats_hourly; \
+                         DROP TABLE IF EXISTS transaction_type_counts; \
                          DROP TABLE IF EXISTS proposals; \
                          DROP TABLE IF EXISTS masternodes; \
                          DROP TABLE IF EXISTS masternodes; \
