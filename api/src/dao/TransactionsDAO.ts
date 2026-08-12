@@ -12,20 +12,14 @@ export default class TransactionsDAO {
     this.knex = knex;
   }
 
-  // LATERAL with LIMIT 1 keeps one row per output: an output with both a mempool
-  // and a mined spend has two tx_inputs rows, and a plain join would duplicate
-  // the output. Confirmed spends sort first.
+  // spent_by_tx_id / spent_by_vin_index (V30) are written by the indexer when
+  // the output is spent, replacing a per-output LATERAL into tx_inputs. The
+  // indexer applies the precedence the LATERAL's ORDER BY used to encode: a
+  // confirmed spend wins over a mempool one. Only the spender's hash and height
+  // still need a join, and that is a primary-key lookup.
   private outputsAggregate = (): Knex.QueryBuilder => this.knex('tx_outputs')
     .leftJoin('addresses', 'addresses.id', 'tx_outputs.address_id')
-    .joinRaw(`LEFT JOIN LATERAL (
-        SELECT spend_tx.hash, spend_tx.block_height, spent_input.vin_index
-        FROM tx_inputs spent_input
-        JOIN transactions spend_tx ON spend_tx.id = spent_input.tx_id
-        WHERE spent_input.prev_tx_id = tx_outputs.tx_id
-          AND spent_input.prev_vout_index = tx_outputs.vout_index
-        ORDER BY spend_tx.block_height NULLS LAST
-        LIMIT 1
-      ) spend ON true`)
+    .leftJoin('transactions as spend_tx', 'spend_tx.id', 'tx_outputs.spent_by_tx_id')
     .whereIn('tx_outputs.tx_id', this.knex('subquery').select('id'))
     .select('tx_outputs.tx_id')
     .select(this.knex.raw(`
@@ -36,20 +30,18 @@ export default class TransactionsDAO {
             'script_pub_key', tx_outputs.script_pub_key,
             'script_type', tx_outputs.script_type,
             'address', addresses.address,
-            'spent_tx_id', spend.hash,
-            'spent_index', spend.vin_index,
-            'spent_height', spend.block_height
+            'spent_tx_id', spend_tx.hash,
+            'spent_index', tx_outputs.spent_by_vin_index,
+            'spent_height', spend_tx.block_height
           ) ORDER BY tx_outputs.vout_index
         ) as outputs
       `))
     .groupBy('tx_outputs.tx_id');
 
+  // tx_inputs.amount (V29) is the spent output's value, denormalized by the
+  // indexer, so this no longer joins back to tx_outputs to read it.
   private inputsAggregate = (): Knex.QueryBuilder => this.knex('tx_inputs')
     .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
-    .leftJoin('tx_outputs', function () {
-      this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
-        .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
-    })
     .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
     .select('tx_inputs.tx_id')
     .select(this.knex.raw(`
@@ -58,7 +50,7 @@ export default class TransactionsDAO {
             'prev_tx_hash', tx_inputs.prev_tx_hash,
             'prev_vout_index', tx_inputs.prev_vout_index,
             'address', addresses.address,
-            'amount', tx_outputs.value::text
+            'amount', tx_inputs.amount::text
           ) ORDER BY tx_inputs.vin_index
         ) as inputs
       `))
@@ -71,19 +63,32 @@ export default class TransactionsDAO {
 
     // TODO: Slow on pages like 10000000, maybe we need to add cursor
     //  or something what can improve performance
-    const countSubquery = filtered
+    //
+    // Unfiltered: the pg_class estimate, as before. Filtered by a single block:
+    // an exact count scoped to that one block is already cheap. Otherwise the
+    // filters are answered exactly by summing transaction_type_counts (V33) —
+    // a few dozen rows — instead of counting the whole table per page.
+    const countSubquery = blockHeight != null
       ? this.knex('transactions')
           .count('* as reltuples')
+          .where('block_height', blockHeight)
           .modify((builder) => {
             if (transactionType != null) builder.where('type', transactionType);
             if (coinjoin != null) builder.where('coinjoin', coinjoin);
             if (multisig != null) builder.where('multisig', multisig);
-            if (blockHeight != null) builder.where('block_height', blockHeight);
           })
-      : this.knex('pg_class')
-          .select(this.knex.raw('reltuples::bigint'))
-          .whereRaw(`relname='transactions'`)
-          .limit(1)
+      : filtered
+        ? this.knex('transaction_type_counts')
+            .select(this.knex.raw('COALESCE(SUM(count), 0)::bigint as reltuples'))
+            .modify((builder) => {
+              if (transactionType != null) builder.where('type', transactionType);
+              if (coinjoin != null) builder.where('coinjoin', coinjoin);
+              if (multisig != null) builder.where('multisig', multisig);
+            })
+        : this.knex('pg_class')
+            .select(this.knex.raw('reltuples::bigint'))
+            .whereRaw(`relname='transactions'`)
+            .limit(1)
 
     const blockMaxHeightSubquery = this.knex('blocks')
       .select(this.knex.raw('MAX(height) as max_height'))
@@ -380,16 +385,18 @@ export default class TransactionsDAO {
       .limit(limit)
       .offset(fromRank);
 
-    const countSubquery = this.knex('address_transactions')
-      .where('address_transactions.address_id', addressIdSubquery)
-      .modify((builder) => {
-        if (transactionType != null) {
-          builder
-            .join('transactions', 'transactions.id', 'address_transactions.tx_id')
-            .where('transactions.type', transactionType);
-        }
-      })
-      .count('*');
+    // Unfiltered, the total is the stored per-address counter (V28) — no scan of
+    // this address's index entries at all. A type filter has no counter, so it
+    // still counts, scoped to the one address.
+    const countSubquery = transactionType != null
+      ? this.knex('address_transactions')
+          .where('address_transactions.address_id', addressIdSubquery)
+          .join('transactions', 'transactions.id', 'address_transactions.tx_id')
+          .where('transactions.type', transactionType)
+          .count('*')
+      : this.knex('addresses')
+          .where('address', address)
+          .select('tx_count');
 
     const blockMaxHeightSubquery = this.knex('blocks')
       .select(this.knex.raw('MAX(height) as max_height'))
@@ -468,9 +475,15 @@ export default class TransactionsDAO {
       .limit(limit)
       .offset(fromRank);
 
-    const countSubquery = this.knex('address_activity_weekly')
+    // A masternode's payee/owner/voting/collateral addresses often overlap, and
+    // one transaction can touch several of them. Summing per-address counters
+    // (or the weekly rollup, as this did) counts such a transaction once per
+    // address, overstating the total — so this counts distinct tx_ids. It stays
+    // an index-only scan of (address_id, block_height) INCLUDE (tx_id), bounded
+    // to at most four addresses.
+    const countSubquery = this.knex('address_transactions')
       .whereIn('address_id', this.knex('masternode_address_ids').select('id'))
-      .select(this.knex.raw('COALESCE(SUM(tx_count), 0) AS count'));
+      .countDistinct('tx_id as count');
 
     const blockMaxHeightSubquery = this.knex('blocks')
       .select(this.knex.raw('MAX(height) as max_height'))
@@ -527,28 +540,81 @@ export default class TransactionsDAO {
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
   }
 
+  // Whole hours inside the window come from chain_stats_hourly (V32); only the
+  // partial hours at each edge are counted live off `transactions`, and those
+  // are resolved to a literal block-height range first so the planner can index
+  // into the table. A window shorter than an hour boundary runs fully live, as
+  // it always did — it is cheap by definition.
   getTransactionStats = async (start: Date, end: Date): Promise<TransactionStats | null> => {
-    const heightRangeSubquery = this.knex('blocks')
-      .select(this.knex.raw('MIN(height) AS min_height'), this.knex.raw('MAX(height) AS max_height'))
-      .whereBetween('timestamp', [start, end]);
+    const msPerHour = 3600000;
+    const hourLo = new Date(Math.ceil(start.getTime() / msPerHour) * msPerHour);
+    const hourHi = new Date(Math.floor(end.getTime() / msPerHour) * msPerHour);
+    const useRollup = hourLo.getTime() < hourHi.getTime();
 
-    const [row] = await this.knex
-      .with('height_range', heightRangeSubquery)
-      .select(
-        this.knex.raw('COUNT(*) FILTER (WHERE type > 0)::bigint AS special'),
-        this.knex.raw('COUNT(*) FILTER (WHERE coinjoin)::bigint AS coinjoin'),
-        this.knex.raw('COUNT(*) FILTER (WHERE multisig)::bigint AS multisig'),
-        this.knex.raw('COUNT(*) FILTER (WHERE type = 0 AND NOT coinjoin AND NOT multisig)::bigint AS normal')
-      )
-      .where('block_height', '>=', this.knex('height_range').select('min_height'))
-      .andWhere('block_height', '<=', this.knex('height_range').select('max_height'))
-      .limit(1)
-      .from('transactions');
+    // Bucket `h` covers [h, h+1h), so it lies entirely inside the window only
+    // for h in [hourLo, hourHi). The -1ms keeps the leading live slice from
+    // overlapping the first bucket it hands off to.
+    const liveSlices: Array<{ from: Date; to: Date }> = [];
 
-    if (row == null) {
-      return null;
+    if (useRollup) {
+      if (start.getTime() < hourLo.getTime()) {
+        liveSlices.push({ from: start, to: new Date(hourLo.getTime() - 1) });
+      }
+      if (hourHi.getTime() < end.getTime()) {
+        liveSlices.push({ from: hourHi, to: end });
+      }
+    } else {
+      liveSlices.push({ from: start, to: end });
     }
 
-    return TransactionStats.fromRow(row);
+    const totals = { special: 0, coinjoin: 0, multisig: 0, normal: 0 };
+
+    const add = (row: any) => {
+      if (row == null) return;
+      totals.special += Number(row.special ?? 0);
+      totals.coinjoin += Number(row.coinjoin ?? 0);
+      totals.multisig += Number(row.multisig ?? 0);
+      totals.normal += Number(row.normal ?? 0);
+    };
+
+    if (useRollup) {
+      const [row] = await this.knex('chain_stats_hourly')
+        .where('hour', '>=', hourLo.toISOString())
+        .andWhere('hour', '<', hourHi.toISOString())
+        .select(
+          this.knex.raw('COALESCE(SUM(special), 0)::bigint AS special'),
+          this.knex.raw('COALESCE(SUM(coinjoin), 0)::bigint AS coinjoin'),
+          this.knex.raw('COALESCE(SUM(multisig), 0)::bigint AS multisig'),
+          this.knex.raw('COALESCE(SUM(normal), 0)::bigint AS normal'),
+        );
+
+      add(row);
+    }
+
+    for (const { from, to } of liveSlices) {
+      const [heights] = await this.knex('blocks')
+        .whereBetween('timestamp', [from.toISOString(), to.toISOString()])
+        .select(
+          this.knex.raw('MIN(height) AS min_height'),
+          this.knex.raw('MAX(height) AS max_height'),
+        ) as any[];
+
+      if (heights?.min_height == null) {
+        continue; // no blocks inside this slice
+      }
+
+      const [row] = await this.knex('transactions')
+        .whereBetween('block_height', [heights.min_height, heights.max_height])
+        .select(
+          this.knex.raw('COUNT(*) FILTER (WHERE type > 0)::bigint AS special'),
+          this.knex.raw('COUNT(*) FILTER (WHERE coinjoin)::bigint AS coinjoin'),
+          this.knex.raw('COUNT(*) FILTER (WHERE multisig)::bigint AS multisig'),
+          this.knex.raw('COUNT(*) FILTER (WHERE type = 0 AND NOT coinjoin AND NOT multisig)::bigint AS normal'),
+        );
+
+      add(row);
+    }
+
+    return TransactionStats.fromRow(totals);
   }
 }

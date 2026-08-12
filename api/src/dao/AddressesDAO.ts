@@ -51,37 +51,19 @@ export default class AddressesDAO {
     return new PaginatedResultSet(rows.map(row => Address.fromRow(row)), page, limit, row?.total_count);
   };
 
+  // received/sent/tx_count are maintained per block by the indexer (V28), so
+  // this is a single primary-key lookup instead of a UNION over the address's
+  // entire tx_outputs + tx_inputs history. Balance still comes from `utxo`
+  // rather than received - sent: the columns count confirmed transactions only,
+  // while `utxo` tracks the live set including mempool, which is what the
+  // wallet endpoints and the rich list already report.
   getAddress = async (address: string): Promise<Address | null> => {
-    const addressIdSubquery = this.knex('addresses').select('id').where('address', address);
-
-    const addressTxsCTE = this.knex('tx_outputs')
-      .select('tx_outputs.tx_id', 'tx_outputs.value', this.knex.raw("'out' as src"))
-      .where('tx_outputs.address_id', addressIdSubquery)
-      .unionAll(
-        this.knex('tx_inputs')
-          .join('tx_outputs', function () {
-            this.on('tx_outputs.tx_id', '=', 'tx_inputs.prev_tx_id')
-              .andOn('tx_outputs.vout_index', '=', 'tx_inputs.prev_vout_index');
-          })
-          .where('tx_inputs.address_id', addressIdSubquery)
-          .select('tx_inputs.tx_id', 'tx_outputs.value', this.knex.raw("'in' as src")),
-      );
-
-    const statsCTE = this.knex('address_txs').select(
-      this.knex.raw("SUM(value) FILTER (WHERE src = 'out') as received"),
-      this.knex.raw("SUM(value) FILTER (WHERE src = 'in') as sent"),
-      this.knex.raw('COUNT(DISTINCT tx_id) as tx_count'),
-    );
-
     const [row] = await this.knex('addresses')
-      .with('address_txs', addressTxsCTE)
-      .with('stats', statsCTE)
       .where('addresses.address', address)
       .leftJoin('transactions as first_tx', 'first_tx.id', 'addresses.first_seen_tx_id')
       .leftJoin('transactions as last_tx', 'last_tx.id', 'addresses.last_seen_tx_id')
       .leftJoin('blocks as first_block', 'first_block.height', 'addresses.first_seen_block')
       .leftJoin('blocks as last_block', 'last_block.height', 'addresses.last_seen_block')
-      .crossJoin(this.knex.ref('stats'))
       .select(
         'addresses.address',
         'first_tx.hash as first_seen_tx',
@@ -90,51 +72,43 @@ export default class AddressesDAO {
         'last_block.timestamp as last_seen_block_timestamp',
         'first_block.hash as first_seen_block',
         'first_block.timestamp as first_seen_block_timestamp',
-        this.knex.raw('COALESCE(stats.received, 0) as received'),
-        this.knex.raw('COALESCE(stats.sent, 0) as sent'),
-        this.knex.raw('COALESCE(stats.tx_count, 0) as tx_count'),
-      );
+        this.knex.raw('addresses.received::text as received'),
+        this.knex.raw('addresses.sent::text as sent'),
+        this.knex.raw('addresses.tx_count::text as tx_count'),
+      )
+      .select(
+        this.knex('utxo')
+          .select(this.knex.raw('COALESCE(SUM(amount), 0)::text'))
+          .whereRaw('utxo.address_id = addresses.id')
+          .as('balance'),
+      )
+      .limit(1);
 
     if (!row) {
       return null;
     }
 
-    const balance = BigInt(row?.received ?? 0) - BigInt(row?.sent ?? 0)
-
-    const result = Address.fromRow(row)
-
     return Address.fromObject({
-      ...result,
-      balance: balance.toString(),
+      ...Address.fromRow(row),
+      balance: row.balance ?? '0',
     });
   }
 
+  // tx_count is a stored column (V28); balance stays a per-address `utxo` sum,
+  // which is an index range scan over that address's unspent outputs only.
   getAddressesInfo = async (addresses: string[]): Promise<AddressInfo[]> => {
     const unique = [...new Set(addresses)];
 
-    const idsCTE = this.knex('addresses')
-      .whereIn('address', unique)
-      .select('id', 'address');
-
-    const balancesCTE = this.knex('utxo')
-      .whereIn('address_id', this.knex('ids').select('id'))
-      .groupBy('address_id')
-      .select('address_id', this.knex.raw('SUM(amount)::bigint as balance'));
-
-    const txCountsCTE = this.knex('address_transactions')
-      .whereIn('address_id', this.knex('ids').select('id'))
-      .groupBy('address_id')
-      .select('address_id', this.knex.raw('COUNT(*)::bigint as tx_count'));
-
-    const rows = await this.knex('ids')
-      .with('ids', idsCTE)
-      .with('balances', balancesCTE)
-      .with('tx_counts', txCountsCTE)
-      .leftJoin('balances', 'balances.address_id', 'ids.id')
-      .leftJoin('tx_counts', 'tx_counts.address_id', 'ids.id')
-      .select('ids.address')
-      .select(this.knex.raw('COALESCE(balances.balance, 0)::text as balance'))
-      .select(this.knex.raw('COALESCE(tx_counts.tx_count, 0)::text as tx_count'));
+    const rows = await this.knex('addresses')
+      .whereIn('addresses.address', unique)
+      .select('addresses.address')
+      .select(this.knex.raw('addresses.tx_count::text as tx_count'))
+      .select(
+        this.knex('utxo')
+          .select(this.knex.raw('COALESCE(SUM(amount), 0)::text'))
+          .whereRaw('utxo.address_id = addresses.id')
+          .as('balance'),
+      );
 
     const byAddress = new Map<string, any>(rows.map((row: any) => [row.address, row]));
 
@@ -147,11 +121,41 @@ export default class AddressesDAO {
     });
   }
 
+  // The whole point of this query used to be its own bottleneck: the opening
+  // balance needed every transaction the address had ever made. That part now
+  // comes from the per-day rollup (V31), leaving only the window itself to read
+  // from the raw tables — and that read is scoped to a literal block-height
+  // range so the planner can index into them instead of scanning.
   getAddressBalanceSeries = async (address: string, start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
     const addressIdSubquery = this.knex('addresses').select('id').where('address', address);
 
     const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
     const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
+
+    // Rollup days are whole UTC days, so it can only cover up to the midnight
+    // that starts the window's first day; the remainder of that day is read
+    // live along with the rest of the window.
+    const startDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+
+    const [heights] = await this.knex('blocks')
+      .whereBetween('timestamp', [startDay.toISOString(), end.toISOString()])
+      .select(
+        this.knex.raw('MIN(height) as height_from'),
+        this.knex.raw('MAX(height) as height_to'),
+      ) as any[];
+
+    const scopeToWindow = (builder: Knex.QueryBuilder) => {
+      if (heights?.height_from == null) {
+        builder.whereRaw('false');
+      } else {
+        builder.whereBetween('transactions.block_height', [heights.height_from, heights.height_to]);
+      }
+    };
+
+    const openingCTE = this.knex('address_balance_deltas')
+      .where('address_id', addressIdSubquery)
+      .andWhere('day', '<', startDay.toISOString().slice(0, 10))
+      .select(this.knex.raw('COALESCE(SUM(received) - SUM(sent), 0)::bigint as opening'));
 
     const ranges = this.knex
       .from(this.knex.raw(`generate_series(${startSql}, ${endSql}, '${interval}'::interval) date_to`))
@@ -163,27 +167,29 @@ export default class AddressesDAO {
         )
       );
 
+    // tx_inputs.amount (V29) replaces the join back to tx_outputs for the
+    // spent value.
     const allTxsCTE = this.knex('tx_outputs')
       .join('transactions', 'transactions.id', 'tx_outputs.tx_id')
       .join('blocks', 'blocks.height', 'transactions.block_height')
       .where('tx_outputs.address_id', addressIdSubquery)
+      .modify(scopeToWindow)
       .select('blocks.timestamp', this.knex.raw('tx_outputs.value::bigint as value'), this.knex.raw("'received' as direction"))
       .unionAll(
         this.knex('tx_inputs')
-          .join('tx_outputs as spent_out', function () {
-            this.on('spent_out.tx_id', '=', 'tx_inputs.prev_tx_id')
-              .andOn('spent_out.vout_index', '=', 'tx_inputs.prev_vout_index');
-          })
           .join('transactions', 'transactions.id', 'tx_inputs.tx_id')
           .join('blocks', 'blocks.height', 'transactions.block_height')
           .where('tx_inputs.address_id', addressIdSubquery)
-          .select('blocks.timestamp', this.knex.raw('spent_out.value::bigint as value'), this.knex.raw("'spent' as direction"))
+          .modify(scopeToWindow)
+          .select('blocks.timestamp', this.knex.raw('COALESCE(tx_inputs.amount, 0)::bigint as value'), this.knex.raw("'spent' as direction"))
       );
 
+    // Rollup days before the window, plus whatever the window's own first
+    // partial day contributed before `start`.
     const initialBalanceCTE = this.knex('all_txs')
       .where('timestamp', '<', start.toISOString())
       .select(
-        this.knex.raw("COALESCE(SUM(value) FILTER (WHERE direction = 'received'), 0)::bigint - COALESCE(SUM(value) FILTER (WHERE direction = 'spent'), 0)::bigint AS initial_balance")
+        this.knex.raw("(SELECT opening FROM opening) + COALESCE(SUM(value) FILTER (WHERE direction = 'received'), 0)::bigint - COALESCE(SUM(value) FILTER (WHERE direction = 'spent'), 0)::bigint AS initial_balance")
       );
 
     const bucketsCTE = this.knex('ranges')
@@ -200,6 +206,7 @@ export default class AddressesDAO {
       .groupBy('date_from');
 
     const rows = await this.knex
+      .with('opening', openingCTE)
       .with('all_txs', allTxsCTE)
       .with('ranges', ranges)
       .with('initial_balance', initialBalanceCTE)
