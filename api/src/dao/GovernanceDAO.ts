@@ -29,7 +29,7 @@ export default class GovernanceDAO {
   // Evo masternodes carry 4 votes, so the weighted sum matches the node's
   // gobject tally; raw vote records would undercount.
   private getProtxOutpoint = async (): Promise<{ hashMap: Record<string, string>; weightMap: Record<string, number> }> => {
-    const cached = this.cache.get('protxOutpoint')
+    const cached = await this.cache.get<{ hashMap: Record<string, string>; weightMap: Record<string, number> }>('protxOutpoint')
 
     if (cached != null) {
       return cached
@@ -52,7 +52,7 @@ export default class GovernanceDAO {
 
     const result = { hashMap, weightMap }
 
-    this.cache.set('protxOutpoint', result, PROTX_OUTPOINT_MAP_LIFE_TIME)
+    await this.cache.set('protxOutpoint', result, PROTX_OUTPOINT_MAP_LIFE_TIME)
 
     return result
   }

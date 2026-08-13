@@ -3,7 +3,6 @@ import {resolve} from 'path';
 import {GEOIP_PROVIDER, GEOIP_TABLE_NAME} from "../constants";
 import {CityResponse, CountryResponse, Reader} from "mmdb-lib";
 import {Cache as mmdbCacheType} from "mmdb-lib/lib/types";
-import {Cache} from "../cache";
 
 export interface GeoIpInfo {
   ipv4: string;
@@ -13,21 +12,18 @@ export interface GeoIpInfo {
   longitude: number;
 }
 
-function geoIpDialectFactory (cache: Cache): mmdbCacheType {
-  const cacheStorage = cache.get('geoipStorage')
-  return {
-    get: (key: string | number): any => cacheStorage[key],
-    set: (key: string | number, value: any): any => cacheStorage[key] = value,
-  }
-}
-
 export default class GeoIPService {
   private reader: Reader<CountryResponse>
 
-  constructor(cache: Cache) {
-    cache.set('geoipStorage', {}, undefined)
+  // mmdb-lib memoizes decoded nodes through this synchronously, many times per
+  // lookup, so it cannot live in Redis.
+  private nodeCache = new Map<string | number, any>();
 
-    const cacheDialect = geoIpDialectFactory(cache);
+  constructor() {
+    const cacheDialect: mmdbCacheType = {
+      get: (key) => this.nodeCache.get(key),
+      set: (key, value) => this.nodeCache.set(key, value),
+    };
 
     const csvPath = resolve(
       require.resolve(`${GEOIP_PROVIDER}/package.json`),

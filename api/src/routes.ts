@@ -8,6 +8,7 @@ import SearchController from './controllers/SearchController';
 import GovernanceController from "./controllers/GovernanceController";
 import PeersController from "./controllers/PeersController";
 import MainController from './controllers/MainController';
+import XpubController from './controllers/XpubController';
 
 interface RoutesOptions {
   fastify: FastifyInstance;
@@ -20,9 +21,17 @@ interface RoutesOptions {
   searchController: SearchController;
   governanceController: GovernanceController;
   peersController: PeersController;
+  xpubController: XpubController;
 }
 
-export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController, peersController }: RoutesOptions): void {
+export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController, peersController, xpubController }: RoutesOptions): void {
+  const xpubParams = {
+    type: 'object',
+    properties: {
+      xpub: { $ref: 'xpub#' },
+    },
+  };
+
   const routes = [
     {
       path: '/status',
@@ -446,6 +455,30 @@ export default function Routes({ fastify, mainController, blocksController, tran
       schema: {
         querystring: { $ref: 'paginationOptions#' },
       },
+    },
+    {
+      path: '/xpub/:xpub',
+      method: 'get',
+      handler: xpubController.getXpub,
+      schema: { params: xpubParams, querystring: { $ref: 'xpubOptions#' } },
+    },
+    {
+      path: '/xpub/:xpub/addresses',
+      method: 'get',
+      handler: xpubController.getXpubAddresses,
+      schema: { params: xpubParams, querystring: { $ref: 'xpubOptions#' } },
+    },
+    {
+      path: '/xpub/:xpub/utxo',
+      method: 'get',
+      handler: xpubController.getXpubUtxo,
+      schema: { params: xpubParams, querystring: { $ref: 'xpubOptions#' } },
+    },
+    {
+      path: '/xpub/:xpub/transactions',
+      method: 'get',
+      handler: xpubController.getXpubTransactions,
+      schema: { params: xpubParams, querystring: { $ref: 'xpubOptions#' } },
     }
   ];
 
