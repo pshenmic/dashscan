@@ -4,6 +4,8 @@ import TransactionStats from '../models/TransactionStats';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
 import {TransactionType} from "../enums/TransactionType";
+import CursorResultSet from '../models/CursorResultSet';
+import InvalidCursorError from '../errors/InvalidCursorError';
 
 export default class TransactionsDAO {
   private knex: Knex;
@@ -450,6 +452,130 @@ export default class TransactionsDAO {
     const [row] = rows;
 
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
+  }
+
+  /**
+   * Merged transaction history across every address of an xpub, newest first.
+   *
+   * Written as a top-N-per-address LATERAL rather than
+   * `WHERE address_id = ANY(...) ORDER BY block_height DESC LIMIT n`: the plain
+   * form plans as a bitmap scan plus a full sort with no LIMIT pushdown, so it
+   * reads the wallet's entire history to return one page. Each inner scan here
+   * is an index-only range scan of (address_id, block_height DESC) that stops
+   * at LIMIT, and any transaction in the global top-N must appear in some
+   * address's top-N, so the merge is exact.
+   *
+   * Keyset, not OFFSET: at a deep offset the LATERAL would have to re-read
+   * offset+limit rows per address. `cursor` is the hash of the previous page's
+   * last transaction — a chain-native identifier, so it survives a re-sync,
+   * unlike the internal tx_id it is resolved to here.
+   *
+   * A transaction touching several of the wallet's addresses is returned once.
+   */
+  getXpubTransactions = async (
+    addressIds: number[],
+    limit: number,
+    cursor?: string,
+  ): Promise<CursorResultSet<Transaction>> => {
+    if (addressIds.length === 0) {
+      return new CursorResultSet<Transaction>([], limit, null);
+    }
+
+    const bindings: any[] = [addressIds];
+    let cursorClause = '';
+
+    if (cursor != null) {
+      const [position] = await this.knex('transactions')
+        .where('hash', cursor)
+        .whereNotNull('block_height')
+        .select('id', 'block_height');
+
+      if (position == null) {
+        throw new InvalidCursorError(`Unknown cursor transaction ${cursor}`);
+      }
+
+      // block_height <= bounds the index range; the second test discards the
+      // already-returned part of the boundary block. tx_id is in the index's
+      // INCLUDE list, so this stays index-only.
+      cursorClause = 'AND at.block_height <= ? AND (at.block_height < ? OR at.tx_id < ?)';
+      bindings.push(position.block_height, position.block_height, position.id);
+    }
+
+    // One extra row tells us whether a further page exists.
+    const perAddress = limit + 1;
+    bindings.push(perAddress, perAddress);
+
+    const addressTxIdsCTE = this.knex.raw(`
+      SELECT tx_id, MAX(block_height) AS block_height
+      FROM unnest(?::int[]) AS ids(address_id)
+      CROSS JOIN LATERAL (
+        SELECT at.tx_id, at.block_height
+        FROM address_transactions at
+        WHERE at.address_id = ids.address_id ${cursorClause}
+        ORDER BY at.block_height DESC
+        LIMIT ?
+      ) s
+      GROUP BY tx_id
+      ORDER BY block_height DESC, tx_id DESC
+      LIMIT ?
+    `, bindings);
+
+    const blockMaxHeightSubquery = this.knex('blocks')
+      .select(this.knex.raw('MAX(height) as max_height'))
+      .as('height_subquery');
+
+    const subquery = this.knex('transactions')
+      .select(
+        'transactions.hash',
+        'transactions.type',
+        'transactions.block_height',
+        'transactions.chain_locked',
+        'transactions.instant_lock',
+        'transactions.version',
+        'transactions.size',
+        'transactions.id',
+        this.knex.raw('transactions.amount::text as amount'),
+        'transactions.coinjoin',
+        'transactions.multisig',
+      )
+      .whereIn('transactions.id', this.knex('address_tx_ids').select('tx_id'));
+
+    const outputsCTE = this.outputsAggregate();
+    const inputsCTE = this.inputsAggregate();
+
+    const rows = await this.knex
+      .with('address_tx_ids', addressTxIdsCTE)
+      .with('subquery', subquery)
+      .with('agg_outputs', outputsCTE)
+      .with('agg_inputs', inputsCTE)
+      .select(this.knex.raw('max_height - block_height + 1 AS confirmations'))
+      .select(
+        'subquery.hash', 'type', 'block_height',
+        'blocks.timestamp as timestamp', 'chain_locked',
+        'blocks.hash as block_hash', 'instant_lock',
+        'agg_inputs.inputs', 'agg_outputs.outputs', 'subquery.version',
+        'subquery.amount', 'subquery.coinjoin', 'subquery.multisig',
+        'special_transactions.payload as extra_payload', 'subquery.size',
+        'subquery.id',
+      )
+      .leftJoin('agg_outputs', 'agg_outputs.tx_id', 'subquery.id')
+      .leftJoin('agg_inputs', 'agg_inputs.tx_id', 'subquery.id')
+      .leftJoin('special_transactions', 'special_transactions.tx_id', 'subquery.id')
+      .join(blockMaxHeightSubquery, this.knex.raw('true'))
+      .leftJoin('blocks', 'blocks.height', 'block_height')
+      .orderBy('subquery.block_height', 'desc')
+      .orderBy('subquery.id', 'desc')
+      .from('subquery');
+
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const last = page[page.length - 1];
+
+    return new CursorResultSet(
+      page.map(Transaction.fromRow),
+      limit,
+      hasMore && last != null ? last.hash : null,
+    );
   }
 
   getMasternodeTransactions = async (proTxHash: string, page: number, limit: number, order: string): Promise<PaginatedResultSet<Transaction>> => {

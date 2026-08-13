@@ -5,6 +5,7 @@ import SeriesData from '../models/SeriesData';
 import AddressBalance from "../models/AddressBalance";
 import AddressInfo from "../models/AddressInfo";
 import Utxo from "../models/Utxo";
+import XpubSummary from "../models/XpubSummary";
 import {
   ADDRESSES_ACTIVITY_DAILY_MIN_TX_COUNT,
   ADDRESSES_ACTIVITY_LOW_PRECISION_AFTER,
@@ -118,6 +119,46 @@ export default class AddressesDAO {
       return row
         ? AddressInfo.fromRow(row)
         : AddressInfo.fromObject({address, balance: '0', txCount: 0});
+    });
+  }
+
+  // Feeds the xpub gap scan: an address exists here only once the indexer has
+  // seen it on chain, so presence is exactly "has been used".
+  getAddressIds = async (addresses: string[]): Promise<{ id: number; address: string }[]> => {
+    if (addresses.length === 0) {
+      return [];
+    }
+
+    return this.knex('addresses').whereIn('address', addresses).select('id', 'address');
+  }
+
+  /**
+   * Wallet-level totals for a set of address ids.
+   *
+   * The three values aggregate differently and cannot be lumped together:
+   * balance sums cleanly because every utxo row belongs to exactly one address;
+   * received/sent sum from the stored per-address columns; but tx_count must be
+   * counted distinct, because one transaction paying a receive address with
+   * change back to the same wallet appears under two address ids.
+   */
+  getXpubSummary = async (addressIds: number[]): Promise<XpubSummary> => {
+    if (addressIds.length === 0) {
+      return XpubSummary.fromRow({balance: '0', received: '0', sent: '0', tx_count: '0'});
+    }
+
+    const [row] = await this.knex
+      .select(
+        this.knex.raw('(SELECT COALESCE(SUM(amount), 0)::text FROM utxo WHERE address_id = ANY(?)) AS balance', [addressIds]),
+        this.knex.raw('(SELECT COALESCE(SUM(received), 0)::text FROM addresses WHERE id = ANY(?)) AS received', [addressIds]),
+        this.knex.raw('(SELECT COALESCE(SUM(sent), 0)::text FROM addresses WHERE id = ANY(?)) AS sent', [addressIds]),
+        this.knex.raw('(SELECT COUNT(DISTINCT tx_id) FROM address_transactions WHERE address_id = ANY(?)) AS tx_count', [addressIds]),
+      ) as any[];
+
+    return XpubSummary.fromRow({
+      balance: row?.balance ?? '0',
+      received: row?.received ?? '0',
+      sent: row?.sent ?? '0',
+      tx_count: row?.tx_count ?? '0',
     });
   }
 
@@ -272,6 +313,54 @@ export default class AddressesDAO {
       limit,
       row?.total_count ?? -1,
     );
+  }
+
+  // Paginated over address ids rather than address strings: an xpub can resolve
+  // to thousands of addresses, and the unspent set across all of them is
+  // unbounded. Ordered by amount so the largest inputs — the ones a wallet
+  // reaches for first when building a spend — land on the first page.
+  getXpubUtxo = async (addressIds: number[], page: number, limit: number): Promise<PaginatedResultSet<Utxo>> => {
+    if (addressIds.length === 0) {
+      return new PaginatedResultSet<Utxo>([], page, limit, 0);
+    }
+
+    const fromRank = (page - 1) * limit;
+
+    const countSubquery = this.knex('utxo')
+      .whereIn('address_id', addressIds)
+      .count('* as total');
+
+    const blockMaxHeightSubquery = this.knex('blocks')
+      .select(this.knex.raw('MAX(height) as max_height'))
+      .as('height_subquery');
+
+    const rows = await this.knex('utxo')
+      .with('total_count', countSubquery)
+      .whereIn('utxo.address_id', addressIds)
+      .leftJoin('addresses', 'addresses.id', 'utxo.address_id')
+      .leftJoin('transactions', 'transactions.id', 'utxo.tx_id')
+      .leftJoin('tx_outputs', function () {
+        this.on('tx_outputs.tx_id', '=', 'utxo.tx_id')
+          .andOn('tx_outputs.vout_index', '=', 'utxo.vout_index');
+      })
+      .join(blockMaxHeightSubquery, this.knex.raw('true'))
+      .select(
+        'addresses.address',
+        'transactions.hash as prev_tx_hash',
+        'utxo.vout_index as prev_vout_index',
+        'transactions.block_height',
+        'tx_outputs.script_pub_key',
+        this.knex.raw('utxo.amount::text as amount'),
+        this.knex.raw('max_height - transactions.block_height + 1 as confirmations'),
+      )
+      .select(this.knex('total_count').select('total').as('total_count'))
+      .orderBy('utxo.amount', 'desc')
+      .limit(limit)
+      .offset(fromRank);
+
+    const [row] = rows;
+
+    return new PaginatedResultSet(Utxo.fromRows(rows), page, limit, row?.total_count ?? 0);
   }
 
   getAddressesUtxo = async (addresses: string[]): Promise<Utxo[]> => {

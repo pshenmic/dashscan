@@ -8,6 +8,8 @@ import cors from '@fastify/cors';
 import schemas from './schemas';
 import Routes from './routes';
 import ServiceNotAvailableError from './errors/ServiceNotAvailableError';
+import InvalidXpubError from './errors/InvalidXpubError';
+import InvalidCursorError from './errors/InvalidCursorError';
 import BlocksController from './controllers/BlocksController';
 import TransactionsController from './controllers/TransactionsController';
 import AddressesController from './controllers/AddressesController';
@@ -19,12 +21,25 @@ import MarketService from './services/MarketService';
 import GeoIPService from './services/GeoIPService';
 import SearchController from './controllers/SearchController';
 import MainController from './controllers/MainController';
+import XpubController from './controllers/XpubController';
 import {Cache} from "./cache";
 import {UTXO_INFO_LIFE_TIME} from "./constants";
 
 function errorHandler(err: FastifyError, req: FastifyRequest, reply: FastifyReply): void {
   if (err instanceof ServiceNotAvailableError) {
     reply.status(503).send({ error: 'Dashcore backend is not available' });
+    return;
+  }
+
+  if (err instanceof InvalidXpubError || err instanceof InvalidCursorError) {
+    reply.status(400).send({ error: err.message });
+    return;
+  }
+
+  // Schema validation failures arrive with statusCode 400; discarding it turned
+  // every malformed request into a 500.
+  if (err.statusCode != null && err.statusCode >= 400 && err.statusCode < 500) {
+    reply.status(err.statusCode).send({ error: err.message });
     return;
   }
 
@@ -38,7 +53,10 @@ let redis: Redis;
 let fastify: FastifyInstance;
 
 export const start = async (): Promise<FastifyInstance> => {
-  fastify = Fastify();
+  // find-my-way caps a single path parameter at 100 characters by default, and
+  // a serialised extended key is 111 — without this the /xpub/:xpub routes are
+  // never matched and every request 404s.
+  fastify = Fastify({ maxParamLength: 200 });
 
   await fastify.register(cors, {
     // put your options here
@@ -58,14 +76,14 @@ export const start = async (): Promise<FastifyInstance> => {
 
   const dashcoreRPC = new DashCoreRPC();
 
-  const cache = new Cache()
+  const cache = new Cache(redis)
 
-  const geoIPService = new GeoIPService(cache);
+  const geoIPService = new GeoIPService();
   const marketService = new MarketService();
 
   const preCacheUtxoInfo = await dashcoreRPC.getUtxoInfo()
 
-  cache.set("utxoInfo", preCacheUtxoInfo, UTXO_INFO_LIFE_TIME)
+  await cache.set("utxoInfo", preCacheUtxoInfo, UTXO_INFO_LIFE_TIME)
 
   const mainController = new MainController(dashcoreRPC, knex);
   const blocksController = new BlocksController(knex);
@@ -76,6 +94,7 @@ export const start = async (): Promise<FastifyInstance> => {
   const searchController = new SearchController(knex);
   const governanceController = new GovernanceController(knex, redis, dashcoreRPC, geoIPService, cache);
   const peersController = new PeersController(redis, geoIPService);
+  const xpubController = new XpubController(knex, cache);
 
   Routes({
     fastify,
@@ -88,6 +107,7 @@ export const start = async (): Promise<FastifyInstance> => {
     searchController,
     governanceController,
     peersController,
+    xpubController,
   });
 
   fastify.setErrorHandler(errorHandler);
@@ -108,7 +128,7 @@ export const stop = async (): Promise<void> => {
 export const listen = async (server: FastifyInstance): Promise<void> => {
   server.listen({
     host: '0.0.0.0',
-    port: 3005,
+    port: Number(process.env.PORT ?? 3005),
     listenTextResolver: (address: string) => {
       const msg = `Dash Core Explorer API listening on ${address}`;
       console.log(msg);

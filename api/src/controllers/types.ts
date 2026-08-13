@@ -17,3 +17,10 @@ export interface PaginatedQuery {
   country?: string
   available?: boolean
 }
+
+export interface XpubQuery {
+  gap_limit?: number
+  page?: number
+  limit?: number
+  cursor?: string
+}
