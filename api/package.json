@@ -12,7 +12,7 @@
   "dependencies": {
     "@dashevo/dashd-rpc": "github:owl352/dashd-rpc",
     "@fastify/cors": "^11.2.0",
-    "@ip-location-db/dbip-city-mmdb": "^2.3.2026040119",
+    "@ip-location-db/dbip-city-mmdb": "^2.3.2026060513",
     "@scure/bip32": "^2.3.0",
     "dash-core-sdk": "1.1.3-dev.3",
     "dotenv": "^17.2.3",

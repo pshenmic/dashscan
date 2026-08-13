@@ -75,10 +75,10 @@
   resolved "https://registry.yarnpkg.com/@ioredis/commands/-/commands-1.10.0.tgz#cc387f8ec5ebe5b3b5104d393b5ac1f9cf794b9a"
   integrity sha512-UmeW7z4LfctwoQ5wkhVzgq8tXkreED2xZGpX+Bg+zA+WJFZCT6c062AfCK/Dfk81xZnnwdhJCUMkitihRaoC2Q==
 
-"@ip-location-db/dbip-city-mmdb@^2.3.2026040119":
-  version "2.3.2026040119"
-  resolved "https://registry.yarnpkg.com/@ip-location-db/dbip-city-mmdb/-/dbip-city-mmdb-2.3.2026040119.tgz#c0040707d819de8623bb3a0e910a48d77bac8bd6"
-  integrity sha512-C62uSdLcj+MB+VbG7E74NkaIOmpf7rGy4O6IRbjJMfQZXP2kTaBlG5n1ATrBcJUwM3X4s+hrH92CCjFUpHb1Mg==
+"@ip-location-db/dbip-city-mmdb@^2.3.2026060513":
+  version "2.3.2026060513"
+  resolved "https://registry.yarnpkg.com/@ip-location-db/dbip-city-mmdb/-/dbip-city-mmdb-2.3.2026060513.tgz#fe3f6dbe8230d7256a6f48d5c6cf59c211df0ec2"
+  integrity sha512-zrTJXW4+5MpTCbdy0gFXDJxAvqBNsJB8alih0Kcy09BC7EP2SfPA2lZpuJZZjhO4UCcs/xg9qAkO8x5sAw84Ng==
 
 "@jridgewell/resolve-uri@^3.0.3":
   version "3.1.2"
