@@ -1,9 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import { CircleCheck, Globe, Network, Server, ServerCrash } from "lucide-react";
+import { CircleCheck, Network, Server, ServerCrash } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { type ApiPeer, allPeersQueryOptions } from "@/lib/api/peers";
+import {
+  type ApiPeer,
+  allPeersQueryOptions,
+  derivePeerUserAgents,
+  peerUserAgentsQueryOptions,
+} from "@/lib/api/peers";
 import { formatCompact, formatRelativeTime } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import {
@@ -15,6 +19,12 @@ import {
   countryName,
   formatLocation,
 } from "@/themes/neo/components/masternode-map/iso-codes";
+import { PeersDistribution } from "@/themes/neo/components/peers-distribution";
+import {
+  EMPTY_PEER_FILTERS,
+  type PeerFilters,
+  PeersFilterBar,
+} from "@/themes/neo/components/peers-filter-bar";
 import { PeersMap } from "@/themes/neo/components/peers-map";
 import { Badge } from "@/themes/neo/components/ui/badge";
 import {
@@ -24,8 +34,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/themes/neo/components/ui/card";
-
-type StatusFilter = "all" | "available" | "unavailable";
 
 const PAGINATION_PAGE_SIZE = 10;
 
@@ -117,14 +125,21 @@ export default function RedesignPeersListPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
-  const [country, setCountry] = useState<string | null>(null);
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const [filters, setFilters] = useState<PeerFilters>(EMPTY_PEER_FILTERS);
 
   const { data: allPeers, isFetching } = useQuery(
     allPeersQueryOptions({ network }),
   );
+  const { data: apiUserAgents } = useQuery(
+    peerUserAgentsQueryOptions({ network }),
+  );
 
   const peers = allPeers ?? EMPTY_PEERS;
+  const derivedUserAgents = useMemo(() => derivePeerUserAgents(peers), [peers]);
+  const userAgents =
+    apiUserAgents && apiUserAgents.length > 0
+      ? apiUserAgents
+      : derivedUserAgents;
 
   const stats = useMemo(() => {
     const available = peers.filter((p) => p.available).length;
@@ -144,14 +159,17 @@ export default function RedesignPeersListPage() {
     const q = search.trim().toLowerCase();
     const out: ApiPeer[] = [];
     for (const { peer, haystack } of searchable) {
-      if (status === "available" && !peer.available) continue;
-      if (status === "unavailable" && peer.available) continue;
-      if (country && peer.geo?.countryCode !== country) continue;
+      if (filters.status === "available" && !peer.available) continue;
+      if (filters.status === "unavailable" && peer.available) continue;
+      if (filters.country && peer.geo?.countryCode !== filters.country)
+        continue;
+      if (filters.userAgent && peer.userAgent !== filters.userAgent) continue;
+      if (filters.ip && peer.host !== filters.ip) continue;
       if (q && !haystack.includes(q)) continue;
       out.push(peer);
     }
     return out;
-  }, [searchable, search, country, status]);
+  }, [searchable, search, filters]);
 
   const total = filtered.length;
 
@@ -159,12 +177,17 @@ export default function RedesignPeersListPage() {
     setSearch(value);
     setPage(1);
   }, []);
-  const handleStatusChange = useCallback((value: StatusFilter) => {
-    setStatus(value);
+  const handleFiltersChange = useCallback((next: PeerFilters) => {
+    setFilters(next);
     setPage(1);
   }, []);
   const handleCountryChange = useCallback((code: string | null) => {
-    setCountry(code);
+    setFilters((current) => ({ ...current, country: code }));
+    setPage(1);
+  }, []);
+  const handleClearFilters = useCallback(() => {
+    setFilters(EMPTY_PEER_FILTERS);
+    setSearch("");
     setPage(1);
   }, []);
 
@@ -227,10 +250,41 @@ export default function RedesignPeersListPage() {
           </Card>
         </div>
 
+        <PeersDistribution
+          total={stats.total}
+          available={stats.available}
+          userAgents={userAgents}
+          isLoading={isFetching && peers.length === 0}
+          status={filters.status}
+          userAgent={filters.userAgent}
+          onStatusChange={(status) =>
+            handleFiltersChange({ ...filters, status })
+          }
+          onUserAgentChange={(userAgent) =>
+            handleFiltersChange({ ...filters, userAgent })
+          }
+        />
+
         <PeersMap
           variant="page"
-          selectedCountry={country}
+          filteredPeers={filtered}
+          selectedCountry={filters.country}
           onSelectCountry={handleCountryChange}
+          statusFilter={filters.status}
+          onStatusFilterChange={(status) =>
+            handleFiltersChange({ ...filters, status })
+          }
+        />
+
+        <PeersFilterBar
+          filters={filters}
+          search={search}
+          userAgents={userAgents}
+          total={peers.length}
+          filteredTotal={total}
+          onFiltersChange={handleFiltersChange}
+          onSearchChange={handleSearchChange}
+          onClear={handleClearFilters}
         />
 
         <DataTable
@@ -238,44 +292,8 @@ export default function RedesignPeersListPage() {
           data={pageData}
           isLoading={isFetching && peers.length === 0}
           rowKey={(row) => row.address}
-          search={{
-            value: search,
-            onChange: handleSearchChange,
-            placeholder: "Search peers by address, user agent or location…",
-          }}
-          toolbar={
-            <ToggleGroup
-              type="single"
-              value={status}
-              onValueChange={(value) =>
-                value && handleStatusChange(value as StatusFilter)
-              }
-              variant="outline"
-              size="sm"
-            >
-              <ToggleGroupItem value="all" aria-label="All peers">
-                <Globe className="size-3" />
-                All
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="available"
-                aria-label="Available peers"
-                className="data-[state=on]:bg-success/15 data-[state=on]:text-success data-[state=on]:border-success/40"
-              >
-                <CircleCheck className="size-3" />
-                Available
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="unavailable"
-                aria-label="Unavailable peers"
-                className="data-[state=on]:bg-destructive/15 data-[state=on]:text-destructive data-[state=on]:border-destructive/40"
-              >
-                <ServerCrash className="size-3" />
-                Unavailable
-              </ToggleGroupItem>
-            </ToggleGroup>
-          }
           emptyTitle="No peers"
+          emptyDescription="Try clearing one or more peer filters."
           pagination={{
             pageIndex: page,
             pageSize,

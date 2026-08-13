@@ -11,11 +11,12 @@ import {
   ServerCrash,
   X,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
+  type ApiPeer,
   allPeersQueryOptions,
   type PeerGeoPoint,
   peersByAddress,
@@ -26,6 +27,7 @@ import {
   countryFlagEmoji,
   countryName,
 } from "@/themes/neo/components/masternode-map/iso-codes";
+import type { PeerStatusFilter } from "@/themes/neo/components/peers-filter-bar";
 import {
   Card,
   CardAction,
@@ -39,18 +41,22 @@ import { PeersMapCanvas } from "./map-canvas";
 import { PeerDetail } from "./peer-detail";
 import { PeerList } from "./peer-list";
 
-type MapStatusFilter = "all" | "available" | "unavailable";
-
 const EMPTY_POINTS: PeerGeoPoint[] = [];
 
 export function PeersMap({
   variant = "dashboard",
+  filteredPeers,
   selectedCountry: controlledCountry,
   onSelectCountry: controlledOnSelect,
+  statusFilter: controlledStatusFilter,
+  onStatusFilterChange: controlledOnStatusFilterChange,
 }: {
   variant?: "dashboard" | "page";
+  filteredPeers?: ApiPeer[];
   selectedCountry?: string | null;
   onSelectCountry?: (code: string | null) => void;
+  statusFilter?: PeerStatusFilter;
+  onStatusFilterChange?: (value: PeerStatusFilter) => void;
 }) {
   const network = useStore(appStore, (state) => state.network);
   const { data, isLoading } = useQuery({
@@ -66,9 +72,16 @@ export function PeersMap({
     null,
   );
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<MapStatusFilter>("all");
-  const isControlled = controlledCountry !== undefined;
-  const selectedCountry = isControlled ? controlledCountry : internalCountry;
+  const [internalStatusFilter, setInternalStatusFilter] =
+    useState<PeerStatusFilter>("all");
+  const isCountryControlled = controlledCountry !== undefined;
+  const isStatusControlled = controlledStatusFilter !== undefined;
+  const selectedCountry = isCountryControlled
+    ? controlledCountry
+    : internalCountry;
+  const statusFilter = isStatusControlled
+    ? controlledStatusFilter
+    : internalStatusFilter;
   const selectedPeer = selectedAddress
     ? (peerByAddress?.get(selectedAddress) ?? null)
     : null;
@@ -76,10 +89,10 @@ export function PeersMap({
     (code: string | null) => {
       setClusterLeaves(null);
       setSelectedAddress(null);
-      if (isControlled) controlledOnSelect?.(code);
+      if (isCountryControlled) controlledOnSelect?.(code);
       else setInternalCountry(code);
     },
-    [isControlled, controlledOnSelect],
+    [isCountryControlled, controlledOnSelect],
   );
   const handleSelectCluster = useCallback((leaves: PeerGeoPoint[]) => {
     setSelectedAddress(null);
@@ -90,7 +103,19 @@ export function PeersMap({
     [],
   );
 
-  const allPoints = data ?? EMPTY_POINTS;
+  const controlledPoints = useMemo(
+    () =>
+      filteredPeers === undefined ? null : peersToGeoPoints(filteredPeers),
+    [filteredPeers],
+  );
+  const allPoints = controlledPoints ?? data ?? EMPTY_POINTS;
+
+  useEffect(() => {
+    if (filteredPeers === undefined) return;
+    setClusterLeaves(null);
+    setSelectedAddress(null);
+  }, [filteredPeers]);
+
   const statusFilteredPoints = useMemo(() => {
     if (statusFilter === "available")
       return allPoints.filter((p) => p.available);
@@ -115,12 +140,17 @@ export function PeersMap({
     return { cities };
   }, [points, selectedCountry]);
 
-  const handleStatusFilterChange = useCallback((value: string) => {
-    if (!value) return;
-    setClusterLeaves(null);
-    setSelectedAddress(null);
-    setStatusFilter(value as MapStatusFilter);
-  }, []);
+  const handleStatusFilterChange = useCallback(
+    (value: string) => {
+      if (!value) return;
+      const next = value as PeerStatusFilter;
+      setClusterLeaves(null);
+      setSelectedAddress(null);
+      if (isStatusControlled) controlledOnStatusFilterChange?.(next);
+      else setInternalStatusFilter(next);
+    },
+    [isStatusControlled, controlledOnStatusFilterChange],
+  );
 
   const isPage = variant === "page";
   const height = isPage ? 540 : 420;

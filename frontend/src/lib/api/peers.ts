@@ -26,6 +26,22 @@ export interface ApiPeer {
   geo: ApiPeerGeo | null;
 }
 
+export interface ApiPeerUserAgent {
+  userAgent: string;
+  count: number;
+}
+
+export function isValidIpv4(value: string): boolean {
+  const parts = value.split(".");
+  return (
+    parts.length === 4 &&
+    parts.every(
+      (part) =>
+        /^\d{1,3}$/.test(part) && Number(part) >= 0 && Number(part) <= 255,
+    )
+  );
+}
+
 export interface PeerGeoPoint {
   address: string;
   available: boolean;
@@ -40,6 +56,10 @@ export interface PeerGeoPoint {
 
 interface FetchPeersInput extends PaginationParams {
   network: Network;
+  available?: boolean;
+  country?: string;
+  userAgent?: string;
+  ip?: string;
 }
 
 async function getPeers(params: FetchPeersInput) {
@@ -49,6 +69,11 @@ async function getPeers(params: FetchPeersInput) {
   if (params.limit !== undefined)
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
+  if (params.available !== undefined)
+    url.searchParams.set("available", String(params.available));
+  if (params.country) url.searchParams.set("country", params.country);
+  if (params.userAgent) url.searchParams.set("user_agent", params.userAgent);
+  if (params.ip) url.searchParams.set("ip", params.ip);
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -60,9 +85,6 @@ async function getPeers(params: FetchPeersInput) {
 interface FetchAllPeersInput {
   network: Network;
 }
-
-const ALL_PAGE_LIMIT = 100;
-const ALL_MAX_PAGES = 200;
 
 export function toGeoPoint(peer: ApiPeer): PeerGeoPoint | null {
   const geo = peer.geo;
@@ -111,34 +133,25 @@ export function decodeServices(services: number | null): {
 }
 
 async function getAllPeers(params: FetchAllPeersInput): Promise<ApiPeer[]> {
-  const first = await getPeers({
+  const response = await getPeers({
     network: params.network,
-    page: 1,
-    limit: ALL_PAGE_LIMIT,
     order: "desc",
   });
-  const pageCount = Math.min(
-    ALL_MAX_PAGES,
-    Math.max(1, Math.ceil(first.pagination.total / ALL_PAGE_LIMIT)),
-  );
-  const rest =
-    pageCount > 1
-      ? await Promise.all(
-          Array.from({ length: pageCount - 1 }, (_, i) =>
-            getPeers({
-              network: params.network,
-              page: i + 2,
-              limit: ALL_PAGE_LIMIT,
-              order: "desc",
-            }),
-          ),
-        )
-      : [];
-  const peers: ApiPeer[] = [];
-  for (const response of [first, ...rest]) {
-    for (const peer of response.resultSet) peers.push(peer);
+  return response.resultSet;
+}
+
+async function getPeerUserAgents(
+  params: FetchAllPeersInput,
+): Promise<ApiPeerUserAgent[] | null> {
+  const url = new URL("/peers/user-agents", getBaseUrl(params.network));
+  url.searchParams.set("order", "desc");
+  const response = await fetch(url);
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
-  return peers;
+  const data = (await response.json()) as PaginatedResponse<ApiPeerUserAgent>;
+  return data.resultSet;
 }
 
 export const fetchAllPeers = createServerFn({ method: "POST" })
@@ -151,6 +164,27 @@ export function allPeersQueryOptions(params: FetchAllPeersInput) {
     queryFn: () => getAllPeers(params),
     staleTime: 5 * 60 * 1000,
   });
+}
+
+export function peerUserAgentsQueryOptions(params: FetchAllPeersInput) {
+  return queryOptions({
+    queryKey: ["peer-user-agents", params.network],
+    queryFn: () => getPeerUserAgents(params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function derivePeerUserAgents(peers: ApiPeer[]): ApiPeerUserAgent[] {
+  const counts = new Map<string, number>();
+  for (const peer of peers) {
+    if (!peer.available || !peer.userAgent) continue;
+    counts.set(peer.userAgent, (counts.get(peer.userAgent) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([userAgent, count]) => ({ userAgent, count }))
+    .sort(
+      (a, b) => b.count - a.count || a.userAgent.localeCompare(b.userAgent),
+    );
 }
 
 export function peersByAddress(peers: ApiPeer[]): Map<string, ApiPeer> {
