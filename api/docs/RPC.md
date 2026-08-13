@@ -33,6 +33,70 @@ All list endpoints return this wrapper:
 
 > `total` is `-1` when the result set is empty.
 
+### Cursor Response
+
+Endpoints whose result set is too expensive to offset into page by cursor instead
+of `page`, and return this wrapper:
+
+```json
+{
+  "resultSet": [...],
+  "pagination": {
+    "limit": 25,
+    "nextCursor": "9cdf16d29c57f363427e622967720890acb6e0afa12685985763fe7fb628d17a"
+  }
+}
+```
+
+Pass `nextCursor` back as the `cursor` query parameter to fetch the next page.
+`nextCursor` is `null` on the last page. There is no `total` and no page number —
+the cursor is the only position marker.
+
+### Extended Public Keys
+
+Four endpoints resolve a BIP44 **account-level** extended public key
+(`m/44'/5'/account'`) to the addresses a wallet actually uses, so a client does
+not have to derive addresses, discover which are used, and merge per-address
+results itself.
+
+The key must match the node's network: `xpub…` on mainnet, `tpub…` on testnet.
+A key from the other network is rejected — it would derive addresses that can
+never appear in this index.
+
+Only the two BIP44 branches are scanned: `0` external (receive addresses handed
+out to payers) and `1` internal (change). A chain-level key resolves only its own
+branch and is not supported.
+
+#### Gap limit
+
+`gap_limit` is a **stopping rule, not a limit on the number of addresses**. The
+scan walks each branch until it sees that many *consecutive unused* addresses,
+and the counter resets on every used one. A wallet with 5,000 consecutively used
+addresses is fully resolved at the default `gap_limit` of 20; the limit only
+matters when usage has holes:
+
+| Usage pattern                       | `gap_limit=20` resolves     |
+|-------------------------------------|-----------------------------|
+| indexes 0–499 used                  | all 500, plus 20 lookahead  |
+| indexes 0, 1, 2 used, then 150 used | 0–2 only; index 150 is missed |
+
+For the second case you would need `gap_limit=148`. An address is considered used
+once it has appeared on chain, so an address that has only ever received an
+unconfirmed payment does not extend the scan.
+
+**Ceiling.** Each branch is scanned to at most 5,000 addresses
+(`XPUB_MAX_ADDRESSES_PER_BRANCH`). A wallet larger than that is silently
+truncated, and every figure derived from it — balance, `txCount`, the UTXO set,
+the transaction list — is a lower bound. `usedAddressCount` reaching exactly
+5,000 on a branch is the signal.
+
+#### Privacy
+
+An extended public key discloses every past and future address of a wallet and
+cannot be rotated. It appears in the request path, so deployments should redact
+`/xpub/*` from reverse-proxy access logs. The API stores only a SHA-256 digest of
+the key as its cache key, never the key itself.
+
 ### Transaction Extra Payload
 Extra payload may vary depending on special transaction type:
 - `CLASSIC` (No extraPayload, null)
@@ -992,6 +1056,202 @@ The rollup tables are maintained incrementally by the indexer in the same databa
 - Addresses below the thresholds in every bucket are missing from the ranking entirely, and `pagination.total` therefore undercounts the true number of active addresses — treat it as the size of the *ranked* set, not an exact "active addresses" statistic.
 - Ranked addresses can be slightly undercounted when some of their days/weeks fall below the thresholds. For genuinely active addresses (the top of the list) the numbers are effectively exact.
 - Windows ≤ 3d have no thresholds and are fully exact.
+
+---
+
+### GET /xpub/:xpub
+
+Returns wallet-level totals for an extended public key.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                          | Description                    |
+|-----------|--------|--------------------------------------|--------------------------------|
+| `xpub`    | string | 100–120 base58 characters            | Account-level extended public key |
+
+**Query Parameters**
+
+| Parameter   | Type    | Default | Constraints          | Description                          |
+|-------------|---------|---------|----------------------|--------------------------------------|
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100 | Consecutive unused addresses that end the scan |
+
+```
+GET /xpub/xpub6BsfY2wEzaDJgpVLusVdovnt8tv7Boox63S4tDzfCXY9VqEpH75p3qL6ZjevsETM8XGawVsv2QmePCkheHWTUKykjCtnzTs1sfjYsy6R1hf
+```
+
+**Response `200`**
+
+```json
+{
+  "balance": "4820046182581",
+  "received": "9107800090158",
+  "sent": "9218003263407",
+  "txCount": 1400,
+  "addressCount": 47,
+  "usedAddressCount": 6,
+  "nextUnused": {
+    "receive": 3,
+    "change": 2
+  }
+}
+```
+
+#### Xpub Summary Object
+
+| Field              | Type            | Description                                                       |
+|--------------------|-----------------|-------------------------------------------------------------------|
+| `balance`          | string          | Spendable balance in duffs, summed over the wallet's unspent outputs |
+| `received`         | string          | Total received in duffs — see the caveat below                    |
+| `sent`             | string          | Total sent in duffs — see the caveat below                        |
+| `txCount`          | number          | Distinct transactions involving any wallet address                |
+| `addressCount`     | number          | Addresses scanned across both branches                            |
+| `usedAddressCount` | number          | Of those, how many have appeared on chain                         |
+| `nextUnused`       | object          | First unused index per branch, for handing out a fresh address    |
+| `nextUnused.receive` | number \| null | Next unused index on branch 0                                    |
+| `nextUnused.change`  | number \| null | Next unused index on branch 1                                    |
+
+`txCount` counts each transaction **once**, even when it touches several of the
+wallet's addresses — which is the common case, since a spend usually pays a
+recipient and returns change to the same wallet. Summing per-address counts from
+[`GET /addresses/info`](#get-addressesinfo) would double-count those.
+
+> **`received` and `sent` include internal transfers.** Every change output
+> counts as both received and sent, so a wallet that received 1 DASH and then
+> spent it in ten steps reports far more than 1 DASH received. They are gross
+> flows across the wallet's addresses, not external inflow and outflow. Use
+> `balance` for the wallet's actual holdings.
+
+`balance` is read from the live unspent set and therefore includes unconfirmed
+outputs, while `received`/`sent` count confirmed transactions only. They will not
+reconcile as `balance = received - sent` while anything is pending.
+
+**Response `400`** — key is malformed, is an extended *private* key, or belongs
+to the other network (`"Not a mainnet extended public key"`).
+
+---
+
+### GET /xpub/:xpub/addresses
+
+Returns the derived addresses and whether each has appeared on chain. Useful for
+clients that do not implement derivation themselves, and for showing which
+address to hand out next.
+
+**Query Parameters**
+
+| Parameter   | Type    | Default | Constraints          | Description                          |
+|-------------|---------|---------|----------------------|--------------------------------------|
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100 | Consecutive unused addresses that end the scan |
+| `page`      | integer | `1`     | minimum: 1           | Page number                          |
+| `limit`     | integer | `100`   | minimum: 1, max: 100 | Results per page                     |
+
+```
+GET /xpub/xpub6BsfY.../addresses?limit=2
+```
+
+**Response `200`** — [Paginated Response](#paginated-response)
+
+```json
+{
+  "resultSet": [
+    {
+      "address": "XcRPV2fziA8rRvkh9ydzjxEd1P3Xe2ZAsT",
+      "branch": 0,
+      "index": 0,
+      "used": true
+    },
+    {
+      "address": "XyhmYjdUor6fVgUjmNvbJ4sztniJ5XzHNL",
+      "branch": 0,
+      "index": 1,
+      "used": false
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 2,
+    "total": 47
+  }
+}
+```
+
+#### Xpub Address Object
+
+| Field     | Type    | Description                                                        |
+|-----------|---------|--------------------------------------------------------------------|
+| `address` | string  | Derived Dash address                                                |
+| `branch`  | number  | `0` external (receive) or `1` internal (change)                     |
+| `index`   | number  | Address index within the branch                                     |
+| `used`    | boolean | Whether the address has appeared on chain                           |
+
+Addresses are returned in scan order: the whole of branch 0, then branch 1. The
+list always includes the unused lookahead at the end of each branch — for a
+wallet with no history at all that is the entire response, `gap_limit` entries
+per branch, all `"used": false`. That is expected, not an error.
+
+**Response `400`** — as [`GET /xpub/:xpub`](#get-xpubxpub).
+
+---
+
+### GET /xpub/:xpub/utxo
+
+Returns the wallet's unspent outputs, largest first, so the inputs a wallet
+reaches for first when building a spend land on the first page.
+
+**Query Parameters**
+
+| Parameter   | Type    | Default | Constraints          | Description                          |
+|-------------|---------|---------|----------------------|--------------------------------------|
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100 | Consecutive unused addresses that end the scan |
+| `page`      | integer | `1`     | minimum: 1           | Page number                          |
+| `limit`     | integer | `100`   | minimum: 1, max: 100 | Results per page                     |
+
+```
+GET /xpub/xpub6BsfY.../utxo?limit=2
+```
+
+**Response `200`** — [Paginated Response](#paginated-response) of
+[UTXO Objects](#utxo-object), each carrying the owning `address` and the
+`scriptPubKeyHex` required to sign.
+
+**Response `400`** — as [`GET /xpub/:xpub`](#get-xpubxpub).
+
+---
+
+### GET /xpub/:xpub/transactions
+
+Returns the wallet's transaction history, newest first, merged across every
+address and deduplicated — a transaction touching several of the wallet's
+addresses appears once.
+
+Paged by cursor rather than page number: offsetting into a merged set this wide
+would re-read every skipped row for every address on each page.
+
+**Query Parameters**
+
+| Parameter   | Type    | Default | Constraints          | Description                                        |
+|-------------|---------|---------|----------------------|----------------------------------------------------|
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100 | Consecutive unused addresses that end the scan     |
+| `limit`     | integer | `25`    | minimum: 1, max: 100 | Results per page                                   |
+| `cursor`    | string  | —       | 64 hex characters    | `nextCursor` from the previous page                |
+
+```
+GET /xpub/xpub6BsfY.../transactions?limit=25
+GET /xpub/xpub6BsfY.../transactions?limit=25&cursor=9cdf16d29c57f363427e622967720890acb6e0afa12685985763fe7fb628d17a
+```
+
+**Response `200`** — [Cursor Response](#cursor-response) of
+[Transaction Objects](#transaction-object)
+
+The cursor is the **hash of the last transaction on the page**, not an opaque
+token — a client can construct it from the last row it received. Using the hash
+rather than an internal row id means a cursor stays valid across a reindex.
+
+Ordering is by block height descending, and within a block, later transactions first.
+
+**Response `400`** — as [`GET /xpub/:xpub`](#get-xpubxpub), or the cursor does
+not name a confirmed transaction (`"Unknown cursor transaction …"`). A cursor
+that no longer resolves fails loudly rather than silently returning the wrong
+page.
 
 ---
 
