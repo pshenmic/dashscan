@@ -146,12 +146,29 @@ export default class AddressesDAO {
       return XpubSummary.fromRow({balance: '0', received: '0', sent: '0', tx_count: '0'});
     }
 
+    // `= ANY(?)` rather than whereIn: an xpub can resolve to thousands of ids,
+    // and whereIn expands to one bind parameter each.
+    const ofWallet = (column: string) => (builder: Knex.QueryBuilder) =>
+      builder.whereRaw(`${column} = ANY(?)`, [addressIds]);
+
     const [row] = await this.knex
       .select(
-        this.knex.raw('(SELECT COALESCE(SUM(amount), 0)::text FROM utxo WHERE address_id = ANY(?)) AS balance', [addressIds]),
-        this.knex.raw('(SELECT COALESCE(SUM(received), 0)::text FROM addresses WHERE id = ANY(?)) AS received', [addressIds]),
-        this.knex.raw('(SELECT COALESCE(SUM(sent), 0)::text FROM addresses WHERE id = ANY(?)) AS sent', [addressIds]),
-        this.knex.raw('(SELECT COUNT(DISTINCT tx_id) FROM address_transactions WHERE address_id = ANY(?)) AS tx_count', [addressIds]),
+        this.knex('utxo')
+          .modify(ofWallet('address_id'))
+          .select(this.knex.raw('COALESCE(SUM(amount), 0)::text'))
+          .as('balance'),
+        this.knex('addresses')
+          .modify(ofWallet('id'))
+          .select(this.knex.raw('COALESCE(SUM(received), 0)::text'))
+          .as('received'),
+        this.knex('addresses')
+          .modify(ofWallet('id'))
+          .select(this.knex.raw('COALESCE(SUM(sent), 0)::text'))
+          .as('sent'),
+        this.knex('address_transactions')
+          .modify(ofWallet('address_id'))
+          .countDistinct('tx_id')
+          .as('tx_count'),
       ) as any[];
 
     return XpubSummary.fromRow({
@@ -327,7 +344,7 @@ export default class AddressesDAO {
     const fromRank = (page - 1) * limit;
 
     const countSubquery = this.knex('utxo')
-      .whereIn('address_id', addressIds)
+      .whereRaw('address_id = ANY(?)', [addressIds])
       .count('* as total');
 
     const blockMaxHeightSubquery = this.knex('blocks')
@@ -336,7 +353,7 @@ export default class AddressesDAO {
 
     const rows = await this.knex('utxo')
       .with('total_count', countSubquery)
-      .whereIn('utxo.address_id', addressIds)
+      .whereRaw('utxo.address_id = ANY(?)', [addressIds])
       .leftJoin('addresses', 'addresses.id', 'utxo.address_id')
       .leftJoin('transactions', 'transactions.id', 'utxo.tx_id')
       .leftJoin('tx_outputs', function () {

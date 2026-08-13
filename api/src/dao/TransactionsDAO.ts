@@ -481,11 +481,10 @@ export default class TransactionsDAO {
       return new CursorResultSet<Transaction>([], limit, null);
     }
 
-    const bindings: any[] = [addressIds];
-    let cursorClause = '';
+    let position: { id: number; block_height: number } | undefined;
 
     if (cursor != null) {
-      const [position] = await this.knex('transactions')
+      [position] = await this.knex('transactions')
         .where('hash', cursor)
         .whereNotNull('block_height')
         .select('id', 'block_height');
@@ -493,32 +492,52 @@ export default class TransactionsDAO {
       if (position == null) {
         throw new InvalidCursorError(`Unknown cursor transaction ${cursor}`);
       }
-
-      // block_height <= bounds the index range; the second test discards the
-      // already-returned part of the boundary block. tx_id is in the index's
-      // INCLUDE list, so this stays index-only.
-      cursorClause = 'AND at.block_height <= ? AND (at.block_height < ? OR at.tx_id < ?)';
-      bindings.push(position.block_height, position.block_height, position.id);
     }
 
     // One extra row tells us whether a further page exists.
     const perAddress = limit + 1;
-    bindings.push(perAddress, perAddress);
 
-    const addressTxIdsCTE = this.knex.raw(`
-      SELECT tx_id, MAX(block_height) AS block_height
-      FROM unnest(?::int[]) AS ids(address_id)
-      CROSS JOIN LATERAL (
-        SELECT at.tx_id, at.block_height
-        FROM address_transactions at
-        WHERE at.address_id = ids.address_id ${cursorClause}
-        ORDER BY at.block_height DESC
-        LIMIT ?
-      ) s
-      GROUP BY tx_id
-      ORDER BY block_height DESC, tx_id DESC
-      LIMIT ?
-    `, bindings);
+    // Only the lateral itself is raw — knex cannot express CROSS JOIN LATERAL,
+    // the same reason outputsAggregate uses joinRaw. Its body is built here so
+    // the cursor predicate stays a normal builder clause.
+    const perAddressPage = this.knex('address_transactions as at')
+      .whereRaw('at.address_id = ids.address_id')
+      .modify((builder) => {
+        if (position != null) {
+          // block_height <= bounds the index range; the second test discards
+          // the already-returned part of the boundary block. tx_id is in the
+          // index's INCLUDE list, so this stays index-only.
+          builder
+            .where('at.block_height', '<=', position.block_height)
+            .andWhere((inner) => {
+              inner
+                .where('at.block_height', '<', position!.block_height)
+                .orWhere('at.tx_id', '<', position!.id);
+            });
+        }
+      })
+      .select('at.tx_id', 'at.block_height')
+      // Must match the outer ordering exactly. Ordering only by block_height
+      // leaves the cut among rows sharing the boundary block undefined, so an
+      // address can contribute an arbitrary subset of them — and the cursor
+      // then advances past the ones it dropped, losing them for good.
+      .orderBy('at.block_height', 'desc')
+      .orderBy('at.tx_id', 'desc')
+      .limit(perAddress);
+
+    // toSQL, not toString: toString would interpolate the cursor values into
+    // the statement instead of leaving them as bind parameters.
+    const lateral = perAddressPage.toSQL();
+
+    const addressTxIdsCTE = this.knex
+      .from(this.knex.raw('unnest(?::int[]) AS ids(address_id)', [addressIds]))
+      .joinRaw(`CROSS JOIN LATERAL (${lateral.sql}) s`, lateral.bindings as any[])
+      .select('s.tx_id')
+      .max('s.block_height as block_height')
+      .groupBy('s.tx_id')
+      .orderBy('block_height', 'desc')
+      .orderBy('s.tx_id', 'desc')
+      .limit(perAddress);
 
     const blockMaxHeightSubquery = this.knex('blocks')
       .select(this.knex.raw('MAX(height) as max_height'))
