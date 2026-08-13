@@ -25,12 +25,6 @@ interface RoutesOptions {
 }
 
 export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController, peersController, xpubController }: RoutesOptions): void {
-  const xpubParams = {
-    type: 'object',
-    properties: {
-      xpub: { $ref: 'xpub#' },
-    },
-  };
 
   const routes = [
     {
@@ -457,28 +451,28 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/xpub/:xpub',
-      method: 'get',
+      path: '/xpub',
+      method: 'post',
       handler: xpubController.getXpub,
-      schema: { params: xpubParams, querystring: { $ref: 'xpubOptions#' } },
+      schema: { body: { $ref: 'xpubBody#' } },
     },
     {
-      path: '/xpub/:xpub/addresses',
-      method: 'get',
+      path: '/xpub/addresses',
+      method: 'post',
       handler: xpubController.getXpubAddresses,
-      schema: { params: xpubParams, querystring: { $ref: 'xpubOptions#' } },
+      schema: { body: { $ref: 'xpubBody#' } },
     },
     {
-      path: '/xpub/:xpub/utxo',
-      method: 'get',
+      path: '/xpub/utxo',
+      method: 'post',
       handler: xpubController.getXpubUtxo,
-      schema: { params: xpubParams, querystring: { $ref: 'xpubOptions#' } },
+      schema: { body: { $ref: 'xpubBody#' } },
     },
     {
-      path: '/xpub/:xpub/transactions',
-      method: 'get',
+      path: '/xpub/transactions',
+      method: 'post',
       handler: xpubController.getXpubTransactions,
-      schema: { params: xpubParams, querystring: { $ref: 'xpubOptions#' } },
+      schema: { body: { $ref: 'xpubBody#' } },
     }
   ];
 

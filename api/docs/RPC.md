@@ -48,7 +48,7 @@ of `page`, and return this wrapper:
 }
 ```
 
-Pass `nextCursor` back as the `cursor` query parameter to fetch the next page.
+Pass `nextCursor` back as the `cursor` body field to fetch the next page.
 `nextCursor` is `null` on the last page. There is no `total` and no page number —
 the cursor is the only position marker.
 
@@ -93,9 +93,11 @@ the transaction list — is a lower bound. `usedAddressCount` reaching exactly
 #### Privacy
 
 An extended public key discloses every past and future address of a wallet and
-cannot be rotated. It appears in the request path, so deployments should redact
-`/xpub/*` from reverse-proxy access logs. The API stores only a SHA-256 digest of
-the key as its cache key, never the key itself.
+cannot be rotated. These endpoints are `POST` with the key in the request body
+precisely so it never reaches a request path — paths are recorded by reverse
+proxies, `Referer` headers and browser history, none of which apply to a body.
+The API stores only a SHA-256 digest of the key as its cache key, never the key
+itself.
 
 ### Transaction Extra Payload
 Extra payload may vary depending on special transaction type:
@@ -1059,24 +1061,20 @@ The rollup tables are maintained incrementally by the indexer in the same databa
 
 ---
 
-### GET /xpub/:xpub
+### POST /xpub
 
 Returns wallet-level totals for an extended public key.
 
-**Path Parameters**
+**Body**
 
-| Parameter | Type   | Constraints                          | Description                    |
-|-----------|--------|--------------------------------------|--------------------------------|
-| `xpub`    | string | 100–120 base58 characters            | Account-level extended public key |
-
-**Query Parameters**
-
-| Parameter   | Type    | Default | Constraints          | Description                          |
-|-------------|---------|---------|----------------------|--------------------------------------|
-| `gap_limit` | integer | `20`    | minimum: 1, max: 100 | Consecutive unused addresses that end the scan |
+| Field       | Type    | Default | Constraints               | Description                                    |
+|-------------|---------|---------|---------------------------|------------------------------------------------|
+| `xpub`      | string  | —       | 100–120 base58 characters | Account-level extended public key. Required.   |
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100      | Consecutive unused addresses that end the scan |
 
 ```
-GET /xpub/xpub6BsfY2wEzaDJgpVLusVdovnt8tv7Boox63S4tDzfCXY9VqEpH75p3qL6ZjevsETM8XGawVsv2QmePCkheHWTUKykjCtnzTs1sfjYsy6R1hf
+POST /xpub
+{"xpub": "xpub6BsfY2wEzaDJgpVLusVdovnt8tv7Boox63S4tDzfCXY9VqEpH75p3qL6ZjevsETM8XGawVsv2QmePCkheHWTUKykjCtnzTs1sfjYsy6R1hf"}
 ```
 
 **Response `200`**
@@ -1130,22 +1128,24 @@ to the other network (`"Not a mainnet extended public key"`).
 
 ---
 
-### GET /xpub/:xpub/addresses
+### POST /xpub/addresses
 
 Returns the derived addresses and whether each has appeared on chain. Useful for
 clients that do not implement derivation themselves, and for showing which
 address to hand out next.
 
-**Query Parameters**
+**Body**
 
-| Parameter   | Type    | Default | Constraints          | Description                          |
-|-------------|---------|---------|----------------------|--------------------------------------|
-| `gap_limit` | integer | `20`    | minimum: 1, max: 100 | Consecutive unused addresses that end the scan |
-| `page`      | integer | `1`     | minimum: 1           | Page number                          |
-| `limit`     | integer | `100`   | minimum: 1, max: 100 | Results per page                     |
+| Field       | Type    | Default | Constraints               | Description                                    |
+|-------------|---------|---------|---------------------------|------------------------------------------------|
+| `xpub`      | string  | —       | 100–120 base58 characters | Account-level extended public key. Required.   |
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100      | Consecutive unused addresses that end the scan |
+| `page`      | integer | `1`     | minimum: 1                | Page number                                    |
+| `limit`     | integer | `100`   | minimum: 1, max: 100      | Results per page                               |
 
 ```
-GET /xpub/xpub6BsfY.../addresses?limit=2
+POST /xpub/addresses
+{"xpub": "xpub6BsfY...", "limit": 2}
 ```
 
 **Response `200`** — [Paginated Response](#paginated-response)
@@ -1188,36 +1188,38 @@ list always includes the unused lookahead at the end of each branch — for a
 wallet with no history at all that is the entire response, `gap_limit` entries
 per branch, all `"used": false`. That is expected, not an error.
 
-**Response `400`** — as [`GET /xpub/:xpub`](#get-xpubxpub).
+**Response `400`** — as [`POST /xpub`](#post-xpub).
 
 ---
 
-### GET /xpub/:xpub/utxo
+### POST /xpub/utxo
 
 Returns the wallet's unspent outputs, largest first, so the inputs a wallet
 reaches for first when building a spend land on the first page.
 
-**Query Parameters**
+**Body**
 
-| Parameter   | Type    | Default | Constraints          | Description                          |
-|-------------|---------|---------|----------------------|--------------------------------------|
-| `gap_limit` | integer | `20`    | minimum: 1, max: 100 | Consecutive unused addresses that end the scan |
-| `page`      | integer | `1`     | minimum: 1           | Page number                          |
-| `limit`     | integer | `100`   | minimum: 1, max: 100 | Results per page                     |
+| Field       | Type    | Default | Constraints               | Description                                    |
+|-------------|---------|---------|---------------------------|------------------------------------------------|
+| `xpub`      | string  | —       | 100–120 base58 characters | Account-level extended public key. Required.   |
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100      | Consecutive unused addresses that end the scan |
+| `page`      | integer | `1`     | minimum: 1                | Page number                                    |
+| `limit`     | integer | `100`   | minimum: 1, max: 100      | Results per page                               |
 
 ```
-GET /xpub/xpub6BsfY.../utxo?limit=2
+POST /xpub/utxo
+{"xpub": "xpub6BsfY...", "limit": 2}
 ```
 
 **Response `200`** — [Paginated Response](#paginated-response) of
 [UTXO Objects](#utxo-object), each carrying the owning `address` and the
 `scriptPubKeyHex` required to sign.
 
-**Response `400`** — as [`GET /xpub/:xpub`](#get-xpubxpub).
+**Response `400`** — as [`POST /xpub`](#post-xpub).
 
 ---
 
-### GET /xpub/:xpub/transactions
+### POST /xpub/transactions
 
 Returns the wallet's transaction history, newest first, merged across every
 address and deduplicated — a transaction touching several of the wallet's
@@ -1226,17 +1228,19 @@ addresses appears once.
 Paged by cursor rather than page number: offsetting into a merged set this wide
 would re-read every skipped row for every address on each page.
 
-**Query Parameters**
+**Body**
 
-| Parameter   | Type    | Default | Constraints          | Description                                        |
-|-------------|---------|---------|----------------------|----------------------------------------------------|
-| `gap_limit` | integer | `20`    | minimum: 1, max: 100 | Consecutive unused addresses that end the scan     |
-| `limit`     | integer | `25`    | minimum: 1, max: 100 | Results per page                                   |
-| `cursor`    | string  | —       | 64 hex characters    | `nextCursor` from the previous page                |
+| Field       | Type    | Default | Constraints               | Description                                    |
+|-------------|---------|---------|---------------------------|------------------------------------------------|
+| `xpub`      | string  | —       | 100–120 base58 characters | Account-level extended public key. Required.   |
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100      | Consecutive unused addresses that end the scan |
+| `limit`     | integer | `25`    | minimum: 1, max: 100      | Results per page                               |
+| `cursor`    | string  | —       | 64 hex characters         | `nextCursor` from the previous page            |
 
 ```
-GET /xpub/xpub6BsfY.../transactions?limit=25
-GET /xpub/xpub6BsfY.../transactions?limit=25&cursor=9cdf16d29c57f363427e622967720890acb6e0afa12685985763fe7fb628d17a
+POST /xpub/transactions
+{"xpub": "xpub6BsfY...", "limit": 25}
+{"xpub": "xpub6BsfY...", "limit": 25, "cursor": "9cdf16d29c57f363427e622967720890acb6e0afa12685985763fe7fb628d17a"}
 ```
 
 **Response `200`** — [Cursor Response](#cursor-response) of
@@ -1248,7 +1252,7 @@ rather than an internal row id means a cursor stays valid across a reindex.
 
 Ordering is by block height descending, and within a block, later transactions first.
 
-**Response `400`** — as [`GET /xpub/:xpub`](#get-xpubxpub), or the cursor does
+**Response `400`** — as [`POST /xpub`](#post-xpub), or the cursor does
 not name a confirmed transaction (`"Unknown cursor transaction …"`). A cursor
 that no longer resolves fails loudly rather than silently returning the wrong
 page.

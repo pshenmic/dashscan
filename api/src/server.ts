@@ -52,9 +52,7 @@ let redis: Redis;
 let fastify: FastifyInstance;
 
 export const start = async (): Promise<FastifyInstance> => {
-  // A path parameter is capped at 100 chars by default; an extended key is 111,
-  // so /xpub/:xpub would never match.
-  fastify = Fastify({ maxParamLength: 200 });
+  fastify = Fastify();
 
   await fastify.register(cors, {
     // put your options here
