@@ -18,7 +18,8 @@ export interface PaginatedQuery {
   available?: boolean
 }
 
-export interface XpubQuery {
+export interface XpubBody {
+  xpub: string
   gap_limit?: number
   page?: number
   limit?: number

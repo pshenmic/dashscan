@@ -7,7 +7,7 @@ import PaginatedResultSet from '../models/PaginatedResultSet';
 import XpubAddress from '../models/XpubAddress';
 import XpubSummary from '../models/XpubSummary';
 import {Cache} from '../cache';
-import {XpubQuery} from './types';
+import {XpubBody} from './types';
 import {XPUB_DEFAULT_GAP_LIMIT} from '../constants';
 
 export default class XpubController {
@@ -21,9 +21,8 @@ export default class XpubController {
     this.xpubService = new XpubService(this.addressesDAO, cache);
   }
 
-  getXpub = async (request: FastifyRequest<{ Querystring: XpubQuery; Params: { xpub: string } }>, response: FastifyReply): Promise<void> => {
-    const {gap_limit: gapLimit = XPUB_DEFAULT_GAP_LIMIT} = request.query;
-    const {xpub} = request.params;
+  getXpub = async (request: FastifyRequest<{ Body: XpubBody }>, response: FastifyReply): Promise<void> => {
+    const {xpub, gap_limit: gapLimit = XPUB_DEFAULT_GAP_LIMIT} = request.body;
 
     const resolved = await this.xpubService.resolve(xpub, gapLimit);
 
@@ -40,9 +39,8 @@ export default class XpubController {
     }));
   };
 
-  getXpubAddresses = async (request: FastifyRequest<{ Querystring: XpubQuery; Params: { xpub: string } }>, response: FastifyReply): Promise<void> => {
-    const {gap_limit: gapLimit = XPUB_DEFAULT_GAP_LIMIT, page = 1, limit = 100} = request.query;
-    const {xpub} = request.params;
+  getXpubAddresses = async (request: FastifyRequest<{ Body: XpubBody }>, response: FastifyReply): Promise<void> => {
+    const {xpub, gap_limit: gapLimit = XPUB_DEFAULT_GAP_LIMIT, page = 1, limit = 100} = request.body;
 
     const resolved = await this.xpubService.resolve(xpub, gapLimit);
 
@@ -53,9 +51,8 @@ export default class XpubController {
     response.send(new PaginatedResultSet(addresses, page, limit, resolved.addresses.length));
   };
 
-  getXpubUtxo = async (request: FastifyRequest<{ Querystring: XpubQuery; Params: { xpub: string } }>, response: FastifyReply): Promise<void> => {
-    const {gap_limit: gapLimit = XPUB_DEFAULT_GAP_LIMIT, page = 1, limit = 100} = request.query;
-    const {xpub} = request.params;
+  getXpubUtxo = async (request: FastifyRequest<{ Body: XpubBody }>, response: FastifyReply): Promise<void> => {
+    const {xpub, gap_limit: gapLimit = XPUB_DEFAULT_GAP_LIMIT, page = 1, limit = 100} = request.body;
 
     const resolved = await this.xpubService.resolve(xpub, gapLimit);
 
@@ -64,9 +61,8 @@ export default class XpubController {
     response.send(utxo);
   };
 
-  getXpubTransactions = async (request: FastifyRequest<{ Querystring: XpubQuery; Params: { xpub: string } }>, response: FastifyReply): Promise<void> => {
-    const {gap_limit: gapLimit = XPUB_DEFAULT_GAP_LIMIT, limit = 25, cursor} = request.query;
-    const {xpub} = request.params;
+  getXpubTransactions = async (request: FastifyRequest<{ Body: XpubBody }>, response: FastifyReply): Promise<void> => {
+    const {xpub, gap_limit: gapLimit = XPUB_DEFAULT_GAP_LIMIT, limit = 25, cursor} = request.body;
 
     const resolved = await this.xpubService.resolve(xpub, gapLimit);
 
