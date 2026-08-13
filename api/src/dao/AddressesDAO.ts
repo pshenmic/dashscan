@@ -52,12 +52,8 @@ export default class AddressesDAO {
     return new PaginatedResultSet(rows.map(row => Address.fromRow(row)), page, limit, row?.total_count);
   };
 
-  // received/sent/tx_count are maintained per block by the indexer (V28), so
-  // this is a single primary-key lookup instead of a UNION over the address's
-  // entire tx_outputs + tx_inputs history. Balance still comes from `utxo`
-  // rather than received - sent: the columns count confirmed transactions only,
-  // while `utxo` tracks the live set including mempool, which is what the
-  // wallet endpoints and the rich list already report.
+  // received/sent/tx_count are stored columns (V28). Balance comes from `utxo`,
+  // not received - sent: the columns are confirmed-only, `utxo` includes mempool.
   getAddress = async (address: string): Promise<Address | null> => {
     const [row] = await this.knex('addresses')
       .where('addresses.address', address)
@@ -95,8 +91,7 @@ export default class AddressesDAO {
     });
   }
 
-  // tx_count is a stored column (V28); balance stays a per-address `utxo` sum,
-  // which is an index range scan over that address's unspent outputs only.
+  // tx_count is a stored column (V28); balance sums the address's unspent outputs.
   getAddressesInfo = async (addresses: string[]): Promise<AddressInfo[]> => {
     const unique = [...new Set(addresses)];
 
@@ -122,8 +117,8 @@ export default class AddressesDAO {
     });
   }
 
-  // Feeds the xpub gap scan: an address exists here only once the indexer has
-  // seen it on chain, so presence is exactly "has been used".
+  // A row exists only once the indexer has seen the address on chain, so
+  // presence means "used". Feeds the xpub gap scan.
   getAddressIds = async (addresses: string[]): Promise<{ id: number; address: string }[]> => {
     if (addresses.length === 0) {
       return [];
@@ -135,19 +130,16 @@ export default class AddressesDAO {
   /**
    * Wallet-level totals for a set of address ids.
    *
-   * The three values aggregate differently and cannot be lumped together:
-   * balance sums cleanly because every utxo row belongs to exactly one address;
-   * received/sent sum from the stored per-address columns; but tx_count must be
-   * counted distinct, because one transaction paying a receive address with
-   * change back to the same wallet appears under two address ids.
+   * tx_count must be counted distinct, not summed: a transaction paying a
+   * receive address with change back to the same wallet appears under two ids.
    */
   getXpubSummary = async (addressIds: number[]): Promise<XpubSummary> => {
     if (addressIds.length === 0) {
       return XpubSummary.fromRow({balance: '0', received: '0', sent: '0', tx_count: '0'});
     }
 
-    // `= ANY(?)` rather than whereIn: an xpub can resolve to thousands of ids,
-    // and whereIn expands to one bind parameter each.
+    // ANY(?) not whereIn: an xpub resolves to thousands of ids, and whereIn
+    // emits one bind parameter each.
     const ofWallet = (column: string) => (builder: Knex.QueryBuilder) =>
       builder.whereRaw(`${column} = ANY(?)`, [addressIds]);
 
@@ -179,20 +171,16 @@ export default class AddressesDAO {
     });
   }
 
-  // The whole point of this query used to be its own bottleneck: the opening
-  // balance needed every transaction the address had ever made. That part now
-  // comes from the per-day rollup (V31), leaving only the window itself to read
-  // from the raw tables — and that read is scoped to a literal block-height
-  // range so the planner can index into them instead of scanning.
+  // Opening balance comes from the per-day rollup (V31); only the window itself
+  // is read live, scoped to literal block heights so the planner can index it.
   getAddressBalanceSeries = async (address: string, start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
     const addressIdSubquery = this.knex('addresses').select('id').where('address', address);
 
     const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
     const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
 
-    // Rollup days are whole UTC days, so it can only cover up to the midnight
-    // that starts the window's first day; the remainder of that day is read
-    // live along with the rest of the window.
+    // The rollup only covers whole UTC days, so the window's first partial day
+    // is read live along with the rest of the window.
     const startDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
 
     const [heights] = await this.knex('blocks')
@@ -225,8 +213,7 @@ export default class AddressesDAO {
         )
       );
 
-    // tx_inputs.amount (V29) replaces the join back to tx_outputs for the
-    // spent value.
+    // tx_inputs.amount (V29) replaces the join back to tx_outputs.
     const allTxsCTE = this.knex('tx_outputs')
       .join('transactions', 'transactions.id', 'tx_outputs.tx_id')
       .join('blocks', 'blocks.height', 'transactions.block_height')
@@ -242,8 +229,7 @@ export default class AddressesDAO {
           .select('blocks.timestamp', this.knex.raw('COALESCE(tx_inputs.amount, 0)::bigint as value'), this.knex.raw("'spent' as direction"))
       );
 
-    // Rollup days before the window, plus whatever the window's own first
-    // partial day contributed before `start`.
+    // Rollup days before the window, plus the first partial day before `start`.
     const initialBalanceCTE = this.knex('all_txs')
       .where('timestamp', '<', start.toISOString())
       .select(
@@ -332,10 +318,8 @@ export default class AddressesDAO {
     );
   }
 
-  // Paginated over address ids rather than address strings: an xpub can resolve
-  // to thousands of addresses, and the unspent set across all of them is
-  // unbounded. Ordered by amount so the largest inputs — the ones a wallet
-  // reaches for first when building a spend — land on the first page.
+  // Paginated: the unspent set across an xpub's addresses is unbounded. Largest
+  // first, so a wallet building a spend finds its inputs on page one.
   getXpubUtxo = async (addressIds: number[], page: number, limit: number): Promise<PaginatedResultSet<Utxo>> => {
     if (addressIds.length === 0) {
       return new PaginatedResultSet<Utxo>([], page, limit, 0);

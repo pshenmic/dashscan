@@ -1,7 +1,6 @@
 import Redis from 'ioredis';
 
-// Shared across API instances, so an N-instance deployment makes one RPC call
-// rather than N, and expires them together.
+// Shared across API instances, so N instances make one RPC call, not N.
 export class Cache {
   private redis: Redis;
   private prefix: string;

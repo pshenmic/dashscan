@@ -36,8 +36,7 @@ function errorHandler(err: FastifyError, req: FastifyRequest, reply: FastifyRepl
     return;
   }
 
-  // Schema validation failures arrive with statusCode 400; discarding it turned
-  // every malformed request into a 500.
+  // Schema validation failures carry statusCode 400; without this they 500.
   if (err.statusCode != null && err.statusCode >= 400 && err.statusCode < 500) {
     reply.status(err.statusCode).send({ error: err.message });
     return;
@@ -53,9 +52,8 @@ let redis: Redis;
 let fastify: FastifyInstance;
 
 export const start = async (): Promise<FastifyInstance> => {
-  // find-my-way caps a single path parameter at 100 characters by default, and
-  // a serialised extended key is 111 — without this the /xpub/:xpub routes are
-  // never matched and every request 404s.
+  // A path parameter is capped at 100 chars by default; an extended key is 111,
+  // so /xpub/:xpub would never match.
   fastify = Fastify({ maxParamLength: 200 });
 
   await fastify.register(cors, {

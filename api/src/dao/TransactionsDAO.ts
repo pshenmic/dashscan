@@ -14,11 +14,8 @@ export default class TransactionsDAO {
     this.knex = knex;
   }
 
-  // spent_by_tx_id / spent_by_vin_index (V30) are written by the indexer when
-  // the output is spent, replacing a per-output LATERAL into tx_inputs. The
-  // indexer applies the precedence the LATERAL's ORDER BY used to encode: a
-  // confirmed spend wins over a mempool one. Only the spender's hash and height
-  // still need a join, and that is a primary-key lookup.
+  // spent_by_* (V30) is set by the indexer at spend time; a confirmed spend
+  // overwrites a mempool one. Only the spender's hash/height needs a join.
   private outputsAggregate = (): Knex.QueryBuilder => this.knex('tx_outputs')
     .leftJoin('addresses', 'addresses.id', 'tx_outputs.address_id')
     .leftJoin('transactions as spend_tx', 'spend_tx.id', 'tx_outputs.spent_by_tx_id')
@@ -40,8 +37,7 @@ export default class TransactionsDAO {
       `))
     .groupBy('tx_outputs.tx_id');
 
-  // tx_inputs.amount (V29) is the spent output's value, denormalized by the
-  // indexer, so this no longer joins back to tx_outputs to read it.
+  // tx_inputs.amount (V29) is the spent output's value, so no join to tx_outputs.
   private inputsAggregate = (): Knex.QueryBuilder => this.knex('tx_inputs')
     .leftJoin('addresses', 'addresses.id', 'tx_inputs.address_id')
     .whereIn('tx_inputs.tx_id', this.knex('subquery').select('id'))
@@ -66,10 +62,8 @@ export default class TransactionsDAO {
     // TODO: Slow on pages like 10000000, maybe we need to add cursor
     //  or something what can improve performance
     //
-    // Unfiltered: the pg_class estimate, as before. Filtered by a single block:
-    // an exact count scoped to that one block is already cheap. Otherwise the
-    // filters are answered exactly by summing transaction_type_counts (V33) —
-    // a few dozen rows — instead of counting the whole table per page.
+    // Counting the whole table per page is too slow: unfiltered uses the
+    // pg_class estimate, filtered sums transaction_type_counts (V33).
     const countSubquery = blockHeight != null
       ? this.knex('transactions')
           .count('* as reltuples')
@@ -387,9 +381,8 @@ export default class TransactionsDAO {
       .limit(limit)
       .offset(fromRank);
 
-    // Unfiltered, the total is the stored per-address counter (V28) — no scan of
-    // this address's index entries at all. A type filter has no counter, so it
-    // still counts, scoped to the one address.
+    // addresses.tx_count (V28) is the stored total. No counter exists per type,
+    // so a type filter still counts.
     const countSubquery = transactionType != null
       ? this.knex('address_transactions')
           .where('address_transactions.address_id', addressIdSubquery)
@@ -455,22 +448,12 @@ export default class TransactionsDAO {
   }
 
   /**
-   * Merged transaction history across every address of an xpub, newest first.
+   * Merged, deduplicated transaction history across every address of an xpub.
    *
-   * Written as a top-N-per-address LATERAL rather than
-   * `WHERE address_id = ANY(...) ORDER BY block_height DESC LIMIT n`: the plain
-   * form plans as a bitmap scan plus a full sort with no LIMIT pushdown, so it
-   * reads the wallet's entire history to return one page. Each inner scan here
-   * is an index-only range scan of (address_id, block_height DESC) that stops
-   * at LIMIT, and any transaction in the global top-N must appear in some
-   * address's top-N, so the merge is exact.
-   *
-   * Keyset, not OFFSET: at a deep offset the LATERAL would have to re-read
-   * offset+limit rows per address. `cursor` is the hash of the previous page's
-   * last transaction — a chain-native identifier, so it survives a re-sync,
-   * unlike the internal tx_id it is resolved to here.
-   *
-   * A transaction touching several of the wallet's addresses is returned once.
+   * Top N per address, then merged — exact, since a transaction in the global
+   * top N is always in some address's top N. A plain
+   * `address_id = ANY(...) ORDER BY block_height LIMIT n` gets no LIMIT pushdown.
+   * `cursor` is the previous page's last transaction hash.
    */
   getXpubTransactions = async (
     addressIds: number[],
@@ -497,16 +480,13 @@ export default class TransactionsDAO {
     // One extra row tells us whether a further page exists.
     const perAddress = limit + 1;
 
-    // Only the lateral itself is raw — knex cannot express CROSS JOIN LATERAL,
-    // the same reason outputsAggregate uses joinRaw. Its body is built here so
-    // the cursor predicate stays a normal builder clause.
+    // knex cannot express CROSS JOIN LATERAL, so only the join is raw.
     const perAddressPage = this.knex('address_transactions as at')
       .whereRaw('at.address_id = ids.address_id')
       .modify((builder) => {
         if (position != null) {
-          // block_height <= bounds the index range; the second test discards
-          // the already-returned part of the boundary block. tx_id is in the
-          // index's INCLUDE list, so this stays index-only.
+          // <= bounds the index range; the rest discards the already-returned
+          // part of the boundary block. Stays index-only (tx_id is INCLUDEd).
           builder
             .where('at.block_height', '<=', position.block_height)
             .andWhere((inner) => {
@@ -517,16 +497,13 @@ export default class TransactionsDAO {
         }
       })
       .select('at.tx_id', 'at.block_height')
-      // Must match the outer ordering exactly. Ordering only by block_height
-      // leaves the cut among rows sharing the boundary block undefined, so an
-      // address can contribute an arbitrary subset of them — and the cursor
-      // then advances past the ones it dropped, losing them for good.
+      // Must match the outer ordering, or rows sharing the boundary block are
+      // cut arbitrarily and the cursor skips past the dropped ones.
       .orderBy('at.block_height', 'desc')
       .orderBy('at.tx_id', 'desc')
       .limit(perAddress);
 
-    // toSQL, not toString: toString would interpolate the cursor values into
-    // the statement instead of leaving them as bind parameters.
+    // toSQL keeps the cursor values as bind parameters; toString inlines them.
     const lateral = perAddressPage.toSQL();
 
     const addressTxIdsCTE = this.knex
@@ -606,11 +583,9 @@ export default class TransactionsDAO {
         .select(this.knex.raw('unnest(ARRAY[payee, owner_address, voting_address, collateral_address])')))
       .select('addresses.id');
 
-    // address_transactions is the per-address tx index: one row per (address_id, tx_id)
-    // carrying block_height. Ranging it by (address_id, block_height DESC) gives
-    // the page directly off the index — no full-history scan or sort. A tx can
-    // appear under several of the masternode's addresses, so dedup per tx_id
-    // (MAX block_height is identical across them — same tx, same block).
+    // Ranging address_transactions by (address_id, block_height DESC) gives the
+    // page off the index. A tx can appear under several of the masternode's
+    // addresses, so dedup per tx_id.
     const addressTxIdsCTE = this.knex('address_transactions')
       .whereIn('address_id', this.knex('masternode_address_ids').select('id'))
       .select('tx_id')
@@ -620,12 +595,8 @@ export default class TransactionsDAO {
       .limit(limit)
       .offset(fromRank);
 
-    // A masternode's payee/owner/voting/collateral addresses often overlap, and
-    // one transaction can touch several of them. Summing per-address counters
-    // (or the weekly rollup, as this did) counts such a transaction once per
-    // address, overstating the total — so this counts distinct tx_ids. It stays
-    // an index-only scan of (address_id, block_height) INCLUDE (tx_id), bounded
-    // to at most four addresses.
+    // One transaction can touch several of the masternode's four addresses, so
+    // summing per-address counters overstates the total. Count distinct.
     const countSubquery = this.knex('address_transactions')
       .whereIn('address_id', this.knex('masternode_address_ids').select('id'))
       .countDistinct('tx_id as count');
@@ -685,11 +656,9 @@ export default class TransactionsDAO {
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
   }
 
-  // Whole hours inside the window come from chain_stats_hourly (V32); only the
-  // partial hours at each edge are counted live off `transactions`, and those
-  // are resolved to a literal block-height range first so the planner can index
-  // into the table. A window shorter than an hour boundary runs fully live, as
-  // it always did — it is cheap by definition.
+  // Whole hours come from chain_stats_hourly (V32); the partial hours at each
+  // edge are counted live, scoped to literal block heights. A sub-hour window
+  // runs fully live.
   getTransactionStats = async (start: Date, end: Date): Promise<TransactionStats | null> => {
     const msPerHour = 3600000;
     const hourLo = new Date(Math.ceil(start.getTime() / msPerHour) * msPerHour);

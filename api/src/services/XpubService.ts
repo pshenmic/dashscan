@@ -26,8 +26,7 @@ export default class XpubService {
     this.cache = cache;
   }
 
-  // Digest rather than the key itself: Redis keys surface in MONITOR, slowlog
-  // and keyspace dumps, and an xpub discloses a wallet's whole history.
+  // Digest, not the key: Redis keys surface in MONITOR and keyspace dumps.
   private cacheKey = (xpub: string, branch: number): string =>
     `xpub:${createHash('sha256').update(`${NETWORK}:${xpub}`).digest('hex')}:${branch}`;
 
@@ -74,16 +73,11 @@ export default class XpubService {
   };
 
   /**
-   * Resolves an account-level key (m/44'/5'/account') to the addresses the
-   * wallet actually uses, by BIP44 gap-limit scan. Branch 0 is receive, 1 change.
+   * Resolves an account-level key (m/44'/5'/account') to the wallet's addresses
+   * by BIP44 gap-limit scan. Branch 0 is receive, 1 change.
    *
-   * Both the derived strings and the ids of addresses already seen on chain are
-   * cached. Caching used-ness is safe because it is monotonic — the indexer
-   * inserts a row the first time an address appears and never deletes it — so
-   * only addresses still unused at the last scan need re-checking. That keeps
-   * the per-request lookup proportional to the trailing gap rather than to the
-   * whole wallet, and a payment to a derived-but-unused address still shows up
-   * immediately.
+   * Derived strings and known ids are both cached. Caching used-ness is safe
+   * because it is monotonic: the indexer never deletes an address row.
    */
   resolve = async (xpub: string, gapLimit: number): Promise<ResolvedXpub> => {
     const node = this.parse(xpub);
@@ -102,9 +96,8 @@ export default class XpubService {
 
       const known = new Map<string, number>(Object.entries(cached?.ids ?? {}));
 
-      // Used-ness is confirmed lazily, in batches, only as far as the scan
-      // actually walks. Checking the whole cached list up front would make a
-      // single large gap_limit request tax every later one for the cache's life.
+      // Confirmed lazily, only as far as the scan walks — checking the whole
+      // cached list up front would make one large gap_limit request tax the rest.
       let checkedTo = 0;
 
       const confirmUpTo = async (index: number): Promise<void> => {
@@ -119,10 +112,8 @@ export default class XpubService {
         }
       };
 
-      // Stop at the first run of `gapLimit` consecutive unused addresses — that
-      // is the end of the wallet. Deriving in batches and only checking the gap
-      // between them would scan past it and pick up addresses the wallet itself
-      // would never derive.
+      // Stop at the first run of `gapLimit` consecutive unused addresses: the
+      // end of the wallet. Checking only between batches would scan past it.
       let scannedTo = 0;
       let run = 0;
 
@@ -139,8 +130,7 @@ export default class XpubService {
         scannedTo++;
       }
 
-      // Cached beyond the cutoff on purpose: derivation is immutable, so a
-      // later call with a larger gap limit reuses it instead of re-deriving.
+      // Cached past the cutoff on purpose: a later, larger gap_limit reuses it.
       await this.cache.set(key, {derived, ids: Object.fromEntries(known)}, XPUB_CACHE_LIFE_TIME);
 
       let firstUnused: number | null = null;
