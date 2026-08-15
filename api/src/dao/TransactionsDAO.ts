@@ -54,6 +54,27 @@ export default class TransactionsDAO {
       `))
     .groupBy('tx_inputs.tx_id');
 
+  private pendingTransactionIds = (
+    ownedBy: (builder: Knex.QueryBuilder, column: string) => void,
+    transactionType?: TransactionType,
+  ): Knex.QueryBuilder => this.knex('transactions as pending')
+    .whereNull('pending.block_height')
+    .modify((builder) => {
+      if (transactionType != null) {
+        builder.where('pending.type', transactionType);
+      }
+    })
+    .andWhere((builder) => {
+      builder
+        .whereExists(this.knex('tx_outputs as o')
+          .whereRaw('o.tx_id = pending.id')
+          .modify((inner) => ownedBy(inner, 'o.address_id')))
+        .orWhereExists(this.knex('tx_inputs as i')
+          .whereRaw('i.tx_id = pending.id')
+          .modify((inner) => ownedBy(inner, 'i.address_id')));
+    })
+    .select('pending.id as tx_id', 'pending.block_height');
+
   getTransactions = async (page: number, limit: number, order: string, transactionType?: TransactionType, coinjoin?: boolean, multisig?: boolean, blockHeight?: number): Promise<PaginatedResultSet<Transaction>> => {
     const fromRank = (page - 1) * limit;
 
@@ -381,6 +402,20 @@ export default class TransactionsDAO {
       .limit(limit)
       .offset(fromRank);
 
+    // Pending transactions are returned in full on the first page of a
+    // newest-first listing, above the tip. They have no height, so they cannot
+    // be placed within an offset page or counted toward `total`.
+    const includePending = page === 1 && order === 'desc';
+
+    const pendingIds = this.pendingTransactionIds(
+      (builder, column) => builder.where(column, addressIdSubquery),
+      transactionType,
+    );
+
+    const pageIds = includePending
+      ? this.knex.queryBuilder().unionAll([addressTxIdsCTE, pendingIds], true)
+      : addressTxIdsCTE;
+
     // addresses.tx_count (V28) is the stored total. No counter exists per type,
     // so a type filter still counts.
     const countSubquery = transactionType != null
@@ -419,7 +454,7 @@ export default class TransactionsDAO {
     const inputsCTE = this.inputsAggregate();
 
     const rows = await this.knex
-      .with('address_tx_ids', addressTxIdsCTE)
+      .with('address_tx_ids', pageIds)
       .with('subquery', subquery)
       .with('total_count', countSubquery)
       .with('agg_outputs', outputsCTE)
@@ -439,6 +474,10 @@ export default class TransactionsDAO {
       .leftJoin('special_transactions', 'special_transactions.tx_id', 'subquery.id')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .leftJoin('blocks', 'blocks.height', 'block_height')
+      // DESC puts NULL block heights first in Postgres, so pending sort above
+      // the tip. ASC leaves them last, which is why they are only included on a
+      // newest-first first page.
+      .orderBy('subquery.block_height', order)
       .orderBy('subquery.id', order)
       .from('subquery')
 
@@ -516,6 +555,20 @@ export default class TransactionsDAO {
       .orderBy('s.tx_id', 'desc')
       .limit(perAddress);
 
+    // address_transactions is keyed by block height, so unconfirmed spends and
+    // receipts are not in it. Driven from the mempool side — the set of pending
+    // transactions is small — rather than from the wallet's addresses, whose
+    // history is not. Only on the first page: later pages sit below the tip.
+    const pendingIds = this.pendingTransactionIds(
+      (builder, column) => builder.whereRaw(`${column} = ANY(?)`, [addressIds]),
+    );
+
+    // Union from an empty base builder, as getAddressesActivity does: hanging
+    // it off the first part would render that part's GROUP BY after the union.
+    const pageIds = cursor != null
+      ? addressTxIdsCTE
+      : this.knex.queryBuilder().unionAll([addressTxIdsCTE, pendingIds], true);
+
     const blockMaxHeightSubquery = this.knex('blocks')
       .select(this.knex.raw('MAX(height) as max_height'))
       .as('height_subquery');
@@ -540,7 +593,7 @@ export default class TransactionsDAO {
     const inputsCTE = this.inputsAggregate();
 
     const rows = await this.knex
-      .with('address_tx_ids', addressTxIdsCTE)
+      .with('address_tx_ids', pageIds)
       .with('subquery', subquery)
       .with('agg_outputs', outputsCTE)
       .with('agg_inputs', inputsCTE)
@@ -559,16 +612,24 @@ export default class TransactionsDAO {
       .leftJoin('special_transactions', 'special_transactions.tx_id', 'subquery.id')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .leftJoin('blocks', 'blocks.height', 'block_height')
+      // DESC puts NULL block heights first in Postgres, so pending sort above
+      // the tip, which is where a wallet expects them.
       .orderBy('subquery.block_height', 'desc')
       .orderBy('subquery.id', 'desc')
       .from('subquery');
 
-    const hasMore = rows.length > limit;
-    const page = hasMore ? rows.slice(0, limit) : rows;
+    // `limit` applies to confirmed transactions; pending are always returned in
+    // full, and only on the first page. They carry no height, so they can
+    // neither be counted against the page nor named by a cursor.
+    const pending = rows.filter((row: any) => row.block_height == null);
+    const confirmed = rows.filter((row: any) => row.block_height != null);
+
+    const hasMore = confirmed.length > limit;
+    const page = hasMore ? confirmed.slice(0, limit) : confirmed;
     const last = page[page.length - 1];
 
     return new CursorResultSet(
-      page.map(Transaction.fromRow),
+      [...pending, ...page].map(Transaction.fromRow),
       limit,
       hasMore && last != null ? last.hash : null,
     );
