@@ -447,6 +447,19 @@ export default function Routes({ fastify, mainController, blocksController, tran
       method: 'get',
       handler: peersController.getPeers,
       schema: {
+        querystring: {
+          allOf: [
+            { $ref: 'paginationOptions#' },
+            { $ref: 'peersOptions#' },
+          ],
+        },
+      },
+    },
+    {
+      path: '/peers/user-agents',
+      method: 'get',
+      handler: peersController.getPeerUserAgents,
+      schema: {
         querystring: { $ref: 'paginationOptions#' },
       },
     },
