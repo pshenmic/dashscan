@@ -19,3 +19,11 @@ export interface PaginatedQuery {
   user_agent?: string
   ip?: string
 }
+
+export interface XpubBody {
+  xpub: string
+  gap_limit?: number
+  page?: number
+  limit?: number
+  cursor?: string
+}

@@ -1,12 +1,16 @@
 mod address_activity;
+mod address_stats;
 mod address_transactions;
 mod addresses;
 mod blocks;
+mod chain_stats;
 mod inputs;
 mod masternodes;
 mod outputs;
 mod transactions;
 mod utxo;
+
+pub use chain_stats::ChainStatsHour;
 
 use deadpool_postgres::{Client, Pool, PoolError};
 

@@ -13,16 +13,22 @@ impl Database {
     /// `COPY ... FROM STDIN BINARY` into a session-lifetime temp staging
     /// table, then move to `tx_inputs` with `ON CONFLICT DO NOTHING`.
     ///
-    /// `input_addresses` maps `(prev_tx_hash, prev_vout_index)` → `address_id`
-    /// and `prev_tx_ids` maps `prev_tx_hash` → `prev_tx_id`, both fully
+    /// `input_addresses` maps `(prev_tx_hash, prev_vout_index)` → `address_id`,
+    /// `input_amounts` the same key → the spent output's value, and
+    /// `prev_tx_ids` maps `prev_tx_hash` → `prev_tx_id`, all fully
     /// resolved by the caller (in-memory batch cache + single DB join +
     /// RPC fallback). This method does no DB reads.
+    ///
+    /// `amount` is denormalized here so the API's inputs aggregate stops
+    /// joining back to tx_outputs just to read it (V29). It stays NULL for
+    /// coinbase inputs and for prev outputs we could not resolve.
     pub async fn insert_tx_inputs_batch(
         &self,
         client: &Transaction<'_>,
         transactions: &[&RpcTransaction],
         tx_map: &HashMap<String, i32>,
         input_addresses: &HashMap<(String, i32), i32>,
+        input_amounts: &HashMap<(String, i32), i64>,
         prev_tx_ids: &HashMap<String, i32>,
     ) -> Result<(), PoolError> {
         let mut rows: Vec<(
@@ -33,6 +39,7 @@ impl Database {
             Option<i32>,
             Option<&str>,
             Option<i32>,
+            Option<i64>,
         )> = Vec::new();
 
         for tx in transactions {
@@ -49,6 +56,11 @@ impl Database {
                     .as_ref()
                     .zip(vin.vout)
                     .and_then(|(h, v)| input_addresses.get(&(h.clone(), v)).copied());
+                let amount = vin
+                    .txid
+                    .as_ref()
+                    .zip(vin.vout)
+                    .and_then(|(h, v)| input_amounts.get(&(h.clone(), v)).copied());
                 rows.push((
                     tx_id,
                     i as i32,
@@ -57,6 +69,7 @@ impl Database {
                     vin.vout,
                     vin.coinbase.as_deref(),
                     addr_id,
+                    amount,
                 ));
             }
         }
@@ -74,7 +87,8 @@ impl Database {
                     prev_tx_id INT, \
                     prev_vout_index INT, \
                     coinbase_data TEXT, \
-                    address_id INT\
+                    address_id INT, \
+                    amount BIGINT\
                  ); \
                  TRUNCATE tx_inputs_stage",
             )
@@ -83,7 +97,7 @@ impl Database {
         let sink = client
             .copy_in(
                 "COPY tx_inputs_stage \
-                 (tx_id, vin_index, prev_tx_hash, prev_tx_id, prev_vout_index, coinbase_data, address_id) \
+                 (tx_id, vin_index, prev_tx_hash, prev_tx_id, prev_vout_index, coinbase_data, address_id, amount) \
                  FROM STDIN BINARY",
             )
             .await?;
@@ -96,14 +110,23 @@ impl Database {
             Type::INT4,
             Type::TEXT,
             Type::INT4,
+            Type::INT8,
         ];
         let writer = BinaryCopyInWriter::new(sink, &types);
         pin_mut!(writer);
 
-        for (tx_id, vin_index, prev_tx_hash, prev_tx_id, prev_vout_index, coinbase_data, address_id)
-            in &rows
+        for (
+            tx_id,
+            vin_index,
+            prev_tx_hash,
+            prev_tx_id,
+            prev_vout_index,
+            coinbase_data,
+            address_id,
+            amount,
+        ) in &rows
         {
-            let values: [&(dyn ToSql + Sync); 7] = [
+            let values: [&(dyn ToSql + Sync); 8] = [
                 tx_id,
                 vin_index,
                 prev_tx_hash,
@@ -111,6 +134,7 @@ impl Database {
                 prev_vout_index,
                 coinbase_data,
                 address_id,
+                amount,
             ];
             writer.as_mut().write(&values).await?;
         }
@@ -119,8 +143,8 @@ impl Database {
         client
             .execute(
                 "INSERT INTO tx_inputs \
-                 (tx_id, vin_index, prev_tx_hash, prev_tx_id, prev_vout_index, coinbase_data, address_id) \
-                 SELECT tx_id, vin_index, prev_tx_hash, prev_tx_id, prev_vout_index, coinbase_data, address_id \
+                 (tx_id, vin_index, prev_tx_hash, prev_tx_id, prev_vout_index, coinbase_data, address_id, amount) \
+                 SELECT tx_id, vin_index, prev_tx_hash, prev_tx_id, prev_vout_index, coinbase_data, address_id, amount \
                  FROM tx_inputs_stage \
                  ON CONFLICT DO NOTHING",
                 &[],

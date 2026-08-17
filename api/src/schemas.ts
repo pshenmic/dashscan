@@ -14,6 +14,29 @@ const schemas = [
     pattern: '^[A-Za-z0-9]+$',
   },
   {
+    // A serialised extended key is 78 bytes → 111 base58 characters.
+    $id: 'xpub',
+    type: 'string',
+    minLength: 100,
+    maxLength: 120,
+    pattern: '^[a-km-zA-HJ-NP-Z1-9]+$',
+  },
+  {
+    // Body, not query or path: an extended public key must not reach access
+    // logs, and paths do.
+    $id: 'xpubBody',
+    type: 'object',
+    required: ['xpub'],
+    properties: {
+      xpub: { $ref: 'xpub#' },
+      gap_limit: { type: 'integer', minimum: 1, maximum: 100 },
+      page: { type: 'integer', minimum: 1 },
+      limit: { type: 'integer', minimum: 1, maximum: 100 },
+      // Hash of the previous page's last transaction, from nextCursor.
+      cursor: { $ref: 'hash#' },
+    },
+  },
+  {
     $id: 'addressList',
     type: 'object',
     properties: {

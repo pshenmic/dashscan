@@ -75,10 +75,10 @@
   resolved "https://registry.yarnpkg.com/@ioredis/commands/-/commands-1.10.0.tgz#cc387f8ec5ebe5b3b5104d393b5ac1f9cf794b9a"
   integrity sha512-UmeW7z4LfctwoQ5wkhVzgq8tXkreED2xZGpX+Bg+zA+WJFZCT6c062AfCK/Dfk81xZnnwdhJCUMkitihRaoC2Q==
 
-"@ip-location-db/dbip-city-mmdb@^2.3.2026040119":
-  version "2.3.2026040119"
-  resolved "https://registry.yarnpkg.com/@ip-location-db/dbip-city-mmdb/-/dbip-city-mmdb-2.3.2026040119.tgz#c0040707d819de8623bb3a0e910a48d77bac8bd6"
-  integrity sha512-C62uSdLcj+MB+VbG7E74NkaIOmpf7rGy4O6IRbjJMfQZXP2kTaBlG5n1ATrBcJUwM3X4s+hrH92CCjFUpHb1Mg==
+"@ip-location-db/dbip-city-mmdb@^2.3.2026060513":
+  version "2.3.2026060513"
+  resolved "https://registry.yarnpkg.com/@ip-location-db/dbip-city-mmdb/-/dbip-city-mmdb-2.3.2026060513.tgz#fe3f6dbe8230d7256a6f48d5c6cf59c211df0ec2"
+  integrity sha512-zrTJXW4+5MpTCbdy0gFXDJxAvqBNsJB8alih0Kcy09BC7EP2SfPA2lZpuJZZjhO4UCcs/xg9qAkO8x5sAw84Ng==
 
 "@jridgewell/resolve-uri@^3.0.3":
   version "3.1.2"
@@ -98,6 +98,13 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
+"@noble/curves@2.3.0":
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/@noble/curves/-/curves-2.3.0.tgz#0ac09b0c0fc3ceffbbe599c2e5685b5f59ab005d"
+  integrity sha512-v7cY+4oWYPQszRj6ZFGzTVL7uP2TaLo1xMhWHzYC5wj0ZhOXQ5x+sBre8rF3hi8cAoi0bh1qXoovoOkdFtvqEg==
+  dependencies:
+    "@noble/hashes" "2.3.0"
+
 "@noble/curves@^2.0.1", "@noble/curves@~2.0.0":
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/@noble/curves/-/curves-2.0.1.tgz#64ba8bd5e8564a02942655602515646df1cdb3ad"
@@ -109,6 +116,11 @@
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-2.0.1.tgz#fc1a928061d1232b0a52bb754393c37a5216c89e"
   integrity sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==
+
+"@noble/hashes@2.3.0":
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-2.3.0.tgz#505fd39c3134a37e67c8c4e6c6049a496154879c"
+  integrity sha512-oN+QwyX7VSHotibwubG3kpzbwKrfnyR6OOO+3Nk/53ADL7FmgHHz4TgrbaYKvvOw09u6QTx0oiH1cNCIOuN0CQ==
 
 "@noble/hashes@^2.0.1":
   version "2.2.0"
@@ -154,6 +166,20 @@
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/@scure/base/-/base-2.0.0.tgz#ba6371fddf92c2727e88ad6ab485db6e624f9a98"
   integrity sha512-3E1kpuZginKkek01ovG8krQ0Z44E3DHPjc5S2rjJw9lZn3KSQOs8S7wqikF/AH7iRanHypj85uGyxk0XAyC37w==
+
+"@scure/base@2.3.0":
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/@scure/base/-/base-2.3.0.tgz#fc7acb5b7084c53e4e2537d83fa72cddac7143fd"
+  integrity sha512-NsG6Y03tY6R5BUis4FdVtHVkur0U6FOzskgs9ZXNl78CUc9fkZ78HmENUle1nSOkCasDmbubmWD9qwB7mm4PZA==
+
+"@scure/bip32@^2.3.0":
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/@scure/bip32/-/bip32-2.3.0.tgz#fa29c8b3f894203c246f3bd51b87acfc492b5432"
+  integrity sha512-mMPjNcXxJsvNveIgRIXrnwd4omu0wdXo4JowAUZO7/82+/bpAwVltclx6MG6nv2M3dA6IbfVv4xwWxaREm3OcA==
+  dependencies:
+    "@noble/curves" "2.3.0"
+    "@noble/hashes" "2.3.0"
+    "@scure/base" "2.3.0"
 
 "@scure/btc-signer@^2.0.1":
   version "2.0.1"

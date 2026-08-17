@@ -5,7 +5,7 @@ import {PaginatedQuery} from "./types";
 import {calculateInterval, iso8601duration} from "../utils";
 import Intervals from "../enums/Intervals";
 import {Cache} from "../cache";
-import {DashCoreRPC} from "../dashcoreRPC";
+import {DashCoreRPC, UtxoInfoRPC} from "../dashcoreRPC";
 import AddressBalance from "../models/AddressBalance";
 import {CONCENTRATION_DECIMALS, UTXO_INFO_LIFE_TIME} from "../constants";
 
@@ -118,11 +118,11 @@ export default class AddressesController {
   }>, response: FastifyReply): Promise<void> => {
     const {page = 1, limit = 10, order = 'asc'} = request.query;
 
-    let utxoInfo = this.cache.get('utxoInfo');
+    let utxoInfo = await this.cache.get<UtxoInfoRPC>('utxoInfo');
 
     if (utxoInfo==null) {
       utxoInfo = await this.dashcoreRPC.getUtxoInfo();
-      this.cache.set('utxoInfo', utxoInfo, UTXO_INFO_LIFE_TIME)
+      await this.cache.set('utxoInfo', utxoInfo, UTXO_INFO_LIFE_TIME)
     }
 
     const {total_amount: totalSupply} = utxoInfo

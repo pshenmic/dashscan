@@ -8,6 +8,7 @@ import SearchController from './controllers/SearchController';
 import GovernanceController from "./controllers/GovernanceController";
 import PeersController from "./controllers/PeersController";
 import MainController from './controllers/MainController';
+import XpubController from './controllers/XpubController';
 
 interface RoutesOptions {
   fastify: FastifyInstance;
@@ -20,9 +21,11 @@ interface RoutesOptions {
   searchController: SearchController;
   governanceController: GovernanceController;
   peersController: PeersController;
+  xpubController: XpubController;
 }
 
-export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController, peersController }: RoutesOptions): void {
+export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController, peersController, xpubController }: RoutesOptions): void {
+
   const routes = [
     {
       path: '/status',
@@ -459,6 +462,30 @@ export default function Routes({ fastify, mainController, blocksController, tran
       schema: {
         querystring: { $ref: 'paginationOptions#' },
       },
+    },
+    {
+      path: '/xpub',
+      method: 'post',
+      handler: xpubController.getXpub,
+      schema: { body: { $ref: 'xpubBody#' } },
+    },
+    {
+      path: '/xpub/addresses',
+      method: 'post',
+      handler: xpubController.getXpubAddresses,
+      schema: { body: { $ref: 'xpubBody#' } },
+    },
+    {
+      path: '/xpub/utxo',
+      method: 'post',
+      handler: xpubController.getXpubUtxo,
+      schema: { body: { $ref: 'xpubBody#' } },
+    },
+    {
+      path: '/xpub/transactions',
+      method: 'post',
+      handler: xpubController.getXpubTransactions,
+      schema: { body: { $ref: 'xpubBody#' } },
     }
   ];
 

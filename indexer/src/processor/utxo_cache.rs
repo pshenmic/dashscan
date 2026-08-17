@@ -13,8 +13,8 @@ use std::collections::HashMap;
 pub(super) struct UtxoCache {
     /// prev_tx_hash → prev_tx_id
     hash_to_id: HashMap<String, i32>,
-    /// (prev_tx_id, vout_idx) → address_id
-    by_id: HashMap<(i32, i32), i32>,
+    /// (prev_tx_id, vout_idx) → (address_id, value in duffs)
+    by_id: HashMap<(i32, i32), (i32, i64)>,
     /// tx_id → unspent vouts remaining (drop entire tx when this hits 0)
     refcount: HashMap<i32, u32>,
     max_entries: usize,
@@ -34,9 +34,10 @@ impl UtxoCache {
         self.by_id.len()
     }
 
-    /// Register a freshly-committed tx's address-bearing outputs.
+    /// Register a freshly-committed tx's address-bearing outputs as
+    /// `(vout_idx, address_id, value)`.
     /// Skips when the cache is at capacity to keep memory bounded.
-    pub fn insert(&mut self, tx_hash: &str, tx_id: i32, outputs: &[(i32, i32)]) {
+    pub fn insert(&mut self, tx_hash: &str, tx_id: i32, outputs: &[(i32, i32, i64)]) {
         if outputs.is_empty() {
             return;
         }
@@ -44,17 +45,17 @@ impl UtxoCache {
             return;
         }
         self.hash_to_id.insert(tx_hash.to_string(), tx_id);
-        for &(vout_idx, addr_id) in outputs {
-            self.by_id.insert((tx_id, vout_idx), addr_id);
+        for &(vout_idx, addr_id, value) in outputs {
+            self.by_id.insert((tx_id, vout_idx), (addr_id, value));
         }
         self.refcount.insert(tx_id, outputs.len() as u32);
     }
 
-    /// Return `(prev_tx_id, address_id)` for `(prev_hash, vout_idx)` on hit.
-    pub fn lookup(&self, prev_hash: &str, vout_idx: i32) -> Option<(i32, i32)> {
+    /// Return `(prev_tx_id, address_id, value)` for `(prev_hash, vout_idx)` on hit.
+    pub fn lookup(&self, prev_hash: &str, vout_idx: i32) -> Option<(i32, i32, i64)> {
         let prev_tx_id = *self.hash_to_id.get(prev_hash)?;
-        let addr_id = *self.by_id.get(&(prev_tx_id, vout_idx))?;
-        Some((prev_tx_id, addr_id))
+        let (addr_id, value) = *self.by_id.get(&(prev_tx_id, vout_idx))?;
+        Some((prev_tx_id, addr_id, value))
     }
 
     /// Decrement refcount for a spent output; drop the tx entry when its
