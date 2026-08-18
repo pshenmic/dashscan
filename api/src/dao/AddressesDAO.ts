@@ -190,13 +190,16 @@ export default class AddressesDAO {
         this.knex.raw('MAX(height) as height_to'),
       ) as any[];
 
-    const scopeToWindow = (builder: Knex.QueryBuilder) => {
-      if (heights?.height_from == null) {
-        builder.whereRaw('false');
-      } else {
-        builder.whereBetween('transactions.block_height', [heights.height_from, heights.height_to]);
-      }
-    };
+    const windowTxsCTE = this.knex('address_transactions')
+      .where('address_id', addressIdSubquery)
+      .modify((builder) => {
+        if (heights?.height_from == null) {
+          builder.whereRaw('false');
+        } else {
+          builder.whereBetween('block_height', [heights.height_from, heights.height_to]);
+        }
+      })
+      .select('tx_id', 'block_height');
 
     const openingCTE = this.knex('address_balance_deltas')
       .where('address_id', addressIdSubquery)
@@ -213,19 +216,16 @@ export default class AddressesDAO {
         )
       );
 
-    // tx_inputs.amount (V29) replaces the join back to tx_outputs.
-    const allTxsCTE = this.knex('tx_outputs')
-      .join('transactions', 'transactions.id', 'tx_outputs.tx_id')
-      .join('blocks', 'blocks.height', 'transactions.block_height')
+    const allTxsCTE = this.knex('window_txs')
+      .join('tx_outputs', 'tx_outputs.tx_id', 'window_txs.tx_id')
+      .join('blocks', 'blocks.height', 'window_txs.block_height')
       .where('tx_outputs.address_id', addressIdSubquery)
-      .modify(scopeToWindow)
       .select('blocks.timestamp', this.knex.raw('tx_outputs.value::bigint as value'), this.knex.raw("'received' as direction"))
       .unionAll(
-        this.knex('tx_inputs')
-          .join('transactions', 'transactions.id', 'tx_inputs.tx_id')
-          .join('blocks', 'blocks.height', 'transactions.block_height')
+        this.knex('window_txs')
+          .join('tx_inputs', 'tx_inputs.tx_id', 'window_txs.tx_id')
+          .join('blocks', 'blocks.height', 'window_txs.block_height')
           .where('tx_inputs.address_id', addressIdSubquery)
-          .modify(scopeToWindow)
           .select('blocks.timestamp', this.knex.raw('COALESCE(tx_inputs.amount, 0)::bigint as value'), this.knex.raw("'spent' as direction"))
       );
 
@@ -251,6 +251,7 @@ export default class AddressesDAO {
 
     const rows = await this.knex
       .with('opening', openingCTE)
+      .with('window_txs', windowTxsCTE)
       .with('all_txs', allTxsCTE)
       .with('ranges', ranges)
       .with('initial_balance', initialBalanceCTE)
@@ -286,27 +287,33 @@ export default class AddressesDAO {
       .select(this.knex.raw('MAX(height) as max_height'))
       .as('height_subquery');
 
-    const rows = await this.knex('utxo')
+    const pageSubquery = this.knex('utxo')
+      .where('address_id', addressIdSubquery)
+      .select('tx_id', 'vout_index', 'amount')
+      .orderBy('amount', order)
+      .limit(limit)
+      .offset(fromRank);
+
+    const rows = await this.knex('page')
       .with('total_count', countSubquery)
-      .leftJoin('transactions', 'transactions.id', 'utxo.tx_id')
+      .with('page', pageSubquery)
+      .leftJoin('transactions', 'transactions.id', 'page.tx_id')
       .leftJoin('tx_outputs', function () {
-        this.on('tx_outputs.tx_id', '=', 'utxo.tx_id')
-          .andOn('tx_outputs.vout_index', '=', 'utxo.vout_index');
+        this.on('tx_outputs.tx_id', '=', 'page.tx_id')
+          .andOn('tx_outputs.vout_index', '=', 'page.vout_index');
       })
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
-      .where('utxo.address_id', addressIdSubquery)
       .select(
         'transactions.hash as prev_tx_hash',
-        'utxo.vout_index as prev_vout_index',
+        'page.vout_index as prev_vout_index',
         'transactions.block_height',
         'tx_outputs.script_pub_key',
-        this.knex.raw('utxo.amount::text as amount'),
+        this.knex.raw('page.amount::text as amount'),
         this.knex.raw('max_height - transactions.block_height + 1 as confirmations'),
       )
       .select(this.knex('total_count').select('total').as('total_count'))
-      .orderBy('utxo.amount', order)
-      .limit(limit)
-      .offset(fromRank);
+      // The CTE's own ordering does not survive the joins.
+      .orderBy('page.amount', order);
 
     const [row] = rows;
 
@@ -335,29 +342,34 @@ export default class AddressesDAO {
       .select(this.knex.raw('MAX(height) as max_height'))
       .as('height_subquery');
 
-    const rows = await this.knex('utxo')
+    const pageSubquery = this.knex('utxo')
+      .whereRaw('address_id = ANY(?)', [addressIds])
+      .select('tx_id', 'vout_index', 'amount', 'address_id')
+      .orderBy('amount', 'desc')
+      .limit(limit)
+      .offset(fromRank);
+
+    const rows = await this.knex('page')
       .with('total_count', countSubquery)
-      .whereRaw('utxo.address_id = ANY(?)', [addressIds])
-      .leftJoin('addresses', 'addresses.id', 'utxo.address_id')
-      .leftJoin('transactions', 'transactions.id', 'utxo.tx_id')
+      .with('page', pageSubquery)
+      .leftJoin('addresses', 'addresses.id', 'page.address_id')
+      .leftJoin('transactions', 'transactions.id', 'page.tx_id')
       .leftJoin('tx_outputs', function () {
-        this.on('tx_outputs.tx_id', '=', 'utxo.tx_id')
-          .andOn('tx_outputs.vout_index', '=', 'utxo.vout_index');
+        this.on('tx_outputs.tx_id', '=', 'page.tx_id')
+          .andOn('tx_outputs.vout_index', '=', 'page.vout_index');
       })
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .select(
         'addresses.address',
         'transactions.hash as prev_tx_hash',
-        'utxo.vout_index as prev_vout_index',
+        'page.vout_index as prev_vout_index',
         'transactions.block_height',
         'tx_outputs.script_pub_key',
-        this.knex.raw('utxo.amount::text as amount'),
+        this.knex.raw('page.amount::text as amount'),
         this.knex.raw('max_height - transactions.block_height + 1 as confirmations'),
       )
       .select(this.knex('total_count').select('total').as('total_count'))
-      .orderBy('utxo.amount', 'desc')
-      .limit(limit)
-      .offset(fromRank);
+      .orderBy('page.amount', 'desc');
 
     const [row] = rows;
 
