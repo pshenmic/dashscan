@@ -49,8 +49,12 @@ export const XPUB_DEFAULT_GAP_LIMIT = 20;
 // derivations regardless, so this only ever binds on real wallets. Reaching it
 // truncates the scan, which the response reports as complete: false.
 export const XPUB_MAX_ADDRESSES_PER_BRANCH = 5000;
-// Addresses derived per round trip. Independent of gap_limit, which would
-// otherwise make a 5000-address wallet take 250 sequential queries at gap 20.
+// Ceiling on addresses derived per round trip, once the scan has found enough
+// wallet to be worth batching. Independent of gap_limit, which would otherwise
+// make a 5000-address wallet take 250 sequential queries at gap 20.
 export const XPUB_DERIVATION_BATCH_SIZE = 100;
 // 1h
 export const XPUB_CACHE_LIFE_TIME = 1000 * 60 * 60;
+// Bump whenever a change makes entries unreadable by the instances already
+// running, so a rolling deploy rescans instead of misreading them.
+export const XPUB_CACHE_VERSION = 2;
