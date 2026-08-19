@@ -1,26 +1,26 @@
-const CURRENT_CACHE_TTL_MS = 60 * 60 * 1000;
-const HISTORICAL_CACHE_TTL_MS = 60 * 60 * 1000;
+import {Cache} from '../cache';
+import MarketDataUnavailableError from '../errors/MarketDataUnavailableError';
+import {Currency, CurrentData, DataPoint, MarketCacheEntry, MarketChart} from '../types/market';
+import {
+  MARKET_CACHE_LIFE_TIME,
+  MARKET_FAILURE_LIFE_TIME,
+  MARKET_REQUEST_TIMEOUT,
+  MARKET_STALE_LIFE_TIME,
+} from '../constants';
 
-export type Currency = 'usd' | 'btc';
-
-export interface DataPoint {
-  timestamp: number;
-  value: number;
-}
-
-interface CurrentData {
-  price: number;
-  marketCap: number | null;
-  volume: number | null;
-}
-
-interface MarketChart {
-  prices: DataPoint[];
-  marketCaps: DataPoint[];
-  volumes: DataPoint[];
-}
+export {Currency, DataPoint} from '../types/market';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const fetchJson = async <T>(url: string, provider: string): Promise<T> => {
+  const res = await fetch(url, {signal: AbortSignal.timeout(MARKET_REQUEST_TIMEOUT)});
+
+  if (!res.ok) {
+    throw new Error(`${provider} error: ${res.status}`);
+  }
+
+  return await res.json() as T;
+};
 
 function compactToHourly(points: [number, number][]): DataPoint[] {
   const byHour = new Map<number, number>();
@@ -36,128 +36,239 @@ function compactToHourly(points: [number, number][]): DataPoint[] {
 // ── Current providers ─────────────────────────────────────────────────────────
 
 const coingeckoCurrent = async (currency: Currency): Promise<CurrentData> => {
-  const res = await fetch(
+  const data = await fetchJson<{ dash?: Record<string, number> }>(
     `https://api.coingecko.com/api/v3/simple/price?ids=dash&vs_currencies=${currency}&include_market_cap=true&include_24hr_vol=true`,
+    'CoinGecko',
   );
-  if (!res.ok) throw new Error(`CoinGecko error: ${res.status}`);
-  const data = await res.json() as { dash: Record<string, number> };
+
+  const dash = data.dash;
+
+  if (dash?.[currency] == null) {
+    throw new Error(`CoinGecko returned no ${currency} price for dash`);
+  }
+
   return {
-    price: data.dash[currency],
-    marketCap: data.dash[`${currency}_market_cap`],
-    volume: data.dash[`${currency}_24h_vol`],
+    price: dash[currency],
+    marketCap: dash[`${currency}_market_cap`] ?? null,
+    volume: dash[`${currency}_24h_vol`] ?? null,
   };
 };
 
+const krakenLastPrice = async (pair: string): Promise<number> => {
+  const data = await fetchJson<{
+    error?: string[];
+    result?: Record<string, { c?: string[] }>;
+  }>(`https://api.kraken.com/0/public/Ticker?pair=${pair}`, 'Kraken');
+
+  // Kraken answers 200 with the failure in the body, so the status proves nothing.
+  if (data.error != null && data.error.length > 0) {
+    throw new Error(`Kraken error: ${data.error.join(', ')}`);
+  }
+
+  const price = parseFloat(Object.values(data.result ?? {})[0]?.c?.[0]);
+
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error(`Kraken returned no ticker for ${pair}`);
+  }
+
+  return price;
+};
+
+// Kraken quotes DASH against USD and EUR only, so BTC has to go through a cross.
 const krakenCurrentPrice = async (currency: Currency): Promise<number> => {
-  const pair = currency === 'btc' ? 'DASHXBT' : 'DASHUSD';
-  const res = await fetch(`https://api.kraken.com/0/public/Ticker?pair=${pair}`);
-  if (!res.ok) throw new Error(`Kraken error: ${res.status}`);
-  const data = await res.json() as { result: Record<string, { c: string[] }> };
-  return parseFloat(Object.values(data.result)[0].c[0]);
+  if (currency === 'usd') {
+    return await krakenLastPrice('DASHUSD');
+  }
+
+  const [dashUsd, btcUsd] = await Promise.all([
+    krakenLastPrice('DASHUSD'),
+    krakenLastPrice('XBTUSD'),
+  ]);
+
+  return dashUsd / btcUsd;
 };
 
 // ── Historical providers ──────────────────────────────────────────────────────
 
 const coingeckoHistoricalChart = async (currency: Currency): Promise<MarketChart> => {
-  const res = await fetch(
+  const data = await fetchJson<{
+    prices?: [number, number][];
+    market_caps?: [number, number][];
+    total_volumes?: [number, number][];
+  }>(
     `https://api.coingecko.com/api/v3/coins/dash/market_chart?vs_currency=${currency}&days=1`,
+    'CoinGecko',
   );
-  if (!res.ok) throw new Error(`CoinGecko error: ${res.status}`);
-  const data = await res.json() as {
-    prices: [number, number][];
-    market_caps: [number, number][];
-    total_volumes: [number, number][];
-  };
+
+  if (data.prices == null) {
+    throw new Error('CoinGecko returned no chart for dash');
+  }
+
   return {
     prices: compactToHourly(data.prices),
-    marketCaps: compactToHourly(data.market_caps),
-    volumes: compactToHourly(data.total_volumes),
+    marketCaps: compactToHourly(data.market_caps ?? []),
+    volumes: compactToHourly(data.total_volumes ?? []),
   };
 };
 
 const krakenHistoricalUsd = async (): Promise<MarketChart> => {
-  const res = await fetch(`https://api.kraken.com/0/public/OHLC?pair=DASHUSD&interval=60`);
-  if (!res.ok) throw new Error(`Kraken error: ${res.status}`);
-  const data = await res.json() as {
-    result: Record<string, [number, string, string, string, string, string, string, number][]>;
-  };
-  const candles = Object.values(data.result)[0].slice(-24);
+  const data = await fetchJson<{
+    error?: string[];
+    result?: Record<string, [number, string, string, string, string, string, string, number][] | number>;
+  }>('https://api.kraken.com/0/public/OHLC?pair=DASHUSD&interval=60', 'Kraken');
+
+  if (data.error != null && data.error.length > 0) {
+    throw new Error(`Kraken error: ${data.error.join(', ')}`);
+  }
+
+  // The result holds the candles under a normalised pair name alongside a
+  // scalar `last`, and nothing promises which of the two comes first.
+  const entry = Object.entries(data.result ?? {}).find(([key]) => key !== 'last');
+  const candles = Array.isArray(entry?.[1]) ? entry[1] : null;
+
+  if (candles == null || candles.length === 0) {
+    throw new Error('Kraken returned no candles for DASHUSD');
+  }
+
+  const window = candles.slice(-24);
+
   return {
-    prices: candles.map(([timestamp, , , , close]) => ({ timestamp, value: parseFloat(close) })),
+    prices: window.map(([timestamp, , , , close]) => ({ timestamp, value: parseFloat(close) })),
     marketCaps: [],
-    volumes: candles.map(([timestamp, , , , , , volume]) => ({ timestamp, value: parseFloat(volume as unknown as string) })),
+    volumes: window.map(([timestamp, , , , , , volume]) => ({ timestamp, value: parseFloat(volume) })),
   };
 };
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
 export default class MarketService {
-  private cachedCurrentData: Partial<Record<Currency, CurrentData>> = {};
-  private currentCacheExpiresAt: Partial<Record<Currency, number>> = {};
+  private cache: Cache;
+  private inFlight = new Map<string, Promise<unknown>>();
 
-  private cachedChart: Partial<Record<Currency, MarketChart>> = {};
-  private chartCacheExpiresAt: Partial<Record<Currency, number>> = {};
+  constructor(cache: Cache) {
+    this.cache = cache;
+  }
+
+  /**
+   * Freshness is the entry's own age, not its Redis expiry, so a value that has
+   * aged out is still there to answer with when the upstream cannot be reached.
+   */
+  private load = async <T>(key: string, ttlMs: number, fetchValue: () => Promise<T>): Promise<T> => {
+    const cached = await this.cache.get<MarketCacheEntry<T>>(key);
+
+    if (cached != null && Date.now() - cached.fetchedAt < ttlMs) {
+      return cached.value;
+    }
+
+    // A recent failure short-circuits the retry, so a lasting outage costs one
+    // attempt per marker rather than one per request.
+    if (await this.cache.get(`${key}:down`) != null) {
+      if (cached != null) {
+        return cached.value;
+      }
+
+      throw new Error(`Upstream for ${key} is down`);
+    }
+
+    const running = this.inFlight.get(key) as Promise<T> | undefined;
+
+    if (running != null) {
+      return await running;
+    }
+
+    const refresh = fetchValue()
+      .then(async (value) => {
+        await this.cache.set(key, {value, fetchedAt: Date.now()}, MARKET_STALE_LIFE_TIME);
+        return value;
+      })
+      .catch(async (e) => {
+        console.error(e);
+
+        await this.cache.set(`${key}:down`, true, MARKET_FAILURE_LIFE_TIME);
+
+        if (cached != null) {
+          return cached.value;
+        }
+
+        throw e;
+      })
+      .finally(() => this.inFlight.delete(key));
+
+    this.inFlight.set(key, refresh);
+
+    return await refresh;
+  };
 
   // ── Current ──────────────────────────────────────────────────────────────
 
   private getCurrentData = async (currency: Currency): Promise<CurrentData> => {
-    if (this.cachedCurrentData[currency] !== undefined && Date.now() < (this.currentCacheExpiresAt[currency] ?? 0)) {
-      return this.cachedCurrentData[currency]!;
+    try {
+      return await this.load(
+        `market:current:${currency}`,
+        MARKET_CACHE_LIFE_TIME,
+        () => coingeckoCurrent(currency),
+      );
+    } catch {
+      // Kept under its own key: a price-only fallback must not evict a market
+      // cap that is only stale.
     }
 
     try {
-      const data = await coingeckoCurrent(currency);
-      this.cachedCurrentData[currency] = data;
-      this.currentCacheExpiresAt[currency] = Date.now() + CURRENT_CACHE_TTL_MS;
-      return data;
+      return await this.load(`market:fallback:${currency}`, MARKET_CACHE_LIFE_TIME, async () => ({
+        price: await krakenCurrentPrice(currency),
+        marketCap: null,
+        volume: null,
+      }));
     } catch {
-      // CoinGecko failed — fall back to Kraken for price only
+      throw new MarketDataUnavailableError('Market data is not available');
     }
-
-    const price = await krakenCurrentPrice(currency);
-    const data: CurrentData = { price, marketCap: null, volume: null };
-    this.cachedCurrentData[currency] = data;
-    this.currentCacheExpiresAt[currency] = Date.now() + CURRENT_CACHE_TTL_MS;
-    return data;
   };
 
   getCurrentPrice = async (currency: Currency): Promise<number> =>
     (await this.getCurrentData(currency)).price;
 
   getCurrentMarketCap = async (currency: Currency): Promise<number> => {
-    const data = await this.getCurrentData(currency);
-    if (data.marketCap === null) throw new Error('Market cap unavailable');
-    return data.marketCap;
+    const {marketCap} = await this.getCurrentData(currency);
+
+    if (marketCap === null) {
+      throw new MarketDataUnavailableError('Market cap is not available');
+    }
+
+    return marketCap;
   };
 
   getCurrentVolume = async (currency: Currency): Promise<number> => {
-    const data = await this.getCurrentData(currency);
-    if (data.volume === null) throw new Error('Volume unavailable');
-    return data.volume;
+    const {volume} = await this.getCurrentData(currency);
+
+    if (volume === null) {
+      throw new MarketDataUnavailableError('Volume is not available');
+    }
+
+    return volume;
   };
 
   // ── Historical ────────────────────────────────────────────────────────────
 
   private getHistoricalChart = async (currency: Currency): Promise<MarketChart> => {
-    if (this.cachedChart[currency] !== undefined && Date.now() < (this.chartCacheExpiresAt[currency] ?? 0)) {
-      return this.cachedChart[currency]!;
+    try {
+      return await this.load(
+        `market:chart:${currency}`,
+        MARKET_CACHE_LIFE_TIME,
+        () => coingeckoHistoricalChart(currency),
+      );
+    } catch {
+      // Kraken carries DASHUSD candles only.
+    }
+
+    if (currency !== 'usd') {
+      throw new MarketDataUnavailableError('Historical chart is not available');
     }
 
     try {
-      const chart = await coingeckoHistoricalChart(currency);
-      this.cachedChart[currency] = chart;
-      this.chartCacheExpiresAt[currency] = Date.now() + HISTORICAL_CACHE_TTL_MS;
-      return chart;
-    } catch (e) {
-      console.error(e);
+      return await this.load('market:chart:fallback:usd', MARKET_CACHE_LIFE_TIME, krakenHistoricalUsd);
+    } catch {
+      throw new MarketDataUnavailableError('Historical chart is not available');
     }
-
-    if (currency !== 'usd') throw new Error('Historical chart unavailable');
-
-    const chart = await krakenHistoricalUsd();
-    this.cachedChart[currency] = chart;
-    this.chartCacheExpiresAt[currency] = Date.now() + HISTORICAL_CACHE_TTL_MS;
-    return chart;
   };
 
   getHistoricalPrices = async (currency: Currency): Promise<DataPoint[]> =>
