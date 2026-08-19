@@ -122,6 +122,7 @@ import { EmptyState } from "@/themes/neo/components/empty-state";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
 import { LiveTicker } from "@/themes/neo/components/live-ticker";
 import { MasternodeMap } from "@/themes/neo/components/masternode-map";
+import { PeersMap } from "@/themes/neo/components/peers-map";
 import {
   InstantLockBadge,
   MnStatusBadge,
@@ -1050,6 +1051,8 @@ export default function RedesignDashboardPage() {
         ) : null}
 
         <MasternodeMap variant="dashboard" />
+
+        <PeersMap variant="dashboard" />
       </div>
     </div>
   );

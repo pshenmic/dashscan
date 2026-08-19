@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: "/transactions", label: "Transactions", exact: false },
   { to: "/addresses", label: "Addresses", exact: false },
   { to: "/masternodes", label: "Masternodes", exact: false },
+  { to: "/peers", label: "Peers", exact: false },
   { to: "/dao", label: "DAO", exact: false },
 ] as const;
 

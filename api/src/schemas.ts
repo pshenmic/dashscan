@@ -121,6 +121,22 @@ const schemas = [
     },
   },
   {
+    $id: 'peersOptions',
+    type: 'object',
+    properties: {
+      user_agent: {
+        type: ['string', 'null'],
+        pattern: '^[A-Za-z0-9\\s]+$',
+        minLength: 3,
+        maxLength: 64,
+      },
+      ip: {
+        type: ['string', 'null'],
+        pattern: '^(\\d{1,3}\\.){3}\\d{1,3}$',
+      },
+    },
+  },
+  {
     $id: 'timeInterval',
     type: 'object',
     properties: {
