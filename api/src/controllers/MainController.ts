@@ -19,8 +19,8 @@ export default class MainController {
       const {resultSet: [block]} = await this.blocksDAO.getBlocks(1, 1, 'desc');
 
       // if block height difference between db and network more than 1 block
-      if (block == null || (networkHeight - block.height > Number(process.env.STATUS_CHECK_HEIGHT_GAP ?? 1)  )) {
-        return response.status(503).send({ status: 'syncing' });
+      if (block == null || (networkHeight - block.height > Number(process.env.STATUS_CHECK_HEIGHT_GAP ?? 1))) {
+        return response.status(503).send({status: 'syncing'});
       }
 
       return response.status(200).send({ status: 'ok' });
