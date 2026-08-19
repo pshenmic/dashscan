@@ -153,7 +153,7 @@ export class DashCoreRPC {
         return handlerResponse;
       }
 
-      console.error(e);
+      console.error('Dash Core RPC request error', e);
       throw new ServiceNotAvailableError(e.code);
     }
   }
