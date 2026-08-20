@@ -58,3 +58,13 @@ export const XPUB_CACHE_LIFE_TIME = 1000 * 60 * 60;
 // Bump whenever a change makes entries unreadable by the instances already
 // running, so a rolling deploy rescans instead of misreading them.
 export const XPUB_CACHE_VERSION = 2;
+
+// 1h
+export const MARKET_CACHE_LIFE_TIME = 1000 * 60 * 60;
+// 24h.
+export const MARKET_STALE_LIFE_TIME = 1000 * 60 * 60 * 24;
+
+export const MARKET_REQUEST_TIMEOUT = 4000;
+// 1m. How long a failed upstream is remembered. Without it every request pays
+// the full timeout again for as long as the upstream stays down.
+export const MARKET_FAILURE_LIFE_TIME = 1000 * 60;

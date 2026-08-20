@@ -10,6 +10,7 @@ import Routes from './routes';
 import ServiceNotAvailableError from './errors/ServiceNotAvailableError';
 import InvalidXpubError from './errors/InvalidXpubError';
 import InvalidCursorError from './errors/InvalidCursorError';
+import MarketDataUnavailableError from './errors/MarketDataUnavailableError';
 import BlocksController from './controllers/BlocksController';
 import TransactionsController from './controllers/TransactionsController';
 import AddressesController from './controllers/AddressesController';
@@ -28,6 +29,11 @@ import {UTXO_INFO_LIFE_TIME} from "./constants";
 function errorHandler(err: FastifyError, req: FastifyRequest, reply: FastifyReply): void {
   if (err instanceof ServiceNotAvailableError) {
     reply.status(503).send({ error: 'Dashcore backend is not available' });
+    return;
+  }
+
+  if (err instanceof MarketDataUnavailableError) {
+    reply.status(503).send({ error: err.message });
     return;
   }
 
@@ -75,7 +81,7 @@ export const start = async (): Promise<FastifyInstance> => {
   const cache = new Cache(redis)
 
   const geoIPService = new GeoIPService();
-  const marketService = new MarketService();
+  const marketService = new MarketService(cache);
 
   const preCacheUtxoInfo = await dashcoreRPC.getUtxoInfo()
 
