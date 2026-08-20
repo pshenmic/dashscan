@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import MarketService, { Currency } from '../services/MarketService';
+import MarketService from '../services/MarketService';
+import { Currency } from '../types/market';
 
 export default class MarketController {
   private marketService: MarketService;
