@@ -40,3 +40,10 @@ export interface XpubBranchCache {
   derived: string[];
   ids: Record<string, number>;
 }
+
+export interface ScannedBranch {
+  branch: number;
+  addresses: DerivedAddress[];
+  addressIds: number[];
+  firstUnused: number | null;
+}

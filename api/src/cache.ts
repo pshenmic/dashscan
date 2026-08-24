@@ -38,6 +38,12 @@ export class Cache {
     }
   };
 
+  // Extends an entry the caller re-read but did not change, instead of writing
+  // the same value back to buy the same TTL.
+  touch = async (key: string, ttlMs: number): Promise<void> => {
+    await this.redis.pexpire(this.keyFor(key), Math.floor(ttlMs));
+  };
+
   delete = async (key: string): Promise<void> => {
     await this.redis.del(this.keyFor(key));
   };
