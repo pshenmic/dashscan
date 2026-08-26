@@ -7,7 +7,6 @@ import {
   Clock,
   CornerDownLeft,
   Loader2,
-  Search,
   Server,
   Sparkles,
   Wallet,
@@ -19,7 +18,6 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -40,8 +38,10 @@ import { searchQueryOptions } from "@/lib/api/search";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
-interface SpotlightSearchProps {
-  className?: string;
+interface SpotlightSearchDialogProps {
+  id: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 type Category = "Block" | "Transaction" | "Masternode" | "Address" | "DAO";
@@ -113,8 +113,11 @@ function truncate(value: string, head = 10, tail = 6) {
   return `${value.slice(0, head)}…${value.slice(-tail)}`;
 }
 
-export function SpotlightSearch({ className }: SpotlightSearchProps) {
-  const [open, setOpen] = useState(false);
+export function SpotlightSearchDialog({
+  id,
+  open,
+  onOpenChange,
+}: SpotlightSearchDialogProps) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [recents, setRecents] = useState<RecentItem[]>([]);
@@ -125,17 +128,6 @@ export function SpotlightSearch({ className }: SpotlightSearchProps) {
     const timer = setTimeout(() => setDebouncedQuery(query.trim()), 250);
     return () => clearTimeout(timer);
   }, [query]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setOpen((v) => !v);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
 
   useEffect(() => {
     if (open) setRecents(loadRecents());
@@ -236,100 +228,82 @@ export function SpotlightSearch({ className }: SpotlightSearchProps) {
       navigate({ to: item.to as any });
       setQuery("");
       setDebouncedQuery("");
-      setOpen(false);
+      onOpenChange(false);
     },
-    [navigate, pushRecent],
+    [navigate, onOpenChange, pushRecent],
   );
 
   const showEmptyState = !debouncedQuery;
 
   return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => setOpen(true)}
-        className={cn(
-          "h-9 w-full justify-start gap-2 px-3 font-normal text-muted-foreground hover:text-foreground sm:w-[280px]",
-          className,
-        )}
-        aria-label="Open search"
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        id={id}
+        className="overflow-hidden p-0 sm:max-w-[640px]"
+        showCloseButton={false}
       >
-        <Search className="size-4 shrink-0" />
-        <span className="flex-1 truncate text-left">Search…</span>
-        <kbd className="pointer-events-none ml-auto inline-flex h-5 shrink-0 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-          <span className="text-xs">⌘</span>K
-        </kbd>
-      </Button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent
-          className="overflow-hidden p-0 sm:max-w-[640px]"
-          showCloseButton={false}
+        <DialogHeader className="sr-only">
+          <DialogTitle>Search</DialogTitle>
+        </DialogHeader>
+        <Command
+          shouldFilter={false}
+          className="[&_[cmdk-input-wrapper]]:border-b"
         >
-          <DialogHeader className="sr-only">
-            <DialogTitle>Search</DialogTitle>
-          </DialogHeader>
-          <Command
-            shouldFilter={false}
-            className="[&_[cmdk-input-wrapper]]:border-b"
-          >
-            <CommandInput
-              placeholder="Block height, tx hash, address, masternode…"
-              value={query}
-              onValueChange={setQuery}
-            />
-            <CommandList className="max-h-[420px]">
-              {showEmptyState && (
-                <>
-                  {recents.length > 0 && (
-                    <CommandGroup heading="Recent searches">
-                      {recents.map((item) => (
-                        <SpotlightItem
-                          key={`recent-${item.to}`}
-                          item={item}
-                          icon={
-                            <Clock className="size-4 text-muted-foreground" />
-                          }
-                          onSelect={() => handleSelect(item)}
-                        />
-                      ))}
-                    </CommandGroup>
-                  )}
-                  <CommandGroup heading="Suggestions">
-                    {suggestions.map((item) => (
+          <CommandInput
+            placeholder="Block height, tx hash, address, masternode…"
+            value={query}
+            onValueChange={setQuery}
+          />
+          <CommandList className="max-h-[420px]">
+            {showEmptyState && (
+              <>
+                {recents.length > 0 && (
+                  <CommandGroup heading="Recent searches">
+                    {recents.map((item) => (
                       <SpotlightItem
-                        key={`sugg-${item.to}`}
+                        key={`recent-${item.to}`}
                         item={item}
+                        icon={
+                          <Clock className="size-4 text-muted-foreground" />
+                        }
                         onSelect={() => handleSelect(item)}
                       />
                     ))}
                   </CommandGroup>
-                </>
-              )}
-              {debouncedQuery && isFetching && (
-                <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" /> Searching…
-                </div>
-              )}
-              {debouncedQuery && !isFetching && results.length === 0 && (
-                <CommandEmpty>No results for "{debouncedQuery}".</CommandEmpty>
-              )}
-              {!showEmptyState &&
-                results.map((item) => (
-                  <CommandGroup key={item.category} heading={item.category}>
+                )}
+                <CommandGroup heading="Suggestions">
+                  {suggestions.map((item) => (
                     <SpotlightItem
+                      key={`sugg-${item.to}`}
                       item={item}
                       onSelect={() => handleSelect(item)}
                     />
-                  </CommandGroup>
-                ))}
-            </CommandList>
-            <SpotlightFooter />
-          </Command>
-        </DialogContent>
-      </Dialog>
-    </>
+                  ))}
+                </CommandGroup>
+              </>
+            )}
+            {debouncedQuery && isFetching && (
+              <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Searching…
+              </div>
+            )}
+            {debouncedQuery && !isFetching && results.length === 0 && (
+              <CommandEmpty>No results for "{debouncedQuery}".</CommandEmpty>
+            )}
+            {!showEmptyState &&
+              results.map((item) => (
+                <CommandGroup key={item.category} heading={item.category}>
+                  <SpotlightItem
+                    item={item}
+                    onSelect={() => handleSelect(item)}
+                  />
+                </CommandGroup>
+              ))}
+          </CommandList>
+          <SpotlightFooter />
+        </Command>
+      </DialogContent>
+    </Dialog>
   );
 }
 

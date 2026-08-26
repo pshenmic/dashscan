@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 import { useActiveTheme } from "@/themes/active";
-import ClassicDaoPage from "@/themes/dash/pages/dao";
+import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
 import RedesignDaoPage from "@/themes/neo/pages/dao";
+
+const ClassicDaoPage = lazy(() => import("@/themes/dash/pages/dao"));
 
 export const Route = createFileRoute("/dao/")({
   component: DaoRoute,
@@ -13,5 +16,9 @@ export const Route = createFileRoute("/dao/")({
 function DaoRoute() {
   const theme = useActiveTheme();
   if (theme === "neo") return <RedesignDaoPage />;
-  return <ClassicDaoPage />;
+  return (
+    <Suspense fallback={<LazyThemePageFallback />}>
+      <ClassicDaoPage />
+    </Suspense>
+  );
 }

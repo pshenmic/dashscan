@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 import { useActiveTheme } from "@/themes/active";
-import ClassicTransactionDetailPage from "@/themes/dash/pages/transaction-detail";
+import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
 import RedesignTransactionDetailPage from "@/themes/neo/pages/transaction-detail";
+
+const ClassicTransactionDetailPage = lazy(
+  () => import("@/themes/dash/pages/transaction-detail"),
+);
 
 export const Route = createFileRoute("/transactions/$hash")({
   component: TransactionDetailRoute,
@@ -23,5 +28,9 @@ function TransactionDetailRoute() {
   const theme = useActiveTheme();
   const { hash } = Route.useParams();
   if (theme === "neo") return <RedesignTransactionDetailPage hash={hash} />;
-  return <ClassicTransactionDetailPage hash={hash} />;
+  return (
+    <Suspense fallback={<LazyThemePageFallback />}>
+      <ClassicTransactionDetailPage hash={hash} />
+    </Suspense>
+  );
 }

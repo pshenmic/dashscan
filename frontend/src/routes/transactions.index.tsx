@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 import { z } from "zod";
 import { TRANSACTION_TYPE_VALUES } from "@/lib/api/transactions";
 import { paginationSearchSchema } from "@/lib/pagination";
 import { useActiveTheme } from "@/themes/active";
-import ClassicTransactionsListPage from "@/themes/dash/pages/transactions-list";
+import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
 import RedesignTransactionsListPage from "@/themes/neo/pages/transactions-list";
+
+const ClassicTransactionsListPage = lazy(
+  () => import("@/themes/dash/pages/transactions-list"),
+);
 
 const transactionsSearchSchema = paginationSearchSchema.extend({
   transaction_type: z.enum(TRANSACTION_TYPE_VALUES).optional().catch(undefined),
@@ -25,5 +30,9 @@ function TransactionsListRoute() {
   const theme = useActiveTheme();
   const { page, limit } = Route.useSearch();
   if (theme === "neo") return <RedesignTransactionsListPage />;
-  return <ClassicTransactionsListPage page={page} limit={limit} />;
+  return (
+    <Suspense fallback={<LazyThemePageFallback />}>
+      <ClassicTransactionsListPage page={page} limit={limit} />
+    </Suspense>
+  );
 }

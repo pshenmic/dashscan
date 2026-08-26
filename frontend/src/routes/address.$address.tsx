@@ -1,8 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 import { paginationSearchSchema } from "@/lib/pagination";
 import { useActiveTheme } from "@/themes/active";
-import ClassicAddressDetailPage from "@/themes/dash/pages/address-detail";
+import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
 import RedesignAddressDetailPage from "@/themes/neo/pages/address-detail";
+
+const ClassicAddressDetailPage = lazy(
+  () => import("@/themes/dash/pages/address-detail"),
+);
 
 export const Route = createFileRoute("/address/$address")({
   validateSearch: paginationSearchSchema,
@@ -27,6 +32,8 @@ function AddressDetailRoute() {
   const { page, limit } = Route.useSearch();
   if (theme === "neo") return <RedesignAddressDetailPage address={address} />;
   return (
-    <ClassicAddressDetailPage address={address} page={page} limit={limit} />
+    <Suspense fallback={<LazyThemePageFallback />}>
+      <ClassicAddressDetailPage address={address} page={page} limit={limit} />
+    </Suspense>
   );
 }

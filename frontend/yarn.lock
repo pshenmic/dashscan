@@ -695,6 +695,21 @@
   resolved "https://registry.yarnpkg.com/@floating-ui/utils/-/utils-0.2.11.tgz#a269e055e40e2f45873bae9d1a2fdccbd314ea3f"
   integrity sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==
 
+"@fontsource/manrope@^5.3.0":
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/@fontsource/manrope/-/manrope-5.3.0.tgz#31a08e9299e654f9d8f33af80d467cceff295861"
+  integrity sha512-obJ1Dv3+uCA6HlHgW8u4BGYxJR9In2HW7gjJhlflEvkrj1X1iSEwu0fToL+JYGC/FEKFfIz1sBuPduvcL2gIAA==
+
+"@fontsource/press-start-2p@^5.3.0":
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/@fontsource/press-start-2p/-/press-start-2p-5.3.0.tgz#b58edabdadab0fab5ce4e37407715955b7d42981"
+  integrity sha512-gxWFxdeDglPhEYSwEeooomcaFK8kSQYLQwVxfnOJeYRj2sPEHXjpVtFgEaYfqzOjuAJGrIcJOipu2KY5YkbyuQ==
+
+"@fontsource/roboto-mono@^5.3.0":
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/@fontsource/roboto-mono/-/roboto-mono-5.3.0.tgz#de1c58d490a42853389caeca05376ecdb295e7e3"
+  integrity sha512-yhwplHMHW9dCk+1pZuERfcJe+K3rosGVZEoK0XktkxRSqQ9qsipSwwiuW2/8Qmtp9lzu3Ixa/ie4BMH3i8CkZQ==
+
 "@jridgewell/gen-mapping@^0.3.12", "@jridgewell/gen-mapping@^0.3.2", "@jridgewell/gen-mapping@^0.3.5":
   version "0.3.13"
   resolved "https://registry.yarnpkg.com/@jridgewell/gen-mapping/-/gen-mapping-0.3.13.tgz#6342a19f44347518c93e43b1ac69deb3c4656a1f"
@@ -3722,15 +3737,7 @@ gray-matter@^4.0.3:
     section-matter "^1.0.0"
     strip-bom-string "^1.0.0"
 
-"h3-v2@npm:h3@2.0.1-rc.14":
-  version "2.0.1-rc.14"
-  resolved "https://registry.yarnpkg.com/h3/-/h3-2.0.1-rc.14.tgz#5482317983213300c3dd0d45b767b273e00de26e"
-  integrity sha512-163qbGmTr/9rqQRNuqMqtgXnOUAkE4KTdauiC9y0E5iG1I65kte9NyfWvZw5RTDMt6eY+DtyoNzrQ9wA2BfvGQ==
-  dependencies:
-    rou3 "^0.7.12"
-    srvx "^0.11.2"
-
-h3@^2.0.1-rc.14:
+"h3-v2@npm:h3@2.0.1-rc.14", h3@^2.0.1-rc.14:
   version "2.0.1-rc.14"
   resolved "https://registry.yarnpkg.com/h3/-/h3-2.0.1-rc.14.tgz#5482317983213300c3dd0d45b767b273e00de26e"
   integrity sha512-163qbGmTr/9rqQRNuqMqtgXnOUAkE4KTdauiC9y0E5iG1I65kte9NyfWvZw5RTDMt6eY+DtyoNzrQ9wA2BfvGQ==

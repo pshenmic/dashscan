@@ -4,7 +4,10 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { getBaseUrl } from "@/lib/api/client";
+import { defaultNetwork } from "@/lib/store";
 import { ErrorFallback } from "../components/error-fallback";
 import AppDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
@@ -33,6 +36,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
     links: [
       {
+        rel: "preconnect",
+        href: getBaseUrl(defaultNetwork),
+        crossOrigin: "anonymous",
+      },
+      {
         rel: "stylesheet",
         href: appCss,
       },
@@ -46,7 +54,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   shellComponent: RootDocument,
 });
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
