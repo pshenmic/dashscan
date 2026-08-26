@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type { ApiChainStats } from "./types";
 
 interface FetchChainStatsInput {
@@ -10,7 +10,7 @@ interface FetchChainStatsInput {
 
 async function getChainStats(params: FetchChainStatsInput) {
   const url = new URL("/chain/stats", getBaseUrl(params.network));
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }

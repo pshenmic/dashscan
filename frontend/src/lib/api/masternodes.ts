@@ -1,7 +1,7 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type {
   ApiMasternode,
   ApiProposalVote,
@@ -35,7 +35,7 @@ async function getMasternodes(params: FetchMasternodesInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -54,7 +54,7 @@ interface FetchMasternodeInput {
 async function getMasternode(params: FetchMasternodeInput) {
   const url = new URL("/search", getBaseUrl(params.network));
   url.searchParams.set("query", params.hash);
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -78,7 +78,7 @@ async function getMasternodeVotes(params: FetchMasternodeInput) {
     `/masternode/${params.hash}/votes`,
     getBaseUrl(params.network),
   );
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (response.status === 404) return [];
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
@@ -111,7 +111,7 @@ async function getMasternodeTransactions(
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }

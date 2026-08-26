@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type { PaginatedResponse, PaginationParams } from "./types";
 
 export interface ApiPeerGeo {
@@ -75,7 +75,7 @@ async function getPeers(params: FetchPeersInput) {
   if (params.userAgent) url.searchParams.set("user_agent", params.userAgent);
   if (params.ip) url.searchParams.set("ip", params.ip);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -145,7 +145,7 @@ async function getPeerUserAgents(
 ): Promise<ApiPeerUserAgent[] | null> {
   const url = new URL("/peers/user-agents", getBaseUrl(params.network));
   url.searchParams.set("order", "desc");
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);

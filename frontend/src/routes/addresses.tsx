@@ -1,7 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { richListQueryOptions } from "@/lib/api/addresses";
-import { defaultNetwork } from "@/lib/store";
 import RedesignAddressesPage from "@/themes/neo/pages/addresses";
 
 const addressesSearchSchema = z.object({
@@ -16,17 +14,6 @@ export const Route = createFileRoute("/addresses")({
   head: () => ({
     meta: [{ title: "Addresses | Dashscan" }],
   }),
-  loader: ({ context }) => {
-    if (typeof window !== "undefined") return;
-    return context.queryClient.prefetchQuery(
-      richListQueryOptions({
-        network: defaultNetwork,
-        page: 1,
-        limit: 25,
-        order: "desc",
-      }),
-    );
-  },
 });
 
 function AddressesRoute() {

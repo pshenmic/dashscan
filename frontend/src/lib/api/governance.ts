@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type {
   ApiGovernanceBudget,
   ApiGovernanceObject,
@@ -20,7 +20,7 @@ async function getProposals(params: FetchProposalsInput) {
   if (params.proposalType)
     url.searchParams.set("proposalType", params.proposalType);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -44,7 +44,7 @@ async function getProposal(params: FetchProposalInput) {
     `/governance/proposal/${params.hash}`,
     getBaseUrl(params.network),
   );
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
@@ -81,7 +81,7 @@ async function getProposalVotesChart(params: FetchProposalVotesChartInput) {
   if (params.runningTotal !== undefined) {
     url.searchParams.set("running_total", String(params.runningTotal));
   }
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
@@ -113,7 +113,7 @@ interface FetchBudgetInput {
 
 async function getBudget(params: FetchBudgetInput) {
   const url = new URL("/governance/budget", getBaseUrl(params.network));
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }

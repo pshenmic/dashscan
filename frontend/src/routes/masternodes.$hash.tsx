@@ -1,6 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { masternodeQueryOptions } from "@/lib/api/masternodes";
-import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
 import ClassicMasternodeDetailPage from "@/themes/dash/pages/masternode-detail";
 import RedesignMasternodeDetailPage from "@/themes/neo/pages/masternode-detail";
@@ -19,12 +17,6 @@ export const Route = createFileRoute("/masternodes/$hash")({
       { name: "twitter:image", content: `/og/masternode/${params.hash}` },
     ],
   }),
-  loader: async ({ context, params: { hash } }) => {
-    if (typeof window !== "undefined") return;
-    await context.queryClient.prefetchQuery(
-      masternodeQueryOptions({ network: defaultNetwork, hash }),
-    );
-  },
 });
 
 function MasternodeDetailRoute() {

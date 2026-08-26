@@ -1,6 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { transactionQueryOptions } from "@/lib/api/transactions";
-import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
 import ClassicTransactionDetailPage from "@/themes/dash/pages/transaction-detail";
 import RedesignTransactionDetailPage from "@/themes/neo/pages/transaction-detail";
@@ -19,12 +17,6 @@ export const Route = createFileRoute("/transactions/$hash")({
       { name: "twitter:image", content: `/og/transaction/${params.hash}` },
     ],
   }),
-  loader: async ({ context, params: { hash } }) => {
-    if (typeof window !== "undefined") return;
-    await context.queryClient.prefetchQuery(
-      transactionQueryOptions({ network: defaultNetwork, hash }),
-    );
-  },
 });
 
 function TransactionDetailRoute() {
