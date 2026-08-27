@@ -28,6 +28,19 @@ export function monthStatsRange(): {
   return { timestampStart: start, timestampEnd: end };
 }
 
+export function dayStatsRange(): {
+  timestampStart: string;
+  timestampEnd: string;
+} {
+  const end = new Date();
+  end.setUTCMinutes(0, 0, 0);
+  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+  return {
+    timestampStart: start.toISOString(),
+    timestampEnd: end.toISOString(),
+  };
+}
+
 function buildStatsUrl(path: string, params: FetchStatsInput) {
   const url = new URL(path, getBaseUrl(params.network));
   if (params.timestampStart) {

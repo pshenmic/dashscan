@@ -1,6 +1,6 @@
 import type { Network } from "@/lib/store";
 
-export const SERVER_API_TIMEOUT_MS = 500;
+export const SERVER_API_TIMEOUT_MS = 1_000;
 export const BROWSER_API_TIMEOUT_MS = 8_000;
 
 export class ApiTimeoutError extends Error {

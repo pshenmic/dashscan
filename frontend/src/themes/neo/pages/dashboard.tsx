@@ -87,6 +87,7 @@ import {
 } from "@/lib/api/price";
 import {
   blockTransactionsStatsQueryOptions,
+  dayStatsRange,
   monthStatsRange,
   transactionsBreakdown24hQueryOptions,
   transactionsStatsQueryOptions,
@@ -162,16 +163,6 @@ const LazyPeersMap = lazy(() =>
     default: module.PeersMap,
   })),
 );
-
-function dayStatsRange() {
-  const end = new Date();
-  end.setUTCMinutes(0, 0, 0);
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
-  return {
-    timestampStart: start.toISOString(),
-    timestampEnd: end.toISOString(),
-  };
-}
 
 export default function RedesignDashboardPage() {
   const network = useStore(appStore, (state) => state.network);

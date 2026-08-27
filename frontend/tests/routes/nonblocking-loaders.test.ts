@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Route as addressDetailRoute } from "@/routes/address.$address";
 import { Route as addressesRoute } from "@/routes/addresses";
 import { Route as blockDetailRoute } from "@/routes/blocks.$hashOrHeight";
@@ -14,9 +14,8 @@ import { Route as transactionDetailRoute } from "@/routes/transactions.$hash";
 import { Route as transactionsRoute } from "@/routes/transactions.index";
 
 describe("route data loading", () => {
-  it("keeps user-facing routes independent from backend loaders", () => {
+  it("keeps non-dashboard user routes independent from backend loaders", () => {
     const routes = [
-      dashboardRoute,
       blocksRoute,
       blockDetailRoute,
       transactionsRoute,
@@ -37,5 +36,17 @@ describe("route data loading", () => {
 
   it("keeps the OG route blocking for complete image data", () => {
     expect(ogRoute.options.loader).toBeTypeOf("function");
+  });
+
+  it("prefetches only the nine critical dashboard queries", async () => {
+    const queryClient = {
+      prefetchQuery: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await dashboardRoute.options.loader?.({
+      context: { queryClient },
+    } as never);
+
+    expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(9);
   });
 });
