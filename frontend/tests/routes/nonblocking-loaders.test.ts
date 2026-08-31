@@ -14,14 +14,11 @@ import { Route as transactionDetailRoute } from "@/routes/transactions.$hash";
 import { Route as transactionsRoute } from "@/routes/transactions.index";
 
 describe("route data loading", () => {
-  it("keeps non-dashboard user routes independent from backend loaders", () => {
+  it("keeps list routes independent from backend loaders", () => {
     const routes = [
       blocksRoute,
-      blockDetailRoute,
       transactionsRoute,
-      transactionDetailRoute,
       masternodesRoute,
-      masternodeDetailRoute,
       addressDetailRoute,
       addressesRoute,
       daoRoute,
@@ -32,6 +29,33 @@ describe("route data loading", () => {
     for (const route of routes) {
       expect(route.options.loader).toBeUndefined();
     }
+  });
+
+  it("prefetches SSR data for core detail routes", () => {
+    const routes = [
+      blockDetailRoute,
+      transactionDetailRoute,
+      masternodeDetailRoute,
+    ];
+
+    for (const route of routes) {
+      expect(route.options.loader).toBeTypeOf("function");
+    }
+  });
+
+  it("does not require detail data to render the route", async () => {
+    const queryClient = {
+      prefetchQuery: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(
+      blockDetailRoute.options.loader?.({
+        context: { queryClient },
+        params: { hashOrHeight: "slow-block" },
+      } as never),
+    ).resolves.toBeUndefined();
+
+    expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the OG route blocking for complete image data", () => {
