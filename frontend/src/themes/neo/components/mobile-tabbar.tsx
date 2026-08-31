@@ -7,7 +7,7 @@ import {
   MoreHorizontal,
   Search,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -15,7 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { SpotlightSearch } from "@/themes/neo/components/spotlight-search";
+import { SpotlightSearch } from "@/themes/neo/components/lazy-spotlight-search";
 
 type TabItem =
   | {
@@ -154,32 +154,8 @@ export function MobileTabbar() {
       />
 
       {searchOpen && (
-        <MobileSearchOverlay onClose={() => setSearchOpen(false)} />
+        <SpotlightSearch defaultOpen hideTrigger onOpenChange={setSearchOpen} />
       )}
     </>
-  );
-}
-
-function MobileSearchOverlay({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-50 md:hidden">
-      <button
-        type="button"
-        aria-label="Close search"
-        className="absolute inset-0 bg-background/80 backdrop-blur"
-        onClick={onClose}
-      />
-      <div className="absolute inset-x-4 top-6">
-        <SpotlightSearch className="w-full" />
-      </div>
-    </div>
   );
 }

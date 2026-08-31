@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type {
   ApiBlockTransactionsStatsEntry,
   ApiTransactionsBreakdown,
@@ -28,6 +28,19 @@ export function monthStatsRange(): {
   return { timestampStart: start, timestampEnd: end };
 }
 
+export function dayStatsRange(): {
+  timestampStart: string;
+  timestampEnd: string;
+} {
+  const end = new Date();
+  end.setUTCMinutes(0, 0, 0);
+  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+  return {
+    timestampStart: start.toISOString(),
+    timestampEnd: end.toISOString(),
+  };
+}
+
 function buildStatsUrl(path: string, params: FetchStatsInput) {
   const url = new URL(path, getBaseUrl(params.network));
   if (params.timestampStart) {
@@ -44,7 +57,7 @@ function buildStatsUrl(path: string, params: FetchStatsInput) {
 
 async function getTransactionsStats(params: FetchStatsInput) {
   const url = buildStatsUrl("/transactions/chart", params);
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -70,7 +83,7 @@ export function transactionsStatsQueryOptions(params: FetchStatsInput) {
 
 async function getBlockTransactionsStats(params: FetchStatsInput) {
   const url = buildStatsUrl("/blocks/transactions/chart", params);
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -100,7 +113,7 @@ interface FetchBreakdownInput {
 
 async function getTransactionsBreakdown24h(params: FetchBreakdownInput) {
   const url = new URL("/transactions/stats", getBaseUrl(params.network));
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (response.status === 404) {
     return {
       total: null,

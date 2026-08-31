@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type { ApiHistoricalEntry } from "./types";
 
 type Currency = "usd" | "btc";
@@ -13,7 +13,7 @@ interface FetchPriceInput {
 
 async function getPrice(params: FetchPriceInput) {
   const url = new URL(`/price/${params.currency}`, getBaseUrl(params.network));
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -36,7 +36,7 @@ async function getPriceHistorical(params: FetchPriceInput) {
     `/price/${params.currency}/chart`,
     getBaseUrl(params.network),
   );
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }

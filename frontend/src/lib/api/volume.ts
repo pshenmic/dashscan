@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type { ApiHistoricalEntry } from "./types";
 
 interface FetchVolumeInput {
@@ -11,7 +11,7 @@ interface FetchVolumeInput {
 
 async function getVolume(params: FetchVolumeInput) {
   const url = new URL(`/volume/${params.currency}`, getBaseUrl(params.network));
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -34,7 +34,7 @@ async function getVolumeHistorical(params: FetchVolumeInput) {
     `/volume/${params.currency}/chart`,
     getBaseUrl(params.network),
   );
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }

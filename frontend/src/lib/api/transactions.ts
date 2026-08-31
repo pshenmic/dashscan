@@ -1,7 +1,7 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type {
   ApiTransaction,
   PaginatedResponse,
@@ -60,7 +60,7 @@ async function getTransactions(params: FetchTransactionsInput) {
   if (params.order !== undefined) url.searchParams.set("order", params.order);
   applyTxFilters(url, params);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -139,7 +139,7 @@ async function getTransaction(params: FetchTransactionInput) {
     `/transaction/${params.hash}`,
     getBaseUrl(params.network),
   );
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -180,7 +180,7 @@ async function getTransactionsByHeight(
       url.searchParams.set("limit", String(params.limit));
     if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-    const response = await fetch(url);
+    const response = await apiFetch(url);
     if (!response.ok) return emptyResult;
     return response.json() as Promise<PaginatedResponse<ApiTransaction>>;
   } catch {

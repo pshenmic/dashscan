@@ -1,7 +1,7 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type {
   ApiAddress,
   ApiAddressActivityEntry,
@@ -26,7 +26,7 @@ async function getAddresses(params: FetchAddressesInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -57,7 +57,7 @@ interface FetchAddressInput {
 
 async function getAddress(params: FetchAddressInput) {
   const url = new URL(`/address/${params.address}`, getBaseUrl(params.network));
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -90,7 +90,7 @@ async function getAddressTransactions(params: FetchAddressTransactionsInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -169,11 +169,11 @@ async function getAddressBalanceChart(params: FetchAddressBalanceChartInput) {
     return url;
   };
 
-  let response = await fetch(
+  let response = await apiFetch(
     buildUrl(`/address/${params.address}/balance/chart`),
   );
   if (response.status === 404) {
-    response = await fetch(
+    response = await apiFetch(
       buildUrl(`/address/${params.address}/balance/history`),
     );
   }
@@ -219,7 +219,7 @@ async function getAddressUtxos(params: FetchAddressUtxosInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -256,7 +256,7 @@ async function getRichList(params: FetchRichListInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -285,7 +285,7 @@ async function getAddressesActivity(params: FetchAddressesActivityInput) {
   if (params.timestampEnd !== undefined)
     url.searchParams.set("timestamp_end", params.timestampEnd);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
@@ -311,7 +311,6 @@ export function addressesActivityQueryOptions(
       params.timestampEnd,
     ],
     queryFn: () => getAddressesActivity(params),
-    retry: 1,
   });
 }
 
@@ -365,7 +364,6 @@ export function addressesActivityInfiniteQueryOptions(
       const { page, limit: pageLimit, total } = lastPage.pagination;
       return page * pageLimit < total ? page + 1 : undefined;
     },
-    retry: 1,
   });
 }
 

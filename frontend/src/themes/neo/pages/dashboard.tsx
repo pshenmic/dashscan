@@ -30,7 +30,16 @@ import {
   Vote,
   Zap,
 } from "lucide-react";
-import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  memo,
+  Suspense,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Area,
   AreaChart,
@@ -78,6 +87,7 @@ import {
 } from "@/lib/api/price";
 import {
   blockTransactionsStatsQueryOptions,
+  dayStatsRange,
   monthStatsRange,
   transactionsBreakdown24hQueryOptions,
   transactionsStatsQueryOptions,
@@ -121,8 +131,6 @@ import { ConcentrationBanner } from "@/themes/neo/components/concentration-banne
 import { EmptyState } from "@/themes/neo/components/empty-state";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
 import { LiveTicker } from "@/themes/neo/components/live-ticker";
-import { MasternodeMap } from "@/themes/neo/components/masternode-map";
-import { PeersMap } from "@/themes/neo/components/peers-map";
 import {
   InstantLockBadge,
   MnStatusBadge,
@@ -144,15 +152,17 @@ const chartConfig: ChartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
 };
 
-function dayStatsRange() {
-  const end = new Date();
-  end.setUTCMinutes(0, 0, 0);
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
-  return {
-    timestampStart: start.toISOString(),
-    timestampEnd: end.toISOString(),
-  };
-}
+const LazyMasternodeMap = lazy(() =>
+  import("@/themes/neo/components/masternode-map").then((module) => ({
+    default: module.MasternodeMap,
+  })),
+);
+
+const LazyPeersMap = lazy(() =>
+  import("@/themes/neo/components/peers-map").then((module) => ({
+    default: module.PeersMap,
+  })),
+);
 
 export default function RedesignDashboardPage() {
   const network = useStore(appStore, (state) => state.network);
@@ -1050,11 +1060,84 @@ export default function RedesignDashboardPage() {
           />
         ) : null}
 
-        <MasternodeMap variant="dashboard" />
+        <DeferredMap label="Masternode Network Map">
+          <LazyMasternodeMap variant="dashboard" />
+        </DeferredMap>
 
-        <PeersMap variant="dashboard" />
+        <DeferredMap label="Network Peers Map">
+          <LazyPeersMap variant="dashboard" />
+        </DeferredMap>
       </div>
     </div>
+  );
+}
+
+function DeferredMap({
+  children,
+  label,
+}: {
+  children: React.ReactNode;
+  label: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || shouldLoad) return;
+
+    if (!("IntersectionObserver" in window)) {
+      setShouldLoad(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setShouldLoad(true);
+        observer.disconnect();
+      },
+      { rootMargin: "400px 0px" },
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+
+  const placeholder = <MapPlaceholder label={label} />;
+
+  return (
+    <div ref={containerRef}>
+      {shouldLoad ? (
+        <Suspense fallback={placeholder}>{children}</Suspense>
+      ) : (
+        placeholder
+      )}
+    </div>
+  );
+}
+
+function MapPlaceholder({ label }: { label: string }) {
+  return (
+    <Card className="overflow-hidden" aria-busy="true" aria-label={label}>
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 lg:grid-cols-12">
+          <div className="flex flex-col gap-3 lg:col-span-9">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-[420px] w-full rounded-2xl" />
+          </div>
+          <div className="flex flex-col gap-2 lg:col-span-3">
+            {[0, 1, 2, 3, 4].map((item) => (
+              <Skeleton key={item} className="h-12 w-full rounded-xl" />
+            ))}
+          </div>
+        </div>
+        <Skeleton className="mt-3 h-4 w-80 max-w-full" />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -2052,6 +2135,10 @@ function MasternodesListCard({
   total: number | null;
   isLoading: boolean;
 }) {
+  const enabledMasternodes = masternodes.filter(
+    (masternode) => masternode.status === "ENABLED",
+  );
+
   return (
     <Card className="lg:col-span-6">
       <CardHeader>
@@ -2096,7 +2183,7 @@ function MasternodesListCard({
                 </TableCell>
               </TableRow>
             )}
-            {masternodes.filter(mn => mn.status === 'ENABLED').map((mn) => {
+            {enabledMasternodes.map((mn) => {
               const stake = getCollateral(mn.type);
               const penalty = mn.posPenaltyScore ?? 0;
               return (

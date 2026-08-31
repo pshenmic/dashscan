@@ -9,7 +9,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { SpotlightSearch } from "@/themes/neo/components/spotlight-search";
+import { SpotlightSearch } from "@/themes/neo/components/lazy-spotlight-search";
 import { ThemeSwitcher } from "@/themes/ThemeSwitcher";
 
 const NAV_ITEMS = [
@@ -110,7 +110,7 @@ export default function SiteHeader() {
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 md:flex">
-          <SpotlightSearch />
+          <SpotlightSearch enableShortcut />
           <ThemeSwitcher />
         </div>
 

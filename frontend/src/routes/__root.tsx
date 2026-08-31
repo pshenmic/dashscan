@@ -1,15 +1,15 @@
-import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   createRootRouteWithContext,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { getBaseUrl } from "@/lib/api/client";
+import { defaultNetwork } from "@/lib/store";
 import { ErrorFallback } from "../components/error-fallback";
-import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
-import TanStackQueryProvider from "../integrations/tanstack-query/root-provider";
+import AppDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
 import { ThemeHydrator } from "../themes/Hydrator";
 import { THEME_INIT_SCRIPT } from "../themes/init";
@@ -36,6 +36,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
     links: [
       {
+        rel: "preconnect",
+        href: getBaseUrl(defaultNetwork),
+        crossOrigin: "anonymous",
+      },
+      {
         rel: "stylesheet",
         href: appCss,
       },
@@ -49,7 +54,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   shellComponent: RootDocument,
 });
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -58,23 +63,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="font-sans antialiased">
-        <TanStackQueryProvider>
-          <ThemeHydrator />
-          <ThemeShell>{children}</ThemeShell>
-          <Toaster />
-          <TanStackDevtools
-            config={{
-              position: "bottom-right",
-            }}
-            plugins={[
-              {
-                name: "Tanstack Router",
-                render: <TanStackRouterDevtoolsPanel />,
-              },
-              TanStackQueryDevtools,
-            ]}
-          />
-        </TanStackQueryProvider>
+        <ThemeHydrator />
+        <ThemeShell>{children}</ThemeShell>
+        <Toaster />
+        <AppDevtools />
         <Scripts />
       </body>
     </html>

@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { richListQueryOptions } from "@/lib/api/addresses";
+import { getAddressActivityWindowBounds } from "@/lib/address-activity-window";
+import {
+  addressesActivityInfiniteQueryOptions,
+  richListInfiniteQueryOptions,
+} from "@/lib/api/addresses";
+import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
 import RedesignAddressesPage from "@/themes/neo/pages/addresses";
 
@@ -13,20 +18,34 @@ const addressesSearchSchema = z.object({
 export const Route = createFileRoute("/addresses")({
   component: AddressesRoute,
   validateSearch: addressesSearchSchema,
+  loaderDeps: ({ search: { tab, window } }) => ({
+    tab: tab ?? "active",
+    window: window ?? "24h",
+  }),
   head: () => ({
     meta: [{ title: "Addresses | Dashscan" }],
   }),
-  loader: ({ context }) => {
-    if (typeof window !== "undefined") return;
-    return context.queryClient.prefetchQuery(
-      richListQueryOptions({
-        network: defaultNetwork,
-        page: 1,
-        limit: 25,
-        order: "desc",
-      }),
-    );
-  },
+  loader: ({ context, deps: { tab, window } }) =>
+    prefetchSsrData(context.queryClient, [
+      tab === "active"
+        ? () =>
+            context.queryClient.prefetchInfiniteQuery(
+              addressesActivityInfiniteQueryOptions({
+                network: defaultNetwork,
+                limit: 25,
+                order: "desc",
+                ...getAddressActivityWindowBounds(window),
+              }),
+            )
+        : () =>
+            context.queryClient.prefetchInfiniteQuery(
+              richListInfiniteQueryOptions({
+                network: defaultNetwork,
+                limit: 25,
+                order: "desc",
+              }),
+            ),
+    ]),
 });
 
 function AddressesRoute() {
