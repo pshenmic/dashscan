@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { blockQueryOptions } from "@/lib/api/blocks";
+import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
@@ -27,12 +28,13 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
       },
     ],
   }),
-  loader: async ({ context, params: { hashOrHeight } }) => {
-    if (typeof window !== "undefined") return;
-    await context.queryClient.prefetchQuery(
-      blockQueryOptions({ network: defaultNetwork, hash: hashOrHeight }),
-    );
-  },
+  loader: ({ context, params: { hashOrHeight } }) =>
+    prefetchSsrData(context.queryClient, [
+      () =>
+        context.queryClient.prefetchQuery(
+          blockQueryOptions({ network: defaultNetwork, hash: hashOrHeight }),
+        ),
+    ]),
 });
 
 function BlockDetailRoute() {

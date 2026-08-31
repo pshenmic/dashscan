@@ -1,8 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { z } from "zod";
-import { TRANSACTION_TYPE_VALUES } from "@/lib/api/transactions";
+import {
+  TRANSACTION_TYPE_VALUES,
+  transactionsInfiniteQueryOptions,
+} from "@/lib/api/transactions";
 import { paginationSearchSchema } from "@/lib/pagination";
+import { prefetchSsrData } from "@/lib/ssr-prefetch";
+import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
 import RedesignTransactionsListPage from "@/themes/neo/pages/transactions-list";
@@ -20,10 +25,31 @@ const transactionsSearchSchema = paginationSearchSchema.extend({
 
 export const Route = createFileRoute("/transactions/")({
   validateSearch: transactionsSearchSchema,
+  loaderDeps: ({
+    search: { transaction_type, coinjoin, multisig, block_height },
+  }) => ({ transaction_type, coinjoin, multisig, block_height }),
   component: TransactionsListRoute,
   head: () => ({
     meta: [{ title: "Transactions | Dashscan" }],
   }),
+  loader: ({
+    context,
+    deps: { transaction_type, coinjoin, multisig, block_height },
+  }) =>
+    prefetchSsrData(context.queryClient, [
+      () =>
+        context.queryClient.prefetchInfiniteQuery(
+          transactionsInfiniteQueryOptions({
+            network: defaultNetwork,
+            limit: 25,
+            order: "desc",
+            transactionType: transaction_type,
+            coinjoin,
+            multisig,
+            blockHeight: block_height,
+          }),
+        ),
+    ]),
 });
 
 function TransactionsListRoute() {

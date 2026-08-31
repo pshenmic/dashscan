@@ -18,6 +18,7 @@ import {
   volumeHistoricalQueryOptions,
   volumeQueryOptions,
 } from "@/lib/api/volume";
+import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
@@ -32,29 +33,48 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [{ title: "Dashboard | Dashscan" }],
   }),
-  loader: async ({ context }) => {
-    if (typeof window !== "undefined") return;
-
+  loader: ({ context }) => {
     const network = defaultNetwork;
-    const criticalQueries = [
-      blocksQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
-      chainStatsQueryOptions({ network }),
-      priceQueryOptions({ network, currency: "usd" }),
-      priceHistoricalQueryOptions({ network, currency: "usd" }),
-      marketCapQueryOptions({ network, currency: "usd" }),
-      marketCapHistoricalQueryOptions({ network, currency: "usd" }),
-      volumeQueryOptions({ network, currency: "usd" }),
-      volumeHistoricalQueryOptions({ network, currency: "usd" }),
-      blockTransactionsStatsQueryOptions({
-        network,
-        ...dayStatsRange(),
-        intervalsCount: 24,
-      }),
-    ];
-
-    await Promise.allSettled(
-      criticalQueries.map((query) => context.queryClient.prefetchQuery(query)),
-    );
+    return prefetchSsrData(context.queryClient, [
+      () =>
+        context.queryClient.prefetchQuery(
+          blocksQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
+        ),
+      () =>
+        context.queryClient.prefetchQuery(chainStatsQueryOptions({ network })),
+      () =>
+        context.queryClient.prefetchQuery(
+          priceQueryOptions({ network, currency: "usd" }),
+        ),
+      () =>
+        context.queryClient.prefetchQuery(
+          priceHistoricalQueryOptions({ network, currency: "usd" }),
+        ),
+      () =>
+        context.queryClient.prefetchQuery(
+          marketCapQueryOptions({ network, currency: "usd" }),
+        ),
+      () =>
+        context.queryClient.prefetchQuery(
+          marketCapHistoricalQueryOptions({ network, currency: "usd" }),
+        ),
+      () =>
+        context.queryClient.prefetchQuery(
+          volumeQueryOptions({ network, currency: "usd" }),
+        ),
+      () =>
+        context.queryClient.prefetchQuery(
+          volumeHistoricalQueryOptions({ network, currency: "usd" }),
+        ),
+      () =>
+        context.queryClient.prefetchQuery(
+          blockTransactionsStatsQueryOptions({
+            network,
+            ...dayStatsRange(),
+            intervalsCount: 24,
+          }),
+        ),
+    ]);
   },
 });
 

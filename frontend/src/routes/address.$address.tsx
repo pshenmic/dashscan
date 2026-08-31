@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
+import { addressQueryOptions } from "@/lib/api/addresses";
 import { paginationSearchSchema } from "@/lib/pagination";
+import { prefetchSsrData } from "@/lib/ssr-prefetch";
+import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
 import RedesignAddressDetailPage from "@/themes/neo/pages/address-detail";
@@ -24,6 +27,13 @@ export const Route = createFileRoute("/address/$address")({
       { name: "twitter:image", content: `/og/address/${params.address}` },
     ],
   }),
+  loader: ({ context, params: { address } }) =>
+    prefetchSsrData(context.queryClient, [
+      () =>
+        context.queryClient.prefetchQuery(
+          addressQueryOptions({ network: defaultNetwork, address }),
+        ),
+    ]),
 });
 
 function AddressDetailRoute() {

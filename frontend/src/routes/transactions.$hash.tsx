@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { transactionQueryOptions } from "@/lib/api/transactions";
+import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
@@ -24,12 +25,13 @@ export const Route = createFileRoute("/transactions/$hash")({
       { name: "twitter:image", content: `/og/transaction/${params.hash}` },
     ],
   }),
-  loader: ({ context, params: { hash } }) => {
-    if (typeof window !== "undefined") return;
-    return context.queryClient.prefetchQuery(
-      transactionQueryOptions({ network: defaultNetwork, hash }),
-    );
-  },
+  loader: ({ context, params: { hash } }) =>
+    prefetchSsrData(context.queryClient, [
+      () =>
+        context.queryClient.prefetchQuery(
+          transactionQueryOptions({ network: defaultNetwork, hash }),
+        ),
+    ]),
 });
 
 function TransactionDetailRoute() {

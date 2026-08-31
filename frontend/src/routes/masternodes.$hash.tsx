@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
+import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
@@ -24,12 +25,13 @@ export const Route = createFileRoute("/masternodes/$hash")({
       { name: "twitter:image", content: `/og/masternode/${params.hash}` },
     ],
   }),
-  loader: ({ context, params: { hash } }) => {
-    if (typeof window !== "undefined") return;
-    return context.queryClient.prefetchQuery(
-      masternodeQueryOptions({ network: defaultNetwork, hash }),
-    );
-  },
+  loader: ({ context, params: { hash } }) =>
+    prefetchSsrData(context.queryClient, [
+      () =>
+        context.queryClient.prefetchQuery(
+          masternodeQueryOptions({ network: defaultNetwork, hash }),
+        ),
+    ]),
 });
 
 function MasternodeDetailRoute() {

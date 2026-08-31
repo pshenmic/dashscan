@@ -14,28 +14,20 @@ import { Route as transactionDetailRoute } from "@/routes/transactions.$hash";
 import { Route as transactionsRoute } from "@/routes/transactions.index";
 
 describe("route data loading", () => {
-  it("keeps list routes independent from backend loaders", () => {
+  it("prefetches the minimum SSR data for every user-facing route", () => {
     const routes = [
+      dashboardRoute,
       blocksRoute,
+      blockDetailRoute,
       transactionsRoute,
+      transactionDetailRoute,
       masternodesRoute,
+      masternodeDetailRoute,
       addressDetailRoute,
       addressesRoute,
       daoRoute,
       proposalDetailRoute,
       peersRoute,
-    ];
-
-    for (const route of routes) {
-      expect(route.options.loader).toBeUndefined();
-    }
-  });
-
-  it("prefetches SSR data for core detail routes", () => {
-    const routes = [
-      blockDetailRoute,
-      transactionDetailRoute,
-      masternodeDetailRoute,
     ];
 
     for (const route of routes) {

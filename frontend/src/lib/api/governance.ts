@@ -103,7 +103,6 @@ export function proposalVotesChartQueryOptions(
       params.runningTotal,
     ],
     queryFn: () => getProposalVotesChart(params),
-    retry: 1,
   });
 }
 

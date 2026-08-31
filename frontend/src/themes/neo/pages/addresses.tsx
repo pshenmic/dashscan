@@ -7,6 +7,10 @@ import { DashIcon } from "@/components/dash-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
+  type AddressActivityWindow,
+  getAddressActivityWindowBounds,
+} from "@/lib/address-activity-window";
+import {
   addressesActivityInfiniteQueryOptions,
   addressesActivityQueryOptions,
   richListInfiniteQueryOptions,
@@ -30,21 +34,12 @@ import { Badge } from "@/themes/neo/components/ui/badge";
 
 const PAGE_SIZE = 25;
 
-type ActivityWindow = "24h" | "3d" | "7d" | "30d";
-
-const WINDOW_OPTIONS: { value: ActivityWindow; label: string }[] = [
+const WINDOW_OPTIONS: { value: AddressActivityWindow; label: string }[] = [
   { value: "24h", label: "24H" },
   { value: "3d", label: "3D" },
   { value: "7d", label: "7D" },
   { value: "30d", label: "30D" },
 ];
-
-const WINDOW_MS: Record<ActivityWindow, number> = {
-  "24h": 24 * 60 * 60 * 1000,
-  "3d": 3 * 24 * 60 * 60 * 1000,
-  "7d": 7 * 24 * 60 * 60 * 1000,
-  "30d": 30 * 24 * 60 * 60 * 1000,
-};
 
 function RankBadge({ rank }: { rank: number }) {
   return (
@@ -81,7 +76,7 @@ export default function RedesignAddressesPage() {
   const setSearch = (
     patch: Partial<{
       tab: "active" | "rich";
-      window: ActivityWindow;
+      window: AddressActivityWindow;
       page: number;
     }>,
   ) => {
@@ -92,13 +87,7 @@ export default function RedesignAddressesPage() {
   };
 
   const windowBounds = useMemo(() => {
-    const end = new Date();
-    end.setSeconds(0, 0);
-    const start = new Date(end.getTime() - WINDOW_MS[activityWindow]);
-    return {
-      timestampStart: start.toISOString(),
-      timestampEnd: end.toISOString(),
-    };
+    return getAddressActivityWindowBounds(activityWindow);
   }, [activityWindow]);
 
   const [viewMode, setViewMode] = useTableViewMode("addresses");
@@ -351,7 +340,10 @@ export default function RedesignAddressesPage() {
                 value={activityWindow}
                 onValueChange={(value) => {
                   if (value) {
-                    setSearch({ window: value as ActivityWindow, page: 1 });
+                    setSearch({
+                      window: value as AddressActivityWindow,
+                      page: 1,
+                    });
                   }
                 }}
                 aria-label="Activity window"

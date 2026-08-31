@@ -311,7 +311,6 @@ export function addressesActivityQueryOptions(
       params.timestampEnd,
     ],
     queryFn: () => getAddressesActivity(params),
-    retry: 1,
   });
 }
 
@@ -365,7 +364,6 @@ export function addressesActivityInfiniteQueryOptions(
       const { page, limit: pageLimit, total } = lastPage.pagination;
       return page * pageLimit < total ? page + 1 : undefined;
     },
-    retry: 1,
   });
 }
 
