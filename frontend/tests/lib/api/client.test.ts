@@ -2,8 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   apiFetch,
   ApiTimeoutError,
-  BROWSER_API_TIMEOUT_MS,
-  getApiTimeoutMs,
   getBaseUrl,
   SERVER_API_TIMEOUT_MS,
 } from "@/lib/api/client";
@@ -27,19 +25,19 @@ describe("getBaseUrl", () => {
   });
 });
 
-describe("getApiTimeoutMs", () => {
-  it("uses a short deadline on the server", () => {
-    expect(getApiTimeoutMs()).toBe(SERVER_API_TIMEOUT_MS);
-  });
-
-  it("uses a longer deadline in the browser", () => {
-    vi.stubGlobal("window", {});
-
-    expect(getApiTimeoutMs()).toBe(BROWSER_API_TIMEOUT_MS);
-  });
-});
-
 describe("apiFetch", () => {
+  it("does not schedule a timeout in the browser", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("window", {});
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(apiFetch("https://api.example.com/data")).resolves.toBeTruthy();
+
+    expect(vi.getTimerCount()).toBe(0);
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(false);
+  });
+
   it("throws a clear timeout error and aborts the request", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn(

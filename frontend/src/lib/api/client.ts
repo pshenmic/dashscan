@@ -1,7 +1,6 @@
 import type { Network } from "@/lib/store";
 
 export const SERVER_API_TIMEOUT_MS = 1_000;
-export const BROWSER_API_TIMEOUT_MS = 8_000;
 
 export class ApiTimeoutError extends Error {
   readonly timeoutMs: number;
@@ -25,17 +24,17 @@ export interface ApiFetchOptions extends RequestInit {
   timeoutMs?: number;
 }
 
-export function getApiTimeoutMs(): number {
-  return typeof window === "undefined"
-    ? SERVER_API_TIMEOUT_MS
-    : BROWSER_API_TIMEOUT_MS;
-}
-
 export async function apiFetch(
   input: RequestInfo | URL,
   options: ApiFetchOptions = {},
 ): Promise<Response> {
-  const { signal, timeoutMs = getApiTimeoutMs(), ...requestInit } = options;
+  const {
+    signal,
+    timeoutMs = typeof window === "undefined"
+      ? SERVER_API_TIMEOUT_MS
+      : undefined,
+    ...requestInit
+  } = options;
   const controller = new AbortController();
   let abortSource: "caller" | "timeout" | null = null;
 
@@ -51,21 +50,24 @@ export async function apiFetch(
     signal?.addEventListener("abort", abortFromCaller, { once: true });
   }
 
-  const timeoutId = setTimeout(() => {
-    if (controller.signal.aborted) return;
-    abortSource = "timeout";
-    controller.abort();
-  }, timeoutMs);
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  if (timeoutMs !== undefined) {
+    timeoutId = setTimeout(() => {
+      if (controller.signal.aborted) return;
+      abortSource = "timeout";
+      controller.abort();
+    }, timeoutMs);
+  }
 
   try {
     return await fetch(input, { ...requestInit, signal: controller.signal });
   } catch (error) {
-    if (abortSource === "timeout") {
+    if (abortSource === "timeout" && timeoutMs !== undefined) {
       throw new ApiTimeoutError(input, timeoutMs, error);
     }
     throw error;
   } finally {
-    clearTimeout(timeoutId);
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
     signal?.removeEventListener("abort", abortFromCaller);
   }
 }
