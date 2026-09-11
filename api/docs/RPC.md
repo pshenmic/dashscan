@@ -843,6 +843,7 @@ Returns a paginated list of unspent transaction outputs (UTXOs) for the given ad
       "amount": "100000000",
       "scriptPubKeyHex": "76a9141b2a522cc8d42b0be7ceb8db711416794d50c84688ac",
       "blockHeight": 2200000,
+      "timestamp": "2024-01-01T00:00:00.000Z",
       "confirmations": 12,
       "sequence": null,
       "scriptSigASM": null
@@ -858,17 +859,18 @@ Returns a paginated list of unspent transaction outputs (UTXOs) for the given ad
 
 #### UTXO Object
 
-| Field             | Type           | Description                                                                       |
-|-------------------|----------------|-----------------------------------------------------------------------------------|
-| `prevTxHash`      | string \| null | Hash of the transaction holding the unspent output                                |
-| `vOutIndex`       | number \| null | Output index within that transaction                                              |
-| `address`         | string \| null | Address the output pays                                                           |
-| `amount`          | string \| null | Output value in duffs                                                             |
-| `scriptPubKeyHex` | string \| null | Raw output script hex — the script that must be signed to spend this UTXO          |
-| `blockHeight`     | number \| null | Height of the block containing the output; `null` while it is still unconfirmed    |
-| `confirmations`   | number \| null | Confirmations for that block; `null` while unconfirmed                            |
-| `sequence`        | number \| null | Always `null`                                                                     |
-| `scriptSigASM`    | string \| null | Always `null`                                                                     |
+| Field             | Type           | Description                                                                     |
+|-------------------|----------------|---------------------------------------------------------------------------------|
+| `prevTxHash`      | string \| null | Hash of the transaction holding the unspent output                              |
+| `vOutIndex`       | number \| null | Output index within that transaction                                            |
+| `address`         | string \| null | Address the output pays                                                         |
+| `amount`          | string \| null | Output value in duffs                                                           |
+| `scriptPubKeyHex` | string \| null | Raw output script hex — the script that must be signed to spend this UTXO       |
+| `blockHeight`     | number \| null | Height of the block containing the output; `null` while it is still unconfirmed |
+| `timestamp`       | string \| null | Timestamp of the block                                                          |
+| `confirmations`   | number \| null | Confirmations for that block; `null` while unconfirmed                          |
+| `sequence`        | number \| null | Always `null`                                                                   |
+| `scriptSigASM`    | string \| null | Always `null`                                                                   |
 
 `sequence` and `scriptSigASM` belong to inputs, not to unspent outputs. They are
 retained, always `null`, so clients written against the previous VIn-shaped
@@ -910,6 +912,7 @@ GET /addresses/utxo?addresses=XwykuvxKBWT2dGN2Q9Y4Dqwo5riyf3C2At,XdAUmwtig27HBG6
     "amount": "100000000",
     "scriptPubKeyHex": "76a9141b2a522cc8d42b0be7ceb8db711416794d50c84688ac",
     "blockHeight": 2200000,
+    "timestamp": "2024-01-01T00:00:00.000Z",
     "confirmations": 12,
     "sequence": null,
     "scriptSigASM": null
