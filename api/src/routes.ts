@@ -49,15 +49,44 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/block/:hash',
+      path: '/blocks/difficulty/chart',
       method: 'get',
-      handler: blocksController.getBlockByHash,
+      handler: blocksController.getDifficultyStats,
       schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
+    },
+    {
+      path: '/block/:identifier',
+      method: 'get',
+      handler: blocksController.getBlockByHashOrHeight,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            identifier: {
+              oneOf: [
+                { $ref: 'hash#' },
+                { type: 'string', pattern: '^[0-9]{1,9}$' },
+              ],
+            },
+          },
+          required: ['identifier'],
+        },
+      },
+    },
+    {
+      path: '/block/:hash/transactions',
+      method: 'get',
+      handler: transactionsController.getBlockTransactionHashes,
+      schema: {
+        querystring: { $ref: 'paginationOptions#' },
         params: {
           type: 'object',
           properties: {
             hash: { $ref: 'hash#' },
           },
+          required: ['hash'],
         },
       },
     },

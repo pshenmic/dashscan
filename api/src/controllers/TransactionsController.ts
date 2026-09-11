@@ -51,6 +51,15 @@ export default class TransactionsController {
     response.send(transactions);
   };
 
+  getBlockTransactionHashes = async (request: FastifyRequest<{ Querystring: PaginatedQuery; Params: { hash: string } }>, response: FastifyReply): Promise<void> => {
+    const { page = 1, limit = 10, order = 'asc' } = request.query;
+    const { hash } = request.params;
+
+    const hashes = await this.transactionsDAO.getTransactionHashesByBlockHash(hash, page, limit, order);
+
+    response.send(hashes);
+  };
+
   getPendingTransactions = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
     const { page = 1, limit = 10, order = 'asc' } = request.query;
     

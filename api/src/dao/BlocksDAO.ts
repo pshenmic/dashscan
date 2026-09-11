@@ -140,13 +140,58 @@ export default class BlocksDAO {
     });
   };
 
+  getDifficultySeries = async (start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
+    const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
+    const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
+
+    const ranges = this.knex
+      .from(this.knex.raw(`generate_series(${startSql}, ${endSql}, '${interval}'::interval) date_to`))
+      .select('date_to')
+      .select(
+        this.knex.raw(
+          'LAG(date_to, 1, ?::timestamptz) OVER (ORDER BY date_to ASC) AS date_from',
+          [start.toISOString()]
+        )
+      );
+
+    const bucketsCTE = this.knex('ranges')
+      .select('date_from')
+      .select(this.knex.raw('AVG(blocks.difficulty) AS avg_difficulty'))
+      .leftJoin('blocks', function () {
+        this.on('blocks.timestamp', '>', 'ranges.date_from')
+          .andOn('blocks.timestamp', '<=', 'ranges.date_to');
+      })
+      .groupBy('date_from');
+
+    const rows = await this.knex
+      .with('ranges', ranges)
+      .with('buckets', bucketsCTE)
+      .select('date_from')
+      .select(this.knex.raw('COALESCE(avg_difficulty, 0) AS avg_difficulty'))
+      .from('buckets')
+      .orderBy('date_from', 'asc');
+
+    return rows.map((row: any) => new SeriesData(
+      new Date(row.date_from),
+      { avg: row.avg_difficulty !== null ? parseFloat(parseFloat(row.avg_difficulty).toFixed(2)) : null },
+    ));
+  }
+
   getBlockByHash = async (hash: string): Promise<Block | null> => {
+    return this.getBlock({ 'blocks.hash': hash });
+  };
+
+  getBlockByHeight = async (height: number): Promise<Block | null> => {
+    return this.getBlock({ 'blocks.height': height });
+  };
+
+  private getBlock = async (where: Record<string, string | number>): Promise<Block | null> => {
     const rows = await this.knex('blocks')
       .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.superblock',
         'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce',
         'blocks.previous_block_hash', 'blocks.merkle_root', 'blocks.credit_pool_balance')
       .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
-      .where('blocks.hash', hash)
+      .where(where)
       .limit(1)
 
     const [row] = rows;
