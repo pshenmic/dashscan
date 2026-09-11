@@ -6,6 +6,7 @@ export interface UtxoObject {
   scriptPubKeyHex?: string;
   blockHeight?: number;
   confirmations?: number;
+  timestamp?: Date;
 }
 
 export interface UtxoRow {
@@ -16,4 +17,5 @@ export interface UtxoRow {
   script_pub_key?: string;
   block_height?: number;
   confirmations?: number;
+  timestamp?: Date;
 }

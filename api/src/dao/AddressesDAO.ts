@@ -302,12 +302,14 @@ export default class AddressesDAO {
         this.on('tx_outputs.tx_id', '=', 'page.tx_id')
           .andOn('tx_outputs.vout_index', '=', 'page.vout_index');
       })
+      .leftJoin('blocks', 'blocks.height', 'transactions.block_height')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .select(
         'transactions.hash as prev_tx_hash',
         'page.vout_index as prev_vout_index',
         'transactions.block_height',
         'tx_outputs.script_pub_key',
+        'blocks.timestamp as timestamp',
         this.knex.raw('page.amount::text as amount'),
         this.knex.raw('max_height - transactions.block_height + 1 as confirmations'),
       )
@@ -358,6 +360,7 @@ export default class AddressesDAO {
         this.on('tx_outputs.tx_id', '=', 'page.tx_id')
           .andOn('tx_outputs.vout_index', '=', 'page.vout_index');
       })
+      .leftJoin('blocks', 'blocks.height', 'transactions.block_height')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .select(
         'addresses.address',
@@ -365,6 +368,7 @@ export default class AddressesDAO {
         'page.vout_index as prev_vout_index',
         'transactions.block_height',
         'tx_outputs.script_pub_key',
+        'blocks.timestamp as timestamp',
         this.knex.raw('page.amount::text as amount'),
         this.knex.raw('max_height - transactions.block_height + 1 as confirmations'),
       )
@@ -393,6 +397,7 @@ export default class AddressesDAO {
         this.on('tx_outputs.tx_id', '=', 'utxo.tx_id')
           .andOn('tx_outputs.vout_index', '=', 'utxo.vout_index');
       })
+      .leftJoin('blocks', 'blocks.height', 'transactions.block_height')
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
       .select(
         'ids.address',
@@ -400,6 +405,7 @@ export default class AddressesDAO {
         'utxo.vout_index as prev_vout_index',
         'transactions.block_height',
         'tx_outputs.script_pub_key',
+        'blocks.timestamp as timestamp',
         this.knex.raw('utxo.amount::text as amount'),
         this.knex.raw('max_height - transactions.block_height + 1 as confirmations'),
       )
