@@ -1,4 +1,5 @@
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import {
@@ -70,6 +71,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <Toaster />
         <AppDevtools />
         <Analytics />
+        <SpeedInsights />
         <Scripts />
       </body>
     </html>
