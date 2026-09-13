@@ -1,3 +1,5 @@
+import { Analytics } from "@vercel/analytics/react";
+import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   createRootRouteWithContext,
@@ -67,6 +69,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <ThemeShell>{children}</ThemeShell>
         <Toaster />
         <AppDevtools />
+        <Analytics />
         <Scripts />
       </body>
     </html>
