@@ -1,27 +1,50 @@
-import {UtxoInfoRPC} from "./dashcoreRPC";
+import Redis from 'ioredis';
 
-interface CacheStorage {
-  utxoInfo?: UtxoInfoRPC;
-  geoipStorage?: { [key: string | number]: any };
-  protxOutpointMap?: Record<string, string>;
-}
-
+// Shared across API instances, so N instances make one RPC call, not N.
 export class Cache {
-  storage: CacheStorage = {};
+  private redis: Redis;
+  private prefix: string;
 
-  set = <K extends keyof CacheStorage>(key: K, value: CacheStorage[K], timeout: number) => {
-    this.storage[key] = value
+  constructor(redis: Redis, prefix = 'cache:') {
+    this.redis = redis;
+    this.prefix = prefix;
+  }
 
-    if (timeout) {
-      setTimeout(() => this.delete(key), timeout)
+  private keyFor = (key: string): string => `${this.prefix}${key}`;
+
+  get = async <T>(key: string): Promise<T | null> => {
+    const raw = await this.redis.get(this.keyFor(key));
+
+    if (raw == null) {
+      return null;
     }
-  }
 
-  delete = <K extends keyof CacheStorage>(key: K) => {
-    this.storage[key] = undefined
-  }
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      // Drop a poisoned entry rather than failing the request on it.
+      await this.delete(key);
+      return null;
+    }
+  };
 
-  get = <K extends keyof CacheStorage>(key: K): CacheStorage[K] => {
-    return this.storage[key]
-  }
+  set = async <T>(key: string, value: T, ttlMs?: number): Promise<void> => {
+    const raw = JSON.stringify(value);
+
+    if (ttlMs != null && ttlMs > 0) {
+      await this.redis.set(this.keyFor(key), raw, 'PX', Math.floor(ttlMs));
+    } else {
+      await this.redis.set(this.keyFor(key), raw);
+    }
+  };
+
+  // Extends an entry the caller re-read but did not change, instead of writing
+  // the same value back to buy the same TTL.
+  touch = async (key: string, ttlMs: number): Promise<void> => {
+    await this.redis.pexpire(this.keyFor(key), Math.floor(ttlMs));
+  };
+
+  delete = async (key: string): Promise<void> => {
+    await this.redis.del(this.keyFor(key));
+  };
 }

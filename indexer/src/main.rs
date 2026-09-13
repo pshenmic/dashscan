@@ -1,14 +1,20 @@
 mod config;
+mod crawler;
+mod dao;
 mod db;
 mod errors;
 mod p2p;
 mod p2p_converter;
+mod peers;
 mod processor;
 mod rpc;
 mod zmq;
 mod miner_pool;
 mod utils;
 
+use crawler::{CrawlConfig, PeerCrawler};
+use dao::DaoStore;
+use peers::PeerStore;
 use db::Database;
 use processor::BlockProcessor;
 use rpc::DashRpcClient;
@@ -51,6 +57,14 @@ async fn main() {
                     .batch_execute(
                         "BEGIN; \
                          DROP MATERIALIZED VIEW IF EXISTS address_balances; \
+                         DROP TABLE IF EXISTS address_activity; \
+                         DROP TABLE IF EXISTS address_activity_weekly; \
+                         DROP TABLE IF EXISTS address_transactions; \
+                         DROP TABLE IF EXISTS address_balance_deltas; \
+                         DROP TABLE IF EXISTS chain_stats_hourly; \
+                         DROP TABLE IF EXISTS transaction_type_counts; \
+                         DROP TABLE IF EXISTS proposals; \
+                         DROP TABLE IF EXISTS masternodes; \
                          DROP TABLE IF EXISTS masternodes; \
                          DROP TABLE IF EXISTS utxo; \
                          DROP TABLE IF EXISTS special_transactions; \
@@ -122,6 +136,13 @@ async fn main() {
 
     let db = Database::new(pool);
 
+    // Connect to Redis (DAO/governance cache)
+    let redis_pool = deadpool_redis::Config::from_url(config.redis_url.clone())
+        .create_pool(Some(deadpool_redis::Runtime::Tokio1))
+        .expect("Failed to create Redis pool");
+    let dao = DaoStore::new(redis_pool.clone());
+    let peer_store = PeerStore::new(redis_pool);
+
     // Sync miner pools from embedded pools.json
     let (miner_pools, miner_pool_ids) = match init_miners_pools() {
         Ok(pools) => {
@@ -154,8 +175,30 @@ async fn main() {
         std::process::exit(1);
     }
 
+    // Build the P2P peer crawler — fully independent of block indexing, and
+    // triggered from the live-sync flow rather than on a timer.
+    let peer_crawler = match format!("{}:{}", config.p2p_host, config.p2p_port)
+        .parse::<std::net::SocketAddr>()
+    {
+        Ok(seed) => {
+            let crawl_cfg = CrawlConfig {
+                every_blocks: config.peer_crawl_every_blocks,
+                max_peers: config.peer_crawl_max_peers,
+                concurrency: config.peer_crawl_concurrency,
+                deadline: std::time::Duration::from_secs(config.peer_crawl_deadline_secs),
+                connect_timeout: std::time::Duration::from_secs(config.peer_crawl_connect_timeout_secs),
+            };
+            info!(%seed, every_blocks = config.peer_crawl_every_blocks, "Peer crawler enabled");
+            Some(Arc::new(PeerCrawler::new(seed, config.network, peer_store, crawl_cfg)))
+        }
+        Err(e) => {
+            warn!("Peer crawler disabled — invalid P2P seed address: {e}");
+            None
+        }
+    };
+
     // Create block processor
-    let processor = Arc::new(BlockProcessor::new(rpc, db, config.network, miner_pools, miner_pool_ids));
+    let processor = Arc::new(BlockProcessor::new(rpc, db, dao, config.network, miner_pools, miner_pool_ids, peer_crawler));
 
     // Catch up with the blockchain
     let last_height = match processor.catch_up(&config).await {
@@ -173,6 +216,13 @@ async fn main() {
     } else {
         info!("Bootstrapped address_balances matview");
     }
+
+    if let Err(e) = processor.sync_governance(last_height as i32).await {
+        error!("Failed to bootstrap governance: {e}");
+    }
+
+    // Fill the peer set as live sync starts.
+    processor.bootstrap_peer_crawl();
 
     info!(last_height, "Starting continuous indexing...");
 
@@ -263,9 +313,14 @@ async fn continuous_indexing(
                         if let Err(e) = processor.sync_masternodes().await {
                             error!("Failed to sync masternode list: {}", e);
                         }
+                        let tip = processor.db.get_max_block_height().await.unwrap_or(0) as i32;
+                        if let Err(e) = processor.sync_governance(tip).await {
+                            error!("Failed to sync governance: {}", e);
+                        }
                         processor
                             .tick_address_balances_refresh(config.address_balances_refresh_blocks)
                             .await;
+                        processor.tick_peer_crawl();
                     },
                     Err(e) => error!("Failed to index block {}: {}", hash, e),
                 }
@@ -314,6 +369,7 @@ async fn index_new_blocks(processor: &BlockProcessor, config: &Config) {
                 processor
                     .tick_address_balances_refresh(config.address_balances_refresh_blocks)
                     .await;
+                processor.tick_peer_crawl();
             }
             Err(e) => error!("Failed to index block with height {}: {}", height, e),
         }
@@ -321,6 +377,11 @@ async fn index_new_blocks(processor: &BlockProcessor, config: &Config) {
 
     if let Err(e) = processor.sync_masternodes().await {
         error!("Failed to sync masternode list: {}", e);
+    }
+
+    let tip = processor.db.get_max_block_height().await.unwrap_or(0) as i32;
+    if let Err(e) = processor.sync_governance(tip).await {
+        error!("Failed to sync governance: {}", e);
     }
 }
 

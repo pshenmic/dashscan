@@ -1,7 +1,7 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type { ApiBlock, PaginatedResponse, PaginationParams } from "./types";
 
 interface FetchBlocksInput extends PaginationParams {
@@ -19,7 +19,7 @@ async function getBlocks(params: FetchBlocksInput) {
   if (params.superblock != null)
     url.searchParams.set("superblock", String(params.superblock));
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -80,7 +80,7 @@ interface FetchBlockInput {
 
 async function getBlock(params: FetchBlockInput) {
   const url = new URL(`/block/${params.hash}`, getBaseUrl(params.network));
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }

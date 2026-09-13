@@ -6,7 +6,9 @@ import MasternodesController from './controllers/MasternodesController';
 import MarketController from './controllers/MarketController';
 import SearchController from './controllers/SearchController';
 import GovernanceController from "./controllers/GovernanceController";
+import PeersController from "./controllers/PeersController";
 import MainController from './controllers/MainController';
+import XpubController from './controllers/XpubController';
 
 interface RoutesOptions {
   fastify: FastifyInstance;
@@ -18,9 +20,12 @@ interface RoutesOptions {
   marketController: MarketController;
   searchController: SearchController;
   governanceController: GovernanceController;
+  peersController: PeersController;
+  xpubController: XpubController;
 }
 
-export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController }: RoutesOptions): void {
+export default function Routes({ fastify, mainController, blocksController, transactionsController, addressesController, masternodesController, marketController, searchController, governanceController, peersController, xpubController }: RoutesOptions): void {
+
   const routes = [
     {
       path: '/status',
@@ -68,6 +73,9 @@ export default function Routes({ fastify, mainController, blocksController, tran
       path: '/transactions/stats',
       method: 'get',
       handler: transactionsController.getTransactionStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
     },
     {
       path: '/transactions/chart',
@@ -137,6 +145,21 @@ export default function Routes({ fastify, mainController, blocksController, tran
       path: '/masternodes/stats',
       method: 'get',
       handler: masternodesController.getMasternodeStats,
+    },
+    {
+      path: '/masternode/:proTxHash/transactions',
+      method: 'get',
+      handler: transactionsController.getMasternodeTransactions,
+      schema: {
+        querystring: { $ref: 'paginationOptions#' },
+        params: {
+          type: 'object',
+          properties: {
+            proTxHash: { $ref: 'hash#' },
+          },
+          required: ['proTxHash'],
+        },
+      },
     },
     {
       path: '/masternode/:proTxHash/votes',
@@ -269,6 +292,31 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/governance/proposal/:hash/votes/chart',
+      method: 'get',
+      handler: governanceController.getProposalVoteSeries,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            hash: { $ref: 'hash#' },
+          },
+          required: ['hash'],
+        },
+        querystring: {
+          allOf: [
+            { $ref: 'timeInterval#' },
+            {
+              type: 'object',
+              properties: {
+                running_total: { type: 'boolean' },
+              },
+            },
+          ],
+        },
+      },
+    },
+    {
       path: '/governance/proposals',
       method: 'get',
       handler: governanceController.getProposals,
@@ -353,11 +401,35 @@ export default function Routes({ fastify, mainController, blocksController, tran
       }
     },
     {
+      path: '/addresses/info',
+      method: 'get',
+      handler: addressesController.getAddressesInfo,
+      schema: {
+        querystring: { $ref: 'addressList#' },
+      }
+    },
+    {
+      path: '/addresses/utxo',
+      method: 'get',
+      handler: addressesController.getAddressesUtxo,
+      schema: {
+        querystring: { $ref: 'addressList#' },
+      }
+    },
+    {
       path: '/addresses/rich-list',
       method: 'get',
       handler: addressesController.getBalancesInfo,
       schema: {
         querystring: { $ref: 'paginationOptions#' },
+      }
+    },
+    {
+      path: '/addresses/activity',
+      method: 'get',
+      handler: addressesController.getAddressesActivity,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
       }
     },
     {
@@ -369,6 +441,51 @@ export default function Routes({ fastify, mainController, blocksController, tran
       path: '/chain/stats',
       method: 'get',
       handler: mainController.getChainStats,
+    },
+    {
+      path: '/peers',
+      method: 'get',
+      handler: peersController.getPeers,
+      schema: {
+        querystring: {
+          allOf: [
+            { $ref: 'paginationOptions#' },
+            { $ref: 'peersOptions#' },
+          ],
+        },
+      },
+    },
+    {
+      path: '/peers/user-agents',
+      method: 'get',
+      handler: peersController.getPeerUserAgents,
+      schema: {
+        querystring: { $ref: 'paginationOptions#' },
+      },
+    },
+    {
+      path: '/xpub',
+      method: 'post',
+      handler: xpubController.getXpub,
+      schema: { body: { $ref: 'xpubBody#' } },
+    },
+    {
+      path: '/xpub/addresses',
+      method: 'post',
+      handler: xpubController.getXpubAddresses,
+      schema: { body: { $ref: 'xpubBody#' } },
+    },
+    {
+      path: '/xpub/utxo',
+      method: 'post',
+      handler: xpubController.getXpubUtxo,
+      schema: { body: { $ref: 'xpubBody#' } },
+    },
+    {
+      path: '/xpub/transactions',
+      method: 'post',
+      handler: xpubController.getXpubTransactions,
+      schema: { body: { $ref: 'xpubBody#' } },
     }
   ];
 

@@ -14,6 +14,41 @@ const schemas = [
     pattern: '^[A-Za-z0-9]+$',
   },
   {
+    // A serialised extended key is 78 bytes → 111 base58 characters.
+    $id: 'xpub',
+    type: 'string',
+    minLength: 100,
+    maxLength: 120,
+    pattern: '^[a-km-zA-HJ-NP-Z1-9]+$',
+  },
+  {
+    // Body, not query or path: an extended public key must not reach access
+    // logs, and paths do.
+    $id: 'xpubBody',
+    type: 'object',
+    required: ['xpub'],
+    properties: {
+      xpub: { $ref: 'xpub#' },
+      gap_limit: { type: 'integer', minimum: 1, maximum: 100 },
+      page: { type: 'integer', minimum: 1 },
+      limit: { type: 'integer', minimum: 1, maximum: 100 },
+      // Hash of the previous page's last transaction, from nextCursor.
+      cursor: { $ref: 'hash#' },
+    },
+  },
+  {
+    $id: 'addressList',
+    type: 'object',
+    properties: {
+      addresses: {
+        type: 'string',
+        maxLength: 3599,
+        pattern: '^[A-Za-z0-9]{33,35}(,[A-Za-z0-9]{33,35}){0,99}$',
+      },
+    },
+    required: ['addresses'],
+  },
+  {
     $id: 'paginationOptions',
     type: 'object',
     properties: {
@@ -56,6 +91,7 @@ const schemas = [
         enum: ['ENABLED', 'POSE_BANNED'],
       },
       type: { type: ['string', 'null'], enum: ['REGULAR', 'EVO'] },
+      available: { type: ['boolean', 'null'] },
       last_paid_before: {
         type: ['string', 'null'],
         format: 'date-time',
@@ -81,6 +117,22 @@ const schemas = [
           'TR','TT','TV','TW','TZ','UA','UG','UM','US','UY','UZ','VA','VC','VE','VG','VI',
           'VN','VU','WF','WS','YE','YT','ZA','ZM','ZW',
         ],
+      },
+    },
+  },
+  {
+    $id: 'peersOptions',
+    type: 'object',
+    properties: {
+      user_agent: {
+        type: ['string', 'null'],
+        pattern: '^[A-Za-z0-9\\s]+$',
+        minLength: 3,
+        maxLength: 64,
+      },
+      ip: {
+        type: ['string', 'null'],
+        pattern: '^(\\d{1,3}\\.){3}\\d{1,3}$',
       },
     },
   },

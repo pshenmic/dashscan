@@ -1,45 +1,69 @@
-mod address_resolver;
 mod block_writer;
 mod catch_up;
+mod governance;
 mod miner;
 mod utxo_cache;
 
 use crate::config::superblock_interval;
+use crate::crawler::PeerCrawler;
+use crate::dao::DaoStore;
 use crate::db::Database;
 use crate::errors::block_index_error::BlockIndexError;
 use crate::miner_pool::MinerPool;
 use crate::p2p_converter;
 use crate::rpc::DashRpcClient;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tracing::{debug, error, info};
 
 pub struct BlockProcessor {
     pub rpc: DashRpcClient,
     pub db: Database,
+    pub dao: DaoStore,
     pub network: dashcore::Network,
     pub superblock_interval: i64,
     pub miner_pools: Vec<MinerPool>,
     pub miner_pool_ids: HashMap<String, i32>,
     pub blocks_since_balance_refresh: AtomicU64,
+    /// Background peer crawler, if a valid P2P seed was configured.
+    pub peer_crawler: Option<Arc<PeerCrawler>>,
 }
 
 impl BlockProcessor {
     pub fn new(
         rpc: DashRpcClient,
         db: Database,
+        dao: DaoStore,
         network: dashcore::Network,
         miner_pools: Vec<MinerPool>,
         miner_pool_ids: HashMap<String, i32>,
+        peer_crawler: Option<Arc<PeerCrawler>>,
     ) -> Self {
         Self {
             rpc,
             db,
+            dao,
             network,
             superblock_interval: superblock_interval(network),
             miner_pools,
             miner_pool_ids,
             blocks_since_balance_refresh: AtomicU64::new(0),
+            peer_crawler,
+        }
+    }
+
+    /// Kick off a peer crawl immediately (used once when live sync starts).
+    pub fn bootstrap_peer_crawl(&self) {
+        if let Some(crawler) = &self.peer_crawler {
+            crawler.trigger("live-sync-start");
+        }
+    }
+
+    /// Count one live-sync block toward the crawler's every-N-blocks trigger.
+    pub fn tick_peer_crawl(&self) {
+        if let Some(crawler) = &self.peer_crawler {
+            crawler.tick();
         }
     }
 

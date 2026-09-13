@@ -15,4 +15,15 @@ export interface PaginatedQuery {
   last_paid_before?: string
   has_penalty?: boolean
   country?: string
+  available?: boolean
+  user_agent?: string
+  ip?: string
+}
+
+export interface XpubBody {
+  xpub: string
+  gap_limit?: number
+  page?: number
+  limit?: number
+  cursor?: string
 }

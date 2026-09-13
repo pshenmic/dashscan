@@ -5,7 +5,7 @@ import {PaginatedQuery} from "./types";
 import {calculateInterval, iso8601duration} from "../utils";
 import Intervals from "../enums/Intervals";
 import {Cache} from "../cache";
-import {DashCoreRPC} from "../dashcoreRPC";
+import {DashCoreRPC, UtxoInfoRPC} from "../dashcoreRPC";
 import AddressBalance from "../models/AddressBalance";
 import {CONCENTRATION_DECIMALS, UTXO_INFO_LIFE_TIME} from "../constants";
 
@@ -45,10 +45,20 @@ export default class AddressesController {
     response.send(result);
   }
 
+  getAddressesInfo = async (request: FastifyRequest<{
+    Querystring: { addresses: string }
+  }>, response: FastifyReply): Promise<void> => {
+    const {addresses} = request.query;
+
+    const result = await this.addressesDAO.getAddressesInfo(addresses.split(','));
+
+    response.send(result);
+  }
+
   getAddressBalanceSeries = async (
     request: FastifyRequest<{
       Params: { address: string };
-      Querystring: { timestamp_start: string; timestamp_end: string; timespan: string; intervals_count: number }
+      Querystring: { timestamp_start: string; timestamp_end: string; intervals_count: number }
     }>,
     response: FastifyReply
   ): Promise<void> => {
@@ -93,16 +103,26 @@ export default class AddressesController {
     response.send(utxo)
   }
 
+  getAddressesUtxo = async (request: FastifyRequest<{
+    Querystring: { addresses: string }
+  }>, response: FastifyReply): Promise<void> => {
+    const {addresses} = request.query;
+
+    const utxo = await this.addressesDAO.getAddressesUtxo(addresses.split(','));
+
+    response.send(utxo)
+  }
+
   getBalancesInfo = async (request: FastifyRequest<{
     Querystring: PaginatedQuery
   }>, response: FastifyReply): Promise<void> => {
     const {page = 1, limit = 10, order = 'asc'} = request.query;
 
-    let utxoInfo = this.cache.get('utxoInfo');
+    let utxoInfo = await this.cache.get<UtxoInfoRPC>('utxoInfo');
 
     if (utxoInfo==null) {
       utxoInfo = await this.dashcoreRPC.getUtxoInfo();
-      this.cache.set('utxoInfo', utxoInfo, UTXO_INFO_LIFE_TIME)
+      await this.cache.set('utxoInfo', utxoInfo, UTXO_INFO_LIFE_TIME)
     }
 
     const {total_amount: totalSupply} = utxoInfo
@@ -135,5 +155,22 @@ export default class AddressesController {
     balances.pagination.limit = limit
 
     response.send(balances)
+  }
+
+  getAddressesActivity = async (request: FastifyRequest<{
+    Querystring: PaginatedQuery & { timestamp_start?: string; timestamp_end?: string }
+  }>, response: FastifyReply): Promise<void> => {
+    const {timestamp_start, timestamp_end, page = 1, limit = 10, order = 'desc'} = request.query;
+
+    const end = timestamp_end ? new Date(timestamp_end) : new Date();
+    const start = timestamp_start ? new Date(timestamp_start) : new Date(end.getTime() - 24 * 3600 * 1000);
+
+    if (start.getTime() > end.getTime()) {
+      return response.status(400).send({error: 'start timestamp cannot be more than end timestamp'});
+    }
+
+    const addresses = await this.addressesDAO.getAddressesActivity(start, end, Number(page), Number(limit), order);
+
+    response.send(addresses);
   }
 }

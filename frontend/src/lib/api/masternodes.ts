@@ -1,9 +1,11 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
-import { getBaseUrl } from "./client";
+import { apiFetch, getBaseUrl } from "./client";
 import type {
   ApiMasternode,
+  ApiProposalVote,
+  ApiTransaction,
   PaginatedResponse,
   PaginationParams,
   SearchResponse,
@@ -33,7 +35,7 @@ async function getMasternodes(params: FetchMasternodesInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -52,7 +54,7 @@ interface FetchMasternodeInput {
 async function getMasternode(params: FetchMasternodeInput) {
   const url = new URL("/search", getBaseUrl(params.network));
   url.searchParams.set("query", params.hash);
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -68,6 +70,105 @@ export function masternodeQueryOptions(params: FetchMasternodeInput) {
   return queryOptions({
     queryKey: ["masternode", params.network, params.hash],
     queryFn: () => getMasternode(params),
+  });
+}
+
+async function getMasternodeVotes(params: FetchMasternodeInput) {
+  const url = new URL(
+    `/masternode/${params.hash}/votes`,
+    getBaseUrl(params.network),
+  );
+  const response = await apiFetch(url);
+  if (response.status === 404) return [];
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<ApiProposalVote[]>;
+}
+
+export function masternodeVotesQueryOptions(params: FetchMasternodeInput) {
+  return queryOptions({
+    queryKey: ["masternode-votes", params.network, params.hash],
+    queryFn: () => getMasternodeVotes(params),
+    staleTime: 60 * 1000,
+  });
+}
+
+interface FetchMasternodeTransactionsInput
+  extends PaginationParams,
+    FetchMasternodeInput {}
+
+async function getMasternodeTransactions(
+  params: FetchMasternodeTransactionsInput,
+) {
+  const url = new URL(
+    `/masternode/${params.hash}/transactions`,
+    getBaseUrl(params.network),
+  );
+  if (params.page !== undefined)
+    url.searchParams.set("page", String(params.page));
+  if (params.limit !== undefined)
+    url.searchParams.set("limit", String(params.limit));
+  if (params.order !== undefined) url.searchParams.set("order", params.order);
+
+  const response = await apiFetch(url);
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<PaginatedResponse<ApiTransaction>>;
+}
+
+export const fetchMasternodeTransactions = createServerFn({ method: "POST" })
+  .inputValidator((input: FetchMasternodeTransactionsInput) => input)
+  .handler(({ data }) => getMasternodeTransactions(data));
+
+export function masternodeTransactionsQueryOptions(
+  params: FetchMasternodeTransactionsInput,
+) {
+  return queryOptions({
+    queryKey: [
+      "masternode-transactions",
+      params.network,
+      params.hash,
+      params.page,
+      params.limit,
+      params.order,
+    ],
+    queryFn: () => getMasternodeTransactions(params),
+  });
+}
+
+interface InfiniteMasternodeTransactionsInput extends FetchMasternodeInput {
+  limit?: number;
+  order?: "asc" | "desc";
+}
+
+export function masternodeTransactionsInfiniteQueryOptions(
+  params: InfiniteMasternodeTransactionsInput,
+) {
+  const limit = params.limit ?? 25;
+  const order = params.order ?? "desc";
+  return infiniteQueryOptions({
+    queryKey: [
+      "masternode-transactions-infinite",
+      params.network,
+      params.hash,
+      limit,
+      order,
+    ],
+    queryFn: ({ pageParam }) =>
+      getMasternodeTransactions({
+        network: params.network,
+        hash: params.hash,
+        page: pageParam,
+        limit,
+        order,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const { page, limit: pageLimit, total } = lastPage.pagination;
+      return page * pageLimit < total ? page + 1 : undefined;
+    },
   });
 }
 
@@ -116,9 +217,6 @@ interface FetchAllMasternodesInput {
   network: Network;
 }
 
-const ALL_PAGE_LIMIT = 100;
-const ALL_MAX_PAGES = 200;
-
 function toGeoPoint(mn: ApiMasternode): MasternodeGeoPoint | null {
   const geo = mn.geoIpInfo;
   if (
@@ -140,61 +238,45 @@ function toGeoPoint(mn: ApiMasternode): MasternodeGeoPoint | null {
   };
 }
 
-async function getAllMasternodes(
-  params: FetchAllMasternodesInput,
-): Promise<ApiMasternode[]> {
-  const first = await getMasternodes({
-    network: params.network,
-    page: 1,
-    limit: ALL_PAGE_LIMIT,
-    order: "desc",
-  });
-  const pageCount = Math.min(
-    ALL_MAX_PAGES,
-    Math.max(1, Math.ceil(first.pagination.total / ALL_PAGE_LIMIT)),
-  );
-  const rest =
-    pageCount > 1
-      ? await Promise.all(
-          Array.from({ length: pageCount - 1 }, (_, i) =>
-            getMasternodes({
-              network: params.network,
-              page: i + 2,
-              limit: ALL_PAGE_LIMIT,
-              order: "desc",
-            }),
-          ),
-        )
-      : [];
-  const masternodes: ApiMasternode[] = [];
-  for (const response of [first, ...rest]) {
-    for (const mn of response.resultSet) masternodes.push(mn);
-  }
-  return masternodes;
-}
-
-export const fetchAllMasternodes = createServerFn({ method: "POST" })
-  .inputValidator((input: FetchAllMasternodesInput) => input)
-  .handler(({ data }) => getAllMasternodes(data));
-
-export function allMasternodesQueryOptions(params: FetchAllMasternodesInput) {
-  return queryOptions({
-    queryKey: ["masternodes-all", params.network],
-    queryFn: () => getAllMasternodes(params),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-async function getAllMasternodesGeo(
-  params: FetchAllMasternodesInput,
-): Promise<MasternodeGeoPoint[]> {
-  const masternodes = await getAllMasternodes(params);
+function toGeoPoints(masternodes: ApiMasternode[]): MasternodeGeoPoint[] {
   const points: MasternodeGeoPoint[] = [];
   for (const mn of masternodes) {
     const point = toGeoPoint(mn);
     if (point) points.push(point);
   }
   return points;
+}
+
+async function getAllMasternodes(
+  params: FetchAllMasternodesInput,
+): Promise<ApiMasternode[]> {
+  const response = await getMasternodes({
+    network: params.network,
+    order: "desc",
+  });
+  return response.resultSet;
+}
+
+export const fetchAllMasternodes = createServerFn({ method: "POST" })
+  .inputValidator((input: FetchAllMasternodesInput) => input)
+  .handler(({ data }) => getAllMasternodes(data));
+
+function allMasternodesBaseQueryOptions(params: FetchAllMasternodesInput) {
+  return {
+    queryKey: ["masternodes-all", params.network] as const,
+    queryFn: () => getAllMasternodes(params),
+    staleTime: 5 * 60 * 1000,
+  };
+}
+
+export function allMasternodesQueryOptions(params: FetchAllMasternodesInput) {
+  return queryOptions(allMasternodesBaseQueryOptions(params));
+}
+
+async function getAllMasternodesGeo(
+  params: FetchAllMasternodesInput,
+): Promise<MasternodeGeoPoint[]> {
+  return toGeoPoints(await getAllMasternodes(params));
 }
 
 export const fetchAllMasternodesGeo = createServerFn({ method: "POST" })
@@ -205,8 +287,7 @@ export function allMasternodesGeoQueryOptions(
   params: FetchAllMasternodesInput,
 ) {
   return queryOptions({
-    queryKey: ["masternodes-geo-all", params.network],
-    queryFn: () => getAllMasternodesGeo(params),
-    staleTime: 5 * 60 * 1000,
+    ...allMasternodesBaseQueryOptions(params),
+    select: toGeoPoints,
   });
 }

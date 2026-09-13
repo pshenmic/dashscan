@@ -27,11 +27,19 @@ import {
   Server,
   ShieldAlert,
   Trophy,
-  Users,
   Vote,
   Zap,
 } from "lucide-react";
-import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  memo,
+  Suspense,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Area,
   AreaChart,
@@ -57,7 +65,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { richListQueryOptions } from "@/lib/api/addresses";
+import {
+  addressesActivityQueryOptions,
+  richListQueryOptions,
+} from "@/lib/api/addresses";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
@@ -76,12 +87,14 @@ import {
 } from "@/lib/api/price";
 import {
   blockTransactionsStatsQueryOptions,
+  dayStatsRange,
   monthStatsRange,
   transactionsBreakdown24hQueryOptions,
   transactionsStatsQueryOptions,
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type {
+  ApiAddressActivityEntry,
   ApiAddressBalanceEntry,
   ApiBlock,
   ApiGovernanceObject,
@@ -110,6 +123,7 @@ import {
   getPreviousSuperblockHeight,
   getVotingDeadlineHeight,
   getVotingProgress,
+  resolveNetworkFromChain,
 } from "@/lib/governance";
 import { appStore, type Network } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -117,7 +131,6 @@ import { ConcentrationBanner } from "@/themes/neo/components/concentration-banne
 import { EmptyState } from "@/themes/neo/components/empty-state";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
 import { LiveTicker } from "@/themes/neo/components/live-ticker";
-import { MasternodeMap } from "@/themes/neo/components/masternode-map";
 import {
   InstantLockBadge,
   MnStatusBadge,
@@ -139,15 +152,17 @@ const chartConfig: ChartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
 };
 
-function dayStatsRange() {
-  const end = new Date();
-  end.setUTCMinutes(0, 0, 0);
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
-  return {
-    timestampStart: start.toISOString(),
-    timestampEnd: end.toISOString(),
-  };
-}
+const LazyMasternodeMap = lazy(() =>
+  import("@/themes/neo/components/masternode-map").then((module) => ({
+    default: module.MasternodeMap,
+  })),
+);
+
+const LazyPeersMap = lazy(() =>
+  import("@/themes/neo/components/peers-map").then((module) => ({
+    default: module.PeersMap,
+  })),
+);
 
 export default function RedesignDashboardPage() {
   const network = useStore(appStore, (state) => state.network);
@@ -212,6 +227,7 @@ export default function RedesignDashboardPage() {
     refetchInterval: 15000,
     refetchIntervalInBackground: false,
   });
+  const resolvedNetwork = resolveNetworkFromChain(chainStats?.chain, network);
   const { data: budget } = useQuery(budgetQueryOptions({ network }));
   const { data: proposals } = useQuery(proposalsQueryOptions({ network }));
   const { data: mempoolData } = useQuery(
@@ -219,6 +235,24 @@ export default function RedesignDashboardPage() {
   );
   const { data: richList } = useQuery(
     richListQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
+  );
+  const activityBounds = useMemo(() => {
+    const end = new Date();
+    end.setMinutes(0, 0, 0);
+    const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+    return {
+      timestampStart: start.toISOString(),
+      timestampEnd: end.toISOString(),
+    };
+  }, []);
+  const { data: activeAddresses } = useQuery(
+    addressesActivityQueryOptions({
+      network,
+      page: 1,
+      limit: 10,
+      order: "desc",
+      ...activityBounds,
+    }),
   );
   const { data: txBreakdown } = useQuery({
     ...transactionsBreakdown24hQueryOptions({ network }),
@@ -435,7 +469,7 @@ export default function RedesignDashboardPage() {
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-6">
         <DashboardHero
-          network={network}
+          network={resolvedNetwork}
           latestHeight={chainStats?.latestHeight ?? latestBlock?.height ?? null}
           blockTimeMs={chainStats?.blockTime ?? null}
           usdPrice={usdPrice?.usd ?? null}
@@ -969,7 +1003,7 @@ export default function RedesignDashboardPage() {
               blockTimeMs={chainStats?.blockTime ?? null}
               budgetDash={budget?.totalBudget ?? null}
               usdPrice={usdPrice?.usd ?? null}
-              network={network}
+              network={resolvedNetwork}
               className="lg:col-span-12 flex-1"
             />
             <div className="grid gap-4 sm:grid-cols-2">
@@ -1019,9 +1053,91 @@ export default function RedesignDashboardPage() {
           </div>
         </div>
 
-        <MasternodeMap variant="dashboard" />
+        {activeAddresses?.resultSet?.length ? (
+          <ActiveAddressesCard
+            entries={activeAddresses.resultSet}
+            total={activeAddresses.pagination?.total ?? null}
+          />
+        ) : null}
+
+        <DeferredMap label="Masternode Network Map">
+          <LazyMasternodeMap variant="dashboard" />
+        </DeferredMap>
+
+        <DeferredMap label="Network Peers Map">
+          <LazyPeersMap variant="dashboard" />
+        </DeferredMap>
       </div>
     </div>
+  );
+}
+
+function DeferredMap({
+  children,
+  label,
+}: {
+  children: React.ReactNode;
+  label: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || shouldLoad) return;
+
+    if (!("IntersectionObserver" in window)) {
+      setShouldLoad(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setShouldLoad(true);
+        observer.disconnect();
+      },
+      { rootMargin: "400px 0px" },
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+
+  const placeholder = <MapPlaceholder label={label} />;
+
+  return (
+    <div ref={containerRef}>
+      {shouldLoad ? (
+        <Suspense fallback={placeholder}>{children}</Suspense>
+      ) : (
+        placeholder
+      )}
+    </div>
+  );
+}
+
+function MapPlaceholder({ label }: { label: string }) {
+  return (
+    <Card className="overflow-hidden" aria-busy="true" aria-label={label}>
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 lg:grid-cols-12">
+          <div className="flex flex-col gap-3 lg:col-span-9">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-[420px] w-full rounded-2xl" />
+          </div>
+          <div className="flex flex-col gap-2 lg:col-span-3">
+            {[0, 1, 2, 3, 4].map((item) => (
+              <Skeleton key={item} className="h-12 w-full rounded-xl" />
+            ))}
+          </div>
+        </div>
+        <Skeleton className="mt-3 h-4 w-80 max-w-full" />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -2019,6 +2135,10 @@ function MasternodesListCard({
   total: number | null;
   isLoading: boolean;
 }) {
+  const enabledMasternodes = masternodes.filter(
+    (masternode) => masternode.status === "ENABLED",
+  );
+
   return (
     <Card className="lg:col-span-6">
       <CardHeader>
@@ -2063,7 +2183,7 @@ function MasternodesListCard({
                 </TableCell>
               </TableRow>
             )}
-            {masternodes.filter(mn => mn.status === 'ENABLED').map((mn) => {
+            {enabledMasternodes.map((mn) => {
               const stake = getCollateral(mn.type);
               const penalty = mn.posPenaltyScore ?? 0;
               return (
@@ -2196,6 +2316,86 @@ function ProposalsListCard({
   );
 }
 
+function ActiveAddressesCard({
+  entries,
+  total,
+}: {
+  entries: ApiAddressActivityEntry[];
+  total: number | null;
+}) {
+  const max = entries.reduce(
+    (acc, entry) => Math.max(acc, Number(entry.txCount ?? 0)),
+    0,
+  );
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          Active Addresses
+          <Badge variant="soft-accent" className="font-mono">
+            <Activity className="size-3" />
+            24h
+          </Badge>
+        </CardTitle>
+        <CardDescription>
+          {total != null
+            ? `${formatCompact(total)} addresses transacted in the last 24 hours`
+            : "Busiest addresses in the last 24 hours"}
+        </CardDescription>
+        <CardAction>
+          <Button asChild variant="ghost" size="sm" className="h-8">
+            <Link to="/addresses">
+              View all <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
+          {entries.slice(0, 10).map((entry, i) => {
+            const txCount = Number(entry.txCount ?? 0);
+            const pct = max > 0 ? Math.max(3, (txCount / max) * 100) : 0;
+            return (
+              <div
+                key={entry.address ?? `active-${i}`}
+                className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-secondary/50"
+              >
+                <Badge
+                  variant={i < 3 ? "soft-accent" : "soft"}
+                  className="min-w-9 justify-center font-mono tabular-nums"
+                >
+                  #{i + 1}
+                </Badge>
+                {entry.address ? (
+                  <HashDisplay
+                    value={entry.address}
+                    href="/address/$address"
+                    params={{ address: entry.address }}
+                    copy={false}
+                  />
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+                <div className="ml-auto flex items-center gap-2">
+                  <div className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-secondary sm:flex">
+                    <div
+                      className="rounded-full bg-accent/70"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="font-mono text-sm font-medium tabular-nums text-accent">
+                    {txCount.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ProposalRow({
   proposal,
   usdPrice,
@@ -2223,7 +2423,17 @@ function ProposalRow({
             <div className="flex min-w-0 items-center gap-1.5">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="truncate text-sm font-medium">{name}</span>
+                  {proposal.hash ? (
+                    <Link
+                      to="/dao/$hash"
+                      params={{ hash: proposal.hash }}
+                      className="truncate text-sm font-medium no-underline hover:text-accent"
+                    >
+                      {name}
+                    </Link>
+                  ) : (
+                    <span className="truncate text-sm font-medium">{name}</span>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent>{name}</TooltipContent>
               </Tooltip>
@@ -2547,9 +2757,11 @@ function TopHoldersCard({
             : "Largest addresses by UTXO balance"}
         </CardDescription>
         <CardAction>
-          <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
-            <Users className="size-4" />
-          </div>
+          <Button asChild variant="ghost" size="sm" className="h-8">
+            <Link to="/addresses" search={{ tab: "rich" }}>
+              View all <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
         </CardAction>
       </CardHeader>
       <CardContent>

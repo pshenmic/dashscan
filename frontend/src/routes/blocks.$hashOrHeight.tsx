@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 import { blockQueryOptions } from "@/lib/api/blocks";
-import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
+import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
-import ClassicBlockDetailPage from "@/themes/dash/pages/block-detail";
+import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
 import RedesignBlockDetailPage from "@/themes/neo/pages/block-detail";
+
+const ClassicBlockDetailPage = lazy(
+  () => import("@/themes/dash/pages/block-detail"),
+);
 
 export const Route = createFileRoute("/blocks/$hashOrHeight")({
   component: BlockDetailRoute,
@@ -23,26 +28,13 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
       },
     ],
   }),
-  loader: async ({ context, params: { hashOrHeight } }) => {
-    if (typeof window !== "undefined") return;
-    const blockOpts = blockQueryOptions({
-      network: defaultNetwork,
-      hash: hashOrHeight,
-    });
-    await context.queryClient.prefetchQuery(blockOpts);
-    const block = context.queryClient.getQueryData(blockOpts.queryKey);
-    if (block) {
-      await context.queryClient.prefetchQuery(
-        transactionsByHeightQueryOptions({
-          network: defaultNetwork,
-          height: block.height,
-          page: 1,
-          limit: 10,
-          order: "desc",
-        }),
-      );
-    }
-  },
+  loader: ({ context, params: { hashOrHeight } }) =>
+    prefetchSsrData(context.queryClient, [
+      () =>
+        context.queryClient.prefetchQuery(
+          blockQueryOptions({ network: defaultNetwork, hash: hashOrHeight }),
+        ),
+    ]),
 });
 
 function BlockDetailRoute() {
@@ -50,5 +42,9 @@ function BlockDetailRoute() {
   const { hashOrHeight } = Route.useParams();
   if (theme === "neo")
     return <RedesignBlockDetailPage hashOrHeight={hashOrHeight} />;
-  return <ClassicBlockDetailPage hashOrHeight={hashOrHeight} />;
+  return (
+    <Suspense fallback={<LazyThemePageFallback />}>
+      <ClassicBlockDetailPage hashOrHeight={hashOrHeight} />
+    </Suspense>
+  );
 }

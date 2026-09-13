@@ -112,6 +112,7 @@ export interface ProTxEntry {
   proTxHash: string;
   collateralHash: string;
   collateralIndex: number;
+  type?: string;
   state?: Record<string, any>;
 }
 
@@ -152,7 +153,7 @@ export class DashCoreRPC {
         return handlerResponse;
       }
 
-      console.error(e);
+      console.error(`Dash Core RPC request error (${method}, ${args})`, e);
       throw new ServiceNotAvailableError(e.code);
     }
   }
@@ -182,7 +183,9 @@ export class DashCoreRPC {
   }
 
   async getProTxList(): Promise<ProTxEntry[]> {
-    return this.callMethod('protx', ['list', 'registered', true], () => []);
+    // No empty-array fallback: a transient failure must throw rather than
+    // resolve to [], otherwise callers cache an empty protx→outpoint map.
+    return this.callMethod('protx', ['list', 'registered', true]);
   }
 
   async getSuperblockBudget(superblockHeight: number): Promise<number> {

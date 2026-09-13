@@ -1,0 +1,48 @@
+-- Cumulative per-address totals. balance = received - sent.
+-- A transaction touching the address on both sides counts once in tx_count.
+--
+-- Columns on `addresses`, not a side table: the indexer already UPDATEs this
+-- row per appearance (last_seen_tx_id/last_seen_block), and V9 set
+-- fillfactor=80 for it, so the counters ride along in that same statement.
+--
+-- Backfill once, indexer stopped. tx_count is derived from the raw tables, not
+-- from address_transactions: that table was created empty by V26 and is only
+-- correct for blocks indexed by a build that maintains it, so a database synced
+-- across versions can be missing rows and would bake the gap in. Check with:
+--
+--   SELECT COUNT(*) FROM (
+--     SELECT address_id, tx_id FROM tx_outputs WHERE address_id IS NOT NULL
+--     UNION SELECT address_id, tx_id FROM tx_inputs WHERE address_id IS NOT NULL
+--     EXCEPT SELECT address_id, tx_id FROM address_transactions) x;
+--
+-- A non-zero result means the transaction listings are already incomplete;
+-- rebuild address_transactions from the raw tables before relying on it.
+--
+--   UPDATE addresses a SET tx_count = s.tx_count
+--   FROM (SELECT address_id, COUNT(*) AS tx_count FROM (
+--           SELECT o.address_id, o.tx_id FROM tx_outputs o
+--           JOIN transactions t ON t.id = o.tx_id
+--           WHERE o.address_id IS NOT NULL AND t.block_height IS NOT NULL
+--           UNION
+--           SELECT i.address_id, i.tx_id FROM tx_inputs i
+--           JOIN transactions t ON t.id = i.tx_id
+--           WHERE i.address_id IS NOT NULL AND t.block_height IS NOT NULL) f
+--         GROUP BY address_id) s
+--   WHERE a.id = s.address_id;
+--
+--   UPDATE addresses a SET received = COALESCE(o.received, 0),
+--                          sent     = COALESCE(i.sent, 0)
+--   FROM (SELECT address_id, SUM(value) AS received
+--         FROM tx_outputs WHERE address_id IS NOT NULL
+--         GROUP BY address_id) o
+--   FULL JOIN (SELECT i.address_id, SUM(p.value) AS sent
+--              FROM tx_inputs i
+--              JOIN tx_outputs p ON p.tx_id = i.prev_tx_id
+--                               AND p.vout_index = i.prev_vout_index
+--              WHERE i.address_id IS NOT NULL
+--              GROUP BY i.address_id) i ON i.address_id = o.address_id
+--   WHERE a.id = COALESCE(o.address_id, i.address_id);
+ALTER TABLE addresses
+    ADD COLUMN received BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN sent     BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN tx_count BIGINT NOT NULL DEFAULT 0;

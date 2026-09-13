@@ -16,6 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   allMasternodesGeoQueryOptions,
   type MasternodeGeoPoint,
 } from "@/lib/api/masternodes";
@@ -169,7 +174,15 @@ export function MasternodeMap({
                   </>
                 ) : (
                   <>
-                    <span>{total} nodes</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help">{total} nodes</span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-56">
+                        Only nodes with valid geo data are shown on the map;
+                        nodes without geolocation are not counted here.
+                      </TooltipContent>
+                    </Tooltip>
                     <span className="text-sm font-normal text-muted-foreground">
                       across {countries}{" "}
                       {countries === 1 ? "country" : "countries"}
@@ -267,7 +280,13 @@ export function MasternodeMap({
           </div>
         </div>
         <span className="text-muted-foreground text-sm" aria-hidden="true">
-          GeoIP data is derived from the [<a href={'https://db-ip.com/db/download/ip-to-city-lite'}>IP to City Lite database by DB-IP</a>], licensed under [<a href={'https://creativecommons.org/licenses/by/4.0/'}>CC BY 4.0</a>].
+          GeoIP data is derived from the [
+          <a href={"https://db-ip.com/db/download/ip-to-city-lite"}>
+            IP to City Lite database by DB-IP
+          </a>
+          ], licensed under [
+          <a href={"https://creativecommons.org/licenses/by/4.0/"}>CC BY 4.0</a>
+          ].
         </span>
       </CardContent>
     </Card>

@@ -33,6 +33,72 @@ All list endpoints return this wrapper:
 
 > `total` is `-1` when the result set is empty.
 
+### Cursor Response
+
+Endpoints whose result set is too expensive to offset into page by cursor instead
+of `page`, and return this wrapper:
+
+```json
+{
+  "resultSet": [...],
+  "pagination": {
+    "limit": 25,
+    "nextCursor": "9cdf16d29c57f363427e622967720890acb6e0afa12685985763fe7fb628d17a"
+  }
+}
+```
+
+Pass `nextCursor` back as the `cursor` body field to fetch the next page.
+`nextCursor` is `null` on the last page. There is no `total` and no page number —
+the cursor is the only position marker.
+
+### Extended Public Keys
+
+Four endpoints resolve a BIP44 **account-level** extended public key
+(`m/44'/5'/account'`) to the addresses a wallet actually uses, so a client does
+not have to derive addresses, discover which are used, and merge per-address
+results itself.
+
+The key must match the node's network: `xpub…` on mainnet, `tpub…` on testnet.
+A key from the other network is rejected — it would derive addresses that can
+never appear in this index.
+
+Only the two BIP44 branches are scanned: `0` external (receive addresses handed
+out to payers) and `1` internal (change). A chain-level key resolves only its own
+branch and is not supported.
+
+#### Gap limit
+
+`gap_limit` is a **stopping rule, not a limit on the number of addresses**. The
+scan walks each branch until it sees that many *consecutive unused* addresses,
+and the counter resets on every used one. A wallet with 5,000 consecutively used
+addresses is fully resolved at the default `gap_limit` of 20; the limit only
+matters when usage has holes:
+
+| Usage pattern                       | `gap_limit=20` resolves     |
+|-------------------------------------|-----------------------------|
+| indexes 0–499 used                  | all 500, plus 20 lookahead  |
+| indexes 0, 1, 2 used, then 150 used | 0–2 only; index 150 is missed |
+
+For the second case you would need `gap_limit=148`. An address is considered used
+once it has appeared on chain, so an address that has only ever received an
+unconfirmed payment does not extend the scan.
+
+**Ceiling.** Each branch is scanned to at most 5,000 addresses
+(`XPUB_MAX_ADDRESSES_PER_BRANCH`). A wallet larger than that is silently
+truncated, and every figure derived from it — balance, `txCount`, the UTXO set,
+the transaction list — is a lower bound. `usedAddressCount` reaching exactly
+5,000 on a branch is the signal.
+
+#### Privacy
+
+An extended public key discloses every past and future address of a wallet and
+cannot be rotated. These endpoints are `POST` with the key in the request body
+precisely so it never reaches a request path — paths are recorded by reverse
+proxies, `Referer` headers and browser history, none of which apply to a body.
+The API stores only a SHA-256 digest of the key as its cache key, never the key
+itself.
+
 ### Transaction Extra Payload
 Extra payload may vary depending on special transaction type:
 - `CLASSIC` (No extraPayload, null)
@@ -457,10 +523,10 @@ Returns a single transaction by its hash.
 | `blockHash`      | string \| null | Hash of the block containing this transaction                                                |
 | `timestamp`      | string \| null | ISO 8601 block timestamp, or `null` for pending transactions                                 |
 | `amount`         | string \| null | Transferred value in duffs (sum of outputs less change), `null` if unavailable               |
-| `version`        | number \| null | Transaction version (only populated on single-tx endpoint)                                   |
-| `size`           | number \| null | Transaction size in bytes (only populated on single-tx endpoint)                             |
-| `vIn`            | VIn[]          | Array of transaction inputs                                                                  |
-| `vOut`           | VOut[]         | Array of transaction outputs                                                                 |
+| `version`        | number \| null | Transaction version                                                                          |
+| `size`           | number \| null | Transaction size in bytes                                                                    |
+| `vIn`            | VIn[]          | Array of transaction inputs, in on-chain input order                                         |
+| `vOut`           | VOut[]         | Array of transaction outputs, in on-chain output order                                        |
 | `confirmations`  | number \| null | Number of confirmations                                                                      |
 | `instantLock`    | string \| null | Raw InstantSend lock hex (ISLOCK), or `null` if not IS-locked                                |
 | `chainLocked`    | boolean        | Whether the transaction's block has a ChainLock                                              |
@@ -496,12 +562,22 @@ DIP-2 special-transaction type values. The numeric value is returned in the `typ
 
 #### VOut Object
 
-| Field             | Type           | Description                                  |
-|-------------------|----------------|----------------------------------------------|
-| `value`           | string \| null | Output value in duffs                        |
-| `number`          | number \| null | Output index within the transaction          |
-| `scriptPubKeyASM` | string \| null | Output script in ASM format                  |
-| `address`         | string \| null | Recipient address, or `null` if unresolvable |
+| Field              | Type             | Description                                                                                     |
+|--------------------|------------------|-------------------------------------------------------------------------------------------------|
+| `value`            | string \| null   | Output value in duffs                                                                           |
+| `number`           | number \| null   | Output index within the transaction                                                             |
+| `scriptPubKeyASM`  | string \| null   | Output script in ASM format. Display form — disassembly is not byte-reversible                   |
+| `scriptPubKeyHex`  | string \| null   | Raw output script hex, exactly as it appears on chain. Use this to sign                          |
+| `scriptPubKeyType` | string \| null   | `pubkeyhash`, `scripthash`, `multisig`, `nulldata` or `nonstandard`                              |
+| `address`          | string \| null   | Recipient address, or `null` if unresolvable. First entry of `addresses` for bare multisig       |
+| `addresses`        | string[] \| null | Every address the output pays. One entry except for bare multisig, which lists each key's address |
+| `spentTxId`        | string \| null   | Hash of the transaction that spent this output, or `null` if unspent                            |
+| `spentIndex`       | number \| null   | Input index within the spending transaction                                                     |
+| `spentHeight`      | number \| null   | Height of the block that spent it; `null` when the spend is still in the mempool                |
+
+`addresses` is derived from the script for bare multisig, where the indexer resolves
+no single address. When an output has both a mempool and a confirmed spend, the
+confirmed one is reported.
 
 ---
 
@@ -638,6 +714,60 @@ Returns a single address with aggregated balance and activity stats.
 
 ---
 
+### GET /addresses/info
+
+Returns balance and transaction count for up to 100 addresses in one call.
+
+**Query Parameters**
+
+| Parameter   | Type   | Constraints                                             | Description                          |
+|-------------|--------|---------------------------------------------------------|--------------------------------------|
+| `addresses` | string | 1–100 addresses, comma-separated, each length 33–35 alphanumeric (`[0-9A-Za-z]`) | Addresses to look up. Required. |
+
+```
+GET /addresses/info?addresses=XwykuvxKBWT2dGN2Q9Y4Dqwo5riyf3C2At,XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw
+```
+
+**Response `200`**
+
+```json
+[
+  {
+    "address": "XwykuvxKBWT2dGN2Q9Y4Dqwo5riyf3C2At",
+    "balance": "950718575",
+    "txCount": 2
+  },
+  {
+    "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+    "balance": "0",
+    "txCount": 0
+  }
+]
+```
+
+#### Address Info Object
+
+| Field     | Type   | Description                                              |
+|-----------|--------|----------------------------------------------------------|
+| `address` | string | Dash address                                             |
+| `balance` | string | Current balance in duffs                                 |
+| `txCount` | number | Total number of transactions involving this address       |
+
+Entries come back in the order they were requested, one per requested address — a
+repeated address yields a repeated entry. Addresses absent from the index have
+never appeared on chain, so they return `"0"` and `0` rather than being skipped;
+there is no `404` for this endpoint.
+
+Unlike [`GET /address/:address`](#get-addressaddress) this endpoint omits the
+first/last-seen fields and `received`/`sent`, which is what lets it serve a
+100-address batch: `balance` is summed from the address's unspent outputs and
+`txCount` read off the per-address transaction index, instead of aggregating each
+address's full history.
+
+**Response `400`** — `addresses` missing, malformed, or over 100 entries.
+
+---
+
 ### GET /address/:address/transactions
 
 Returns a paginated list of transactions (confirmed and pending) involving the given address — either as input sender or output recipient.
@@ -648,7 +778,11 @@ Returns a paginated list of transactions (confirmed and pending) involving the g
 |-----------|--------|--------------------------------------------|--------------|
 | `address` | string | length 33–35, alphanumeric (`[0-9A-Za-z]`) | Dash address |
 
-**Query Parameters:** [Pagination](#pagination-query-parameters)
+**Query Parameters:** [Pagination](#pagination-query-parameters), plus optional filter:
+
+| Parameter          | Type   | Constraints                                                                          | Description                                                                                       |
+|--------------------|--------|--------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `transaction_type` | string | one of the [transaction type](#transaction-types) names (e.g. `CLASSIC`, `COINBASE`) | Filter by transaction type. Use `COINBASE` to list only coinbase payouts received by the address  |
 
 **Response `200`**
 
@@ -707,6 +841,10 @@ Returns a paginated list of unspent transaction outputs (UTXOs) for the given ad
       "vOutIndex": 0,
       "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
       "amount": "100000000",
+      "scriptPubKeyHex": "76a9141b2a522cc8d42b0be7ceb8db711416794d50c84688ac",
+      "blockHeight": 2200000,
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "confirmations": 12,
       "sequence": null,
       "scriptSigASM": null
     }
@@ -719,7 +857,79 @@ Returns a paginated list of unspent transaction outputs (UTXOs) for the given ad
 }
 ```
 
-Entries use the [VIn Object](#vin-object) shape. `prevTxHash` and `vOutIndex` identify the unspent output; `amount` is in duffs as a string. `sequence` and `scriptSigASM` are always `null` for UTXOs (they apply only to inputs that have spent the output).
+#### UTXO Object
+
+| Field             | Type           | Description                                                                     |
+|-------------------|----------------|---------------------------------------------------------------------------------|
+| `prevTxHash`      | string \| null | Hash of the transaction holding the unspent output                              |
+| `vOutIndex`       | number \| null | Output index within that transaction                                            |
+| `address`         | string \| null | Address the output pays                                                         |
+| `amount`          | string \| null | Output value in duffs                                                           |
+| `scriptPubKeyHex` | string \| null | Raw output script hex — the script that must be signed to spend this UTXO       |
+| `blockHeight`     | number \| null | Height of the block containing the output; `null` while it is still unconfirmed |
+| `timestamp`       | string \| null | Timestamp of the block                                                          |
+| `confirmations`   | number \| null | Confirmations for that block; `null` while unconfirmed                          |
+| `sequence`        | number \| null | Always `null`                                                                   |
+| `scriptSigASM`    | string \| null | Always `null`                                                                   |
+
+`sequence` and `scriptSigASM` belong to inputs, not to unspent outputs. They are
+retained, always `null`, so clients written against the previous VIn-shaped
+response keep working.
+
+Unconfirmed outputs are included, so a wallet sees its own change before it is
+mined: those carry `blockHeight` and `confirmations` of `null`. An output spent by
+a mempool transaction leaves the set immediately, so the same coins are never
+counted twice across an unconfirmed chain. Balances derived from this set —
+[`GET /addresses/info`](#get-addressesinfo) and
+[`GET /addresses/rich-list`](#get-addressesrich-list) — therefore include
+unconfirmed value.
+
+---
+
+### GET /addresses/utxo
+
+Returns every unspent output held by up to 100 addresses, as one flat array. Serves
+HD wallets that spend across a whole address set in a single call.
+
+**Query Parameters**
+
+| Parameter   | Type   | Constraints                                             | Description                          |
+|-------------|--------|---------------------------------------------------------|--------------------------------------|
+| `addresses` | string | 1–100 addresses, comma-separated, each length 33–35 alphanumeric (`[0-9A-Za-z]`) | Addresses to look up. Required. |
+
+```
+GET /addresses/utxo?addresses=XwykuvxKBWT2dGN2Q9Y4Dqwo5riyf3C2At,XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw
+```
+
+**Response `200`**
+
+```json
+[
+  {
+    "prevTxHash": "abcdef1234...",
+    "vOutIndex": 0,
+    "address": "XdAUmwtig27HBG6WfYyHAzP8n6XC9jESEw",
+    "amount": "100000000",
+    "scriptPubKeyHex": "76a9141b2a522cc8d42b0be7ceb8db711416794d50c84688ac",
+    "blockHeight": 2200000,
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "confirmations": 12,
+    "sequence": null,
+    "scriptSigASM": null
+  }
+]
+```
+
+Entries use the [UTXO Object](#utxo-object) shape and are grouped by address, largest
+amount first within each address. The response is **not paginated** — a wallet
+building a spend needs the complete set — so an address set holding a very large
+number of UTXOs produces a correspondingly large response.
+
+Addresses with no unspent outputs contribute no entries, so the array may be
+shorter than the request or empty; unlike
+[`GET /addresses/info`](#get-addressesinfo) there is no zero-filled placeholder.
+
+**Response `400`** — `addresses` missing, malformed, or over 100 entries.
 
 ---
 
@@ -779,6 +989,279 @@ Returns a paginated rich-list view: addresses sorted by current UTXO balance, ea
 
 ---
 
+### GET /addresses/activity
+
+Returns a paginated ranking of the most active addresses within a time window: addresses sorted by the number of transactions they appeared in, on either the input or the output side. A transaction is counted once per address even when the address occurs on both sides.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters) plus a time interval:
+
+| Parameter         | Type   | Default                 | Description             |
+|-------------------|--------|-------------------------|-------------------------|
+| `timestamp_start` | string | 24 hours ago (ISO 8601) | Start of the time range |
+| `timestamp_end`   | string | now (ISO 8601)          | End of the time range   |
+
+`order=desc` (default) returns the most active addresses first. Ties are broken by internal address id, so pagination is deterministic.
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "address": "XmZQkfLtk3xLtbBMenTdaZMxsUBYAsRz1o",
+      "firstSeenBlock": null,
+      "firstSeenBlockTimestamp": null,
+      "firstSeenTx": null,
+      "lastSeenBlock": null,
+      "lastSeenBlockTimestamp": null,
+      "lastSeenTx": null,
+      "txCount": 132952,
+      "received": null,
+      "sent": null,
+      "balance": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 570622
+  }
+}
+```
+
+| Field     | Type   | Description                                                  |
+|-----------|--------|--------------------------------------------------------------|
+| `address` | string | Dash address                                                 |
+| `txCount` | number | Transactions the address appeared in within the window      |
+
+Entries are Address objects with only `address` and `txCount` populated; all other fields are `null` for this endpoint. `pagination.total` is the number of distinct addresses in the ranking (see precision notes below).
+
+**Response `400`**
+
+```json
+{ "error": "start timestamp cannot be more than end timestamp" }
+```
+
+**Sources & precision.** The ranking is composed from tiered sources depending on the window length, so long windows stay fast. The window is split as:
+
+```
+start ─live─ midnight ─daily─ Monday ─weekly─ Monday ─daily─ midnight ─live─ end
+```
+
+| Window  | Sources                                                                                       | Precision                  |
+|---------|-----------------------------------------------------------------------------------------------|----------------------------|
+| ≤ 3d    | Live query over `tx_inputs`/`tx_outputs`                                                      | Exact to the timestamp     |
+| 3d – 8d | Daily rollup (`address_activity`) for whole days + live queries for the partial edge days     | Exact edges, see threshold |
+| > 8d    | Weekly rollup (`address_activity_weekly`) for whole ISO weeks + daily rollup + live edge days | Exact edges, see threshold |
+
+The rollup tables are maintained incrementally by the indexer in the same database transaction as each block, so they are current to the chain tip.
+
+**Activity thresholds.** For speed, low-activity rollup rows are excluded from long-window rankings: daily rows with `tx_count ≤ 2` and weekly rows with `tx_count ≤ 10` (see `ADDRESSES_ACTIVITY_DAILY_MIN_TX_COUNT` / `ADDRESSES_ACTIVITY_WEEKLY_MIN_TX_COUNT` in `src/constants.ts`, floors tied to partial indexes). Consequences:
+
+- Addresses below the thresholds in every bucket are missing from the ranking entirely, and `pagination.total` therefore undercounts the true number of active addresses — treat it as the size of the *ranked* set, not an exact "active addresses" statistic.
+- Ranked addresses can be slightly undercounted when some of their days/weeks fall below the thresholds. For genuinely active addresses (the top of the list) the numbers are effectively exact.
+- Windows ≤ 3d have no thresholds and are fully exact.
+
+---
+
+### POST /xpub
+
+Returns wallet-level totals for an extended public key.
+
+**Body**
+
+| Field       | Type    | Default | Constraints               | Description                                    |
+|-------------|---------|---------|---------------------------|------------------------------------------------|
+| `xpub`      | string  | —       | 100–120 base58 characters | Account-level extended public key. Required.   |
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100      | Consecutive unused addresses that end the scan |
+
+```
+POST /xpub
+{"xpub": "xpub6BsfY2wEzaDJgpVLusVdovnt8tv7Boox63S4tDzfCXY9VqEpH75p3qL6ZjevsETM8XGawVsv2QmePCkheHWTUKykjCtnzTs1sfjYsy6R1hf"}
+```
+
+**Response `200`**
+
+```json
+{
+  "balance": "4820046182581",
+  "received": "9107800090158",
+  "sent": "9218003263407",
+  "txCount": 1400,
+  "addressCount": 47,
+  "usedAddressCount": 6,
+  "nextUnused": {
+    "receive": 3,
+    "change": 2
+  }
+}
+```
+
+#### Xpub Summary Object
+
+| Field              | Type            | Description                                                       |
+|--------------------|-----------------|-------------------------------------------------------------------|
+| `balance`          | string          | Spendable balance in duffs, summed over the wallet's unspent outputs |
+| `received`         | string          | Total received in duffs — see the caveat below                    |
+| `sent`             | string          | Total sent in duffs — see the caveat below                        |
+| `txCount`          | number          | Distinct transactions involving any wallet address                |
+| `addressCount`     | number          | Addresses scanned across both branches                            |
+| `usedAddressCount` | number          | Of those, how many have appeared on chain                         |
+| `nextUnused`       | object          | First unused index per branch, for handing out a fresh address    |
+| `nextUnused.receive` | number \| null | Next unused index on branch 0                                    |
+| `nextUnused.change`  | number \| null | Next unused index on branch 1                                    |
+
+`txCount` counts each transaction **once**, even when it touches several of the
+wallet's addresses — which is the common case, since a spend usually pays a
+recipient and returns change to the same wallet. Summing per-address counts from
+[`GET /addresses/info`](#get-addressesinfo) would double-count those.
+
+> **`received` and `sent` include internal transfers.** Every change output
+> counts as both received and sent, so a wallet that received 1 DASH and then
+> spent it in ten steps reports far more than 1 DASH received. They are gross
+> flows across the wallet's addresses, not external inflow and outflow. Use
+> `balance` for the wallet's actual holdings.
+
+`balance` is read from the live unspent set and therefore includes unconfirmed
+outputs, while `received`/`sent` count confirmed transactions only. They will not
+reconcile as `balance = received - sent` while anything is pending.
+
+**Response `400`** — key is malformed, is an extended *private* key, or belongs
+to the other network (`"Not a mainnet extended public key"`).
+
+---
+
+### POST /xpub/addresses
+
+Returns the derived addresses and whether each has appeared on chain. Useful for
+clients that do not implement derivation themselves, and for showing which
+address to hand out next.
+
+**Body**
+
+| Field       | Type    | Default | Constraints               | Description                                    |
+|-------------|---------|---------|---------------------------|------------------------------------------------|
+| `xpub`      | string  | —       | 100–120 base58 characters | Account-level extended public key. Required.   |
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100      | Consecutive unused addresses that end the scan |
+| `page`      | integer | `1`     | minimum: 1                | Page number                                    |
+| `limit`     | integer | `100`   | minimum: 1, max: 100      | Results per page                               |
+
+```
+POST /xpub/addresses
+{"xpub": "xpub6BsfY...", "limit": 2}
+```
+
+**Response `200`** — [Paginated Response](#paginated-response)
+
+```json
+{
+  "resultSet": [
+    {
+      "address": "XcRPV2fziA8rRvkh9ydzjxEd1P3Xe2ZAsT",
+      "branch": 0,
+      "index": 0,
+      "used": true
+    },
+    {
+      "address": "XyhmYjdUor6fVgUjmNvbJ4sztniJ5XzHNL",
+      "branch": 0,
+      "index": 1,
+      "used": false
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 2,
+    "total": 47
+  }
+}
+```
+
+#### Xpub Address Object
+
+| Field     | Type    | Description                                                        |
+|-----------|---------|--------------------------------------------------------------------|
+| `address` | string  | Derived Dash address                                                |
+| `branch`  | number  | `0` external (receive) or `1` internal (change)                     |
+| `index`   | number  | Address index within the branch                                     |
+| `used`    | boolean | Whether the address has appeared on chain                           |
+
+Addresses are returned in scan order: the whole of branch 0, then branch 1. The
+list always includes the unused lookahead at the end of each branch — for a
+wallet with no history at all that is the entire response, `gap_limit` entries
+per branch, all `"used": false`. That is expected, not an error.
+
+**Response `400`** — as [`POST /xpub`](#post-xpub).
+
+---
+
+### POST /xpub/utxo
+
+Returns the wallet's unspent outputs, largest first, so the inputs a wallet
+reaches for first when building a spend land on the first page.
+
+**Body**
+
+| Field       | Type    | Default | Constraints               | Description                                    |
+|-------------|---------|---------|---------------------------|------------------------------------------------|
+| `xpub`      | string  | —       | 100–120 base58 characters | Account-level extended public key. Required.   |
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100      | Consecutive unused addresses that end the scan |
+| `page`      | integer | `1`     | minimum: 1                | Page number                                    |
+| `limit`     | integer | `100`   | minimum: 1, max: 100      | Results per page                               |
+
+```
+POST /xpub/utxo
+{"xpub": "xpub6BsfY...", "limit": 2}
+```
+
+**Response `200`** — [Paginated Response](#paginated-response) of
+[UTXO Objects](#utxo-object), each carrying the owning `address` and the
+`scriptPubKeyHex` required to sign.
+
+**Response `400`** — as [`POST /xpub`](#post-xpub).
+
+---
+
+### POST /xpub/transactions
+
+Returns the wallet's transaction history, newest first, merged across every
+address and deduplicated — a transaction touching several of the wallet's
+addresses appears once.
+
+Paged by cursor rather than page number: offsetting into a merged set this wide
+would re-read every skipped row for every address on each page.
+
+**Body**
+
+| Field       | Type    | Default | Constraints               | Description                                    |
+|-------------|---------|---------|---------------------------|------------------------------------------------|
+| `xpub`      | string  | —       | 100–120 base58 characters | Account-level extended public key. Required.   |
+| `gap_limit` | integer | `20`    | minimum: 1, max: 100      | Consecutive unused addresses that end the scan |
+| `limit`     | integer | `25`    | minimum: 1, max: 100      | Results per page                               |
+| `cursor`    | string  | —       | 64 hex characters         | `nextCursor` from the previous page            |
+
+```
+POST /xpub/transactions
+{"xpub": "xpub6BsfY...", "limit": 25}
+{"xpub": "xpub6BsfY...", "limit": 25, "cursor": "9cdf16d29c57f363427e622967720890acb6e0afa12685985763fe7fb628d17a"}
+```
+
+**Response `200`** — [Cursor Response](#cursor-response) of
+[Transaction Objects](#transaction-object)
+
+The cursor is the **hash of the last transaction on the page**, not an opaque
+token — a client can construct it from the last row it received. Using the hash
+rather than an internal row id means a cursor stays valid across a reindex.
+
+Ordering is by block height descending, and within a block, later transactions first.
+
+**Response `400`** — as [`POST /xpub`](#post-xpub), or the cursor does
+not name a confirmed transaction (`"Unknown cursor transaction …"`). A cursor
+that no longer resolves fails loudly rather than silently returning the wrong
+page.
+
+---
+
 ### GET /transactions/chart
 
 Returns a time series of transaction counts over a configurable time range, with optional running total.
@@ -824,7 +1307,14 @@ Returns a time series of transaction counts over a configurable time range, with
 
 ### GET /transactions/stats
 
-Returns counts of confirmed transactions over the last 24 hours, partitioned into mutually exclusive categories.
+Returns counts of confirmed transactions over a given time range, partitioned into mutually exclusive categories. Defaults to the last 24 hours when no range is supplied.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default                 | Description             |
+|-------------------|--------|-------------------------|-------------------------|
+| `timestamp_start` | string | 24 hours ago (ISO 8601) | Start of the time range |
+| `timestamp_end`   | string | now (ISO 8601)          | End of the time range   |
 
 **Categorization (in priority order):**
 
@@ -852,10 +1342,10 @@ Pending (mempool) transactions are excluded.
 | Field      | Type           | Description                                                                          |
 |------------|----------------|--------------------------------------------------------------------------------------|
 | `total`    | number \| null | Sum of `special + coinjoin + multisig + normal`                                      |
-| `special`  | number \| null | Confirmed special transactions (`type > 0`) in the last 24h                          |
-| `coinjoin` | number \| null | Confirmed CoinJoin transactions in the last 24h (excludes special)                   |
-| `multisig` | number \| null | Confirmed multisig transactions in the last 24h (excludes special and CoinJoin)      |
-| `normal`   | number \| null | Confirmed transactions that are none of the above in the last 24h                    |
+| `special`  | number \| null | Confirmed special transactions (`type > 0`) in the range                             |
+| `coinjoin` | number \| null | Confirmed CoinJoin transactions in the range (excludes special)                      |
+| `multisig` | number \| null | Confirmed multisig transactions in the range (excludes special and CoinJoin)         |
+| `normal`   | number \| null | Confirmed transactions that are none of the above in the range                       |
 
 > All fields are `null` when no rows can be derived (e.g. no indexed blocks). Otherwise counts are `0` or positive integers.
 
@@ -1053,6 +1543,162 @@ Returns all current-cycle governance votes cast by a single masternode, aggregat
 Each entry uses the same shape as `ProposalVote` on `/governance/proposal/:hash` (see [there](#get-governanceproposalhash)), with `proposalHash` filled in instead of being implied by the route.
 
 > Cost note: this is a fan-out of N RPC calls (one per active proposal). N is typically 10–50 on mainnet. Each call returns one entry per voting masternode; filtering happens in-process. Total latency is bounded by the slowest individual `getcurrentvotes` call, not the sum.
+
+---
+
+### GET /masternode/:proTxHash/transactions
+
+Returns a paginated list of transactions involving any address tied to the given masternode — its `payee`, `ownerAddress`, `votingAddress`, or `collateralAddress` — either as an input or an output.
+
+**Path Parameters**
+
+| Parameter   | Type   | Constraints                            | Description              |
+|-------------|--------|----------------------------------------|--------------------------|
+| `proTxHash` | string | 64-char hex (`[A-Za-z0-9]`, length 64) | Masternode ProRegTx hash |
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "hash": "abcdef1234...",
+      "type": "CLASSIC",
+      "blockHeight": 100000,
+      "blockHash": "000000000000abcd1234...",
+      "timestamp": "2023-01-01T00:00:00.000Z",
+      "amount": "100000000",
+      "version": 3,
+      "vIn": [...],
+      "vOut": [...],
+      "confirmations": 10,
+      "instantLock": "0102375e...d571d32a0a",
+      "chainLocked": true,
+      "coinjoin": false,
+      "multisig": false,
+      "extraPayload": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 42
+  }
+}
+```
+
+Entries use the [Transaction Object](#transaction-object) shape. `total` reflects the distinct count of transactions across all the masternode's addresses.
+
+---
+
+### GET /peers
+
+Returns the P2P network peers discovered by the indexer's crawler, geo-enriched and ordered by `lastSeen`. Pagination is optional: without `limit` the full set is returned in one page, otherwise the set is sliced by `limit` (`page` defaults to `1`).
+
+The crawler performs a breadth-first walk of the network starting from the indexer's configured P2P node, harvesting peer addresses via `getaddr` and probing each for liveness. It runs once when live sync starts and again every `PEER_CRAWL_EVERY_BLOCKS` blocks, overwriting the result set each round. **Every** discovered address is stored — including ones that did not answer — split into two Redis sets (`peers:available` / `peers:unavailable`) and exposed here via the `available` flag.
+
+`available: false` means the crawler could not complete a version handshake with the peer this round (connection refused/timed out, or not reached before the round ended) — a reachability snapshot from the indexer's vantage point, not a definitive "node is down". The version-derived fields (`protocolVersion`, `services`, `userAgent`, `startHeight`) are populated only for available peers.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters)
+
+Additional optional filters:
+
+| Parameter   | Type    | Constraints                    | Description                                                                       |
+|-------------|---------|--------------------------------|-----------------------------------------------------------------------------------|
+| `available`  | boolean |                                | `true` → reachable peers only; `false` → unreachable only; omitted → both        |
+| `country`    | string  | ISO 3166-1 alpha-2 (e.g. `US`) | Filter by GeoIP country code resolved from the peer address                      |
+| `user_agent` | string  | `^[A-Za-z0-9\s]+$`, 3–64 chars | Case-insensitive regular expression matched against `userAgent`; peers without a user agent never match |
+| `ip`         | string  | IPv4, `^(\d{1,3}\.){3}\d{1,3}$` | Exact match against the peer `host` (port excluded)                             |
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "address": "1.2.3.4:9999",
+      "host": "1.2.3.4",
+      "port": 9999,
+      "available": true,
+      "protocolVersion": 70227,
+      "services": 1037,
+      "userAgent": "/Dash Core:22.0.0/",
+      "startHeight": 1999000,
+      "lastSeen": "2026-06-17T11:00:00.000Z",
+      "probedAt": "2026-06-17T11:46:00.000Z",
+      "geo": {
+        "ipv4": "1.2.3.4",
+        "countryCode": "NL",
+        "city": "Amsterdam",
+        "latitude": 12.3456789101112131,
+        "longitude": 12.3456789101112131
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 4200
+  }
+}
+```
+
+#### Peer Object
+
+| Field             | Type              | Description                                                                |
+|-------------------|-------------------|----------------------------------------------------------------------------|
+| `address`         | string            | Peer address as `ip:port`                                                  |
+| `host`            | string            | Host portion of `address`                                                  |
+| `port`            | number            | Port portion of `address`                                                  |
+| `available`       | boolean           | Whether the peer answered a version handshake this crawl round             |
+| `protocolVersion` | number \| null    | Advertised protocol version (only when `available`)                        |
+| `services`        | number \| null    | Advertised service bits (only when `available`)                            |
+| `userAgent`       | string \| null    | Advertised user agent / subversion (only when `available`)                 |
+| `startHeight`     | number \| null    | Block height the peer reported at probe time (only when `available`)       |
+| `lastSeen`        | string            | ISO 8601 timestamp the gossiping peer last saw this address                |
+| `probedAt`        | string            | ISO 8601 timestamp the crawler last probed this address                    |
+| `geo`             | GeoIpInfo \| null | GeoIP for the peer host (see [GeoIpInfo](#geoipinfo-object)); null if unresolved |
+
+---
+
+### GET /peers/user-agents
+
+Returns the distinct user agents advertised by the peers of the crawler's latest round, ordered by the number of peers running each of them (most popular first). Pagination is optional: without `limit` the full set is returned in one page, otherwise the set is sliced by `limit` (`page` defaults to `1`).
+
+Only available peers advertise a user agent (see [GET /peers](#get-peers)), so unavailable ones are never counted. Ties on `count` are broken alphabetically by `userAgent`.
+
+**Query Parameters:** [Pagination](#pagination-query-parameters) (`order` defaults to `desc` here — `asc` returns the least used agents first)
+
+**Response `200`**
+
+```json
+{
+  "resultSet": [
+    {
+      "userAgent": "/Dash Core:22.0.0/",
+      "count": 1420
+    },
+    {
+      "userAgent": "/Dash Core:21.1.1/",
+      "count": 310
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 27
+  }
+}
+```
+
+#### Peer User Agent Object
+
+| Field       | Type   | Description                                     |
+|-------------|--------|---------------------------------------------------|
+| `userAgent` | string | Advertised user agent / subversion              |
+| `count`     | number | Number of available peers running this user agent |
 
 ---
 
@@ -1292,6 +1938,63 @@ Each block is a [VoteResult Object](#voteresult-object): `{ absoluteYesCount (= 
 
 ---
 
+### GET /governance/proposal/:hash/votes/chart
+
+Returns a time series of a proposal's **funding** votes, bucketed by the time each vote was cast, with optional running total. Used to render the vote-over-time chart on the proposal page.
+
+Unlike `/governance/proposal/:hash` (which fans out to `gobject getcurrentvotes` live), this endpoint reads the indexer's cached vote set from Redis (`dao:votes:<hash>`). That cache is **current-cycle only** — it is dropped and rebuilt when the chain crosses a superblock boundary — so the series covers votes for the proposal's current superblock cycle, not its full history.
+
+Only votes whose signal is `funding` are counted; `valid` / `delete` / `endorsed` signals are ignored. Within each bucket, votes are tallied by outcome into `yes` / `no` / `abstain` counts.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints                            | Description            |
+|-----------|--------|----------------------------------------|------------------------|
+| `hash`    | string | 64-char hex (`[A-Za-z0-9]`, length 64) | Governance object hash |
+
+**Query Parameters**
+
+| Parameter         | Type    | Default               | Constraints          | Description                                                                                                          |
+|-------------------|---------|-----------------------|----------------------|----------------------------------------------------------------------------------------------------------------------|
+| `timestamp_start` | string  | 1 hour ago (ISO 8601) |                      | Start of the time range                                                                                              |
+| `timestamp_end`   | string  | now (ISO 8601)        |                      | End of the time range                                                                                               |
+| `intervals_count` | number  | auto                  | minimum: 2, max: 100 | Number of equal buckets. When omitted, the bucket width is chosen automatically via `calculateInterval`             |
+| `running_total`   | boolean | `false`               |                      | When `true`, each bucket's counts are the cumulative totals from `timestamp_start` through the end of that bucket   |
+
+A vote falls in a bucket when `from < vote_time <= to`. `timestamp` is the bucket's **start** (`from`).
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "data": { "yes": 12, "no": 3, "abstain": 1 }
+  },
+  {
+    "timestamp": "2024-01-01T01:00:00.000Z",
+    "data": { "yes": 5, "no": 0, "abstain": 0 }
+  }
+]
+```
+
+| Field           | Type   | Description                                                                                  |
+|-----------------|--------|----------------------------------------------------------------------------------------------|
+| `timestamp`     | string | ISO 8601 start of the bucket                                                                 |
+| `data.yes`      | number | Funding `yes` votes in the bucket, or cumulative total if `running_total=true`               |
+| `data.no`       | number | Funding `no` votes in the bucket, or cumulative total if `running_total=true`                |
+| `data.abstain`  | number | Funding `abstain` votes in the bucket, or cumulative total if `running_total=true`           |
+
+> Empty buckets are included with all counts `0`. A proposal hash with no cached funding votes returns a series of all-zero buckets (not a `404`).
+
+**Response `400`**
+
+```json
+{ "error": "start timestamp cannot be more than end timestamp" }
+```
+
+---
+
 ### GET /governance/proposals
 
 Returns a list of governance proposals from Dash Core RPC.
@@ -1504,8 +2207,11 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
   "enoughVotesCount": 9,
   "enoughFundsTotal": 7337.0,
   "enoughFundsCount": 8,
+  "enoughVotesAndFundsTotal": 7287.0,
+  "enoughVotesAndFundsCount": 6,
   "remainingAllPass": -1069.48518384,
   "remainingEnoughVotes": -257.48518384,
+  "remainingEnoughVotesAndFunds": 50,
   "requiredVotes": 312,
   "votingDeadline": "2026-05-18T01:23:45.000Z"
 }
@@ -1518,10 +2224,13 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
 | `totalRequested`       | number | Sum of `paymentAmount` across all pending proposals                                                                                                                             |
 | `enoughVotesCount`     | number | Count of pending proposals whose `absoluteYesCount >= governanceminquorum`                                                                                                      |
 | `enoughVotesTotal`     | number | Sum of `paymentAmount` across the `enoughVotes` subset                                                                                                                          |
-| `enoughFundsCount`     | number | Count of proposals that would actually be paid: vote-qualified proposals selected greedily (descending by `absoluteYesCount`) while the cumulative amount fits in `totalBudget` |
+| `enoughFundsCount`     | number | Count of proposals that would fit in the budget: all proposals ranked greedily by `absoluteYesCount` while the cumulative amount fits in `totalBudget`, regardless of whether they clear the vote threshold |
 | `enoughFundsTotal`     | number | Sum of `paymentAmount` across the `enoughFunds` subset                                                                                                                          |
+| `enoughVotesAndFundsCount` | number | Count of proposals that would actually be paid: vote-qualified proposals (the `enoughVotes` subset) selected greedily (descending by `absoluteYesCount`) while the cumulative amount fits in `totalBudget` |
+| `enoughVotesAndFundsTotal` | number | Sum of `paymentAmount` across the `enoughVotesAndFunds` subset                                                                                                              |
 | `remainingAllPass`     | number | `totalBudget - totalRequested` (negative when proposals are oversubscribed)                                                                                                     |
 | `remainingEnoughVotes` | number | `totalBudget - enoughVotesTotal` (negative when vote-passing proposals exceed budget)                                                                                           |
+| `remainingEnoughVotesAndFunds` | number | `totalBudget - enoughVotesAndFundsTotal` (budget left after funding the proposals that actually get paid)                                                            |
 | `requiredVotes`        | number | Net-yes-vote threshold for proposal approval (from `/masternodes/stats.requiredProposalVotes`)                                                                                  |
 | `votingDeadline`       | string | ISO 8601 timestamp after which new votes won't be reflected in the upcoming superblock's payouts. Computed as `nextSuperblockTime − superblockmaturitywindow × avgBlockTime`, where `avgBlockTime = cycleMs / superblockcycle`. |
 

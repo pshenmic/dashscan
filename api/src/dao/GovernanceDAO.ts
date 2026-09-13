@@ -1,23 +1,35 @@
+import {Knex} from 'knex';
+import Redis from 'ioredis';
 import {DashCoreRPC, GovernanceInfoRPC, GovernanceObjectSignal} from "../dashcoreRPC";
 import {GovernanceObject} from "../models/GovernanceObject";
 import {ProposalVote} from "../models/ProposalVote";
+import SeriesData from "../models/SeriesData";
 import MasternodesDAO from "./MasternodesDAO";
 import {Cache} from "../cache";
-import {PROTX_OUTPOINT_MAP_LIFE_TIME} from "../constants";
+import {PROTX_OUTPOINT_MAP_LIFE_TIME, REDIS_VOTES_KEY_PART} from "../constants";
 
 export default class GovernanceDAO {
+  knex: Knex;
+  redis: Redis;
   dashCoreRPC: DashCoreRPC;
   masternodesDAO: MasternodesDAO;
   cache: Cache;
 
-  constructor(dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO, cache: Cache) {
+  constructor(knex: Knex, redis: Redis, dashCoreRPC: DashCoreRPC, masternodesDAO: MasternodesDAO, cache: Cache) {
+    this.knex = knex
+    this.redis = redis
     this.dashCoreRPC = dashCoreRPC
     this.masternodesDAO = masternodesDAO
     this.cache = cache
   }
 
-  private getProtxOutpointMap = async (): Promise<Record<string, string>> => {
-    const cached = this.cache.get('protxOutpointMap')
+  // Builds (and caches) both outpoint maps from a single protx list:
+  //   hashMap:   outpoint → proTxHash
+  //   weightMap: outpoint → governance vote weight (Evo/HPMN = 4, Regular = 1)
+  // Evo masternodes carry 4 votes, so the weighted sum matches the node's
+  // gobject tally; raw vote records would undercount.
+  private getProtxOutpoint = async (): Promise<{ hashMap: Record<string, string>; weightMap: Record<string, number> }> => {
+    const cached = await this.cache.get<{ hashMap: Record<string, string>; weightMap: Record<string, number> }>('protxOutpoint')
 
     if (cached != null) {
       return cached
@@ -25,15 +37,28 @@ export default class GovernanceDAO {
 
     const list = await this.dashCoreRPC.getProTxList()
 
-    const map: Record<string, string> = {}
+    if (list.length === 0) {
+      throw new Error('protx list returned empty; not caching outpoint map')
+    }
+
+    const hashMap: Record<string, string> = {}
+    const weightMap: Record<string, number> = {}
 
     list.forEach(entry => {
-      map[`${entry.collateralHash}-${entry.collateralIndex}`] = entry.proTxHash
+      const outpoint = `${entry.collateralHash}-${entry.collateralIndex}`
+      hashMap[outpoint] = entry.proTxHash
+      weightMap[outpoint] = entry.type === 'Evo' ? 4 : 1
     })
 
-    this.cache.set('protxOutpointMap', map, PROTX_OUTPOINT_MAP_LIFE_TIME)
+    const result = { hashMap, weightMap }
 
-    return map
+    await this.cache.set('protxOutpoint', result, PROTX_OUTPOINT_MAP_LIFE_TIME)
+
+    return result
+  }
+
+  private getProtxOutpointMap = async (): Promise<Record<string, string>> => {
+    return (await this.getProtxOutpoint()).hashMap
   }
 
   getProposals = async (
@@ -171,6 +196,89 @@ export default class GovernanceDAO {
       })
 
     return proposal
+  }
+
+  getProposalVoteSeries = async (
+    proposalHash: string,
+    start: Date,
+    end: Date,
+    intervalInMs: number,
+    runningTotal: boolean,
+  ): Promise<SeriesData[]> => {
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    const stepMs = intervalInMs;
+
+    // Fixed-step buckets [from, to]; mirrors the previous
+    // generate_series(start + step, end, step) with date_from = previous date_to.
+    const buckets: { from: number; yes: number; no: number; abstain: number }[] = [];
+
+    if (stepMs > 0) {
+      for (let to = startMs + stepMs; to <= endMs; to += stepMs) {
+        buckets.push({from: to - stepMs, yes: 0, no: 0, abstain: 0});
+      }
+    }
+
+    const [rawVotes, { weightMap }] = await Promise.all([
+      this.redis.hvals(`${REDIS_VOTES_KEY_PART}${proposalHash}`),
+      this.getProtxOutpoint(),
+    ]);
+
+    // Votes cast before the window seed the running total so a windowed
+    // runningTotal series ends at the all-time tally (matching the proposal's
+    // vote counts) instead of only summing votes inside the window.
+    let yesBase = 0;
+    let noBase = 0;
+    let abstainBase = 0;
+
+    for (const raw of rawVotes) {
+      const vote = ProposalVote.fromRaw(raw);
+
+      // Only funding-signal votes feed the series, matching the old `signal LIKE 'funding%'`.
+      if (vote == null || !vote.signal.startsWith('funding')) {
+        continue;
+      }
+
+      // Bucket by vote_time > date_from AND <= date_to.
+      const index = Math.ceil((vote.time.getTime() - startMs) / stepMs) - 1;
+
+      // After the window — ignore entirely.
+      if (index >= buckets.length) {
+        continue;
+      }
+
+      const weight = weightMap[vote.outpoint] ?? 1;
+
+      // Before the window — feeds the running-total baseline only.
+      if (index < 0) {
+        if (vote.outcome === 'yes') yesBase += weight;
+        else if (vote.outcome === 'no') noBase += weight;
+        else if (vote.outcome === 'abstain') abstainBase += weight;
+        continue;
+      }
+
+      const bucket = buckets[index];
+
+      if (vote.outcome === 'yes') bucket.yes += weight;
+      else if (vote.outcome === 'no') bucket.no += weight;
+      else if (vote.outcome === 'abstain') bucket.abstain += weight;
+    }
+
+    let yesTotal = yesBase;
+    let noTotal = noBase;
+    let abstainTotal = abstainBase;
+
+    return buckets.map(bucket => {
+      if (runningTotal) {
+        yesTotal += bucket.yes;
+        noTotal += bucket.no;
+        abstainTotal += bucket.abstain;
+
+        return new SeriesData(new Date(bucket.from), {yes: yesTotal, no: noTotal, abstain: abstainTotal});
+      }
+
+      return new SeriesData(new Date(bucket.from), {yes: bucket.yes, no: bucket.no, abstain: bucket.abstain});
+    });
   }
 
   getBudgetInfo = async (superblockHeight: number): Promise<number> => {

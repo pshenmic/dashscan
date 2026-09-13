@@ -9,14 +9,16 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { SpotlightSearch } from "@/themes/neo/components/spotlight-search";
+import { SpotlightSearch } from "@/themes/neo/components/lazy-spotlight-search";
 import { ThemeSwitcher } from "@/themes/ThemeSwitcher";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", exact: true },
   { to: "/blocks", label: "Blocks", exact: false },
   { to: "/transactions", label: "Transactions", exact: false },
+  { to: "/addresses", label: "Addresses", exact: false },
   { to: "/masternodes", label: "Masternodes", exact: false },
+  { to: "/peers", label: "Peers", exact: false },
   { to: "/dao", label: "DAO", exact: false },
 ] as const;
 
@@ -108,7 +110,7 @@ export default function SiteHeader() {
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 md:flex">
-          <SpotlightSearch />
+          <SpotlightSearch enableShortcut />
           <ThemeSwitcher />
         </div>
 

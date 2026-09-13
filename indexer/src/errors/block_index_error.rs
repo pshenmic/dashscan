@@ -2,11 +2,13 @@ use deadpool_postgres::PoolError;
 use crate::errors::database_error::DatabaseError;
 use crate::errors::p2p_error::P2PError;
 use crate::errors::rpc_error::RpcError;
+use crate::errors::redis_error::RedisError;
 
 pub enum BlockIndexError {
     DatabaseError(DatabaseError),
     RpcError(RpcError),
     P2PError(P2PError),
+    RedisError(RedisError),
     UnexpectedError(String),
 }
 
@@ -16,6 +18,7 @@ impl std::fmt::Display for BlockIndexError {
             BlockIndexError::DatabaseError(e) => write!(f, "Block index database error: {e}"),
             BlockIndexError::RpcError(e) => write!(f, "Block index Dash RPC error: {e}"),
             BlockIndexError::P2PError(e) => write!(f, "Block index P2P error: {e}"),
+            BlockIndexError::RedisError(e) => write!(f, "Block index Redis error: {e}"),
             BlockIndexError::UnexpectedError(e) => write!(f, "Block index unexpected error: {e}"),
         }
     }
@@ -30,6 +33,12 @@ impl From<RpcError> for BlockIndexError {
 impl From<P2PError> for BlockIndexError {
     fn from(e: P2PError) -> Self {
         BlockIndexError::P2PError(e)
+    }
+}
+
+impl From<RedisError> for BlockIndexError {
+    fn from(e: RedisError) -> Self {
+        BlockIndexError::RedisError(e)
     }
 }
 

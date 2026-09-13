@@ -2,21 +2,27 @@ import Fastify, { FastifyInstance, FastifyError, FastifyRequest, FastifyReply } 
 import metricsPlugin from 'fastify-metrics';
 import {DashCoreRPC} from "./dashcoreRPC";
 import { Knex } from 'knex';
-import { getKnex } from './utils';
+import Redis from 'ioredis';
+import { getKnex, getRedis } from './utils';
 import cors from '@fastify/cors';
 import schemas from './schemas';
 import Routes from './routes';
 import ServiceNotAvailableError from './errors/ServiceNotAvailableError';
+import InvalidXpubError from './errors/InvalidXpubError';
+import InvalidCursorError from './errors/InvalidCursorError';
+import MarketDataUnavailableError from './errors/MarketDataUnavailableError';
 import BlocksController from './controllers/BlocksController';
 import TransactionsController from './controllers/TransactionsController';
 import AddressesController from './controllers/AddressesController';
 import MasternodesController from './controllers/MasternodesController';
 import MarketController from './controllers/MarketController';
 import GovernanceController from "./controllers/GovernanceController";
+import PeersController from "./controllers/PeersController";
 import MarketService from './services/MarketService';
 import GeoIPService from './services/GeoIPService';
 import SearchController from './controllers/SearchController';
 import MainController from './controllers/MainController';
+import XpubController from './controllers/XpubController';
 import {Cache} from "./cache";
 import {UTXO_INFO_LIFE_TIME} from "./constants";
 
@@ -26,12 +32,29 @@ function errorHandler(err: FastifyError, req: FastifyRequest, reply: FastifyRepl
     return;
   }
 
+  if (err instanceof MarketDataUnavailableError) {
+    reply.status(503).send({ error: err.message });
+    return;
+  }
+
+  if (err instanceof InvalidXpubError || err instanceof InvalidCursorError) {
+    reply.status(400).send({ error: err.message });
+    return;
+  }
+
+  // Schema validation failures carry statusCode 400; without this they 500.
+  if (err.statusCode != null && err.statusCode >= 400 && err.statusCode < 500) {
+    reply.status(err.statusCode).send({ error: err.message });
+    return;
+  }
+
   console.error(err);
   reply.status(500);
   reply.send({ error: err.message });
 }
 
 let knex: Knex;
+let redis: Redis;
 let fastify: FastifyInstance;
 
 export const start = async (): Promise<FastifyInstance> => {
@@ -51,16 +74,18 @@ export const start = async (): Promise<FastifyInstance> => {
 
   await knex.raw('select 1')
 
+  redis = getRedis();
+
   const dashcoreRPC = new DashCoreRPC();
 
-  const cache = new Cache()
+  const cache = new Cache(redis)
 
-  const geoIPService = new GeoIPService(cache);
-  const marketService = new MarketService();
+  const geoIPService = new GeoIPService();
+  const marketService = new MarketService(cache);
 
   const preCacheUtxoInfo = await dashcoreRPC.getUtxoInfo()
 
-  cache.set("utxoInfo", preCacheUtxoInfo, UTXO_INFO_LIFE_TIME)
+  await cache.set("utxoInfo", preCacheUtxoInfo, UTXO_INFO_LIFE_TIME)
 
   const mainController = new MainController(dashcoreRPC, knex);
   const blocksController = new BlocksController(knex);
@@ -69,7 +94,9 @@ export const start = async (): Promise<FastifyInstance> => {
   const masternodesController = new MasternodesController(knex, geoIPService);
   const marketController = new MarketController(marketService);
   const searchController = new SearchController(knex);
-  const governanceController = new GovernanceController(knex, dashcoreRPC, geoIPService, cache);
+  const governanceController = new GovernanceController(knex, redis, dashcoreRPC, geoIPService, cache);
+  const peersController = new PeersController(redis, geoIPService);
+  const xpubController = new XpubController(knex, cache);
 
   Routes({
     fastify,
@@ -81,6 +108,8 @@ export const start = async (): Promise<FastifyInstance> => {
     marketController,
     searchController,
     governanceController,
+    peersController,
+    xpubController,
   });
 
   fastify.setErrorHandler(errorHandler);
@@ -95,12 +124,13 @@ export const stop = async (): Promise<void> => {
 
   await fastify.close();
   await knex.destroy();
+  redis.disconnect();
 };
 
 export const listen = async (server: FastifyInstance): Promise<void> => {
   server.listen({
     host: '0.0.0.0',
-    port: 3005,
+    port: Number(process.env.PORT ?? 3005),
     listenTextResolver: (address: string) => {
       const msg = `Dash Core Explorer API listening on ${address}`;
       console.log(msg);
