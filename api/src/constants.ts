@@ -68,3 +68,11 @@ export const MARKET_REQUEST_TIMEOUT = 4000;
 // 1m. How long a failed upstream is remembered. Without it every request pays
 // the full timeout again for as long as the upstream stays down.
 export const MARKET_FAILURE_LIFE_TIME = 1000 * 60;
+
+export const HEX64_RE = /^[0-9a-fA-F]{64}$/;
+export const INTEGER_RE = /^\d+$/;
+// Dash P2PKH: mainnet X, testnet y — P2SH: mainnet 7, testnet 8
+export const ADDRESS_RE = {
+  mainnet: /^[X7][1-9A-HJ-NP-Za-km-z]{25,33}$/,
+  testnet: /^[y8][1-9A-HJ-NP-Za-km-z]{25,33}$/
+}
