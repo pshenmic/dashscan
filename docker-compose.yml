@@ -201,7 +201,7 @@ services:
     configs:
       - source: haproxy_cfg
         target: /usr/local/etc/haproxy/haproxy.cfg
-    ports
+    ports:
       # Binds to 127.0.0.1 by default so a host-level reverse proxy (system
       # haproxy/nginx) fronts it and the API is not exposed directly. Set
       # BIND_ADDR=0.0.0.0 to publish on all interfaces. When running several
