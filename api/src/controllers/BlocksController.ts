@@ -55,10 +55,47 @@ export default class BlocksController {
     response.send(series);
   }
 
-  getBlockByHash = async (request: FastifyRequest<{ Params: { hash: string } }>, response: FastifyReply): Promise<void> => {
-    const { hash } = request.params;
+  getDifficultyStats = async (
+    request: FastifyRequest<{
+      Querystring: { timestamp_start: string; timestamp_end: string; intervals_count: number }
+    }>,
+    response: FastifyReply
+  ): Promise<void> => {
+    const {
+      timestamp_start: start = new Date(new Date().getTime() - 3600000).toISOString(),
+      timestamp_end: end = new Date().toISOString(),
+      intervals_count: intervalsCount,
+    } = request.query;
 
-    const block = await this.blocksDAO.getBlockByHash(hash);
+    if (new Date(start).getTime() > new Date(end).getTime()) {
+      return response.status(400).send({ message: 'start timestamp cannot be more than end timestamp' });
+    }
+
+    const intervalInMs =
+      Math.ceil(
+        (new Date(end).getTime() - new Date(start).getTime()) / Number(intervalsCount ?? NaN) / 1000
+      ) * 1000;
+
+    const interval = intervalsCount
+      ? iso8601duration(intervalInMs)
+      : calculateInterval(new Date(start), new Date(end));
+
+    const series = await this.blocksDAO.getDifficultySeries(
+      new Date(start),
+      new Date(end),
+      interval,
+      isNaN(intervalInMs) ? Intervals[interval] : intervalInMs,
+    );
+
+    response.send(series);
+  }
+
+  getBlockByHashOrHeight = async (request: FastifyRequest<{ Params: { identifier: string } }>, response: FastifyReply): Promise<void> => {
+    const { identifier } = request.params;
+
+    const block = identifier.length === 64
+      ? await this.blocksDAO.getBlockByHash(identifier)
+      : await this.blocksDAO.getBlockByHeight(Number(identifier));
 
     if (!block) {
       return response.status(404).send({ error: 'Block not found' });
