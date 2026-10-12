@@ -1,7 +1,6 @@
-# Project name. Override per deployment (COMPOSE_PROJECT_NAME in .env, or -p)
-# when running several stacks on one host — it namespaces containers, networks
-# and volumes, so each stack gets its own database and chain data.
-name: ${COMPOSE_PROJECT_NAME:-dashscan}
+# Fixed project name, so container, network and volume names don't depend on
+# the checkout directory.
+name: dashscan
 
 services:
   # Opt-in only: starts with `--profile local-db`. Production leaves this
@@ -201,11 +200,10 @@ services:
     configs:
       - source: haproxy_cfg
         target: /usr/local/etc/haproxy/haproxy.cfg
-    ports
+    ports:
       # Binds to 127.0.0.1 by default so a host-level reverse proxy (system
       # haproxy/nginx) fronts it and the API is not exposed directly. Set
-      # BIND_ADDR=0.0.0.0 to publish on all interfaces. When running several
-      # stacks on one host, give each a unique API_PORT.
+      # BIND_ADDR=0.0.0.0 to publish on all interfaces.
       - "${BIND_ADDR:-127.0.0.1}:${API_PORT:-3005}:3005"
     healthcheck:
       test: ["CMD-SHELL", "haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg || exit 1"]
