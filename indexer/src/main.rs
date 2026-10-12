@@ -143,6 +143,38 @@ async fn main() {
     let dao = DaoStore::new(redis_pool.clone());
     let peer_store = PeerStore::new(redis_pool);
 
+    // Connect to Dash Core RPC
+    let rpc = DashRpcClient::new(
+        &config.rpc_host,
+        &config.rpc_port,
+        &config.rpc_user,
+        &config.rpc_password,
+    );
+
+    // Test RPC connectivity
+    if let Err(e) = rpc.ping().await {
+        error!("Failed to connect to Dash Core: {e}");
+        error!("Make sure Dash Core is running and RPC credentials are correct");
+        std::process::exit(1);
+    }
+
+    loop {
+        match rpc.get_mnsync_status().await {
+            Ok(status) if status.is_synced => {
+                info!(asset = status.asset_name, "Dash Core is synced");
+                break;
+            }
+            Ok(status) => info!(
+                asset = status.asset_name,
+                blockchain_synced = status.is_blockchain_synced,
+                "Waiting for Dash Core to sync, retrying in 5s"
+            ),
+            Err(e) => warn!("Failed to get Dash Core mnsync status: {e}"),
+        }
+
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    }
+
     // Sync miner pools from embedded pools.json
     let (miner_pools, miner_pool_ids) = match init_miners_pools() {
         Ok(pools) => {
@@ -159,21 +191,6 @@ async fn main() {
             (vec![], std::collections::HashMap::new())
         }
     };
-
-    // Connect to Dash Core RPC
-    let rpc = DashRpcClient::new(
-        &config.rpc_host,
-        &config.rpc_port,
-        &config.rpc_user,
-        &config.rpc_password,
-    );
-
-    // Test RPC connectivity
-    if let Err(e) = rpc.ping().await {
-        error!("Failed to connect to Dash Core: {e}");
-        error!("Make sure Dash Core is running and RPC credentials are correct");
-        std::process::exit(1);
-    }
 
     // Build the P2P peer crawler — fully independent of block indexing, and
     // triggered from the live-sync flow rather than on a timer.
