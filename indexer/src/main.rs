@@ -172,7 +172,7 @@ async fn main() {
             Err(e) => warn!("Failed to get Dash Core mnsync status: {e}"),
         }
 
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(30)).await;
     }
 
     // Sync miner pools from embedded pools.json
