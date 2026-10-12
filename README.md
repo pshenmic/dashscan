@@ -177,6 +177,7 @@ Two caveats:
 | `redis` | `local-redis` | |
 | `dashd` | `local-dashcore` | Dash Core node; mainnet needs ~40GB disk |
 | `frontend` | `local-frontend` | Publishes `FRONTEND_PORT` |
+| `haproxy-metrics` | `metrics` | Publishes haproxy's Prometheus exporter on `HAPROXY_METRICS_PORT` |
 
 Infrastructure is opt-in via profiles, so the same file serves both a
 self-contained dev box and a production host that uses managed Postgres/Redis
@@ -215,6 +216,7 @@ required and fail fast if missing; `.env.example` documents every value.
 | `API_PORT` | Host port published by haproxy (default `3005`) |
 | `API_REPLICAS` | Number of api containers (default `4`) |
 | `FRONTEND_PORT` | Host port for the frontend (default `3000`) |
+| `HAPROXY_METRICS_PORT` | `metrics` only — host port for `/metrics` (default `8405`) |
 | `DASHSCAN_API_URL` | **Build-time.** See below |
 
 `DASHSCAN_API_URL` is inlined into the frontend bundle at build time, so it must
@@ -261,6 +263,14 @@ The stats UI is on port 8404, unpublished. To view it:
 
 ```bash
 docker compose exec haproxy wget -qO- http://127.0.0.1:8404/
+```
+
+haproxy also serves its built-in Prometheus exporter on port 8405, likewise
+unpublished. Enable the `metrics` profile to publish it on
+`${BIND_ADDR}:${HAPROXY_METRICS_PORT}/metrics` for an external Prometheus:
+
+```bash
+COMPOSE_PROFILES=local-db,local-redis,local-dashcore,local-frontend,metrics
 ```
 
 ### Migrations
