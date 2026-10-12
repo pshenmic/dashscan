@@ -81,6 +81,16 @@ pub struct CbTx {
     pub credit_pool_balance: Option<f64>,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct MnSyncStatus {
+    #[serde(rename = "AssetName")]
+    pub asset_name: String,
+    #[serde(rename = "IsBlockchainSynced")]
+    pub is_blockchain_synced: bool,
+    #[serde(rename = "IsSynced")]
+    pub is_synced: bool,
+}
+
 // --- Block types ---
 
 #[derive(Deserialize, Debug)]
@@ -372,5 +382,12 @@ impl DashRpcClient {
         warn!(chain, blocks, "Connected to Dash Core");
 
         Ok(())
+    }
+
+    pub async fn get_mnsync_status(&self) -> Result<MnSyncStatus, RpcError> {
+        let result = self.call("mnsync", vec![Value::from("status")]).await?;
+
+        serde_json::from_value(result)
+            .map_err(|e| RpcError { code: 0, message: format!("mnsync status parse error: {e}") })
     }
 }
