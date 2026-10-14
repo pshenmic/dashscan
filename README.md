@@ -213,6 +213,13 @@ required and fail fast if missing; `.env.example` documents every value.
 | `CORE_RPC_*`, `CORE_ZMQ_URL`, `CORE_P2P_*` | Dash Core connection |
 | `CORE_CHAIN` | `local-dashcore` only — `main`/`test`/`regtest`; must agree with `NETWORK` |
 | `POSTGRES_USER` / `_PASSWORD` / `_DB` | `local-db` only; must agree with `DATABASE_URL` |
+| `POSTGRES_SHARED_BUFFERS` | `local-db` only; ~25% of RAM (default `1GB`) |
+| `POSTGRES_EFFECTIVE_CACHE_SIZE` | `local-db` only; ~70% of RAM (default `3GB`) |
+| `POSTGRES_MAX_WAL_SIZE` | `local-db` only (default `8GB`) |
+| `POSTGRES_CHECKPOINT_TIMEOUT` | `local-db` only (default `15min`) |
+| `POSTGRES_WAL_COMPRESSION` | `local-db` only (default `on`) |
+| `POSTGRES_RANDOM_PAGE_COST` | `local-db` only; `1.1` for SSD, `4` for HDD (default `1.1`) |
+| `POSTGRES_SHM_SIZE` | `local-db` only; container `/dev/shm` size (default `1g`) |
 | `API_PORT` | Host port published by haproxy (default `3005`) |
 | `API_REPLICAS` | Number of api containers (default `4`) |
 | `FRONTEND_PORT` | Host port for the frontend (default `3000`) |
