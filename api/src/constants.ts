@@ -13,8 +13,7 @@ export const SUPERBLOCK_INTERVALS = {
   regtest: 20
 }
 
-export const GEOIP_PROVIDER = '@ip-location-db/dbip-city-mmdb'
-export const GEOIP_TABLE_NAME = 'dbip-city-ipv4.mmdb'
+export const GEOIP_DB_PATH = process.env.GEOIP_DB_PATH ?? 'geoip/dbip-city-ipv4.mmdb'
 
 // 3d
 export const ADDRESSES_ACTIVITY_LOW_PRECISION_AFTER = 259200000

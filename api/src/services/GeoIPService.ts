@@ -1,6 +1,6 @@
 import {readFileSync} from 'fs';
 import {resolve} from 'path';
-import {GEOIP_PROVIDER, GEOIP_TABLE_NAME} from "../constants";
+import {GEOIP_DB_PATH} from "../constants";
 import {CityResponse, CountryResponse, Reader} from "mmdb-lib";
 import {Cache as mmdbCacheType} from "mmdb-lib/lib/types";
 
@@ -25,13 +25,7 @@ export default class GeoIPService {
       set: (key, value) => this.nodeCache.set(key, value),
     };
 
-    const csvPath = resolve(
-      require.resolve(`${GEOIP_PROVIDER}/package.json`),
-      '..',
-      GEOIP_TABLE_NAME,
-    );
-
-    const data = readFileSync(csvPath);
+    const data = readFileSync(resolve(GEOIP_DB_PATH));
 
     this.reader = new Reader<CityResponse>(data, {cache: cacheDialect})
   }

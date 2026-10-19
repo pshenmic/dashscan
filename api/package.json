@@ -7,12 +7,12 @@
   "license": "MIT",
   "scripts": {
     "start": "ts-node index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "geoip": "node scripts/download-geoip.mjs"
   },
   "dependencies": {
     "@dashevo/dashd-rpc": "github:owl352/dashd-rpc",
     "@fastify/cors": "^11.2.0",
-    "@ip-location-db/dbip-city-mmdb": "^2.3.2026060513",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",
     "@scure/bip32": "^2.3.0",
