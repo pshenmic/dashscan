@@ -111,6 +111,11 @@ Extra payload may vary depending on special transaction type:
 - `MASTERNODE_HARD_FORK_SIGNAL` (MnHfTx)
 - `ASSET_LOCK` (AssetLockTx)
 - `ASSET_UNLOCK` (AssetUnlockTx)
+- `PROVIDER_DISSOLVE` (ProDisTx)
+- `PROVIDER_UPDATE_SHARE` (ProUpShareTx)
+- `PROVIDER_UPDATE_SHARED_REGISTRAR` (ProUpSharedRegTx)
+
+If a payload can't be decoded, `extraPayload` is `{"raw": "<hex>"}`.
 
 #### ProRegTX
 | Field              | Type     |
@@ -131,6 +136,12 @@ Extra payload may vary depending on special transaction type:
 | platformP2PPort    | number   |
 | platformHTTPPort   | number   |
 | payloadSig         | string   |
+| netInfo            | ExtNetInfo (v3+) |
+| payouts            | PayoutShare[] (v3+) |
+| shares             | CollateralShare[] (v3+) |
+| joinSigs           | string[] (v3+) |
+| earlyPeriodBlocks  | number (v3+) |
+| earlyPenalty       | string (v3+) |
 
 #### ProUpServTx
 | Field                | Type   |
@@ -146,6 +157,7 @@ Extra payload may vary depending on special transaction type:
 | platformP2PPort      | number |
 | platformHTTPPort     | number |
 | payloadSig           | string |
+| netInfo              | ExtNetInfo (v3+) |
 
 #### ProUpRegTx
 | Field          | Type   |
@@ -158,6 +170,7 @@ Extra payload may vary depending on special transaction type:
 | scriptPayout   | string |
 | inputsHash     | string |
 | payloadSig     | string |
+| payouts        | PayoutShare[] (v3+) |
 
 #### ProUpRevTx
 | Field      | Type   |
@@ -178,6 +191,7 @@ Extra payload may vary depending on special transaction type:
 | bestCLHeightDiff  | string \| null |
 | bestCLSignature   | string \| null |
 | creditPoolBalance | string \| null |
+| merkleRootAssetUnlocks | string \| null |
 
 #### QcTx
 | Field      | Type     |
@@ -208,6 +222,62 @@ Extra payload may vary depending on special transaction type:
 | requestedHeight | number |
 | quorumHash      | string |
 | quorumSig       | string |
+
+#### ProDisTx
+| Field      | Type     |
+|------------|----------|
+| version    | number   |
+| proTxHash  | string   |
+| actorIndex | number   |
+| sigs       | string[] |
+
+#### ProUpShareTx
+| Field        | Type   |
+|--------------|--------|
+| version      | number |
+| proTxHash    | string |
+| shareIndex   | number |
+| scriptReward | string |
+| inputsHash   | string |
+| payloadSig   | string |
+
+#### ProUpSharedRegTx
+| Field          | Type     |
+|----------------|----------|
+| version        | number   |
+| proTxHash      | string   |
+| pubKeyOperator | string   |
+| keyIdVoting    | string   |
+| inputsHash     | string   |
+| sigs           | string[] |
+
+#### ExtNetInfo
+| Field   | Type                                    |
+|---------|-----------------------------------------|
+| version | number                                  |
+| entries | Record<string, NetInfoEntry[]> (keys: `core_p2p`, `platform_p2p`, `platform_https`) |
+
+#### NetInfoEntry
+| Field   | Type           |
+|---------|----------------|
+| type    | number         |
+| network | number \| null |
+| address | string \| null |
+| port    | number \| null |
+
+#### PayoutShare
+| Field        | Type   |
+|--------------|--------|
+| scriptPayout | string |
+| reward       | number |
+
+#### CollateralShare
+| Field        | Type   |
+|--------------|--------|
+| amount       | string |
+| scriptRefund | string |
+| scriptReward | string |
+| keyIdOwner   | string |
 
 
 #### OutPoint
@@ -549,6 +619,9 @@ DIP-2 special-transaction type values. The numeric value is returned in the `typ
 | `7`   | `MASTERNODE_HARD_FORK_SIGNAL` | Masternode hard-fork signal       |
 | `8`   | `ASSET_LOCK`                  | Asset lock (Platform credit)      |
 | `9`   | `ASSET_UNLOCK`                | Asset unlock (Platform withdraw)  |
+| `10`  | `PROVIDER_DISSOLVE`           | Shared masternode dissolve        |
+| `11`  | `PROVIDER_UPDATE_SHARE`       | Shared masternode share update    |
+| `12`  | `PROVIDER_UPDATE_SHARED_REGISTRAR` | Shared masternode registrar update |
 
 #### VIn Object
 

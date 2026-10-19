@@ -1,5 +1,5 @@
 use dashcore::address::Address;
-use dashcore::blockdata::transaction::special_transaction::TransactionPayload;
+use dashcore::blockdata::transaction::special_transaction::{TransactionPayload, TransactionType};
 use dashcore::consensus::encode;
 use dashcore::Network;
 
@@ -49,7 +49,10 @@ pub fn convert_transaction(
     network: Network,
 ) -> Transaction {
     let txid = tx.txid().to_string();
-    let tx_type_val = tx.tx_type() as i16;
+    let tx_type_val = match tx.tx_type() {
+        TransactionType::ClassicalWithNonStandardVersionTypeBytes(_) => 0,
+        t => t.to_u16() as i16,
+    };
 
     let vin: Vec<Vin> = tx
         .input
@@ -118,15 +121,16 @@ pub fn convert_transaction(
         })
         .collect();
 
-    let extra_payload = tx
-        .special_transaction_payload
-        .as_ref()
-        .map(|p| hex::encode(encode::serialize(p)));
+    let payload = tx.special_transaction_payload.as_ref().filter(|p| {
+        !matches!(
+            p,
+            TransactionPayload::ClassicalWithNonStandardVersionTypeBytesPayloadType(_)
+        )
+    });
 
-    let extra_payload_size = tx
-        .special_transaction_payload
-        .as_ref()
-        .map(|p| p.len() as i32);
+    let extra_payload = payload.map(|p| hex::encode(encode::serialize(p)));
+
+    let extra_payload_size = payload.map(|p| 1 + p.size() as i32);
 
     let multisig = tx.output.iter().any(|o| o.script_pubkey.is_multisig())
         || tx.input.iter().any(|i| i.script_sig.is_multisig());
@@ -179,6 +183,7 @@ fn extract_cbtx(block: &dashcore::block::Block) -> Option<CbTx> {
             credit_pool_balance: cb
                 .asset_locked_amount
                 .map(|a| a as f64 / 100_000_000.0),
+            merkle_root_asset_unlocks: cb.merkle_root_asset_unlocks.map(|m| m.to_string()),
         })
     } else {
         None

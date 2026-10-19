@@ -257,6 +257,7 @@ impl Database {
         let cbtx_merkle_root_quorums = block.cb_tx.as_ref().and_then(|cb| cb.merkle_root_quorums.clone());
         let cbtx_best_cl_height_diff = block.cb_tx.as_ref().and_then(|cb| cb.best_cl_height_diff);
         let cbtx_best_cl_signature   = block.cb_tx.as_ref().and_then(|cb| cb.best_cl_signature.clone());
+        let cbtx_merkle_root_asset_unlocks = block.cb_tx.as_ref().and_then(|cb| cb.merkle_root_asset_unlocks.clone());
 
         client
             .execute(
@@ -266,9 +267,9 @@ impl Database {
                     merkle_root_mn_list, credit_pool_balance,
                     cbtx_version, cbtx_height, cbtx_merkle_root_quorums,
                     cbtx_best_cl_height_diff, cbtx_best_cl_signature,
-                    superblock, miner_id, miner_name_id
+                    superblock, miner_id, miner_name_id, cbtx_merkle_root_asset_unlocks
                  )
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
                  ON CONFLICT (hash) DO NOTHING",
                 &[
                     &block.hash,
@@ -292,6 +293,7 @@ impl Database {
                     &Some(is_superblock),
                     &miner_id,
                     &miner_name_id,
+                    &cbtx_merkle_root_asset_unlocks.as_deref(),
                 ],
             )
             .await?;
