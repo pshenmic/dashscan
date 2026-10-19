@@ -319,6 +319,9 @@ async fn continuous_indexing(
     mut poll_rx: mpsc::Receiver<()>,
     config: Config,
 ) {
+    let mut mempool_sync = tokio::time::interval(std::time::Duration::from_secs(config.mempool_sync_interval_secs));
+    mempool_sync.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
     loop {
         tokio::select! {
             Some(hash) = zmq_rx.recv() => {
@@ -359,6 +362,11 @@ async fn continuous_indexing(
             Some(height) = rawchainlock_rx.recv() => {
                 if let Err(e) = processor.apply_chain_lock(height).await {
                     error!("Failed to apply chain lock: {e}");
+                }
+            }
+            _ = mempool_sync.tick() => {
+                if let Err(e) = processor.sync_mempool(&config).await {
+                    error!("Mempool sync failed: {e}");
                 }
             }
             Some(()) = poll_rx.recv() => {

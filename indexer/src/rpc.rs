@@ -387,6 +387,44 @@ impl DashRpcClient {
             .map_err(|e| RpcError { code: 0, message: format!("getrawtransaction parse error: {e}") })
     }
 
+    /// `getrawmempool` — txids currently in the mempool.
+    pub async fn get_raw_mempool(&self) -> Result<Vec<String>, RpcError> {
+        let result = self.call("getrawmempool", vec![]).await?;
+        serde_json::from_value(result)
+            .map_err(|e| RpcError { code: 0, message: format!("getrawmempool parse error: {e}") })
+    }
+
+    /// Fetch a transaction by txid as raw consensus bytes (verbosity=0).
+    pub async fn get_raw_transaction_bytes(&self, txid: &str) -> Result<Vec<u8>, RpcError> {
+        let result = self
+            .call("getrawtransaction", vec![Value::from(txid), Value::from(0)])
+            .await?;
+
+        let hex_str = result
+            .as_str()
+            .ok_or_else(|| RpcError { code: 0, message: "getrawtransaction: expected hex string".to_string() })?;
+
+        hex::decode(hex_str)
+            .map_err(|e| RpcError { code: 0, message: format!("getrawtransaction: hex decode failed: {e}") })
+    }
+
+    /// `getislocks` — `(txid, islock_hex)` for each txid that has a lock.
+    /// Core accepts at most 100 txids per call.
+    pub async fn get_islocks(&self, txids: &[String]) -> Result<Vec<(String, String)>, RpcError> {
+        let result = self
+            .call("getislocks", vec![Value::from(txids.to_vec())])
+            .await?;
+
+        let entries = result
+            .as_array()
+            .ok_or_else(|| RpcError { code: 0, message: "getislocks: expected array".to_string() })?;
+
+        Ok(entries
+            .iter()
+            .filter_map(|e| Some((e.get("txid")?.as_str()?.to_string(), e.get("hex")?.as_str()?.to_string())))
+            .collect())
+    }
+
     /// Test connectivity by calling getblockchaininfo
     pub async fn ping(&self) -> Result<(), RpcError> {
         let info = self.get_blockchain_info().await?;

@@ -15,6 +15,7 @@ pub struct Config {
     pub database_url: String,
     pub redis_url: String,
     pub poll_interval_secs: u64,
+    pub mempool_sync_interval_secs: u64,
     pub catch_up_batch_size: usize,
     pub p2p_batch_size: usize,
     pub address_balances_refresh_blocks: u64,
@@ -61,6 +62,10 @@ impl Config {
                 .unwrap_or_else(|_| "10".to_string())
                 .parse()
                 .expect("POLL_INTERVAL_SECS must be a number"),
+            mempool_sync_interval_secs: env::var("MEMPOOL_SYNC_INTERVAL_SECS")
+                .unwrap_or_else(|_| "10".to_string())
+                .parse()
+                .expect("RPC_MEMPOOL_SYNC_INTERVAL_SECS must be a number"),
             catch_up_batch_size: env::var("CATCH_UP_BATCH_SIZE")
                 .unwrap_or_else(|_| "128".to_string())
                 .parse()

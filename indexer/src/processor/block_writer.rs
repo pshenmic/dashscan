@@ -76,6 +76,13 @@ impl BlockProcessor {
         let db_tx = client.transaction().await?;
         let mut cache = UtxoCache::new(0);
         self.write_batch(&*db_tx, &[pending], &mut cache).await?;
+
+        self.db.link_pending_children(&*db_tx).await?;
+        let evicted = self.db.evict_conflicting_pending_transactions(&*db_tx).await?;
+        if evicted > 0 {
+            info!(evicted, "Evicted pending transactions conflicting with confirmed spends");
+        }
+
         db_tx.commit().await?;
         Ok(())
     }
@@ -750,6 +757,7 @@ impl BlockProcessor {
             utxo_inserts.push((tx_id, idx, addr_id, amount));
         }
         self.db.insert_utxo_batch(&*db_tx, &utxo_inserts).await?;
+        self.db.link_pending_children(&*db_tx).await?;
 
         // Inputs: DB join first, then RPC fallback
         let mut needed: HashMap<String, Vec<i32>> = HashMap::new();
