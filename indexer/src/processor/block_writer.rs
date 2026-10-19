@@ -516,6 +516,11 @@ impl BlockProcessor {
             .mark_outputs_spent_batch(client, &spent_marks, true)
             .await?;
 
+        let evicted = self.db.evict_conflicting_pending_transactions(client).await?;
+        if evicted > 0 {
+            info!(evicted, "Evicted pending transactions conflicting with confirmed spends");
+        }
+
         // ── 7c. Per-day address activity rollup (feeds GET /addresses/active).
         // An address counts a transaction once even when it appears on both the
         // input and output side. A transaction belongs to exactly one block and
