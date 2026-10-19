@@ -153,4 +153,32 @@ impl Database {
 
         Ok(())
     }
+
+    /// A pending child can be indexed before its parent, leaving its input
+    /// with only `prev_tx_hash`. Link such inputs to parents indexed since
+    /// and take the outputs they spend out of the UTXO set.
+    pub async fn link_pending_children(&self, client: &Transaction<'_>) -> Result<(), PoolError> {
+        client
+            .execute(
+                "WITH linked AS ( \
+                     UPDATE tx_inputs i SET prev_tx_id = p.id \
+                     FROM transactions c, transactions p \
+                     WHERE c.block_height IS NULL AND i.tx_id = c.id \
+                       AND i.prev_tx_id IS NULL AND p.hash = i.prev_tx_hash \
+                     RETURNING i.tx_id, i.vin_index, i.prev_tx_id, i.prev_vout_index \
+                 ), marked AS ( \
+                     UPDATE tx_outputs o \
+                     SET spent_by_tx_id = l.tx_id, spent_by_vin_index = l.vin_index \
+                     FROM linked l \
+                     WHERE o.tx_id = l.prev_tx_id AND o.vout_index = l.prev_vout_index \
+                       AND o.spent_by_tx_id IS NULL \
+                 ) \
+                 DELETE FROM utxo u USING linked l \
+                 WHERE u.tx_id = l.prev_tx_id AND u.vout_index = l.prev_vout_index",
+                &[],
+            )
+            .await?;
+
+        Ok(())
+    }
 }
