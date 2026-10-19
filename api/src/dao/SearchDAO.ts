@@ -3,7 +3,7 @@ import Block from '../models/Block';
 import Transaction from '../models/Transaction';
 import Masternode from '../models/Masternode';
 import Address from '../models/Address';
-import {NETWORK} from "../constants";
+import {ADDRESS_RE, HEX64_RE, INTEGER_RE, NETWORK} from "../constants";
 
 export interface SearchResult {
   block: Block | null;
@@ -12,13 +12,7 @@ export interface SearchResult {
   address: Address | null;
 }
 
-const HEX64_RE = /^[0-9a-fA-F]{64}$/;
-const INTEGER_RE = /^\d+$/;
-// Dash P2PKH: mainnet X, testnet y — P2SH: mainnet 7, testnet 8
-const ADDRESS_RE = {
-  mainnet: /^[X7][1-9A-HJ-NP-Za-km-z]{25,33}$/,
-  testnet: /^[y8][1-9A-HJ-NP-Za-km-z]{25,33}$/
-}
+
 
 export default class SearchDAO {
   private knex: Knex;
@@ -101,10 +95,11 @@ export default class SearchDAO {
     }
 
     if (HEX64_RE.test(trimmed)) {
+      const hash = trimmed.toLowerCase();
       const [block, transaction, masternode] = await Promise.all([
-        this.getBlockByHash(trimmed),
-        this.getTransactionByHash(trimmed),
-        this.getMasternodeByProTxHash(trimmed),
+        this.getBlockByHash(hash),
+        this.getTransactionByHash(hash),
+        this.getMasternodeByProTxHash(hash),
       ]);
       return { block, transaction, masternode, address: null };
     }
