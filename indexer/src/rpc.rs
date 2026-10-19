@@ -39,7 +39,10 @@ struct DashRpcError {
 pub struct MasternodeEntry {
     #[serde(rename = "proTxHash")]
     pub pro_tx_hash: String,
-    pub address: String,
+    #[serde(default)]
+    pub address: Option<String>,
+    #[serde(default)]
+    pub addresses: Option<MasternodeAddresses>,
     pub payee: String,
     pub status: String,
     #[serde(rename = "type")]
@@ -56,6 +59,12 @@ pub struct MasternodeEntry {
     /// Collateral outpoint (`txid-vout`); populated from the response map key.
     #[serde(default)]
     pub outpoint: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct MasternodeAddresses {
+    #[serde(default)]
+    pub core_p2p: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -79,6 +88,10 @@ pub struct CbTx {
 
     #[serde(rename = "creditPoolBalance")]
     pub credit_pool_balance: Option<f64>,
+
+    // v4
+    #[serde(rename = "merkleRootAssetUnlocks")]
+    pub merkle_root_asset_unlocks: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -309,6 +322,14 @@ impl DashRpcClient {
             let mut entry: MasternodeEntry = serde_json::from_value(val.clone())
                 .map_err(|e| RpcError { code: 0, message: format!("Failed to parse masternode entry: {e}") })?;
             entry.outpoint = outpoint.clone();
+            // Core v24 omits `address` unless -deprecatedrpc=service is set
+            if entry.address.is_none() {
+                entry.address = Some(
+                    entry.addresses.as_ref()
+                        .and_then(|a| a.core_p2p.first().cloned())
+                        .unwrap_or_else(|| "[::]:0".to_string()),
+                );
+            }
             entries.push(entry);
         }
 

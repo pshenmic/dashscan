@@ -31,7 +31,6 @@ pub fn superblock_interval(network: Network) -> i64 {
         Network::Testnet => 24,
         Network::Devnet => 24,
         Network::Regtest => 20,
-        _ => 16616,
     }
 }
 
