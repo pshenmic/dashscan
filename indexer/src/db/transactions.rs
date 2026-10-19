@@ -129,6 +129,22 @@ impl Database {
         Ok(evicted.len())
     }
 
+    /// For each of `hashes` already indexed, whether its instant lock is stored.
+    pub async fn get_instant_lock_state(
+        &self,
+        hashes: &[String],
+    ) -> Result<HashMap<String, bool>, PoolError> {
+        let client = self.pool.get().await?;
+        let rows = client
+            .query(
+                "SELECT TRIM(hash), instant_lock IS NOT NULL \
+                 FROM transactions WHERE hash = ANY($1::bpchar[])",
+                &[&hashes],
+            )
+            .await?;
+        Ok(rows.iter().map(|r| (r.get(0), r.get(1))).collect())
+    }
+
     /// Batch INSERT transactions from one or more blocks in a single call.
     /// Each tuple carries its own `(block_height, chain_locked)` so the caller
     /// can flatten multiple blocks' transactions into one insert.
