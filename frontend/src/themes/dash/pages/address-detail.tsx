@@ -31,7 +31,7 @@ import {
   getTxTypeBadgeStyle,
   getTxTypeLabel,
 } from "@/lib/format";
-import { getPageCount, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+import { getPageCount, type PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { AreaChart } from "@/themes/dash/components/area-chart";
@@ -163,7 +163,7 @@ const txSkeletonWidths = ["w-20", "w-44", "w-24", "w-14", "w-20", "w-16"];
 interface ClassicAddressDetailPageProps {
   address: string;
   page: number;
-  limit: number;
+  limit: PageSize;
 }
 
 export default function ClassicAddressDetailPage({
@@ -464,12 +464,9 @@ export default function ClassicAddressDetailPage({
           pageCount={txPageCount}
           onPageChange={(p) => navigate({ search: { page: p, limit } })}
           pageSize={limit}
-          onPageSizeChange={(size) => {
-            const next = (PAGE_SIZE_OPTIONS as readonly number[]).includes(size)
-              ? (size as (typeof PAGE_SIZE_OPTIONS)[number])
-              : 10;
-            navigate({ search: { page: 1, limit: next } });
-          }}
+          onPageSizeChange={(size) =>
+            navigate({ search: { page: 1, limit: size } })
+          }
         />
       </Card>
     </main>

@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { PageSize } from "@/lib/pagination";
 import { PageSizeSelect } from "@/themes/dash/components/page-size-select";
 
 interface PaginationProps {
@@ -6,7 +7,7 @@ interface PaginationProps {
   pageCount: number;
   onPageChange: (page: number) => void;
   pageSize?: number;
-  onPageSizeChange?: (size: number) => void;
+  onPageSizeChange?: (size: PageSize) => void;
 }
 
 export function Pagination({

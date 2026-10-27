@@ -21,7 +21,7 @@ import { blocksQueryOptions } from "@/lib/api/blocks";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiBlock } from "@/lib/api/types";
 import { formatCompact, formatRelativeTime } from "@/lib/format";
-import { getPageCount } from "@/lib/pagination";
+import { getPageCount, type PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { BlockTransactionsChart } from "@/themes/dash/components/block-transactions-chart";
 import { CopyButton } from "@/themes/dash/components/copy-button";
@@ -137,7 +137,7 @@ const skeletonWidths = [
 
 interface ClassicBlocksListPageProps {
   page: number;
-  limit: number;
+  limit: PageSize;
 }
 
 export default function ClassicBlocksListPage({
