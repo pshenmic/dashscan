@@ -28,11 +28,27 @@ For a Docker Compose deployment, only Docker is needed — skip to
 To run the components directly:
 
 - Rust (2024 edition)
-- Node.js 18+
+- Node.js 24 LTS and npm 11 for the frontend; Yarn Classic for the API
 - PostgreSQL 14+
 - A running Dash Core node with RPC and ZMQ enabled
 
 ## Setup
+
+For frontend-only development, you do not need the local backend stack:
+
+```bash
+cd frontend
+nvm install
+nvm use
+npm ci
+cp .env.example .env.local
+npm run dev
+```
+
+The `nvm` commands are optional if Node 24 is already active. The example uses
+the public testnet API. See [frontend setup](frontend/README.md) for configuration,
+checks, alternate ports, and production startup. The following steps are for
+running the full backend stack.
 
 ### 1. Database
 
@@ -56,9 +72,10 @@ which the `indexer` and `api` services wait on before starting.
 
 ### 2. Indexer
 
+Configure `indexer/.env` with your local database and Dash Core settings first.
+
 ```bash
 cd indexer
-cp .env.example .env   # edit with your values
 cargo run --release
 ```
 
@@ -82,11 +99,13 @@ cargo run --release
 
 ### 3. API
 
+Configure `api/.env` with your local database, Redis and Dash Core settings first.
+The API still uses its existing Yarn lockfile; the npm migration is frontend-only.
+
 ```bash
 cd api
-npm install
-cp .env.example .env   # edit with your values
-npm start
+yarn install --frozen-lockfile
+yarn start
 ```
 
 `.env` variables: `DATABASE_URL`, `CORE_RPC_*`, `CORE_ZMQ_URL`, `NETWORK`.
@@ -95,9 +114,12 @@ npm start
 
 ```bash
 cd frontend
-npm install
+npm ci
+cp .env.example .env.local
 npm run dev        # development (port 3000)
+npm run typecheck  # TypeScript checks (not part of Vite's build)
 npm run build      # production build
+npm start          # serve the production build
 ```
 
 ## Deploying with Docker Compose
