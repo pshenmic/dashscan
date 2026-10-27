@@ -1312,7 +1312,7 @@ function ChartValuePill({
   color,
 }: {
   active?: boolean;
-  payload?: Array<{ value: number; payload: { timestamp: number } }>;
+  payload?: ReadonlyArray<{ value: number; payload: { timestamp: number } }>;
   yFormat: (v: number | string) => string;
   color: string;
 }) {
@@ -1421,7 +1421,7 @@ function ChartArea({
             <ChartValuePill
               active={props.active}
               payload={
-                props.payload as Array<{
+                props.payload as ReadonlyArray<{
                   value: number;
                   payload: { timestamp: number };
                 }>
@@ -1565,7 +1565,7 @@ function ChartBar({
             <ChartValuePill
               active={props.active}
               payload={
-                props.payload as Array<{
+                props.payload as ReadonlyArray<{
                   value: number;
                   payload: { timestamp: number };
                 }>

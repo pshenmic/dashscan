@@ -40,8 +40,11 @@ describe("route data loading", () => {
       prefetchQuery: vi.fn().mockResolvedValue(undefined),
     };
 
+    const loader = blockDetailRoute.options.loader;
+    if (typeof loader !== "function") throw new Error("Expected a route loader");
+
     await expect(
-      blockDetailRoute.options.loader?.({
+      loader({
         context: { queryClient },
         params: { hashOrHeight: "slow-block" },
       } as never),
@@ -59,7 +62,10 @@ describe("route data loading", () => {
       prefetchQuery: vi.fn().mockResolvedValue(undefined),
     };
 
-    await dashboardRoute.options.loader?.({
+    const loader = dashboardRoute.options.loader;
+    if (typeof loader !== "function") throw new Error("Expected a route loader");
+
+    await loader({
       context: { queryClient },
     } as never);
 
