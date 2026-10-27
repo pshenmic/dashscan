@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { txTypeNum } from "@/lib/format";
 import { Layers, Network, ShieldAlert, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
 import { DashIcon } from "@/components/dash-icon";
@@ -15,6 +14,7 @@ import type {
   ApiProUpServTxPayload,
   ApiQcTxPayload,
 } from "@/lib/api/types";
+import { txTypeNum } from "@/lib/format";
 import { CopyButton } from "@/themes/neo/components/copy-button";
 import { DetailRow } from "@/themes/neo/components/detail-row";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
