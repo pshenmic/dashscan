@@ -7,9 +7,9 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Avatar } from "dash-ui-kit/react";
 import { ArrowLeftRight, MoveDown, MoveUp, Wallet } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
+import { Avatar } from "@/components/identicon";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,

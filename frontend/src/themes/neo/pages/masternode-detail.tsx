@@ -1,7 +1,6 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { Avatar } from "dash-ui-kit/react";
 import {
   Activity,
   ArrowLeftRight,
@@ -22,6 +21,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { DashIcon } from "@/components/dash-icon";
+import { Avatar } from "@/components/identicon";
 import {
   Breadcrumb,
   BreadcrumbItem,

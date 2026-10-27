@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { Avatar } from "dash-ui-kit/react";
 import {
   Activity,
   ArrowDown,
@@ -51,6 +50,7 @@ import {
   YAxis,
 } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
+import { Avatar } from "@/components/identicon";
 import { Button } from "@/components/ui/button";
 import {
   type ChartConfig,

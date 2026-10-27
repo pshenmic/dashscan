@@ -1,7 +1,6 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { Avatar } from "dash-ui-kit/react";
 import {
   ArrowLeftRight,
   CalendarClock,
@@ -14,6 +13,7 @@ import {
 import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
+import { Avatar } from "@/components/identicon";
 import {
   Breadcrumb,
   BreadcrumbItem,
