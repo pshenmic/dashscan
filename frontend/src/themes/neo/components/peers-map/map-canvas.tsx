@@ -2,6 +2,7 @@ import { type GeoProjection, geoEqualEarth } from "d3-geo";
 import { interpolateZoom } from "d3-interpolate";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import {
+  type ComponentProps,
   type CSSProperties,
   type MutableRefObject,
   memo,
@@ -16,12 +17,14 @@ import {
 import {
   ComposableMap,
   Geographies,
-  Geography,
+  type Geography,
   Marker,
   Sphere,
   useZoomPanContext,
   ZoomableGroup,
+  type ZoomPanCallbackProps,
 } from "react-simple-maps";
+import { MapGeography } from "@/components/map-geography";
 import type { PeerGeoPoint } from "@/lib/api/peers";
 import { cn } from "@/lib/utils";
 import { alpha2FromNumeric, formatLocation } from "../masternode-map/iso-codes";
@@ -126,8 +129,8 @@ const GEO_STYLE_HIGHLIGHTED_PASSIVE_BUNDLE = {
   pressed: GEO_STYLE_PRESSED,
 } as const;
 
-const MARKER_CURSOR_STYLE = { default: { cursor: "pointer" } } as const;
-const MARKER_PASSIVE_STYLE = { default: { cursor: "default" } } as const;
+const MARKER_CURSOR_STYLE = { cursor: "pointer" } as const;
+const MARKER_PASSIVE_STYLE = { cursor: "default" } as const;
 
 const MARKER_SCALE_STYLE: CSSProperties = {
   transformBox: "fill-box",
@@ -271,18 +274,15 @@ export function PeersMapCanvas({
     animateView({ center: INITIAL_CENTER, zoom: INITIAL_ZOOM });
   }, [animateView]);
 
-  const handleMove = useCallback(
-    (next: { coordinates: [number, number]; zoom: number }) => {
-      if (isAnimatingRef.current) return;
-      const safe = {
-        center: next.coordinates,
-        zoom: clampZoom(next.zoom),
-      };
-      viewRef.current = safe;
-      setView(safe);
-    },
-    [],
-  );
+  const handleMove = useCallback((next: ZoomPanCallbackProps) => {
+    if (isAnimatingRef.current) return;
+    const safe = {
+      center: next.coordinates ?? viewRef.current.center,
+      zoom: clampZoom(next.zoom ?? viewRef.current.zoom),
+    };
+    viewRef.current = safe;
+    setView(safe);
+  }, []);
 
   const handleClusterClick = useCallback(
     (cluster: ClusterFeature) => {
@@ -464,7 +464,7 @@ export function PeersMapCanvas({
   );
 }
 
-type GeographyFeature = { rsmKey: string; id: string | number };
+type GeographyFeature = ComponentProps<typeof Geography>["geography"];
 
 const CountryShapes = memo(function CountryShapes({
   geographies,
@@ -489,13 +489,13 @@ const CountryShapes = memo(function CountryShapes({
             ? GEO_STYLE_DEFAULT_BUNDLE
             : GEO_STYLE_DEFAULT_PASSIVE_BUNDLE;
         return (
-          <Geography
+          <MapGeography
             key={geo.rsmKey}
             geography={geo}
             onClick={() => {
               if (alpha2 && onSelectCountry) onSelectCountry(alpha2);
             }}
-            style={style}
+            styles={style}
           />
         );
       })}
