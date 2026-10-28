@@ -25,7 +25,12 @@ import {
 } from "@/lib/api/governance";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiGovernanceObject } from "@/lib/api/types";
-import { formatDuration, formatNumber, formatRelativeTime } from "@/lib/format";
+import {
+  formatDateTime,
+  formatDuration,
+  formatNumber,
+  formatRelativeTime,
+} from "@/lib/format";
 import {
   getMsUntilSuperblock,
   getRequiredVotes,
@@ -204,7 +209,7 @@ export default function ClassicDaoPage() {
     for (const t of triggers) {
       if (!t.creationTime) continue;
       const d = new Date(t.creationTime);
-      const key = `${d.toLocaleString("en", { month: "short" })} ${d.getFullYear()}`;
+      const key = formatDateTime(d, { month: "short", year: "numeric" });
       months.set(key, (months.get(key) ?? 0) + 1);
     }
 
@@ -294,7 +299,7 @@ export default function ClassicDaoPage() {
                 Voting Deadline:
               </span>
               <span className="flex items-center gap-2 font-medium text-[#10213f]">
-                {votingDeadline.toLocaleString("en-US", {
+                {formatDateTime(votingDeadline, {
                   year: "numeric",
                   month: "short",
                   day: "numeric",

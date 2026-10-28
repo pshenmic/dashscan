@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { formatNumber } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { buildSmoothPath } from "@/themes/dash/lib/chart-utils";
 
@@ -10,7 +10,7 @@ type MasternodesChartProps = {
 
 function formatDateLabel(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatDateTime(d, { month: "short", day: "numeric" });
 }
 
 export function MasternodesChart({ data, className }: MasternodesChartProps) {

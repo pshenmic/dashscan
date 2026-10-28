@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { formatDateTime } from "@/lib/format";
 import { AreaChart } from "@/themes/dash/components/area-chart";
 
 type Point = { timestamp: string; count: number };
@@ -14,7 +15,7 @@ const getValue = (d: Point) => d.count;
 const getKey = (d: Point) => d.timestamp;
 
 function formatTooltipTime(timestamp: string): string {
-  return new Date(timestamp).toLocaleString("en-US", {
+  return formatDateTime(new Date(timestamp), {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -47,13 +48,13 @@ export function TransactionsAmountChart({
     (d: Point) => {
       const date = new Date(d.timestamp);
       if (spanMs < DAY_MS) {
-        return date.toLocaleTimeString("en-US", {
+        return formatDateTime(date, {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
         });
       }
-      return date.toLocaleDateString("en-US", {
+      return formatDateTime(date, {
         month: "short",
         day: "numeric",
       });

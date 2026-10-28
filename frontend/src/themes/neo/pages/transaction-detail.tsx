@@ -23,7 +23,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiVIn, ApiVOut } from "@/lib/api/types";
-import { formatDuffs, formatNumber, formatRelativeTime } from "@/lib/format";
+import {
+  formatDateTime,
+  formatDuffs,
+  formatNumber,
+  formatRelativeTime,
+} from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "@/themes/neo/components/copy-button";
@@ -484,7 +489,7 @@ export default function RedesignTransactionDetailPage({
                   <DetailRow label="Timestamp">
                     {tx.timestamp ? (
                       <>
-                        <span>{new Date(tx.timestamp).toLocaleString()}</span>
+                        <span>{formatDateTime(new Date(tx.timestamp))}</span>
                         <Badge variant="outline" className="text-xs">
                           {formatRelativeTime(tx.timestamp)}
                         </Badge>

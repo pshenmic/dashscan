@@ -1,6 +1,6 @@
 import { useId } from "react";
 import type { ApiHistoricalEntry } from "@/lib/api/types";
-import { formatNumber } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { buildSmoothPath } from "@/themes/dash/lib/chart-utils";
 
@@ -124,11 +124,11 @@ export function PriceChart({ data, className, formatValue }: PriceChartProps) {
             const date = new Date(d.timestamp * 1000);
             const label =
               spanSeconds >= 24 * 60 * 60
-                ? date.toLocaleDateString("en-US", {
+                ? formatDateTime(date, {
                     month: "short",
                     day: "numeric",
                   })
-                : date.toLocaleTimeString([], {
+                : formatDateTime(date, {
                     hour: "2-digit",
                     minute: "2-digit",
                   });

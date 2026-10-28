@@ -27,6 +27,7 @@ import type { ApiTransaction } from "@/lib/api/types";
 import {
   addressNetAmount,
   formatDash,
+  formatDateTime,
   formatNumber,
   formatRelativeTime,
   getTxTypeBadgeStyle,
@@ -393,12 +394,12 @@ export default function ClassicAddressDetailPage({
                 getXLabel={(p) => {
                   const date = new Date(p.timestamp);
                   if (range === "1d") {
-                    return date.toLocaleTimeString([], {
+                    return formatDateTime(date, {
                       hour: "2-digit",
                       minute: "2-digit",
                     });
                   }
-                  return date.toLocaleDateString("en-US", {
+                  return formatDateTime(date, {
                     month: "short",
                     day: "numeric",
                   });
@@ -412,7 +413,7 @@ export default function ClassicAddressDetailPage({
                       DASH
                     </span>
                     <span className="text-muted-foreground">
-                      {new Date(p.timestamp).toLocaleString()}
+                      {formatDateTime(new Date(p.timestamp))}
                     </span>
                   </div>
                 )}

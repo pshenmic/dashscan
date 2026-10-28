@@ -16,6 +16,7 @@ import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
 import {
   DUFFS_PER_DASH,
+  formatDateTime,
   formatDuffs,
   formatNumber,
   formatRelativeTime,
@@ -233,7 +234,7 @@ export default function ClassicTransactionDetailPage({
               <DetailRow label="Timestamp">
                 {tx.timestamp ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span>{new Date(tx.timestamp).toLocaleString()}</span>
+                    <span>{formatDateTime(new Date(tx.timestamp))}</span>
                     <Badge
                       variant="outline"
                       className="rounded-full border-border text-xs font-medium"

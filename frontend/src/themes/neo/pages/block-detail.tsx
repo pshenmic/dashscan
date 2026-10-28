@@ -38,6 +38,7 @@ import { blockQueryOptions } from "@/lib/api/blocks";
 import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
 import {
+  formatDateTime,
   formatDuffs,
   formatNumber,
   formatRelativeTime,
@@ -416,7 +417,7 @@ export default function RedesignBlockDetailPage({
                     old
                   </span>
                   <span className="text-border">·</span>
-                  <span>{new Date(block.timestamp).toLocaleString()}</span>
+                  <span>{formatDateTime(new Date(block.timestamp))}</span>
                 </div>
                 <div className="mt-1 flex min-w-0 items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2 backdrop-blur-sm">
                   <Hash className="size-3.5 shrink-0 text-muted-foreground" />
@@ -474,7 +475,7 @@ export default function RedesignBlockDetailPage({
                 </Button>
               </DetailRow>
               <DetailRow label="Timestamp">
-                <span>{new Date(block.timestamp).toLocaleString()}</span>
+                <span>{formatDateTime(new Date(block.timestamp))}</span>
                 <span className="text-xs text-muted-foreground">
                   {formatRelativeTime(block.timestamp)}
                 </span>

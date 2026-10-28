@@ -21,6 +21,7 @@ import {
 import { blockQueryOptions } from "@/lib/api/blocks";
 import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
 import {
+  formatDateTime,
   formatDuffs,
   formatNumber,
   formatRelativeTime,
@@ -138,7 +139,7 @@ export default function ClassicBlockDetailPage({
           <Card className="mt-auto px-6 py-4">
             <div className="flex flex-col gap-3">
               <DetailRow label="Timestamp:">
-                <span>{new Date(block.timestamp).toLocaleString()}</span>
+                <span>{formatDateTime(new Date(block.timestamp))}</span>
                 <Badge
                   variant="outline"
                   className="ml-2 rounded-full border-border text-xs font-medium"

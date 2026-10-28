@@ -27,6 +27,7 @@ import {
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiGovernanceObject } from "@/lib/api/types";
 import {
+  formatDateTime,
   formatDuration,
   formatDurationParts,
   formatNumber,
@@ -507,7 +508,7 @@ export default function RedesignDaoPage() {
               <dl className="flex flex-col gap-4">
                 <DetailRow label="Voting Deadline" className="border-b-0 pb-0">
                   <span>
-                    {votingDeadline.toLocaleString("en-US", {
+                    {formatDateTime(votingDeadline, {
                       year: "numeric",
                       month: "short",
                       day: "numeric",
@@ -528,7 +529,7 @@ export default function RedesignDaoPage() {
                   className="border-b-0 pb-0"
                 >
                   <span>
-                    {nextSuperblockDate.toLocaleString("en-US", {
+                    {formatDateTime(nextSuperblockDate, {
                       year: "numeric",
                       month: "short",
                       day: "numeric",

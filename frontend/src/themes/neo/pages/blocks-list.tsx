@@ -35,7 +35,12 @@ import {
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import { blockTransactionsStatsQueryOptions } from "@/lib/api/stats";
 import type { ApiBlock } from "@/lib/api/types";
-import { formatCompact, formatNumber, formatRelativeTime } from "@/lib/format";
+import {
+  formatCompact,
+  formatDateTime,
+  formatNumber,
+  formatRelativeTime,
+} from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import {
@@ -402,7 +407,7 @@ export default function RedesignBlocksListPage() {
                       tickMargin={8}
                       minTickGap={32}
                       tickFormatter={(v) =>
-                        new Date(v).toLocaleTimeString("en-US", {
+                        formatDateTime(new Date(v), {
                           hour: "numeric",
                           hour12: false,
                         })
@@ -421,7 +426,7 @@ export default function RedesignBlocksListPage() {
                           labelFormatter={(_, payload) => {
                             const ts = payload?.[0]?.payload?.timestamp;
                             if (typeof ts !== "number") return null;
-                            return new Date(ts).toLocaleString("en-US", {
+                            return formatDateTime(new Date(ts), {
                               month: "short",
                               day: "numeric",
                               hour: "numeric",

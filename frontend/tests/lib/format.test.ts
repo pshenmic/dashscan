@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatCompact, formatNumber, formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatDateTime, formatNumber, formatRelativeTime } from "@/lib/format";
 
 describe("formatNumber", () => {
   it("groups thousands with non-breaking spaces and keeps a decimal point", () => {
@@ -22,6 +22,25 @@ describe("formatNumber", () => {
   it("retains compact suffixes with locale-independent fractional values", () => {
     expect(formatCompact(12.5)).toBe("12.5");
     expect(formatCompact(1500)).toBe("1.5K");
+  });
+});
+
+describe("formatDateTime", () => {
+  it("uses a fixed locale and explicitly labelled UTC time", () => {
+    expect(formatDateTime("2025-01-15T12:34:56Z")).toBe("Jan 15, 2025, 12:34:56 PM UTC");
+    expect(formatDateTime("2025-01-15T15:34:56+03:00")).toBe("Jan 15, 2025, 12:34:56 PM UTC");
+  });
+
+  it("keeps chart dates in UTC across a local date boundary", () => {
+    expect(formatDateTime("2025-01-01T00:30:00+03:00", {
+      year: "numeric", month: "short", day: "numeric",
+    })).toBe("Dec 31, 2024");
+  });
+
+  it("accepts Date objects and timestamps, and handles invalid dates", () => {
+    const date = new Date("2025-01-15T12:34:56Z");
+    expect(formatDateTime(date)).toBe(formatDateTime(date.getTime()));
+    expect(formatDateTime("invalid")).toBe("—");
   });
 });
 

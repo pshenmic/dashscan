@@ -68,6 +68,7 @@ import type {
 } from "@/lib/api/types";
 import {
   formatCompactUsd,
+  formatDateTime,
   formatDuration,
   formatNumber,
   formatRelativeTime,
@@ -480,7 +481,7 @@ export default function RedesignProposalDetailPage({
               {formatRelativeTime(row.time)}
             </span>
           </TooltipTrigger>
-          <TooltipContent>{new Date(row.time).toLocaleString()}</TooltipContent>
+          <TooltipContent>{formatDateTime(new Date(row.time))}</TooltipContent>
         </Tooltip>
       ),
     },
@@ -566,13 +567,13 @@ export default function RedesignProposalDetailPage({
                       <span className="text-border">·</span>
                       <span className="inline-flex items-center gap-1.5">
                         <CalendarClock className="size-3.5" />
-                        {startDate.toLocaleDateString("en-US", {
+                        {formatDateTime(startDate, {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
                         })}
                         {" → "}
-                        {endDate.toLocaleDateString("en-US", {
+                        {formatDateTime(endDate, {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
@@ -684,7 +685,7 @@ export default function RedesignProposalDetailPage({
               </CardTitle>
               <CardDescription>
                 {currentHeight > 0
-                  ? votingDeadline.toLocaleString("en-US", {
+                  ? formatDateTime(votingDeadline, {
                       month: "short",
                       day: "numeric",
                       hour: "2-digit",
@@ -817,11 +818,11 @@ export default function RedesignProposalDetailPage({
                         tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                         tickFormatter={(v) =>
                           range === "24h"
-                            ? new Date(v).toLocaleTimeString("en-US", {
+                            ? formatDateTime(new Date(v), {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })
-                            : new Date(v).toLocaleDateString("en-US", {
+                            : formatDateTime(new Date(v), {
                                 month: "short",
                                 day: "numeric",
                               })
@@ -840,7 +841,7 @@ export default function RedesignProposalDetailPage({
                           <ChartTooltipContent
                             labelFormatter={(_, payload) => {
                               const ts = payload?.[0]?.payload?.timestamp;
-                              return ts ? new Date(ts).toLocaleString() : "";
+                              return ts ? formatDateTime(new Date(ts)) : "";
                             }}
                           />
                         }
@@ -877,11 +878,11 @@ export default function RedesignProposalDetailPage({
                         tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                         tickFormatter={(v) =>
                           range === "24h"
-                            ? new Date(v).toLocaleTimeString("en-US", {
+                            ? formatDateTime(new Date(v), {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })
-                            : new Date(v).toLocaleDateString("en-US", {
+                            : formatDateTime(new Date(v), {
                                 month: "short",
                                 day: "numeric",
                               })
@@ -900,7 +901,7 @@ export default function RedesignProposalDetailPage({
                           <ChartTooltipContent
                             labelFormatter={(_, payload) => {
                               const ts = payload?.[0]?.payload?.timestamp;
-                              return ts ? new Date(ts).toLocaleString() : "";
+                              return ts ? formatDateTime(new Date(ts)) : "";
                             }}
                           />
                         }
@@ -992,8 +993,17 @@ export default function RedesignProposalDetailPage({
               <DetailRow label="Payment Window">
                 {startDate && endDate ? (
                   <span>
-                    {startDate.toLocaleDateString()} —{" "}
-                    {endDate.toLocaleDateString()}
+                    {formatDateTime(startDate, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}{" "}
+                    —{" "}
+                    {formatDateTime(endDate, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </span>
                 ) : (
                   <span className="text-muted-foreground">—</span>
@@ -1003,7 +1013,7 @@ export default function RedesignProposalDetailPage({
                 {proposal.creationTime ? (
                   <>
                     <span>
-                      {new Date(proposal.creationTime).toLocaleString()}
+                      {formatDateTime(new Date(proposal.creationTime))}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       ({formatRelativeTime(proposal.creationTime)})

@@ -109,6 +109,7 @@ import {
   formatCompact,
   formatCompactUsd,
   formatCompactUsdShort,
+  formatDateTime,
   formatDuffs,
   formatDurationParts,
   formatHashRate,
@@ -1329,7 +1330,7 @@ function ChartValuePill({
         {yFormat(item.value)}
       </span>
       <span className="text-muted-foreground">
-        {new Date(item.payload.timestamp).toLocaleDateString("en-US", {
+        {formatDateTime(new Date(item.payload.timestamp), {
           month: "short",
           day: "numeric",
         })}
@@ -1396,7 +1397,7 @@ function ChartArea({
           minTickGap={32}
           tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           tickFormatter={(v) =>
-            new Date(v).toLocaleDateString("en-US", {
+            formatDateTime(new Date(v), {
               month: "short",
               day: "numeric",
             })
@@ -1546,7 +1547,7 @@ function ChartBar({
           minTickGap={32}
           tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           tickFormatter={(v) =>
-            new Date(v).toLocaleDateString("en-US", {
+            formatDateTime(new Date(v), {
               month: "short",
               day: "numeric",
             })

@@ -42,6 +42,7 @@ import {
 import type { ApiProposalVote, ApiTransaction } from "@/lib/api/types";
 import {
   DUFFS_PER_DASH,
+  formatDateTime,
   formatNumber,
   formatRelativeTime,
   getIp,
@@ -274,7 +275,7 @@ function VotingRecord({ proTxHash }: { proTxHash: string }) {
       cell: (row) => (
         <span
           className="whitespace-nowrap text-sm text-muted-foreground"
-          title={new Date(row.time).toLocaleString()}
+          title={formatDateTime(new Date(row.time))}
         >
           {formatRelativeTime(row.time)}
         </span>
@@ -748,7 +749,7 @@ export default function RedesignMasternodeDetailPage({
               <DetailRow label="Last Paid">
                 {mn.lastPaidTime ? (
                   <>
-                    <span>{new Date(mn.lastPaidTime).toLocaleString()}</span>
+                    <span>{formatDateTime(new Date(mn.lastPaidTime))}</span>
                     <span className="text-xs text-muted-foreground">
                       ({formatRelativeTime(mn.lastPaidTime)})
                     </span>
@@ -758,13 +759,13 @@ export default function RedesignMasternodeDetailPage({
                 )}
               </DetailRow>
               <DetailRow label="Registered">
-                <span>{new Date(mn.createdAt).toLocaleString()}</span>
+                <span>{formatDateTime(new Date(mn.createdAt))}</span>
                 <span className="text-xs text-muted-foreground">
                   ({formatRelativeTime(mn.createdAt)})
                 </span>
               </DetailRow>
               <DetailRow label="Updated">
-                <span>{new Date(mn.updatedAt).toLocaleString()}</span>
+                <span>{formatDateTime(new Date(mn.updatedAt))}</span>
                 <span className="text-xs text-muted-foreground">
                   ({formatRelativeTime(mn.updatedAt)})
                 </span>

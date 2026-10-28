@@ -43,6 +43,7 @@ import {
   addressNetAmount,
   DUFFS_PER_DASH,
   formatCompact,
+  formatDateTime,
   formatDuffs,
   formatNumber,
   formatRelativeTime,
@@ -614,12 +615,12 @@ export default function RedesignAddressDetailPage({
                     tickFormatter={(v) => {
                       const date = new Date(v);
                       if (range === "1d") {
-                        return date.toLocaleTimeString([], {
+                        return formatDateTime(date, {
                           hour: "2-digit",
                           minute: "2-digit",
                         });
                       }
-                      return date.toLocaleDateString("en-US", {
+                      return formatDateTime(date, {
                         month: "short",
                         day: "numeric",
                       });
@@ -639,9 +640,9 @@ export default function RedesignAddressDetailPage({
                       <ChartTooltipContent
                         labelFormatter={(_, payload) =>
                           payload?.[0]?.payload?.timestampLabel
-                            ? new Date(
-                                payload[0].payload.timestampLabel,
-                              ).toLocaleString()
+                            ? formatDateTime(
+                                new Date(payload[0].payload.timestampLabel),
+                              )
                             : ""
                         }
                       />
@@ -740,7 +741,7 @@ function SeenTile({
           className="font-mono text-xs font-semibold tabular-nums"
           title={date.toISOString()}
         >
-          {date.toLocaleString()}
+          {formatDateTime(date)}
         </span>
       ) : (
         <span className="font-mono text-xs text-muted-foreground">—</span>

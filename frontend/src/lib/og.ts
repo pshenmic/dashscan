@@ -1,4 +1,4 @@
-import { formatNumber } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 
 type OgPayload =
   | {
@@ -146,7 +146,7 @@ function renderStats(payload: OgPayload): string {
     case "block": {
       const date = new Date(payload.timestamp);
       const ts = Number.isFinite(date.getTime())
-        ? date.toLocaleString("en-US", {
+        ? formatDateTime(date, {
             dateStyle: "medium",
             timeStyle: "short",
           })

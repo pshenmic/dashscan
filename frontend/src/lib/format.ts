@@ -4,6 +4,17 @@ export const DUFFS_PER_DASH = 100_000_000;
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 
+const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "UTC",
+  timeZoneName: "short",
+});
+
 export function formatNumber(
   value: number | bigint,
   options?: Intl.NumberFormatOptions,
@@ -15,6 +26,18 @@ export function formatNumber(
     .formatToParts(value)
     .map((part) => (part.type === "group" ? "\u00a0" : part.value))
     .join("");
+}
+
+export function formatDateTime(
+  value: Date | string | number,
+  options?: Intl.DateTimeFormatOptions,
+): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return "—";
+  const formatter = options
+    ? new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" })
+    : dateTimeFormatter;
+  return formatter.format(date);
 }
 
 export function addressNetAmount(

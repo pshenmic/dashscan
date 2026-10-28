@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import {
+  formatDateTime,
   formatRelativeTime,
   getMnStatusBadgeStyle,
   getMnStatusLabel,
@@ -157,7 +158,7 @@ export default function ClassicMasternodeDetailPage({
               </DetailRow>
               <DetailRow label="Registered:">
                 <span className="font-medium">
-                  {new Date(mn.createdAt).toLocaleString()}
+                  {formatDateTime(new Date(mn.createdAt))}
                 </span>
                 <Badge
                   variant="outline"
@@ -169,7 +170,7 @@ export default function ClassicMasternodeDetailPage({
               <DetailRow label="Last Paid:">
                 <span className="font-medium">
                   {mn.lastPaidTime
-                    ? new Date(mn.lastPaidTime).toLocaleString()
+                    ? formatDateTime(new Date(mn.lastPaidTime))
                     : "—"}
                 </span>
                 {mn.lastPaidTime ? (

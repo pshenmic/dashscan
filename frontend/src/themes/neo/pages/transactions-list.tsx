@@ -52,6 +52,7 @@ import {
 import type { ApiTransaction } from "@/lib/api/types";
 import {
   formatCompact,
+  formatDateTime,
   formatDuffs,
   formatNumber,
   formatRelativeTime,
@@ -395,7 +396,7 @@ export default function RedesignTransactionsListPage() {
                       tickMargin={8}
                       minTickGap={32}
                       tickFormatter={(v) =>
-                        new Date(v).toLocaleDateString("en-US", {
+                        formatDateTime(new Date(v), {
                           month: "short",
                           day: "numeric",
                         })
@@ -414,7 +415,7 @@ export default function RedesignTransactionsListPage() {
                           labelFormatter={(_, payload) => {
                             const ts = payload?.[0]?.payload?.timestamp;
                             if (typeof ts !== "number") return null;
-                            return new Date(ts).toLocaleDateString("en-US", {
+                            return formatDateTime(new Date(ts), {
                               month: "short",
                               day: "numeric",
                               year: "numeric",
