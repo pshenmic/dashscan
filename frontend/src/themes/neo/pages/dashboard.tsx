@@ -112,6 +112,7 @@ import {
   formatDuffs,
   formatDurationParts,
   formatHashRate,
+  formatNumber,
   formatRelativeTime,
   getIp,
   sumVOut,
@@ -754,7 +755,7 @@ export default function RedesignDashboardPage() {
               label="Latest Block"
               value={
                 latestBlock != null
-                  ? `#${latestBlock.height.toLocaleString()}`
+                  ? `#${formatNumber(latestBlock.height)}`
                   : "—"
               }
               hint={
@@ -1771,7 +1772,7 @@ function DashboardHero({
                 key={tickKey}
                 className="font-display-num text-5xl text-foreground sm:text-6xl animate-hero-tick"
               >
-                {liveHeight != null ? liveHeight.toLocaleString("en-US") : "—"}
+                {liveHeight != null ? formatNumber(liveHeight) : "—"}
               </span>
               {tickKey > 0 && (
                 <span
@@ -2032,7 +2033,7 @@ function _MinedBlockTile({
           <div className="block-cube flex h-32 flex-col justify-between rounded-md p-3 transition-transform group-hover:-translate-y-1">
             <div className="relative z-[2] flex items-center justify-between gap-1">
               <span className="font-mono text-sm font-semibold tabular-nums">
-                #{height.toLocaleString()}
+                #{formatNumber(height)}
               </span>
             </div>
             <div className="relative z-[2] flex items-baseline gap-1.5">
@@ -2059,7 +2060,7 @@ function _MinedBlockTile({
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
             <span className="font-display text-sm">
-              Block #{height.toLocaleString()}
+              Block #{formatNumber(height)}
             </span>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               {formatRelativeTime(timestamp)}
@@ -2067,7 +2068,7 @@ function _MinedBlockTile({
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px] tabular-nums">
             <span className="text-muted-foreground">Txs</span>
-            <span className="text-right">{txCount.toLocaleString()}</span>
+            <span className="text-right">{formatNumber(txCount)}</span>
             <span className="text-muted-foreground">Size</span>
             <span className="text-right">{formatBytes(size)}</span>
             <span className="text-muted-foreground">Hash</span>
@@ -2102,7 +2103,7 @@ function PendingBlockTile({
       <div className="block-cube-pending flex h-32 flex-col justify-between rounded-md p-3">
         <div className="relative z-[2] flex items-baseline justify-between gap-2">
           <span className="font-mono text-sm font-semibold tabular-nums text-accent">
-            #{height.toLocaleString()}
+            #{formatNumber(height)}
           </span>
           <Box className="size-3.5 text-accent/70" />
         </div>
@@ -2228,7 +2229,7 @@ function MasternodesListCard({
                   <TableCell className="text-right">
                     <div className="flex flex-col items-end gap-0.5">
                       <span className="font-mono text-sm font-medium tabular-nums text-accent">
-                        {stake.toLocaleString()} <DashIcon />
+                        {formatNumber(stake)} <DashIcon />
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {mn.lastPaidTime
@@ -2384,7 +2385,7 @@ function ActiveAddressesCard({
                     />
                   </div>
                   <span className="font-mono text-sm font-medium tabular-nums text-accent">
-                    {txCount.toLocaleString()}
+                    {formatNumber(txCount)}
                   </span>
                 </div>
               </div>
@@ -2476,7 +2477,7 @@ function ProposalRow({
             />
           </div>
           <div className="flex items-baseline justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
-            <span className="text-success/80">{yes.toLocaleString()}</span>
+            <span className="text-success/80">{formatNumber(yes)}</span>
             <span
               className={
                 net >= 0
@@ -2485,16 +2486,16 @@ function ProposalRow({
               }
             >
               {net >= 0 ? "+" : ""}
-              {net.toLocaleString()}
+              {formatNumber(net)}
             </span>
-            <span className="text-destructive/80">{no.toLocaleString()}</span>
+            <span className="text-destructive/80">{formatNumber(no)}</span>
           </div>
         </div>
       </TableCell>
       <TableCell className="text-right">
         <div className="flex flex-col items-end gap-0.5">
           <span className="font-mono text-sm font-medium tabular-nums text-accent">
-            {amount != null ? amount.toLocaleString() : "—"} <DashIcon />
+            {amount != null ? formatNumber(amount) : "—"} <DashIcon />
           </span>
           <span className="text-xs text-muted-foreground">
             {amount != null && usdPrice != null
@@ -2577,7 +2578,7 @@ function NextSuperblockCard({
       <CardHeader>
         <CardDescription>Next Superblock</CardDescription>
         <CardTitle className="text-2xl tabular-nums text-accent">
-          {resolvedNext != null ? `#${resolvedNext.toLocaleString()}` : "—"}
+          {resolvedNext != null ? `#${formatNumber(resolvedNext)}` : "—"}
         </CardTitle>
         <CardAction>
           <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
@@ -2593,7 +2594,7 @@ function NextSuperblockCard({
               votingClosed
                 ? "Closed"
                 : voteHeight != null
-                  ? `#${voteHeight.toLocaleString()}`
+                  ? `#${formatNumber(voteHeight)}`
                   : "—"
             }
             ms={voteMs}
@@ -2605,7 +2606,7 @@ function NextSuperblockCard({
           <CountdownDial
             label="Next superblock"
             subLabel={
-              resolvedNext != null ? `#${resolvedNext.toLocaleString()}` : "—"
+              resolvedNext != null ? `#${formatNumber(resolvedNext)}` : "—"
             }
             ms={etaMs}
             progress={sbProgress}

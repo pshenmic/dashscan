@@ -35,7 +35,7 @@ import {
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import { blockTransactionsStatsQueryOptions } from "@/lib/api/stats";
 import type { ApiBlock } from "@/lib/api/types";
-import { formatCompact, formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatNumber, formatRelativeTime } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import {
@@ -201,7 +201,7 @@ export default function RedesignBlocksListPage() {
           <div className="flex min-w-0 flex-col gap-0.5">
             <div className="flex items-center gap-1.5">
               <span className="font-mono text-sm font-semibold tabular-nums text-accent">
-                #{row.height.toLocaleString()}
+                #{formatNumber(row.height)}
               </span>
               {row.superblock && (
                 <Badge
@@ -230,7 +230,7 @@ export default function RedesignBlocksListPage() {
       cell: (row) => (
         <Badge variant="soft" className="font-mono">
           <ArrowLeftRight className="size-3" />
-          {row.txCount.toLocaleString()}
+          {formatNumber(row.txCount)}
         </Badge>
       ),
     },
@@ -284,7 +284,7 @@ export default function RedesignBlocksListPage() {
               <CardDescription>Latest Block</CardDescription>
               <CardTitle className="text-xl tabular-nums text-accent">
                 {stats.latestHeight != null
-                  ? `#${stats.latestHeight.toLocaleString()}`
+                  ? `#${formatNumber(stats.latestHeight)}`
                   : "—"}
               </CardTitle>
               <CardAction>
@@ -515,7 +515,7 @@ export default function RedesignBlocksListPage() {
                           labelFormatter={(_, payload) => {
                             const h = payload?.[0]?.payload?.height;
                             return h != null
-                              ? `Block #${Number(h).toLocaleString()}`
+                              ? `Block #${formatNumber(Number(h))}`
                               : null;
                           }}
                         />

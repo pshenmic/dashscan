@@ -22,6 +22,7 @@ import { blockQueryOptions } from "@/lib/api/blocks";
 import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
 import {
   formatDuffs,
+  formatNumber,
   formatRelativeTime,
   getTxTypeBadgeStyle,
   getTxTypeLabel,
@@ -147,7 +148,7 @@ export default function ClassicBlockDetailPage({
               </DetailRow>
               <DetailRow label="Confirmations:">
                 <span className="font-medium text-muted-foreground">
-                  {block.confirmations.toLocaleString()}
+                  {formatNumber(block.confirmations)}
                 </span>
               </DetailRow>
               <DetailRow label="Merkle Root:">
@@ -162,9 +163,7 @@ export default function ClassicBlockDetailPage({
                 </span>
               </DetailRow>
               <DetailRow label="Nonce:">
-                <span className="font-medium">
-                  {block.nonce.toLocaleString()}
-                </span>
+                <span className="font-medium">{formatNumber(block.nonce)}</span>
               </DetailRow>
               <DetailRow label="Difficulty:">
                 <span className="font-medium">{block.difficulty}</span>
@@ -238,7 +237,7 @@ export default function ClassicBlockDetailPage({
                 variant="outline"
                 className="rounded-full border-border font-medium"
               >
-                {block.size.toLocaleString()} bytes
+                {formatNumber(block.size)} bytes
               </Badge>
             </div>
           </div>

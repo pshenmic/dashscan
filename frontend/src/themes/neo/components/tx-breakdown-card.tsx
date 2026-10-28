@@ -10,7 +10,7 @@ import { Cell, Pie, PieChart } from "recharts";
 import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ApiTransactionsBreakdown } from "@/lib/api/types";
-import { formatCompact } from "@/lib/format";
+import { formatCompact, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/themes/neo/components/empty-state";
 import {
@@ -148,7 +148,7 @@ export function TxBreakdownCard({
                       </div>
                       <div className="flex items-baseline gap-2 font-mono tabular-nums">
                         <span className="text-sm">
-                          {slice.value.toLocaleString()}
+                          {formatNumber(slice.value)}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {pct.toFixed(1)}%

@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiVIn, ApiVOut } from "@/lib/api/types";
-import { formatDuffs, formatRelativeTime } from "@/lib/format";
+import { formatDuffs, formatNumber, formatRelativeTime } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "@/themes/neo/components/copy-button";
@@ -474,7 +474,7 @@ export default function RedesignTransactionDetailPage({
                               tx.blockHash ?? String(tx.blockHeight),
                           }}
                         >
-                          #{tx.blockHeight.toLocaleString()}
+                          #{formatNumber(tx.blockHeight)}
                         </Link>
                       </Button>
                     ) : (
@@ -494,7 +494,7 @@ export default function RedesignTransactionDetailPage({
                     )}
                   </DetailRow>
                   <DetailRow label="Confirmations">
-                    {(tx.confirmations ?? 0).toLocaleString()}
+                    {formatNumber(tx.confirmations ?? 0)}
                   </DetailRow>
                   {isCoinbase ? (
                     <DetailRow label="Block Reward">
@@ -516,7 +516,7 @@ export default function RedesignTransactionDetailPage({
                   <DetailRow label="Size">
                     {tx.size != null ? (
                       <span className="font-mono text-sm tabular-nums">
-                        {tx.size.toLocaleString()} bytes
+                        {formatNumber(tx.size)} bytes
                       </span>
                     ) : (
                       <span className="text-muted-foreground">—</span>

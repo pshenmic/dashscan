@@ -25,7 +25,7 @@ import {
 } from "@/lib/api/governance";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiGovernanceObject } from "@/lib/api/types";
-import { formatDuration, formatRelativeTime } from "@/lib/format";
+import { formatDuration, formatNumber, formatRelativeTime } from "@/lib/format";
 import {
   getMsUntilSuperblock,
   getRequiredVotes,
@@ -122,7 +122,7 @@ const columns: ColumnDef<ApiGovernanceObject>[] = [
         return <span className="text-muted-foreground">—</span>;
       return (
         <Badge className="h-6 gap-1 border-0 bg-accent/12 font-medium text-accent">
-          {amount.toLocaleString()}
+          {formatNumber(amount)}
           <img src="/icons/dash.svg" alt="" className="size-3.5" />
         </Badge>
       );
@@ -244,7 +244,7 @@ export default function ClassicDaoPage() {
               bgImage="/images/dao/available-budget.png"
               value={
                 <span className="inline-flex items-center gap-2">
-                  {availableBudget.toLocaleString()}
+                  {formatNumber(availableBudget)}
                   <img src="/icons/dash.svg" alt="" className="size-5" />
                 </span>
               }
@@ -263,7 +263,7 @@ export default function ClassicDaoPage() {
               bgImage="/images/dao/remaining-budget.png"
               value={
                 <span className="inline-flex items-center gap-2">
-                  {Math.round(remainingBudget).toLocaleString()}
+                  {formatNumber(Math.round(remainingBudget))}
                   <img src="/icons/dash.svg" alt="" className="size-5" />
                 </span>
               }
@@ -338,10 +338,10 @@ export default function ClassicDaoPage() {
                 </p>
                 <CardTitle className="mt-1 flex flex-wrap items-baseline gap-2 tracking-[-0.03em]">
                   <span className="text-[32px] font-extrabold text-[#21314d]">
-                    {Math.round(fundedAmount).toLocaleString()}
+                    {formatNumber(Math.round(fundedAmount))}
                   </span>
                   <span className="text-[24px] font-medium text-muted-foreground">
-                    / {availableBudget.toLocaleString()} DASH
+                    / {formatNumber(availableBudget)} DASH
                   </span>
                 </CardTitle>
               </div>

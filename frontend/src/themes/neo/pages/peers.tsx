@@ -8,7 +8,7 @@ import {
   derivePeerUserAgents,
   peerUserAgentsQueryOptions,
 } from "@/lib/api/peers";
-import { formatCompact, formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatNumber, formatRelativeTime } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import {
   DataTable,
@@ -226,7 +226,7 @@ export default function RedesignPeersListPage() {
             <CardHeader>
               <CardDescription>Available</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {stats.total > 0 ? stats.available.toLocaleString() : "—"}
+                {stats.total > 0 ? formatNumber(stats.available) : "—"}
               </CardTitle>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
@@ -239,7 +239,7 @@ export default function RedesignPeersListPage() {
             <CardHeader>
               <CardDescription>Unavailable</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {stats.total > 0 ? stats.unavailable.toLocaleString() : "—"}
+                {stats.total > 0 ? formatNumber(stats.unavailable) : "—"}
               </CardTitle>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-destructive/12 [&_svg]:text-destructive">

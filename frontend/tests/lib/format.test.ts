@@ -1,5 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatNumber, formatRelativeTime } from "@/lib/format";
+
+describe("formatNumber", () => {
+  it("groups thousands with non-breaking spaces and keeps a decimal point", () => {
+    expect(formatNumber(1580880)).toBe("1\u00a0580\u00a0880");
+    expect(formatNumber(-12345.67)).toBe("-12\u00a0345.67");
+  });
+
+  it("preserves requested precision without changing grouping", () => {
+    expect(formatNumber(1234.56789, { maximumFractionDigits: 4 })).toBe("1\u00a0234.5679");
+    expect(formatNumber(1234, { minimumFractionDigits: 2 })).toBe("1\u00a0234.00");
+  });
+
+  it("supports zero, ungrouped numbers and exact bigint values", () => {
+    expect(formatNumber(0)).toBe("0");
+    expect(formatNumber(999)).toBe("999");
+    expect(formatNumber(9007199254740993n)).toBe("9\u00a0007\u00a0199\u00a0254\u00a0740\u00a0993");
+    expect(formatNumber(1234, { useGrouping: false })).toBe("1234");
+  });
+
+  it("retains compact suffixes with locale-independent fractional values", () => {
+    expect(formatCompact(12.5)).toBe("12.5");
+    expect(formatCompact(1500)).toBe("1.5K");
+  });
+});
 
 describe("formatRelativeTime", () => {
   const NOW = new Date("2025-01-15T12:00:00Z").getTime();

@@ -1,5 +1,6 @@
 import { useId } from "react";
 import type { ApiHistoricalEntry } from "@/lib/api/types";
+import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { buildSmoothPath } from "@/themes/dash/lib/chart-utils";
 
@@ -33,7 +34,7 @@ export function PriceChart({ data, className, formatValue }: PriceChartProps) {
   const linePath = buildSmoothPath(points);
   const areaPath = `${linePath} L${points[points.length - 1].x},${H} L${points[0].x},${H} Z`;
 
-  const fmt = formatValue ?? ((v: number) => v.toLocaleString());
+  const fmt = formatValue ?? ((v: number) => formatNumber(v));
 
   return (
     <div className={cn("flex flex-col", className)}>

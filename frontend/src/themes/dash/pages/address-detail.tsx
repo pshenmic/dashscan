@@ -27,6 +27,7 @@ import type { ApiTransaction } from "@/lib/api/types";
 import {
   addressNetAmount,
   formatDash,
+  formatNumber,
   formatRelativeTime,
   getTxTypeBadgeStyle,
   getTxTypeLabel,
@@ -151,7 +152,7 @@ const makeTxColumns = (address: string): ColumnDef<ApiTransaction>[] => [
       const c = getValue<number | null>();
       return (
         <span className="text-muted-foreground">
-          {c != null ? c.toLocaleString() : "—"}
+          {c != null ? formatNumber(c) : "—"}
         </span>
       );
     },
@@ -276,7 +277,7 @@ export default function ClassicAddressDetailPage({
               value={
                 <>
                   <span>
-                    {(Number(detail.balance) / 1e8).toLocaleString(undefined, {
+                    {formatNumber(Number(detail.balance) / 1e8, {
                       maximumFractionDigits: 4,
                     })}
                   </span>
@@ -292,7 +293,7 @@ export default function ClassicAddressDetailPage({
               value={
                 <>
                   <span>
-                    {(Number(detail.received) / 1e8).toLocaleString(undefined, {
+                    {formatNumber(Number(detail.received) / 1e8, {
                       maximumFractionDigits: 4,
                     })}
                   </span>
@@ -308,7 +309,7 @@ export default function ClassicAddressDetailPage({
               value={
                 <>
                   <span>
-                    {(Number(detail.sent) / 1e8).toLocaleString(undefined, {
+                    {formatNumber(Number(detail.sent) / 1e8, {
                       maximumFractionDigits: 4,
                     })}
                   </span>
@@ -321,7 +322,7 @@ export default function ClassicAddressDetailPage({
               icon={<ArrowLeftRight className="size-5" strokeWidth={1.75} />}
               label="Transactions"
               bgImage="/images/blocks/superblock.png"
-              value={Number(detail.txCount).toLocaleString()}
+              value={formatNumber(Number(detail.txCount))}
             />
           </div>
 
@@ -353,7 +354,7 @@ export default function ClassicAddressDetailPage({
                 <CardTitle className="mt-1 flex flex-wrap items-baseline gap-2 text-[34px] font-medium tracking-[-0.03em]">
                   <span className="font-extrabold text-[#21314d]">
                     {balanceDash != null
-                      ? balanceDash.toLocaleString(undefined, {
+                      ? formatNumber(balanceDash, {
                           maximumFractionDigits: 4,
                         })
                       : "—"}
@@ -405,7 +406,7 @@ export default function ClassicAddressDetailPage({
                 renderTooltip={(p) => (
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {p.value.toLocaleString(undefined, {
+                      {formatNumber(p.value, {
                         maximumFractionDigits: 4,
                       })}{" "}
                       DASH

@@ -44,6 +44,7 @@ import {
   DUFFS_PER_DASH,
   formatCompact,
   formatDuffs,
+  formatNumber,
   formatRelativeTime,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -461,7 +462,7 @@ export default function RedesignAddressDetailPage({
                 </span>
                 <span className="font-display text-4xl tabular-nums sm:text-5xl">
                   {balanceDash != null
-                    ? balanceDash.toLocaleString(undefined, {
+                    ? formatNumber(balanceDash, {
                         maximumFractionDigits: 4,
                       })
                     : "—"}{" "}
@@ -484,7 +485,7 @@ export default function RedesignAddressDetailPage({
                   </span>
                   <span className="font-mono text-sm font-semibold tabular-nums">
                     {receivedDash != null
-                      ? receivedDash.toLocaleString(undefined, {
+                      ? formatNumber(receivedDash, {
                           maximumFractionDigits: 2,
                         })
                       : "—"}{" "}
@@ -497,7 +498,7 @@ export default function RedesignAddressDetailPage({
                   </span>
                   <span className="font-mono text-sm font-semibold tabular-nums">
                     {sentDash != null
-                      ? sentDash.toLocaleString(undefined, {
+                      ? formatNumber(sentDash, {
                           maximumFractionDigits: 2,
                         })
                       : "—"}{" "}
@@ -509,7 +510,7 @@ export default function RedesignAddressDetailPage({
                     <ArrowLeftRight className="size-3" /> Tx
                   </span>
                   <span className="font-mono text-sm font-semibold tabular-nums">
-                    {Number(detail.txCount).toLocaleString()}
+                    {formatNumber(Number(detail.txCount))}
                   </span>
                 </div>
               </div>
@@ -553,7 +554,7 @@ export default function RedesignAddressDetailPage({
             <CardTitle className="text-2xl tabular-nums text-accent">
               {balanceDash != null ? (
                 <>
-                  {balanceDash.toLocaleString(undefined, {
+                  {formatNumber(balanceDash, {
                     maximumFractionDigits: 4,
                   })}{" "}
                   <DashIcon />
@@ -629,7 +630,9 @@ export default function RedesignAddressDetailPage({
                     axisLine={false}
                     tickMargin={8}
                     width={60}
-                    tickFormatter={(v) => v.toLocaleString()}
+                    tickFormatter={(v) =>
+                      typeof v === "number" ? formatNumber(v) : String(v)
+                    }
                   />
                   <ChartTooltip
                     content={

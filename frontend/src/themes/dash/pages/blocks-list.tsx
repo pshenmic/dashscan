@@ -20,7 +20,7 @@ import {
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiBlock } from "@/lib/api/types";
-import { formatCompact, formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatNumber, formatRelativeTime } from "@/lib/format";
 import { getPageCount, type PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { BlockTransactionsChart } from "@/themes/dash/components/block-transactions-chart";
@@ -226,7 +226,7 @@ export default function ClassicBlocksListPage({
             label="Latest Block"
             value={
               stats.latestHeight != null
-                ? stats.latestHeight.toLocaleString()
+                ? formatNumber(stats.latestHeight)
                 : "—"
             }
             bgImage="/images/blocks/latest.png"

@@ -42,6 +42,7 @@ import {
 import type { ApiProposalVote, ApiTransaction } from "@/lib/api/types";
 import {
   DUFFS_PER_DASH,
+  formatNumber,
   formatRelativeTime,
   getIp,
   sumVOut,
@@ -157,7 +158,7 @@ function ConsecutivePaymentsStrip({ count }: { count: number }) {
         <span className="font-medium uppercase tracking-wider text-muted-foreground">
           Consecutive payments
         </span>
-        <span className="font-mono tabular-nums">{count.toLocaleString()}</span>
+        <span className="font-mono tabular-nums">{formatNumber(count)}</span>
       </div>
       <div className="flex items-end gap-0.5">
         {Array.from({ length: slots }, (_, i) => `bar-${i}`).map((key, i) => {
@@ -418,7 +419,7 @@ function MasternodeTransactions({ proTxHash }: { proTxHash: string }) {
           params={{ hashOrHeight: String(row.blockHeight) }}
           className="font-mono text-sm tabular-nums text-accent no-underline hover:underline"
         >
-          {row.blockHeight.toLocaleString()}
+          {formatNumber(row.blockHeight)}
         </Link>
       ),
     },
@@ -687,7 +688,7 @@ export default function RedesignMasternodeDetailPage({
                     className="inline-flex w-fit items-center gap-1 font-mono text-xs text-accent hover:underline"
                   >
                     <Boxes className="size-3" /> Block #
-                    {mn.lastPaidBlock.toLocaleString()}
+                    {formatNumber(mn.lastPaidBlock)}
                   </Link>
                 ) : (
                   <span className="text-xs text-muted-foreground">
@@ -707,7 +708,9 @@ export default function RedesignMasternodeDetailPage({
                       isClean ? "text-success" : "text-destructive",
                     )}
                   >
-                    {mn.posPenaltyScore?.toLocaleString() ?? 0}
+                    {(mn.posPenaltyScore == null
+                      ? undefined
+                      : formatNumber(mn.posPenaltyScore)) ?? 0}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">

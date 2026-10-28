@@ -2,6 +2,21 @@ import type { ApiTransaction, ApiVOut } from "@/lib/api/types";
 
 export const DUFFS_PER_DASH = 100_000_000;
 
+const numberFormatter = new Intl.NumberFormat("en-US");
+
+export function formatNumber(
+  value: number | bigint,
+  options?: Intl.NumberFormatOptions,
+): string {
+  const formatter = options
+    ? new Intl.NumberFormat("en-US", options)
+    : numberFormatter;
+  return formatter
+    .formatToParts(value)
+    .map((part) => (part.type === "group" ? "\u00a0" : part.value))
+    .join("");
+}
+
 export function addressNetAmount(
   tx: Pick<ApiTransaction, "vIn" | "vOut">,
   address: string,
@@ -239,7 +254,7 @@ export function formatDurationParts(ms: number): {
 export function formatCompact(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return value.toLocaleString();
+  return formatNumber(value);
 }
 
 export function formatHashRate(

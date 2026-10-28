@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { buildSmoothPath } from "@/themes/dash/lib/chart-utils";
 
@@ -184,7 +185,7 @@ export function MasternodesChart({ data, className }: MasternodesChartProps) {
           }}
         >
           <div className="font-semibold text-[#21314d]">
-            {points[hoveredIndex].count.toLocaleString()} Nodes
+            {formatNumber(points[hoveredIndex].count)} Nodes
           </div>
           <div className="mt-0.5 text-[#7f8da8]">
             {formatDateLabel(points[hoveredIndex].date)}

@@ -53,6 +53,7 @@ import type { ApiTransaction } from "@/lib/api/types";
 import {
   formatCompact,
   formatDuffs,
+  formatNumber,
   formatRelativeTime,
   sumVOut,
 } from "@/lib/format";
@@ -301,7 +302,9 @@ export default function RedesignTransactionsListPage() {
       align: "right",
       cell: (row) => (
         <span className="font-mono text-sm tabular-nums text-muted-foreground">
-          {row.confirmations?.toLocaleString() ?? "—"}
+          {(row.confirmations == null
+            ? undefined
+            : formatNumber(row.confirmations)) ?? "—"}
         </span>
       ),
     },

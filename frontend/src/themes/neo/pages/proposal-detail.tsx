@@ -69,6 +69,7 @@ import type {
 import {
   formatCompactUsd,
   formatDuration,
+  formatNumber,
   formatRelativeTime,
 } from "@/lib/format";
 import {
@@ -148,7 +149,7 @@ function VoteTallyBlock({
         <div className="flex flex-col items-center gap-1 rounded-xl border border-success/20 bg-success/5 py-3">
           <ThumbsUp className="size-4 text-success" />
           <span className="font-display-num text-xl text-success">
-            {result.yesCount.toLocaleString()}
+            {formatNumber(result.yesCount)}
           </span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Yes
@@ -157,7 +158,7 @@ function VoteTallyBlock({
         <div className="flex flex-col items-center gap-1 rounded-xl border border-destructive/20 bg-destructive/5 py-3">
           <ThumbsDown className="size-4 text-destructive" />
           <span className="font-display-num text-xl text-destructive">
-            {result.noCount.toLocaleString()}
+            {formatNumber(result.noCount)}
           </span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             No
@@ -166,7 +167,7 @@ function VoteTallyBlock({
         <div className="flex flex-col items-center gap-1 rounded-xl border border-border/60 bg-secondary/40 py-3">
           <Minus className="size-4 text-muted-foreground" />
           <span className="font-display-num text-xl text-muted-foreground">
-            {result.abstainCount.toLocaleString()}
+            {formatNumber(result.abstainCount)}
           </span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Abstain
@@ -187,7 +188,7 @@ function VoteTallyBlock({
             )}
           >
             {net >= 0 ? "+" : ""}
-            {net.toLocaleString()} / {requiredVotes.toLocaleString()} required
+            {formatNumber(net)} / {formatNumber(requiredVotes)} required
           </span>
         </div>
         <Progress
@@ -613,7 +614,7 @@ export default function RedesignProposalDetailPage({
             <CardHeader>
               <CardDescription>Requested</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {amount != null ? amount.toLocaleString() : "—"} <DashIcon />
+                {amount != null ? formatNumber(amount) : "—"} <DashIcon />
               </CardTitle>
               <CardDescription>
                 {amount != null && usdPrice?.usd != null
@@ -639,10 +640,10 @@ export default function RedesignProposalDetailPage({
                 )}
               >
                 {funding.absoluteYesCount >= 0 ? "+" : ""}
-                {funding.absoluteYesCount.toLocaleString()}
+                {formatNumber(funding.absoluteYesCount)}
               </CardTitle>
               <CardDescription>
-                of {requiredVotes.toLocaleString()} required
+                of {formatNumber(requiredVotes)} required
               </CardDescription>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
@@ -655,14 +656,13 @@ export default function RedesignProposalDetailPage({
             <CardHeader>
               <CardDescription>Participation</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {(fundingMasternodes > 0
-                  ? fundingMasternodes
-                  : fundingBallots
-                ).toLocaleString()}
+                {formatNumber(
+                  fundingMasternodes > 0 ? fundingMasternodes : fundingBallots,
+                )}
               </CardTitle>
               <CardDescription>
                 {participation != null
-                  ? `${(participation * 100).toFixed(1)}% of ${masternodeCount.toLocaleString()} masternodes voted`
+                  ? `${(participation * 100).toFixed(1)}% of ${formatNumber(masternodeCount)} masternodes voted`
                   : "weighted ballots cast"}
               </CardDescription>
               <CardAction>
@@ -1024,8 +1024,8 @@ export default function RedesignProposalDetailPage({
                 Masternode votes
               </h2>
               <p className="text-sm text-muted-foreground">
-                {votes.length.toLocaleString()} votes from{" "}
-                {uniqueMasternodes.toLocaleString()} masternodes this cycle
+                {formatNumber(votes.length)} votes from{" "}
+                {formatNumber(uniqueMasternodes)} masternodes this cycle
               </p>
             </div>
           </div>

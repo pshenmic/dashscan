@@ -39,6 +39,7 @@ import { volumeHistoricalQueryOptions } from "@/lib/api/volume";
 import {
   formatCompactUsd,
   formatDash,
+  formatNumber,
   formatRelativeTime,
   sumVOut,
 } from "@/lib/format";
@@ -419,7 +420,7 @@ export default function ClassicDashboardPage() {
                 {mnData?.pagination.total != null &&
                 mnData.pagination.total > 0 ? (
                   <>
-                    {mnData.pagination.total.toLocaleString()}{" "}
+                    {formatNumber(mnData.pagination.total)}{" "}
                     <span className="text-base font-medium">Nodes</span>
                   </>
                 ) : (

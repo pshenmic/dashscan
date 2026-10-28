@@ -28,6 +28,7 @@ import {
 import type { ApiMasternode } from "@/lib/api/types";
 import {
   formatCompact,
+  formatNumber,
   formatRelativeTime,
   getIp,
   getMnStatusBucket,
@@ -343,7 +344,7 @@ export default function RedesignMasternodesListPage() {
         const stake = getMasternodeCollateral(row.type);
         return (
           <span className="font-mono text-sm font-medium tabular-nums text-accent">
-            {stake.toLocaleString()} <DashIcon />
+            {formatNumber(stake)} <DashIcon />
           </span>
         );
       },
@@ -391,7 +392,7 @@ export default function RedesignMasternodesListPage() {
               <CardHeader>
                 <CardDescription>Enabled</CardDescription>
                 <CardTitle className="text-2xl tabular-nums text-accent">
-                  {stats.loaded > 0 ? stats.enabled.toLocaleString() : "—"}
+                  {stats.loaded > 0 ? formatNumber(stats.enabled) : "—"}
                 </CardTitle>
                 <CardAction>
                   <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
@@ -404,7 +405,7 @@ export default function RedesignMasternodesListPage() {
               <CardHeader>
                 <CardDescription>Banned</CardDescription>
                 <CardTitle className="text-2xl tabular-nums text-accent">
-                  {stats.loaded > 0 ? stats.banned.toLocaleString() : "—"}
+                  {stats.loaded > 0 ? formatNumber(stats.banned) : "—"}
                 </CardTitle>
                 <CardAction>
                   <div className="flex size-9 items-center justify-center rounded-full bg-destructive/12 [&_svg]:text-destructive">
@@ -419,7 +420,7 @@ export default function RedesignMasternodesListPage() {
             <CardHeader>
               <CardDescription>Distribution</CardDescription>
               <CardTitle className="text-xl tabular-nums text-accent">
-                {stats.loaded.toLocaleString()} nodes
+                {formatNumber(stats.loaded)} nodes
               </CardTitle>
             </CardHeader>
             <CardContent>

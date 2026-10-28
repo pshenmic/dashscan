@@ -21,7 +21,12 @@ import type {
   ApiAddressActivityEntry,
   ApiAddressBalanceEntry,
 } from "@/lib/api/types";
-import { DUFFS_PER_DASH, formatCompact, formatCompactUsd } from "@/lib/format";
+import {
+  DUFFS_PER_DASH,
+  formatCompact,
+  formatCompactUsd,
+  formatNumber,
+} from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import {
@@ -228,7 +233,7 @@ export default function RedesignAddressesPage() {
       header: "Transactions",
       cell: (row) => (
         <span className="font-mono text-sm font-medium tabular-nums text-accent">
-          {Number(row.txCount ?? 0).toLocaleString()}
+          {formatNumber(Number(row.txCount ?? 0))}
         </span>
       ),
     },

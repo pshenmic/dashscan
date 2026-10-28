@@ -14,7 +14,7 @@ import type {
   ApiProUpServTxPayload,
   ApiQcTxPayload,
 } from "@/lib/api/types";
-import { DUFFS_PER_DASH, txTypeNum } from "@/lib/format";
+import { DUFFS_PER_DASH, formatNumber, txTypeNum } from "@/lib/format";
 import { CopyButton } from "@/themes/dash/components/copy-button";
 import { HashCell } from "@/themes/dash/components/hash-cell";
 
@@ -163,7 +163,7 @@ function HeightPill({ height }: { height: number | null | undefined }) {
       className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 transition-colors hover:bg-accent/10"
     >
       <span className="font-mono font-bold text-foreground">
-        {height.toLocaleString()}
+        {formatNumber(height)}
       </span>
       <CopyButton value={String(height)} />
     </Link>

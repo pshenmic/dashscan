@@ -17,6 +17,7 @@ import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
 import {
   DUFFS_PER_DASH,
   formatDuffs,
+  formatNumber,
   formatRelativeTime,
   txTypeNum,
 } from "@/lib/format";
@@ -195,7 +196,7 @@ export default function ClassicTransactionDetailPage({
               label="Confirmations"
               value={
                 <p className="text-3xl font-extrabold">
-                  {(tx.confirmations ?? 0).toLocaleString()}
+                  {formatNumber(tx.confirmations ?? 0)}
                 </p>
               }
             />
@@ -343,7 +344,7 @@ function BlockPill({ height, hash }: { height: number; hash?: string }) {
         className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 transition-colors hover:bg-accent/10"
       >
         <span className="font-mono font-bold text-foreground">
-          {height.toLocaleString()}
+          {formatNumber(height)}
         </span>
       </Link>
       <CopyButton value={hash ?? String(height)} />

@@ -27,6 +27,7 @@ import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiMasternode } from "@/lib/api/types";
 import {
   formatCompact,
+  formatNumber,
   formatRelativeTime,
   getIp,
   getMnStatusBadgeStyle,
@@ -211,7 +212,7 @@ export default function ClassicMasternodesListPage({
                 </p>
                 <CardTitle className="mt-1 text-[34px] font-medium tracking-[-0.03em]">
                   <span className="font-extrabold text-[#21314d]">
-                    {stats.total != null ? stats.total.toLocaleString() : "—"}
+                    {stats.total != null ? formatNumber(stats.total) : "—"}
                   </span>{" "}
                   <span className="text-muted-foreground">Nodes</span>
                 </CardTitle>

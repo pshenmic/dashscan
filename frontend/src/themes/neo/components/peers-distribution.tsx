@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ApiPeerUserAgent } from "@/lib/api/peers";
-import { formatCompact } from "@/lib/format";
+import { formatCompact, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/themes/neo/components/empty-state";
 import type { PeerStatusFilter } from "@/themes/neo/components/peers-filter-bar";
@@ -222,7 +222,7 @@ function DistributionCard({
                 config={config}
                 className="aspect-square size-40 [&_.recharts-tooltip-wrapper]:z-10"
               >
-                <PieChart title={`${title}: ${total.toLocaleString()} total`}>
+                <PieChart title={`${title}: ${formatNumber(total)} total`}>
                   <ChartTooltip
                     content={<ChartTooltipContent nameKey="key" hideLabel />}
                   />
@@ -313,7 +313,7 @@ function DistributionRow({
         {slice.label}
       </span>
       <span className="shrink-0 font-mono text-xs tabular-nums">
-        {slice.value.toLocaleString()}
+        {formatNumber(slice.value)}
       </span>
       <span className="w-12 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground">
         {((slice.value / total) * 100).toFixed(1)}%
