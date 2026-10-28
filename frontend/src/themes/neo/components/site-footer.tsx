@@ -1,4 +1,5 @@
 import { Github, MessageCircle, Twitter } from "lucide-react";
+import { useNow } from "@/components/render-clock";
 import { Button } from "@/components/ui/button";
 
 const SOCIALS = [
@@ -12,11 +13,12 @@ const SOCIALS = [
 ];
 
 export default function SiteFooter() {
+  const now = useNow();
   return (
     <footer className="mt-12 border-t border-border bg-background">
       <div className="mx-auto flex h-14 max-w-screen-2xl items-center justify-between gap-4 px-4 text-sm sm:px-6 lg:px-8">
         <p className="text-muted-foreground">
-          © {new Date().getFullYear()} Dashscan · pshenmic.dev
+          © {new Date(now).getUTCFullYear()} Dashscan · pshenmic.dev
         </p>
         <div className="flex items-center gap-1">
           {SOCIALS.map((s) => (

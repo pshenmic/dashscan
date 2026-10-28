@@ -15,8 +15,10 @@ import {
   Layers,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { DashIcon } from "@/components/dash-icon";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -41,7 +43,6 @@ import {
   formatDateTime,
   formatDuffs,
   formatNumber,
-  formatRelativeTime,
   highlightJson,
   sumVOut,
 } from "@/lib/format";
@@ -65,15 +66,6 @@ import { Badge } from "@/themes/neo/components/ui/badge";
 import { Card, CardContent } from "@/themes/neo/components/ui/card";
 
 const FINALITY_CONFIRMS = 6;
-
-function useNow(intervalMs = 1000) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), intervalMs);
-    return () => window.clearInterval(id);
-  }, [intervalMs]);
-  return now;
-}
 
 function formatAge(diffMs: number): string {
   if (diffMs < 0) return "just now";
@@ -477,7 +469,7 @@ export default function RedesignBlockDetailPage({
               <DetailRow label="Timestamp">
                 <span>{formatDateTime(new Date(block.timestamp))}</span>
                 <span className="text-xs text-muted-foreground">
-                  {formatRelativeTime(block.timestamp)}
+                  {<RelativeTime timestamp={block.timestamp} />}
                 </span>
               </DetailRow>
               <DetailRow label="Confirmations">

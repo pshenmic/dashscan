@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -24,7 +25,6 @@ import {
   formatDateTime,
   formatDuffs,
   formatNumber,
-  formatRelativeTime,
   getTxTypeBadgeStyle,
   getTxTypeLabel,
   sumVOut,
@@ -144,7 +144,7 @@ export default function ClassicBlockDetailPage({
                   variant="outline"
                   className="ml-2 rounded-full border-border text-xs font-medium"
                 >
-                  {formatRelativeTime(block.timestamp)}
+                  {<RelativeTime timestamp={block.timestamp} />}
                 </Badge>
               </DetailRow>
               <DetailRow label="Confirmations:">
@@ -311,7 +311,11 @@ export default function ClassicBlockDetailPage({
                   >
                     <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
                       <span className="whitespace-nowrap text-muted-foreground">
-                        {tx.timestamp ? formatRelativeTime(tx.timestamp) : "—"}
+                        {tx.timestamp ? (
+                          <RelativeTime timestamp={tx.timestamp} />
+                        ) : (
+                          "—"
+                        )}
                       </span>
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">

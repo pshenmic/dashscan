@@ -51,6 +51,8 @@ import {
 } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import { Button } from "@/components/ui/button";
 import {
   type ChartConfig,
@@ -114,7 +116,6 @@ import {
   formatDurationParts,
   formatHashRate,
   formatNumber,
-  formatRelativeTime,
   getIp,
   sumVOut,
 } from "@/lib/format";
@@ -736,9 +737,11 @@ export default function RedesignDashboardPage() {
                               {formatDuffs(sumVOut(tx.vOut))} <DashIcon />
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {tx.timestamp
-                                ? formatRelativeTime(tx.timestamp)
-                                : "—"}
+                              {tx.timestamp ? (
+                                <RelativeTime timestamp={tx.timestamp} />
+                              ) : (
+                                "—"
+                              )}
                             </span>
                           </div>
                         </TableCell>
@@ -760,9 +763,9 @@ export default function RedesignDashboardPage() {
                   : "—"
               }
               hint={
-                latestBlock?.timestamp
-                  ? formatRelativeTime(latestBlock.timestamp)
-                  : undefined
+                latestBlock?.timestamp ? (
+                  <RelativeTime timestamp={latestBlock.timestamp} />
+                ) : undefined
               }
             />
             <StatTile
@@ -1244,7 +1247,7 @@ function StatTile({
   icon: React.ReactNode;
   label: string;
   value: React.ReactNode;
-  hint?: string;
+  hint?: React.ReactNode;
   tone?: "accent";
 }) {
   const isAccent = tone === "accent";
@@ -2050,7 +2053,7 @@ function _MinedBlockTile({
             </span>
           </div>
           <span className="text-center text-[10px] tabular-nums whitespace-nowrap text-muted-foreground">
-            {formatRelativeTime(timestamp)}
+            {<RelativeTime timestamp={timestamp} />}
           </span>
         </Link>
       </TooltipTrigger>
@@ -2064,7 +2067,7 @@ function _MinedBlockTile({
               Block #{formatNumber(height)}
             </span>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              {formatRelativeTime(timestamp)}
+              {<RelativeTime timestamp={timestamp} />}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px] tabular-nums">
@@ -2091,14 +2094,8 @@ function PendingBlockTile({
   height: number;
   etaAt: number;
 }) {
-  const [etaMs, setEtaMs] = useState(() => Math.max(0, etaAt - Date.now()));
-  useEffect(() => {
-    setEtaMs(Math.max(0, etaAt - Date.now()));
-    const id = setInterval(() => {
-      setEtaMs(Math.max(0, etaAt - Date.now()));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [etaAt]);
+  const now = useNow();
+  const etaMs = Math.max(0, etaAt - now);
   return (
     <div className="flex flex-1 min-w-0 flex-col items-stretch gap-3">
       <div className="block-cube-pending flex h-32 flex-col justify-between rounded-md p-3">
@@ -2233,9 +2230,13 @@ function MasternodesListCard({
                         {formatNumber(stake)} <DashIcon />
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {mn.lastPaidTime
-                          ? `Paid ${formatRelativeTime(mn.lastPaidTime)}`
-                          : "Never paid"}
+                        {mn.lastPaidTime ? (
+                          <>
+                            Paid {<RelativeTime timestamp={mn.lastPaidTime} />}
+                          </>
+                        ) : (
+                          "Never paid"
+                        )}
                       </span>
                     </div>
                   </TableCell>

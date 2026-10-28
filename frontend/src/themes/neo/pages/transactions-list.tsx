@@ -17,6 +17,7 @@ import {
 import { useId, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
+import { RelativeTime } from "@/components/relative-time";
 import { Button } from "@/components/ui/button";
 import {
   type ChartConfig,
@@ -55,7 +56,6 @@ import {
   formatDateTime,
   formatDuffs,
   formatNumber,
-  formatRelativeTime,
   sumVOut,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -319,7 +319,7 @@ export default function RedesignTransactionsListPage() {
             {formatDuffs(sumVOut(row.vOut))} <DashIcon />
           </span>
           <span className="whitespace-nowrap text-xs text-muted-foreground">
-            {row.timestamp ? formatRelativeTime(row.timestamp) : "—"}
+            {row.timestamp ? <RelativeTime timestamp={row.timestamp} /> : "—"}
           </span>
         </div>
       ),

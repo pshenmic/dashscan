@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +41,6 @@ import {
   formatCompactUsd,
   formatDash,
   formatNumber,
-  formatRelativeTime,
   sumVOut,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -268,7 +268,11 @@ export default function ClassicDashboardPage() {
                     {formatDash(sumVOut(tx.vOut))}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {tx.timestamp ? formatRelativeTime(tx.timestamp) : ""}
+                    {tx.timestamp ? (
+                      <RelativeTime timestamp={tx.timestamp} />
+                    ) : (
+                      ""
+                    )}
                   </p>
                 </div>
               </Link>
@@ -316,7 +320,7 @@ export default function ClassicDashboardPage() {
                 <div className="text-right">
                   <p className="text-sm font-bold">{block.txCount} TXS</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatRelativeTime(block.timestamp)}
+                    {<RelativeTime timestamp={block.timestamp} />}
                   </p>
                 </div>
               </Link>

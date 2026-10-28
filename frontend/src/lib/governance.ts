@@ -87,11 +87,12 @@ export function getVotingDeadline(
   currentHeight: number,
   network: Network,
   blockTimeMs?: number | null,
+  now = Date.now(),
 ): Date {
   const cutoff = getVotingDeadlineHeight(currentHeight, network);
   const blocksRemaining = cutoff - currentHeight;
   const ms = blockTimeMs ?? defaultBlockTimeMs(network);
-  return new Date(Date.now() + blocksRemaining * ms);
+  return new Date(now + blocksRemaining * ms);
 }
 
 export function getVotingDeadlineHeight(

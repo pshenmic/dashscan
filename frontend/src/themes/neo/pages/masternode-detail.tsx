@@ -22,6 +22,7 @@ import {
 import { type ReactNode, useMemo, useState } from "react";
 import { DashIcon } from "@/components/dash-icon";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -44,7 +45,6 @@ import {
   DUFFS_PER_DASH,
   formatDateTime,
   formatNumber,
-  formatRelativeTime,
   getIp,
   sumVOut,
 } from "@/lib/format";
@@ -277,7 +277,7 @@ function VotingRecord({ proTxHash }: { proTxHash: string }) {
           className="whitespace-nowrap text-sm text-muted-foreground"
           title={formatDateTime(new Date(row.time))}
         >
-          {formatRelativeTime(row.time)}
+          {<RelativeTime timestamp={row.time} />}
         </span>
       ),
     },
@@ -439,7 +439,11 @@ function MasternodeTransactions({ proTxHash }: { proTxHash: string }) {
               {formatted} <DashIcon />
             </span>
             <span className="whitespace-nowrap text-xs text-muted-foreground">
-              {row.timestamp ? formatRelativeTime(row.timestamp) : "Pending"}
+              {row.timestamp ? (
+                <RelativeTime timestamp={row.timestamp} />
+              ) : (
+                "Pending"
+              )}
             </span>
           </div>
         );
@@ -605,7 +609,9 @@ export default function RedesignMasternodeDetailPage({
                   </span>
                 </span>
                 <span className="text-border">·</span>
-                <span>Registered {formatRelativeTime(mn.createdAt)}</span>
+                <span>
+                  Registered {<RelativeTime timestamp={mn.createdAt} />}
+                </span>
               </div>
               <div className="mt-1 flex min-w-0 items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2 backdrop-blur-sm">
                 <KeyRound className="size-3.5 shrink-0 text-muted-foreground" />
@@ -678,9 +684,11 @@ export default function RedesignMasternodeDetailPage({
                   Last paid
                 </span>
                 <span className="font-display text-2xl tabular-nums">
-                  {mn.lastPaidTime
-                    ? formatRelativeTime(mn.lastPaidTime)
-                    : "Never"}
+                  {mn.lastPaidTime ? (
+                    <RelativeTime timestamp={mn.lastPaidTime} />
+                  ) : (
+                    "Never"
+                  )}
                 </span>
                 {mn.lastPaidBlock ? (
                   <Link
@@ -751,7 +759,7 @@ export default function RedesignMasternodeDetailPage({
                   <>
                     <span>{formatDateTime(new Date(mn.lastPaidTime))}</span>
                     <span className="text-xs text-muted-foreground">
-                      ({formatRelativeTime(mn.lastPaidTime)})
+                      ({<RelativeTime timestamp={mn.lastPaidTime} />})
                     </span>
                   </>
                 ) : (
@@ -761,13 +769,13 @@ export default function RedesignMasternodeDetailPage({
               <DetailRow label="Registered">
                 <span>{formatDateTime(new Date(mn.createdAt))}</span>
                 <span className="text-xs text-muted-foreground">
-                  ({formatRelativeTime(mn.createdAt)})
+                  ({<RelativeTime timestamp={mn.createdAt} />})
                 </span>
               </DetailRow>
               <DetailRow label="Updated">
                 <span>{formatDateTime(new Date(mn.updatedAt))}</span>
                 <span className="text-xs text-muted-foreground">
-                  ({formatRelativeTime(mn.updatedAt)})
+                  ({<RelativeTime timestamp={mn.updatedAt} />})
                 </span>
               </DetailRow>
             </dl>

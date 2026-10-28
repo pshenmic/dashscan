@@ -1,6 +1,7 @@
 import { ArrowLeft, CircleCheck, Server, ServerCrash } from "lucide-react";
+import { RelativeTime } from "@/components/relative-time";
 import { type ApiPeer, decodeServices } from "@/lib/api/peers";
-import { formatDateTime, formatNumber, formatRelativeTime } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { CopyButton } from "@/themes/neo/components/copy-button";
 import { DetailRow } from "@/themes/neo/components/detail-row";
 import { Badge } from "@/themes/neo/components/ui/badge";
@@ -15,7 +16,7 @@ function TimeValue({ value }: { value: string }) {
     <>
       <span className="font-mono text-xs">{formatDateTime(date)}</span>
       <span className="text-xs text-muted-foreground">
-        ({formatRelativeTime(value)})
+        ({<RelativeTime timestamp={value} />})
       </span>
     </>
   );

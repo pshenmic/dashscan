@@ -21,6 +21,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { RelativeTime } from "@/components/relative-time";
 import { Button } from "@/components/ui/button";
 import {
   type ChartConfig,
@@ -35,12 +36,7 @@ import {
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import { blockTransactionsStatsQueryOptions } from "@/lib/api/stats";
 import type { ApiBlock } from "@/lib/api/types";
-import {
-  formatCompact,
-  formatDateTime,
-  formatNumber,
-  formatRelativeTime,
-} from "@/lib/format";
+import { formatCompact, formatDateTime, formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import {
@@ -265,7 +261,7 @@ export default function RedesignBlocksListPage() {
       align: "right",
       cell: (row) => (
         <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {formatRelativeTime(row.timestamp)}
+          {<RelativeTime timestamp={row.timestamp} />}
         </span>
       ),
     },

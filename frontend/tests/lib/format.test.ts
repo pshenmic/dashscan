@@ -61,6 +61,13 @@ describe("formatRelativeTime", () => {
     expect(formatRelativeTime(timestamp)).toBe("30 sec. ago");
   });
 
+  it("uses the serialized render time even when the browser clock differs", () => {
+    const timestamp = new Date(NOW - 59 * 1000).toISOString();
+    vi.setSystemTime(NOW + 10 * 1000);
+    expect(formatRelativeTime(timestamp, NOW)).toBe("59 sec. ago");
+    expect(formatRelativeTime(timestamp)).toBe("1 min. ago");
+  });
+
   it("returns 0 sec. ago for the current timestamp", () => {
     const timestamp = new Date(NOW).toISOString();
     expect(formatRelativeTime(timestamp)).toBe("0 sec. ago");

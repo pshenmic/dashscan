@@ -2,13 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { CircleCheck, Network, Server, ServerCrash } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { RelativeTime } from "@/components/relative-time";
 import {
   type ApiPeer,
   allPeersQueryOptions,
   derivePeerUserAgents,
   peerUserAgentsQueryOptions,
 } from "@/lib/api/peers";
-import { formatCompact, formatNumber, formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import {
   DataTable,
@@ -114,7 +115,7 @@ const columns: DataTableColumn<ApiPeer>[] = [
     align: "right",
     cell: (row) => (
       <span className="whitespace-nowrap text-sm text-muted-foreground">
-        {row.lastSeen ? formatRelativeTime(row.lastSeen) : "—"}
+        {row.lastSeen ? <RelativeTime timestamp={row.lastSeen} /> : "—"}
       </span>
     ),
   },

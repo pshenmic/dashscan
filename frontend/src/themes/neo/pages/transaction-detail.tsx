@@ -11,6 +11,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { DashIcon } from "@/components/dash-icon";
+import { RelativeTime } from "@/components/relative-time";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -23,12 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiVIn, ApiVOut } from "@/lib/api/types";
-import {
-  formatDateTime,
-  formatDuffs,
-  formatNumber,
-  formatRelativeTime,
-} from "@/lib/format";
+import { formatDateTime, formatDuffs, formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "@/themes/neo/components/copy-button";
@@ -491,7 +487,7 @@ export default function RedesignTransactionDetailPage({
                       <>
                         <span>{formatDateTime(new Date(tx.timestamp))}</span>
                         <Badge variant="outline" className="text-xs">
-                          {formatRelativeTime(tx.timestamp)}
+                          {<RelativeTime timestamp={tx.timestamp} />}
                         </Badge>
                       </>
                     ) : (

@@ -3,7 +3,6 @@ import type { ApiTransaction, ApiVOut } from "@/lib/api/types";
 export const DUFFS_PER_DASH = 100_000_000;
 
 const numberFormatter = new Intl.NumberFormat("en-US");
-
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "short",
@@ -216,7 +215,10 @@ export function getTxTypeBadgeStyle(
   );
 }
 
-export function formatRelativeTime(timestamp: string | number): string {
+export function formatRelativeTime(
+  timestamp: string | number,
+  now = Date.now(),
+): string {
   let then: number;
   if (typeof timestamp === "number" || /^\d+$/.test(timestamp)) {
     const unixSeconds = Number(timestamp);
@@ -225,7 +227,7 @@ export function formatRelativeTime(timestamp: string | number): string {
   } else {
     then = new Date(timestamp).getTime();
   }
-  const diffSeconds = Math.floor((Date.now() - then) / 1000);
+  const diffSeconds = Math.floor((now - then) / 1000);
   if (diffSeconds < 0) return "Just now";
   if (diffSeconds < 60) return `${diffSeconds} sec. ago`;
   const diffMinutes = Math.floor(diffSeconds / 60);

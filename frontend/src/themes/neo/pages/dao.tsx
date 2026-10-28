@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DashIcon } from "@/components/dash-icon";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import { Button } from "@/components/ui/button";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
@@ -31,7 +33,6 @@ import {
   formatDuration,
   formatDurationParts,
   formatNumber,
-  formatRelativeTime,
 } from "@/lib/format";
 import {
   getMsUntilSuperblock,
@@ -106,6 +107,7 @@ function SortHeader({
 }
 
 export default function RedesignDaoPage() {
+  const now = useNow();
   const storeNetwork = useStore(appStore, (state) => state.network);
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -265,8 +267,13 @@ export default function RedesignDaoPage() {
     network,
     blockTimeMs,
   );
-  const nextSuperblockDate = new Date(Date.now() + msUntilSuperblock);
-  const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
+  const nextSuperblockDate = new Date(now + msUntilSuperblock);
+  const votingDeadline = getVotingDeadline(
+    currentHeight,
+    network,
+    blockTimeMs,
+    now,
+  );
 
   const columns: DataTableColumn<ApiGovernanceObject>[] = [
     {
@@ -371,7 +378,11 @@ export default function RedesignDaoPage() {
       ),
       cell: (row) => (
         <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {row.creationTime ? formatRelativeTime(row.creationTime) : "—"}
+          {row.creationTime ? (
+            <RelativeTime timestamp={row.creationTime} />
+          ) : (
+            "—"
+          )}
         </span>
       ),
     },

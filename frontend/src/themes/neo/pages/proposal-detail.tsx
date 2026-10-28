@@ -30,6 +30,8 @@ import {
   YAxis,
 } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -71,7 +73,6 @@ import {
   formatDateTime,
   formatDuration,
   formatNumber,
-  formatRelativeTime,
 } from "@/lib/format";
 import {
   getMsUntilVotingDeadline,
@@ -298,7 +299,13 @@ export default function RedesignProposalDetailPage({
     blockTimeMs,
   );
   const votingOpen = msUntilVoteCutoff > 0;
-  const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
+  const now = useNow();
+  const votingDeadline = getVotingDeadline(
+    currentHeight,
+    network,
+    blockTimeMs,
+    now,
+  );
 
   const votes = useMemo(() => proposal?.votes ?? [], [proposal]);
 
@@ -478,7 +485,7 @@ export default function RedesignProposalDetailPage({
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="whitespace-nowrap text-sm text-muted-foreground">
-              {formatRelativeTime(row.time)}
+              {<RelativeTime timestamp={row.time} />}
             </span>
           </TooltipTrigger>
           <TooltipContent>{formatDateTime(new Date(row.time))}</TooltipContent>
@@ -559,7 +566,8 @@ export default function RedesignProposalDetailPage({
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   {proposal.creationTime && (
                     <span>
-                      Submitted {formatRelativeTime(proposal.creationTime)}
+                      Submitted{" "}
+                      {<RelativeTime timestamp={proposal.creationTime} />}
                     </span>
                   )}
                   {startDate && endDate && (
@@ -1016,7 +1024,7 @@ export default function RedesignProposalDetailPage({
                       {formatDateTime(new Date(proposal.creationTime))}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      ({formatRelativeTime(proposal.creationTime)})
+                      ({<RelativeTime timestamp={proposal.creationTime} />})
                     </span>
                   </>
                 ) : (

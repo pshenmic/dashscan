@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { Box, Calendar, MoveDown, MoveUp } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -20,7 +21,7 @@ import {
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiBlock } from "@/lib/api/types";
-import { formatCompact, formatNumber, formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatNumber } from "@/lib/format";
 import { getPageCount, type PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { BlockTransactionsChart } from "@/themes/dash/components/block-transactions-chart";
@@ -118,7 +119,7 @@ const columns: ColumnDef<ApiBlock>[] = [
     header: "Time",
     cell: ({ getValue }) => (
       <span className="text-muted-foreground">
-        {formatRelativeTime(getValue<string>())}
+        {<RelativeTime timestamp={getValue<string>()} />}
       </span>
     ),
   },

@@ -3,12 +3,12 @@ import { useStore } from "@tanstack/react-store";
 import { Bookmark, Check, ChevronDown, Clipboard } from "lucide-react";
 import { useState } from "react";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import {
   formatDateTime,
-  formatRelativeTime,
   getMnStatusBadgeStyle,
   getMnStatusLabel,
   getMnTypeBadgeStyle,
@@ -164,7 +164,7 @@ export default function ClassicMasternodeDetailPage({
                   variant="outline"
                   className="ml-2 rounded-full border-border text-[10px] font-medium"
                 >
-                  {formatRelativeTime(mn.createdAt)}
+                  {<RelativeTime timestamp={mn.createdAt} />}
                 </Badge>
               </DetailRow>
               <DetailRow label="Last Paid:">
@@ -178,7 +178,7 @@ export default function ClassicMasternodeDetailPage({
                     variant="outline"
                     className="ml-2 rounded-full border-border text-[10px] font-medium"
                   >
-                    {formatRelativeTime(mn.lastPaidTime)}
+                    {<RelativeTime timestamp={mn.lastPaidTime} />}
                   </Badge>
                 ) : null}
               </DetailRow>

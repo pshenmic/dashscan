@@ -10,6 +10,7 @@ import {
 import { ArrowLeftRight, MoveDown, MoveUp, Wallet } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -29,7 +30,6 @@ import {
   formatDash,
   formatDateTime,
   formatNumber,
-  formatRelativeTime,
   getTxTypeBadgeStyle,
   getTxTypeLabel,
 } from "@/lib/format";
@@ -78,7 +78,7 @@ const makeTxColumns = (address: string): ColumnDef<ApiTransaction>[] => [
       const ts = getValue<string | null>();
       return (
         <span className="text-muted-foreground">
-          {ts ? formatRelativeTime(ts) : "Pending"}
+          {ts ? <RelativeTime timestamp={ts} /> : "Pending"}
         </span>
       );
     },

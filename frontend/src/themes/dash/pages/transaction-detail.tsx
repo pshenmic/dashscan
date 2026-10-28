@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { transactionQueryOptions } from "@/lib/api/transactions";
@@ -19,7 +20,6 @@ import {
   formatDateTime,
   formatDuffs,
   formatNumber,
-  formatRelativeTime,
   txTypeNum,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -239,7 +239,7 @@ export default function ClassicTransactionDetailPage({
                       variant="outline"
                       className="rounded-full border-border text-xs font-medium"
                     >
-                      {formatRelativeTime(tx.timestamp)}
+                      {<RelativeTime timestamp={tx.timestamp} />}
                     </Badge>
                   </div>
                 ) : (

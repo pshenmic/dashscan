@@ -14,6 +14,7 @@ import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -46,7 +47,6 @@ import {
   formatDateTime,
   formatDuffs,
   formatNumber,
-  formatRelativeTime,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
@@ -416,7 +416,11 @@ export default function RedesignAddressDetailPage({
               {formatted} <DashIcon />
             </span>
             <span className="whitespace-nowrap text-xs text-muted-foreground">
-              {row.timestamp ? formatRelativeTime(row.timestamp) : "Pending"}
+              {row.timestamp ? (
+                <RelativeTime timestamp={row.timestamp} />
+              ) : (
+                "Pending"
+              )}
             </span>
           </div>
         );

@@ -9,6 +9,8 @@ import {
 } from "@tanstack/react-table";
 import { Calendar, ChevronDown, ChevronUp, Minus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -25,12 +27,7 @@ import {
 } from "@/lib/api/governance";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiGovernanceObject } from "@/lib/api/types";
-import {
-  formatDateTime,
-  formatDuration,
-  formatNumber,
-  formatRelativeTime,
-} from "@/lib/format";
+import { formatDateTime, formatDuration, formatNumber } from "@/lib/format";
 import {
   getMsUntilSuperblock,
   getRequiredVotes,
@@ -52,9 +49,11 @@ const columns: ColumnDef<ApiGovernanceObject>[] = [
     header: "Creation Time",
     cell: ({ getValue }) => (
       <span className="text-muted-foreground">
-        {getValue<string | null>()
-          ? formatRelativeTime(getValue<string>())
-          : "—"}
+        {getValue<string | null>() ? (
+          <RelativeTime timestamp={getValue<string>()} />
+        ) : (
+          "—"
+        )}
       </span>
     ),
   },
@@ -138,6 +137,7 @@ const columns: ColumnDef<ApiGovernanceObject>[] = [
 const skeletonWidths = ["w-20", "w-40", "w-36", "w-36", "w-20"];
 
 export default function ClassicDaoPage() {
+  const now = useNow();
   const storeNetwork = useStore(appStore, (state) => state.network);
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
@@ -197,7 +197,12 @@ export default function ClassicDaoPage() {
     network,
     blockTimeMs,
   );
-  const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
+  const votingDeadline = getVotingDeadline(
+    currentHeight,
+    network,
+    blockTimeMs,
+    now,
+  );
 
   const chartData = useMemo(() => {
     const triggers = (allProposals ?? []).filter(
