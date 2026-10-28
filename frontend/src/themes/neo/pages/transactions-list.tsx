@@ -17,6 +17,7 @@ import {
 import { useId, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
+import { RelativeTime } from "@/components/relative-time";
 import { Button } from "@/components/ui/button";
 import {
   type ChartConfig,
@@ -52,8 +53,9 @@ import {
 import type { ApiTransaction } from "@/lib/api/types";
 import {
   formatCompact,
+  formatDateTime,
   formatDuffs,
-  formatRelativeTime,
+  formatNumber,
   sumVOut,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -301,7 +303,9 @@ export default function RedesignTransactionsListPage() {
       align: "right",
       cell: (row) => (
         <span className="font-mono text-sm tabular-nums text-muted-foreground">
-          {row.confirmations?.toLocaleString() ?? "—"}
+          {(row.confirmations == null
+            ? undefined
+            : formatNumber(row.confirmations)) ?? "—"}
         </span>
       ),
     },
@@ -315,7 +319,7 @@ export default function RedesignTransactionsListPage() {
             {formatDuffs(sumVOut(row.vOut))} <DashIcon />
           </span>
           <span className="whitespace-nowrap text-xs text-muted-foreground">
-            {row.timestamp ? formatRelativeTime(row.timestamp) : "—"}
+            {row.timestamp ? <RelativeTime timestamp={row.timestamp} /> : "—"}
           </span>
         </div>
       ),
@@ -392,7 +396,7 @@ export default function RedesignTransactionsListPage() {
                       tickMargin={8}
                       minTickGap={32}
                       tickFormatter={(v) =>
-                        new Date(v).toLocaleDateString("en-US", {
+                        formatDateTime(new Date(v), {
                           month: "short",
                           day: "numeric",
                         })
@@ -411,7 +415,7 @@ export default function RedesignTransactionsListPage() {
                           labelFormatter={(_, payload) => {
                             const ts = payload?.[0]?.payload?.timestamp;
                             if (typeof ts !== "number") return null;
-                            return new Date(ts).toLocaleDateString("en-US", {
+                            return formatDateTime(new Date(ts), {
                               month: "short",
                               day: "numeric",
                               year: "numeric",

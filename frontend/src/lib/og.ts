@@ -1,3 +1,5 @@
+import { formatDateTime, formatNumber } from "@/lib/format";
+
 type OgPayload =
   | {
       kind: "block";
@@ -52,10 +54,6 @@ function escapeXml(value: string): string {
 function shortHash(hash: string, head = 12, tail = 8): string {
   if (hash.length <= head + tail + 1) return hash;
   return `${hash.slice(0, head)}…${hash.slice(-tail)}`;
-}
-
-function formatNumber(n: number): string {
-  return n.toLocaleString("en-US");
 }
 
 export function buildOgSvg(payload: OgPayload): string {
@@ -148,7 +146,7 @@ function renderStats(payload: OgPayload): string {
     case "block": {
       const date = new Date(payload.timestamp);
       const ts = Number.isFinite(date.getTime())
-        ? date.toLocaleString("en-US", {
+        ? formatDateTime(date, {
             dateStyle: "medium",
             timeStyle: "short",
           })

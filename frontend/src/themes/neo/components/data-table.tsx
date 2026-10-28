@@ -32,6 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatNumber } from "@/lib/format";
 import { PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/themes/neo/components/empty-state";
@@ -313,7 +314,7 @@ export function DataTable<T>({
             ) : data.length > 0 ? (
               <span className="text-xs">
                 {infiniteScroll.total != null
-                  ? `Showing ${(infiniteScroll.loaded ?? data.length).toLocaleString()} of ${infiniteScroll.total.toLocaleString()}`
+                  ? `Showing ${formatNumber(infiniteScroll.loaded ?? data.length)} of ${formatNumber(infiniteScroll.total)}`
                   : "End of results"}
               </span>
             ) : null}
@@ -329,7 +330,7 @@ export function DataTable<T>({
               <span className="font-medium text-foreground">
                 {pagination.pageIndex}
               </span>{" "}
-              of {totalPages} · {pagination.total.toLocaleString()} total
+              of {totalPages} · {formatNumber(pagination.total)} total
             </span>
             {pagination.onPageSizeChange && (
               <div className="flex items-center gap-2">

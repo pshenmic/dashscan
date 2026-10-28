@@ -51,6 +51,8 @@ import {
 } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import { Button } from "@/components/ui/button";
 import {
   type ChartConfig,
@@ -109,10 +111,11 @@ import {
   formatCompact,
   formatCompactUsd,
   formatCompactUsdShort,
+  formatDateTime,
   formatDuffs,
   formatDurationParts,
   formatHashRate,
-  formatRelativeTime,
+  formatNumber,
   getIp,
   sumVOut,
 } from "@/lib/format";
@@ -734,9 +737,11 @@ export default function RedesignDashboardPage() {
                               {formatDuffs(sumVOut(tx.vOut))} <DashIcon />
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {tx.timestamp
-                                ? formatRelativeTime(tx.timestamp)
-                                : "—"}
+                              {tx.timestamp ? (
+                                <RelativeTime timestamp={tx.timestamp} />
+                              ) : (
+                                "—"
+                              )}
                             </span>
                           </div>
                         </TableCell>
@@ -754,13 +759,13 @@ export default function RedesignDashboardPage() {
               label="Latest Block"
               value={
                 latestBlock != null
-                  ? `#${latestBlock.height.toLocaleString()}`
+                  ? `#${formatNumber(latestBlock.height)}`
                   : "—"
               }
               hint={
-                latestBlock?.timestamp
-                  ? formatRelativeTime(latestBlock.timestamp)
-                  : undefined
+                latestBlock?.timestamp ? (
+                  <RelativeTime timestamp={latestBlock.timestamp} />
+                ) : undefined
               }
             />
             <StatTile
@@ -1242,7 +1247,7 @@ function StatTile({
   icon: React.ReactNode;
   label: string;
   value: React.ReactNode;
-  hint?: string;
+  hint?: React.ReactNode;
   tone?: "accent";
 }) {
   const isAccent = tone === "accent";
@@ -1328,7 +1333,7 @@ function ChartValuePill({
         {yFormat(item.value)}
       </span>
       <span className="text-muted-foreground">
-        {new Date(item.payload.timestamp).toLocaleDateString("en-US", {
+        {formatDateTime(new Date(item.payload.timestamp), {
           month: "short",
           day: "numeric",
         })}
@@ -1395,7 +1400,7 @@ function ChartArea({
           minTickGap={32}
           tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           tickFormatter={(v) =>
-            new Date(v).toLocaleDateString("en-US", {
+            formatDateTime(new Date(v), {
               month: "short",
               day: "numeric",
             })
@@ -1545,7 +1550,7 @@ function ChartBar({
           minTickGap={32}
           tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           tickFormatter={(v) =>
-            new Date(v).toLocaleDateString("en-US", {
+            formatDateTime(new Date(v), {
               month: "short",
               day: "numeric",
             })
@@ -1771,7 +1776,7 @@ function DashboardHero({
                 key={tickKey}
                 className="font-display-num text-5xl text-foreground sm:text-6xl animate-hero-tick"
               >
-                {liveHeight != null ? liveHeight.toLocaleString("en-US") : "—"}
+                {liveHeight != null ? formatNumber(liveHeight) : "—"}
               </span>
               {tickKey > 0 && (
                 <span
@@ -2032,7 +2037,7 @@ function _MinedBlockTile({
           <div className="block-cube flex h-32 flex-col justify-between rounded-md p-3 transition-transform group-hover:-translate-y-1">
             <div className="relative z-[2] flex items-center justify-between gap-1">
               <span className="font-mono text-sm font-semibold tabular-nums">
-                #{height.toLocaleString()}
+                #{formatNumber(height)}
               </span>
             </div>
             <div className="relative z-[2] flex items-baseline gap-1.5">
@@ -2048,7 +2053,7 @@ function _MinedBlockTile({
             </span>
           </div>
           <span className="text-center text-[10px] tabular-nums whitespace-nowrap text-muted-foreground">
-            {formatRelativeTime(timestamp)}
+            {<RelativeTime timestamp={timestamp} />}
           </span>
         </Link>
       </TooltipTrigger>
@@ -2059,15 +2064,15 @@ function _MinedBlockTile({
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
             <span className="font-display text-sm">
-              Block #{height.toLocaleString()}
+              Block #{formatNumber(height)}
             </span>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              {formatRelativeTime(timestamp)}
+              {<RelativeTime timestamp={timestamp} />}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px] tabular-nums">
             <span className="text-muted-foreground">Txs</span>
-            <span className="text-right">{txCount.toLocaleString()}</span>
+            <span className="text-right">{formatNumber(txCount)}</span>
             <span className="text-muted-foreground">Size</span>
             <span className="text-right">{formatBytes(size)}</span>
             <span className="text-muted-foreground">Hash</span>
@@ -2089,20 +2094,14 @@ function PendingBlockTile({
   height: number;
   etaAt: number;
 }) {
-  const [etaMs, setEtaMs] = useState(() => Math.max(0, etaAt - Date.now()));
-  useEffect(() => {
-    setEtaMs(Math.max(0, etaAt - Date.now()));
-    const id = setInterval(() => {
-      setEtaMs(Math.max(0, etaAt - Date.now()));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [etaAt]);
+  const now = useNow();
+  const etaMs = Math.max(0, etaAt - now);
   return (
     <div className="flex flex-1 min-w-0 flex-col items-stretch gap-3">
       <div className="block-cube-pending flex h-32 flex-col justify-between rounded-md p-3">
         <div className="relative z-[2] flex items-baseline justify-between gap-2">
           <span className="font-mono text-sm font-semibold tabular-nums text-accent">
-            #{height.toLocaleString()}
+            #{formatNumber(height)}
           </span>
           <Box className="size-3.5 text-accent/70" />
         </div>
@@ -2228,12 +2227,16 @@ function MasternodesListCard({
                   <TableCell className="text-right">
                     <div className="flex flex-col items-end gap-0.5">
                       <span className="font-mono text-sm font-medium tabular-nums text-accent">
-                        {stake.toLocaleString()} <DashIcon />
+                        {formatNumber(stake)} <DashIcon />
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {mn.lastPaidTime
-                          ? `Paid ${formatRelativeTime(mn.lastPaidTime)}`
-                          : "Never paid"}
+                        {mn.lastPaidTime ? (
+                          <>
+                            Paid {<RelativeTime timestamp={mn.lastPaidTime} />}
+                          </>
+                        ) : (
+                          "Never paid"
+                        )}
                       </span>
                     </div>
                   </TableCell>
@@ -2384,7 +2387,7 @@ function ActiveAddressesCard({
                     />
                   </div>
                   <span className="font-mono text-sm font-medium tabular-nums text-accent">
-                    {txCount.toLocaleString()}
+                    {formatNumber(txCount)}
                   </span>
                 </div>
               </div>
@@ -2476,7 +2479,7 @@ function ProposalRow({
             />
           </div>
           <div className="flex items-baseline justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
-            <span className="text-success/80">{yes.toLocaleString()}</span>
+            <span className="text-success/80">{formatNumber(yes)}</span>
             <span
               className={
                 net >= 0
@@ -2485,16 +2488,16 @@ function ProposalRow({
               }
             >
               {net >= 0 ? "+" : ""}
-              {net.toLocaleString()}
+              {formatNumber(net)}
             </span>
-            <span className="text-destructive/80">{no.toLocaleString()}</span>
+            <span className="text-destructive/80">{formatNumber(no)}</span>
           </div>
         </div>
       </TableCell>
       <TableCell className="text-right">
         <div className="flex flex-col items-end gap-0.5">
           <span className="font-mono text-sm font-medium tabular-nums text-accent">
-            {amount != null ? amount.toLocaleString() : "—"} <DashIcon />
+            {amount != null ? formatNumber(amount) : "—"} <DashIcon />
           </span>
           <span className="text-xs text-muted-foreground">
             {amount != null && usdPrice != null
@@ -2577,7 +2580,7 @@ function NextSuperblockCard({
       <CardHeader>
         <CardDescription>Next Superblock</CardDescription>
         <CardTitle className="text-2xl tabular-nums text-accent">
-          {resolvedNext != null ? `#${resolvedNext.toLocaleString()}` : "—"}
+          {resolvedNext != null ? `#${formatNumber(resolvedNext)}` : "—"}
         </CardTitle>
         <CardAction>
           <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
@@ -2593,7 +2596,7 @@ function NextSuperblockCard({
               votingClosed
                 ? "Closed"
                 : voteHeight != null
-                  ? `#${voteHeight.toLocaleString()}`
+                  ? `#${formatNumber(voteHeight)}`
                   : "—"
             }
             ms={voteMs}
@@ -2605,7 +2608,7 @@ function NextSuperblockCard({
           <CountdownDial
             label="Next superblock"
             subLabel={
-              resolvedNext != null ? `#${resolvedNext.toLocaleString()}` : "—"
+              resolvedNext != null ? `#${formatNumber(resolvedNext)}` : "—"
             }
             ms={etaMs}
             progress={sbProgress}

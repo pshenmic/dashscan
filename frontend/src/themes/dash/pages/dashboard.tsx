@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +40,7 @@ import { volumeHistoricalQueryOptions } from "@/lib/api/volume";
 import {
   formatCompactUsd,
   formatDash,
-  formatRelativeTime,
+  formatNumber,
   sumVOut,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -267,7 +268,11 @@ export default function ClassicDashboardPage() {
                     {formatDash(sumVOut(tx.vOut))}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {tx.timestamp ? formatRelativeTime(tx.timestamp) : ""}
+                    {tx.timestamp ? (
+                      <RelativeTime timestamp={tx.timestamp} />
+                    ) : (
+                      ""
+                    )}
                   </p>
                 </div>
               </Link>
@@ -315,7 +320,7 @@ export default function ClassicDashboardPage() {
                 <div className="text-right">
                   <p className="text-sm font-bold">{block.txCount} TXS</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatRelativeTime(block.timestamp)}
+                    {<RelativeTime timestamp={block.timestamp} />}
                   </p>
                 </div>
               </Link>
@@ -419,7 +424,7 @@ export default function ClassicDashboardPage() {
                 {mnData?.pagination.total != null &&
                 mnData.pagination.total > 0 ? (
                   <>
-                    {mnData.pagination.total.toLocaleString()}{" "}
+                    {formatNumber(mnData.pagination.total)}{" "}
                     <span className="text-base font-medium">Nodes</span>
                   </>
                 ) : (

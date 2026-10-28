@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DashIcon } from "@/components/dash-icon";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import { Button } from "@/components/ui/button";
 import { blocksQueryOptions } from "@/lib/api/blocks";
 import { chainStatsQueryOptions } from "@/lib/api/chain";
@@ -27,9 +29,10 @@ import {
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiGovernanceObject } from "@/lib/api/types";
 import {
+  formatDateTime,
   formatDuration,
   formatDurationParts,
-  formatRelativeTime,
+  formatNumber,
 } from "@/lib/format";
 import {
   getMsUntilSuperblock,
@@ -104,6 +107,7 @@ function SortHeader({
 }
 
 export default function RedesignDaoPage() {
+  const now = useNow();
   const storeNetwork = useStore(appStore, (state) => state.network);
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -263,8 +267,13 @@ export default function RedesignDaoPage() {
     network,
     blockTimeMs,
   );
-  const nextSuperblockDate = new Date(Date.now() + msUntilSuperblock);
-  const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
+  const nextSuperblockDate = new Date(now + msUntilSuperblock);
+  const votingDeadline = getVotingDeadline(
+    currentHeight,
+    network,
+    blockTimeMs,
+    now,
+  );
 
   const columns: DataTableColumn<ApiGovernanceObject>[] = [
     {
@@ -369,7 +378,11 @@ export default function RedesignDaoPage() {
       ),
       cell: (row) => (
         <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {row.creationTime ? formatRelativeTime(row.creationTime) : "—"}
+          {row.creationTime ? (
+            <RelativeTime timestamp={row.creationTime} />
+          ) : (
+            "—"
+          )}
         </span>
       ),
     },
@@ -417,7 +430,7 @@ export default function RedesignDaoPage() {
           return <span className="text-muted-foreground">—</span>;
         return (
           <span className="font-mono text-sm font-medium tabular-nums text-accent">
-            {amount.toLocaleString()} <DashIcon />
+            {formatNumber(amount)} <DashIcon />
           </span>
         );
       },
@@ -454,7 +467,7 @@ export default function RedesignDaoPage() {
             <CardHeader>
               <CardDescription>Total Proposals</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {proposalCount.toLocaleString()} ({totalRequested} <DashIcon />)
+                {formatNumber(proposalCount)} ({totalRequested} <DashIcon />)
               </CardTitle>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
@@ -506,7 +519,7 @@ export default function RedesignDaoPage() {
               <dl className="flex flex-col gap-4">
                 <DetailRow label="Voting Deadline" className="border-b-0 pb-0">
                   <span>
-                    {votingDeadline.toLocaleString("en-US", {
+                    {formatDateTime(votingDeadline, {
                       year: "numeric",
                       month: "short",
                       day: "numeric",
@@ -527,7 +540,7 @@ export default function RedesignDaoPage() {
                   className="border-b-0 pb-0"
                 >
                   <span>
-                    {nextSuperblockDate.toLocaleString("en-US", {
+                    {formatDateTime(nextSuperblockDate, {
                       year: "numeric",
                       month: "short",
                       day: "numeric",
@@ -538,24 +551,24 @@ export default function RedesignDaoPage() {
                 </DetailRow>
                 <DetailRow label="Required Votes" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
-                    {requiredVotes.toLocaleString()} Yes
+                    {formatNumber(requiredVotes)} Yes
                   </span>
                 </DetailRow>
                 <DetailRow label="Remaining budget" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
-                    {Math.round(remainingBudget).toLocaleString()} <DashIcon />
+                    {formatNumber(Math.round(remainingBudget))} <DashIcon />
                   </span>
                 </DetailRow>
                 <DetailRow label="Passes voting" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
                     {enoughVotesProposalCount} proposals ·{" "}
-                    {Math.round(enoughVotesTotal).toLocaleString()} <DashIcon />
+                    {formatNumber(Math.round(enoughVotesTotal))} <DashIcon />
                   </span>
                 </DetailRow>
                 <DetailRow label="Enough funds for" className="border-b-0 pb-0">
                   <span className="font-mono tabular-nums">
                     {enoughFundsProposalCount} proposals ·{" "}
-                    {Math.round(enoughFundsTotal).toLocaleString()} <DashIcon />
+                    {formatNumber(Math.round(enoughFundsTotal))} <DashIcon />
                   </span>
                 </DetailRow>
               </dl>
@@ -649,9 +662,7 @@ function SuperblockCountdown({
         <CountdownRing
           label="Voting closes"
           subLabel={
-            voteProgress >= 1
-              ? "Voting closed"
-              : `#${voteHeight.toLocaleString()}`
+            voteProgress >= 1 ? "Voting closed" : `#${formatNumber(voteHeight)}`
           }
           msRemaining={msUntilVoteCutoff}
           progress={voteProgress}
@@ -660,7 +671,7 @@ function SuperblockCountdown({
         />
         <CountdownRing
           label="Next superblock"
-          subLabel={`#${sbHeight.toLocaleString()}`}
+          subLabel={`#${formatNumber(sbHeight)}`}
           msRemaining={msRemaining}
           progress={sbProgress}
           accent="var(--accent)"

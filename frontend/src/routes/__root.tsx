@@ -7,6 +7,7 @@ import {
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import type { ReactNode } from "react";
+import { RenderClock } from "@/components/render-clock";
 import { Toaster } from "@/components/ui/sonner";
 import { getBaseUrl } from "@/lib/api/client";
 import { defaultNetwork } from "@/lib/store";
@@ -22,6 +23,7 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+  loader: () => ({ now: Date.now() }),
   errorComponent: ErrorFallback,
   head: () => ({
     meta: [
@@ -57,6 +59,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 });
 
 function RootDocument({ children }: { children: ReactNode }) {
+  const data = Route.useLoaderData();
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -66,7 +69,9 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body className="font-sans antialiased">
         <ThemeHydrator />
-        <ThemeShell>{children}</ThemeShell>
+        <RenderClock initialNow={data?.now ?? 0}>
+          <ThemeShell>{children}</ThemeShell>
+        </RenderClock>
         <Toaster />
         <AppDevtools />
         <Analytics />

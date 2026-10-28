@@ -1,6 +1,7 @@
 import { ArrowLeft, CircleCheck, Server, ServerCrash } from "lucide-react";
+import { RelativeTime } from "@/components/relative-time";
 import { type ApiPeer, decodeServices } from "@/lib/api/peers";
-import { formatRelativeTime } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { CopyButton } from "@/themes/neo/components/copy-button";
 import { DetailRow } from "@/themes/neo/components/detail-row";
 import { Badge } from "@/themes/neo/components/ui/badge";
@@ -13,9 +14,9 @@ function TimeValue({ value }: { value: string }) {
   }
   return (
     <>
-      <span className="font-mono text-xs">{date.toLocaleString()}</span>
+      <span className="font-mono text-xs">{formatDateTime(date)}</span>
       <span className="text-xs text-muted-foreground">
-        ({formatRelativeTime(value)})
+        ({<RelativeTime timestamp={value} />})
       </span>
     </>
   );
@@ -104,7 +105,7 @@ export function PeerDetail({
         </DetailRow>
         <DetailRow label="Start Height">
           <span className="font-mono text-sm tabular-nums">
-            {peer.startHeight != null ? peer.startHeight.toLocaleString() : "—"}
+            {peer.startHeight != null ? formatNumber(peer.startHeight) : "—"}
           </span>
         </DetailRow>
         <DetailRow label="Services">

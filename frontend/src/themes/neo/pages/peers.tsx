@@ -2,13 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { CircleCheck, Network, Server, ServerCrash } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { RelativeTime } from "@/components/relative-time";
 import {
   type ApiPeer,
   allPeersQueryOptions,
   derivePeerUserAgents,
   peerUserAgentsQueryOptions,
 } from "@/lib/api/peers";
-import { formatCompact, formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import {
   DataTable,
@@ -114,7 +115,7 @@ const columns: DataTableColumn<ApiPeer>[] = [
     align: "right",
     cell: (row) => (
       <span className="whitespace-nowrap text-sm text-muted-foreground">
-        {row.lastSeen ? formatRelativeTime(row.lastSeen) : "—"}
+        {row.lastSeen ? <RelativeTime timestamp={row.lastSeen} /> : "—"}
       </span>
     ),
   },
@@ -226,7 +227,7 @@ export default function RedesignPeersListPage() {
             <CardHeader>
               <CardDescription>Available</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {stats.total > 0 ? stats.available.toLocaleString() : "—"}
+                {stats.total > 0 ? formatNumber(stats.available) : "—"}
               </CardTitle>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
@@ -239,7 +240,7 @@ export default function RedesignPeersListPage() {
             <CardHeader>
               <CardDescription>Unavailable</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {stats.total > 0 ? stats.unavailable.toLocaleString() : "—"}
+                {stats.total > 0 ? formatNumber(stats.unavailable) : "—"}
               </CardTitle>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-destructive/12 [&_svg]:text-destructive">

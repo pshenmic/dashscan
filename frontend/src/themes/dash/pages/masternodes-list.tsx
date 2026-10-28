@@ -15,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -27,7 +28,7 @@ import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiMasternode } from "@/lib/api/types";
 import {
   formatCompact,
-  formatRelativeTime,
+  formatNumber,
   getIp,
   getMnStatusBadgeStyle,
   getMnStatusLabel,
@@ -121,7 +122,7 @@ const columns: ColumnDef<ApiMasternode>[] = [
     header: "Last Paid",
     cell: ({ getValue }) => (
       <span className="text-muted-foreground">
-        {formatRelativeTime(getValue<string>())}
+        {<RelativeTime timestamp={getValue<string>()} />}
       </span>
     ),
   },
@@ -211,7 +212,7 @@ export default function ClassicMasternodesListPage({
                 </p>
                 <CardTitle className="mt-1 text-[34px] font-medium tracking-[-0.03em]">
                   <span className="font-extrabold text-[#21314d]">
-                    {stats.total != null ? stats.total.toLocaleString() : "—"}
+                    {stats.total != null ? formatNumber(stats.total) : "—"}
                   </span>{" "}
                   <span className="text-muted-foreground">Nodes</span>
                 </CardTitle>

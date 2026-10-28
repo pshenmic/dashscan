@@ -22,6 +22,7 @@ import {
 import { type ReactNode, useMemo, useState } from "react";
 import { DashIcon } from "@/components/dash-icon";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -42,7 +43,8 @@ import {
 import type { ApiProposalVote, ApiTransaction } from "@/lib/api/types";
 import {
   DUFFS_PER_DASH,
-  formatRelativeTime,
+  formatDateTime,
+  formatNumber,
   getIp,
   sumVOut,
 } from "@/lib/format";
@@ -157,7 +159,7 @@ function ConsecutivePaymentsStrip({ count }: { count: number }) {
         <span className="font-medium uppercase tracking-wider text-muted-foreground">
           Consecutive payments
         </span>
-        <span className="font-mono tabular-nums">{count.toLocaleString()}</span>
+        <span className="font-mono tabular-nums">{formatNumber(count)}</span>
       </div>
       <div className="flex items-end gap-0.5">
         {Array.from({ length: slots }, (_, i) => `bar-${i}`).map((key, i) => {
@@ -273,9 +275,9 @@ function VotingRecord({ proTxHash }: { proTxHash: string }) {
       cell: (row) => (
         <span
           className="whitespace-nowrap text-sm text-muted-foreground"
-          title={new Date(row.time).toLocaleString()}
+          title={formatDateTime(new Date(row.time))}
         >
-          {formatRelativeTime(row.time)}
+          {<RelativeTime timestamp={row.time} />}
         </span>
       ),
     },
@@ -418,7 +420,7 @@ function MasternodeTransactions({ proTxHash }: { proTxHash: string }) {
           params={{ hashOrHeight: String(row.blockHeight) }}
           className="font-mono text-sm tabular-nums text-accent no-underline hover:underline"
         >
-          {row.blockHeight.toLocaleString()}
+          {formatNumber(row.blockHeight)}
         </Link>
       ),
     },
@@ -437,7 +439,11 @@ function MasternodeTransactions({ proTxHash }: { proTxHash: string }) {
               {formatted} <DashIcon />
             </span>
             <span className="whitespace-nowrap text-xs text-muted-foreground">
-              {row.timestamp ? formatRelativeTime(row.timestamp) : "Pending"}
+              {row.timestamp ? (
+                <RelativeTime timestamp={row.timestamp} />
+              ) : (
+                "Pending"
+              )}
             </span>
           </div>
         );
@@ -603,7 +609,9 @@ export default function RedesignMasternodeDetailPage({
                   </span>
                 </span>
                 <span className="text-border">·</span>
-                <span>Registered {formatRelativeTime(mn.createdAt)}</span>
+                <span>
+                  Registered {<RelativeTime timestamp={mn.createdAt} />}
+                </span>
               </div>
               <div className="mt-1 flex min-w-0 items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2 backdrop-blur-sm">
                 <KeyRound className="size-3.5 shrink-0 text-muted-foreground" />
@@ -676,9 +684,11 @@ export default function RedesignMasternodeDetailPage({
                   Last paid
                 </span>
                 <span className="font-display text-2xl tabular-nums">
-                  {mn.lastPaidTime
-                    ? formatRelativeTime(mn.lastPaidTime)
-                    : "Never"}
+                  {mn.lastPaidTime ? (
+                    <RelativeTime timestamp={mn.lastPaidTime} />
+                  ) : (
+                    "Never"
+                  )}
                 </span>
                 {mn.lastPaidBlock ? (
                   <Link
@@ -687,7 +697,7 @@ export default function RedesignMasternodeDetailPage({
                     className="inline-flex w-fit items-center gap-1 font-mono text-xs text-accent hover:underline"
                   >
                     <Boxes className="size-3" /> Block #
-                    {mn.lastPaidBlock.toLocaleString()}
+                    {formatNumber(mn.lastPaidBlock)}
                   </Link>
                 ) : (
                   <span className="text-xs text-muted-foreground">
@@ -707,7 +717,9 @@ export default function RedesignMasternodeDetailPage({
                       isClean ? "text-success" : "text-destructive",
                     )}
                   >
-                    {mn.posPenaltyScore?.toLocaleString() ?? 0}
+                    {(mn.posPenaltyScore == null
+                      ? undefined
+                      : formatNumber(mn.posPenaltyScore)) ?? 0}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1 rounded-xl border border-border/60 bg-card/60 p-3">
@@ -745,9 +757,9 @@ export default function RedesignMasternodeDetailPage({
               <DetailRow label="Last Paid">
                 {mn.lastPaidTime ? (
                   <>
-                    <span>{new Date(mn.lastPaidTime).toLocaleString()}</span>
+                    <span>{formatDateTime(new Date(mn.lastPaidTime))}</span>
                     <span className="text-xs text-muted-foreground">
-                      ({formatRelativeTime(mn.lastPaidTime)})
+                      ({<RelativeTime timestamp={mn.lastPaidTime} />})
                     </span>
                   </>
                 ) : (
@@ -755,15 +767,15 @@ export default function RedesignMasternodeDetailPage({
                 )}
               </DetailRow>
               <DetailRow label="Registered">
-                <span>{new Date(mn.createdAt).toLocaleString()}</span>
+                <span>{formatDateTime(new Date(mn.createdAt))}</span>
                 <span className="text-xs text-muted-foreground">
-                  ({formatRelativeTime(mn.createdAt)})
+                  ({<RelativeTime timestamp={mn.createdAt} />})
                 </span>
               </DetailRow>
               <DetailRow label="Updated">
-                <span>{new Date(mn.updatedAt).toLocaleString()}</span>
+                <span>{formatDateTime(new Date(mn.updatedAt))}</span>
                 <span className="text-xs text-muted-foreground">
-                  ({formatRelativeTime(mn.updatedAt)})
+                  ({<RelativeTime timestamp={mn.updatedAt} />})
                 </span>
               </DetailRow>
             </dl>

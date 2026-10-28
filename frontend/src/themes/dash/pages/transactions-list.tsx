@@ -21,6 +21,7 @@ import {
   Unlock,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -38,7 +39,6 @@ import type { ApiTransaction } from "@/lib/api/types";
 import {
   formatCompact,
   formatDuffs,
-  formatRelativeTime,
   getTxTypeBadgeStyle,
   getTxTypeLabel,
   sumVOut,
@@ -59,7 +59,7 @@ const columns: ColumnDef<ApiTransaction>[] = [
     header: "Time",
     cell: ({ getValue }) => (
       <span className="whitespace-nowrap text-muted-foreground">
-        {formatRelativeTime(getValue<string>())}
+        {<RelativeTime timestamp={getValue<string>()} />}
       </span>
     ),
   },

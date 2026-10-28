@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { type ApiPeerUserAgent, isValidIpv4 } from "@/lib/api/peers";
+import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   countryFlagEmoji,
@@ -215,10 +216,8 @@ export function PeersFilterBar({
 
       <div className="flex flex-1 items-center justify-between gap-3 xl:justify-end xl:pb-0.5">
         <span className="whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">
-          <span className="text-foreground">
-            {filteredTotal.toLocaleString()}
-          </span>
-          {active > 0 && ` of ${total.toLocaleString()}`} peers
+          <span className="text-foreground">{formatNumber(filteredTotal)}</span>
+          {active > 0 && ` of ${formatNumber(total)}`} peers
         </span>
         {active > 0 && (
           <Button
@@ -324,7 +323,7 @@ function UserAgentPicker({
                     {option.userAgent}
                   </span>
                   <Badge variant="soft" className="font-mono tabular-nums">
-                    {option.count.toLocaleString()}
+                    {formatNumber(option.count)}
                   </Badge>
                 </CommandItem>
               ))}

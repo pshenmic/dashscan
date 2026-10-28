@@ -10,14 +10,16 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
 import {
   DUFFS_PER_DASH,
+  formatDateTime,
   formatDuffs,
-  formatRelativeTime,
+  formatNumber,
   txTypeNum,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -195,7 +197,7 @@ export default function ClassicTransactionDetailPage({
               label="Confirmations"
               value={
                 <p className="text-3xl font-extrabold">
-                  {(tx.confirmations ?? 0).toLocaleString()}
+                  {formatNumber(tx.confirmations ?? 0)}
                 </p>
               }
             />
@@ -232,12 +234,12 @@ export default function ClassicTransactionDetailPage({
               <DetailRow label="Timestamp">
                 {tx.timestamp ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span>{new Date(tx.timestamp).toLocaleString()}</span>
+                    <span>{formatDateTime(new Date(tx.timestamp))}</span>
                     <Badge
                       variant="outline"
                       className="rounded-full border-border text-xs font-medium"
                     >
-                      {formatRelativeTime(tx.timestamp)}
+                      {<RelativeTime timestamp={tx.timestamp} />}
                     </Badge>
                   </div>
                 ) : (
@@ -343,7 +345,7 @@ function BlockPill({ height, hash }: { height: number; hash?: string }) {
         className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 transition-colors hover:bg-accent/10"
       >
         <span className="font-mono font-bold text-foreground">
-          {height.toLocaleString()}
+          {formatNumber(height)}
         </span>
       </Link>
       <CopyButton value={hash ?? String(height)} />

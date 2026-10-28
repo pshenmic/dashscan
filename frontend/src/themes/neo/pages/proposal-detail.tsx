@@ -30,6 +30,8 @@ import {
   YAxis,
 } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -68,8 +70,9 @@ import type {
 } from "@/lib/api/types";
 import {
   formatCompactUsd,
+  formatDateTime,
   formatDuration,
-  formatRelativeTime,
+  formatNumber,
 } from "@/lib/format";
 import {
   getMsUntilVotingDeadline,
@@ -148,7 +151,7 @@ function VoteTallyBlock({
         <div className="flex flex-col items-center gap-1 rounded-xl border border-success/20 bg-success/5 py-3">
           <ThumbsUp className="size-4 text-success" />
           <span className="font-display-num text-xl text-success">
-            {result.yesCount.toLocaleString()}
+            {formatNumber(result.yesCount)}
           </span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Yes
@@ -157,7 +160,7 @@ function VoteTallyBlock({
         <div className="flex flex-col items-center gap-1 rounded-xl border border-destructive/20 bg-destructive/5 py-3">
           <ThumbsDown className="size-4 text-destructive" />
           <span className="font-display-num text-xl text-destructive">
-            {result.noCount.toLocaleString()}
+            {formatNumber(result.noCount)}
           </span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             No
@@ -166,7 +169,7 @@ function VoteTallyBlock({
         <div className="flex flex-col items-center gap-1 rounded-xl border border-border/60 bg-secondary/40 py-3">
           <Minus className="size-4 text-muted-foreground" />
           <span className="font-display-num text-xl text-muted-foreground">
-            {result.abstainCount.toLocaleString()}
+            {formatNumber(result.abstainCount)}
           </span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Abstain
@@ -187,7 +190,7 @@ function VoteTallyBlock({
             )}
           >
             {net >= 0 ? "+" : ""}
-            {net.toLocaleString()} / {requiredVotes.toLocaleString()} required
+            {formatNumber(net)} / {formatNumber(requiredVotes)} required
           </span>
         </div>
         <Progress
@@ -296,7 +299,13 @@ export default function RedesignProposalDetailPage({
     blockTimeMs,
   );
   const votingOpen = msUntilVoteCutoff > 0;
-  const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
+  const now = useNow();
+  const votingDeadline = getVotingDeadline(
+    currentHeight,
+    network,
+    blockTimeMs,
+    now,
+  );
 
   const votes = useMemo(() => proposal?.votes ?? [], [proposal]);
 
@@ -476,10 +485,10 @@ export default function RedesignProposalDetailPage({
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="whitespace-nowrap text-sm text-muted-foreground">
-              {formatRelativeTime(row.time)}
+              {<RelativeTime timestamp={row.time} />}
             </span>
           </TooltipTrigger>
-          <TooltipContent>{new Date(row.time).toLocaleString()}</TooltipContent>
+          <TooltipContent>{formatDateTime(new Date(row.time))}</TooltipContent>
         </Tooltip>
       ),
     },
@@ -557,7 +566,8 @@ export default function RedesignProposalDetailPage({
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   {proposal.creationTime && (
                     <span>
-                      Submitted {formatRelativeTime(proposal.creationTime)}
+                      Submitted{" "}
+                      {<RelativeTime timestamp={proposal.creationTime} />}
                     </span>
                   )}
                   {startDate && endDate && (
@@ -565,13 +575,13 @@ export default function RedesignProposalDetailPage({
                       <span className="text-border">·</span>
                       <span className="inline-flex items-center gap-1.5">
                         <CalendarClock className="size-3.5" />
-                        {startDate.toLocaleDateString("en-US", {
+                        {formatDateTime(startDate, {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
                         })}
                         {" → "}
-                        {endDate.toLocaleDateString("en-US", {
+                        {formatDateTime(endDate, {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
@@ -613,7 +623,7 @@ export default function RedesignProposalDetailPage({
             <CardHeader>
               <CardDescription>Requested</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {amount != null ? amount.toLocaleString() : "—"} <DashIcon />
+                {amount != null ? formatNumber(amount) : "—"} <DashIcon />
               </CardTitle>
               <CardDescription>
                 {amount != null && usdPrice?.usd != null
@@ -639,10 +649,10 @@ export default function RedesignProposalDetailPage({
                 )}
               >
                 {funding.absoluteYesCount >= 0 ? "+" : ""}
-                {funding.absoluteYesCount.toLocaleString()}
+                {formatNumber(funding.absoluteYesCount)}
               </CardTitle>
               <CardDescription>
-                of {requiredVotes.toLocaleString()} required
+                of {formatNumber(requiredVotes)} required
               </CardDescription>
               <CardAction>
                 <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
@@ -655,14 +665,13 @@ export default function RedesignProposalDetailPage({
             <CardHeader>
               <CardDescription>Participation</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {(fundingMasternodes > 0
-                  ? fundingMasternodes
-                  : fundingBallots
-                ).toLocaleString()}
+                {formatNumber(
+                  fundingMasternodes > 0 ? fundingMasternodes : fundingBallots,
+                )}
               </CardTitle>
               <CardDescription>
                 {participation != null
-                  ? `${(participation * 100).toFixed(1)}% of ${masternodeCount.toLocaleString()} masternodes voted`
+                  ? `${(participation * 100).toFixed(1)}% of ${formatNumber(masternodeCount)} masternodes voted`
                   : "weighted ballots cast"}
               </CardDescription>
               <CardAction>
@@ -684,7 +693,7 @@ export default function RedesignProposalDetailPage({
               </CardTitle>
               <CardDescription>
                 {currentHeight > 0
-                  ? votingDeadline.toLocaleString("en-US", {
+                  ? formatDateTime(votingDeadline, {
                       month: "short",
                       day: "numeric",
                       hour: "2-digit",
@@ -817,11 +826,11 @@ export default function RedesignProposalDetailPage({
                         tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                         tickFormatter={(v) =>
                           range === "24h"
-                            ? new Date(v).toLocaleTimeString("en-US", {
+                            ? formatDateTime(new Date(v), {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })
-                            : new Date(v).toLocaleDateString("en-US", {
+                            : formatDateTime(new Date(v), {
                                 month: "short",
                                 day: "numeric",
                               })
@@ -840,7 +849,7 @@ export default function RedesignProposalDetailPage({
                           <ChartTooltipContent
                             labelFormatter={(_, payload) => {
                               const ts = payload?.[0]?.payload?.timestamp;
-                              return ts ? new Date(ts).toLocaleString() : "";
+                              return ts ? formatDateTime(new Date(ts)) : "";
                             }}
                           />
                         }
@@ -877,11 +886,11 @@ export default function RedesignProposalDetailPage({
                         tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                         tickFormatter={(v) =>
                           range === "24h"
-                            ? new Date(v).toLocaleTimeString("en-US", {
+                            ? formatDateTime(new Date(v), {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })
-                            : new Date(v).toLocaleDateString("en-US", {
+                            : formatDateTime(new Date(v), {
                                 month: "short",
                                 day: "numeric",
                               })
@@ -900,7 +909,7 @@ export default function RedesignProposalDetailPage({
                           <ChartTooltipContent
                             labelFormatter={(_, payload) => {
                               const ts = payload?.[0]?.payload?.timestamp;
-                              return ts ? new Date(ts).toLocaleString() : "";
+                              return ts ? formatDateTime(new Date(ts)) : "";
                             }}
                           />
                         }
@@ -992,8 +1001,17 @@ export default function RedesignProposalDetailPage({
               <DetailRow label="Payment Window">
                 {startDate && endDate ? (
                   <span>
-                    {startDate.toLocaleDateString()} —{" "}
-                    {endDate.toLocaleDateString()}
+                    {formatDateTime(startDate, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}{" "}
+                    —{" "}
+                    {formatDateTime(endDate, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </span>
                 ) : (
                   <span className="text-muted-foreground">—</span>
@@ -1003,10 +1021,10 @@ export default function RedesignProposalDetailPage({
                 {proposal.creationTime ? (
                   <>
                     <span>
-                      {new Date(proposal.creationTime).toLocaleString()}
+                      {formatDateTime(new Date(proposal.creationTime))}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      ({formatRelativeTime(proposal.creationTime)})
+                      ({<RelativeTime timestamp={proposal.creationTime} />})
                     </span>
                   </>
                 ) : (
@@ -1024,8 +1042,8 @@ export default function RedesignProposalDetailPage({
                 Masternode votes
               </h2>
               <p className="text-sm text-muted-foreground">
-                {votes.length.toLocaleString()} votes from{" "}
-                {uniqueMasternodes.toLocaleString()} masternodes this cycle
+                {formatNumber(votes.length)} votes from{" "}
+                {formatNumber(uniqueMasternodes)} masternodes this cycle
               </p>
             </div>
           </div>

@@ -3,11 +3,12 @@ import { useStore } from "@tanstack/react-store";
 import { Bookmark, Check, ChevronDown, Clipboard } from "lucide-react";
 import { useState } from "react";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import {
-  formatRelativeTime,
+  formatDateTime,
   getMnStatusBadgeStyle,
   getMnStatusLabel,
   getMnTypeBadgeStyle,
@@ -157,19 +158,19 @@ export default function ClassicMasternodeDetailPage({
               </DetailRow>
               <DetailRow label="Registered:">
                 <span className="font-medium">
-                  {new Date(mn.createdAt).toLocaleString()}
+                  {formatDateTime(new Date(mn.createdAt))}
                 </span>
                 <Badge
                   variant="outline"
                   className="ml-2 rounded-full border-border text-[10px] font-medium"
                 >
-                  {formatRelativeTime(mn.createdAt)}
+                  {<RelativeTime timestamp={mn.createdAt} />}
                 </Badge>
               </DetailRow>
               <DetailRow label="Last Paid:">
                 <span className="font-medium">
                   {mn.lastPaidTime
-                    ? new Date(mn.lastPaidTime).toLocaleString()
+                    ? formatDateTime(new Date(mn.lastPaidTime))
                     : "—"}
                 </span>
                 {mn.lastPaidTime ? (
@@ -177,7 +178,7 @@ export default function ClassicMasternodeDetailPage({
                     variant="outline"
                     className="ml-2 rounded-full border-border text-[10px] font-medium"
                   >
-                    {formatRelativeTime(mn.lastPaidTime)}
+                    {<RelativeTime timestamp={mn.lastPaidTime} />}
                   </Badge>
                 ) : null}
               </DetailRow>

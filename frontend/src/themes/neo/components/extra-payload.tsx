@@ -14,7 +14,7 @@ import type {
   ApiProUpServTxPayload,
   ApiQcTxPayload,
 } from "@/lib/api/types";
-import { txTypeNum } from "@/lib/format";
+import { formatNumber, txTypeNum } from "@/lib/format";
 import { CopyButton } from "@/themes/neo/components/copy-button";
 import { DetailRow } from "@/themes/neo/components/detail-row";
 import { HashDisplay } from "@/themes/neo/components/hash-display";
@@ -186,7 +186,7 @@ function BlockLink({ height }: { height: number | null | undefined }) {
       params={{ hashOrHeight: String(height) }}
       className="font-mono text-sm tabular-nums text-accent hover:underline"
     >
-      #{height.toLocaleString()}
+      #{formatNumber(height)}
     </Link>
   );
 }

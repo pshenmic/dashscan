@@ -21,6 +21,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { RelativeTime } from "@/components/relative-time";
 import { Button } from "@/components/ui/button";
 import {
   type ChartConfig,
@@ -35,7 +36,7 @@ import {
 import { chainStatsQueryOptions } from "@/lib/api/chain";
 import { blockTransactionsStatsQueryOptions } from "@/lib/api/stats";
 import type { ApiBlock } from "@/lib/api/types";
-import { formatCompact, formatRelativeTime } from "@/lib/format";
+import { formatCompact, formatDateTime, formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import {
@@ -201,7 +202,7 @@ export default function RedesignBlocksListPage() {
           <div className="flex min-w-0 flex-col gap-0.5">
             <div className="flex items-center gap-1.5">
               <span className="font-mono text-sm font-semibold tabular-nums text-accent">
-                #{row.height.toLocaleString()}
+                #{formatNumber(row.height)}
               </span>
               {row.superblock && (
                 <Badge
@@ -230,7 +231,7 @@ export default function RedesignBlocksListPage() {
       cell: (row) => (
         <Badge variant="soft" className="font-mono">
           <ArrowLeftRight className="size-3" />
-          {row.txCount.toLocaleString()}
+          {formatNumber(row.txCount)}
         </Badge>
       ),
     },
@@ -260,7 +261,7 @@ export default function RedesignBlocksListPage() {
       align: "right",
       cell: (row) => (
         <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {formatRelativeTime(row.timestamp)}
+          {<RelativeTime timestamp={row.timestamp} />}
         </span>
       ),
     },
@@ -284,7 +285,7 @@ export default function RedesignBlocksListPage() {
               <CardDescription>Latest Block</CardDescription>
               <CardTitle className="text-xl tabular-nums text-accent">
                 {stats.latestHeight != null
-                  ? `#${stats.latestHeight.toLocaleString()}`
+                  ? `#${formatNumber(stats.latestHeight)}`
                   : "—"}
               </CardTitle>
               <CardAction>
@@ -402,7 +403,7 @@ export default function RedesignBlocksListPage() {
                       tickMargin={8}
                       minTickGap={32}
                       tickFormatter={(v) =>
-                        new Date(v).toLocaleTimeString("en-US", {
+                        formatDateTime(new Date(v), {
                           hour: "numeric",
                           hour12: false,
                         })
@@ -421,7 +422,7 @@ export default function RedesignBlocksListPage() {
                           labelFormatter={(_, payload) => {
                             const ts = payload?.[0]?.payload?.timestamp;
                             if (typeof ts !== "number") return null;
-                            return new Date(ts).toLocaleString("en-US", {
+                            return formatDateTime(new Date(ts), {
                               month: "short",
                               day: "numeric",
                               hour: "numeric",
@@ -515,7 +516,7 @@ export default function RedesignBlocksListPage() {
                           labelFormatter={(_, payload) => {
                             const h = payload?.[0]?.payload?.height;
                             return h != null
-                              ? `Block #${Number(h).toLocaleString()}`
+                              ? `Block #${formatNumber(Number(h))}`
                               : null;
                           }}
                         />

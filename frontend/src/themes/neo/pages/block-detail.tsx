@@ -15,8 +15,10 @@ import {
   Layers,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { DashIcon } from "@/components/dash-icon";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -38,8 +40,9 @@ import { blockQueryOptions } from "@/lib/api/blocks";
 import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
 import {
+  formatDateTime,
   formatDuffs,
-  formatRelativeTime,
+  formatNumber,
   highlightJson,
   sumVOut,
 } from "@/lib/format";
@@ -63,15 +66,6 @@ import { Badge } from "@/themes/neo/components/ui/badge";
 import { Card, CardContent } from "@/themes/neo/components/ui/card";
 
 const FINALITY_CONFIRMS = 6;
-
-function useNow(intervalMs = 1000) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), intervalMs);
-    return () => window.clearInterval(id);
-  }, [intervalMs]);
-  return now;
-}
 
 function formatAge(diffMs: number): string {
   if (diffMs < 0) return "just now";
@@ -117,7 +111,7 @@ function IsometricBlockCube({ height }: { height: number }) {
               Block
             </span>
             <span className="font-display text-xl leading-none tabular-nums">
-              #{height.toLocaleString()}
+              #{formatNumber(height)}
             </span>
           </div>
         </div>
@@ -142,7 +136,7 @@ function ConfirmationBar({ confirmations }: { confirmations: number }) {
             final ? "text-success" : "text-accent",
           )}
         >
-          {confirmations.toLocaleString()} /{" "}
+          {formatNumber(confirmations)} /{" "}
           <span className="text-muted-foreground">{FINALITY_CONFIRMS}+</span>
         </span>
       </div>
@@ -404,7 +398,7 @@ export default function RedesignBlockDetailPage({
                   )}
                 </div>
                 <h1 className="font-display text-4xl leading-none sm:text-5xl">
-                  #{block.height.toLocaleString()}
+                  #{formatNumber(block.height)}
                 </h1>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
@@ -415,7 +409,7 @@ export default function RedesignBlockDetailPage({
                     old
                   </span>
                   <span className="text-border">·</span>
-                  <span>{new Date(block.timestamp).toLocaleString()}</span>
+                  <span>{formatDateTime(new Date(block.timestamp))}</span>
                 </div>
                 <div className="mt-1 flex min-w-0 items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2 backdrop-blur-sm">
                   <Hash className="size-3.5 shrink-0 text-muted-foreground" />
@@ -434,7 +428,7 @@ export default function RedesignBlockDetailPage({
               <div className="grid gap-3 sm:grid-cols-3">
                 <HeroStat
                   label="Transactions"
-                  value={block.txCount.toLocaleString()}
+                  value={formatNumber(block.txCount)}
                   icon={<ArrowLeftRight />}
                 />
                 <HeroStat
@@ -468,25 +462,25 @@ export default function RedesignBlockDetailPage({
                     to="/blocks/$hashOrHeight"
                     params={{ hashOrHeight: block.previousBlockHash }}
                   >
-                    #{(block.height - 1).toLocaleString()}
+                    #{formatNumber(block.height - 1)}
                   </Link>
                 </Button>
               </DetailRow>
               <DetailRow label="Timestamp">
-                <span>{new Date(block.timestamp).toLocaleString()}</span>
+                <span>{formatDateTime(new Date(block.timestamp))}</span>
                 <span className="text-xs text-muted-foreground">
-                  {formatRelativeTime(block.timestamp)}
+                  {<RelativeTime timestamp={block.timestamp} />}
                 </span>
               </DetailRow>
               <DetailRow label="Confirmations">
-                {block.confirmations.toLocaleString()}
+                {formatNumber(block.confirmations)}
               </DetailRow>
               <DetailRow label="Size">
                 <span className="font-mono tabular-nums">
                   {(block.size / 1024).toFixed(2)} KB
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  ({block.size.toLocaleString()} bytes)
+                  ({formatNumber(block.size)} bytes)
                 </span>
               </DetailRow>
               <DetailRow label="Difficulty">
@@ -496,7 +490,7 @@ export default function RedesignBlockDetailPage({
               </DetailRow>
               <DetailRow label="Nonce">
                 <span className="font-mono tabular-nums">
-                  {block.nonce.toLocaleString()}
+                  {formatNumber(block.nonce)}
                 </span>
               </DetailRow>
               <DetailRow label="Version">{block.version}</DetailRow>
@@ -514,7 +508,7 @@ export default function RedesignBlockDetailPage({
             <TabsTrigger value="transactions" className="gap-1.5">
               <Hash className="size-3.5" /> Transactions
               <span className="text-muted-foreground">
-                ({block.txCount.toLocaleString()})
+                ({formatNumber(block.txCount)})
               </span>
             </TabsTrigger>
             <TabsTrigger value="raw" className="gap-1.5">

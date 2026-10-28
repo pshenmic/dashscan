@@ -1,4 +1,5 @@
 import {
+  formatNumber,
   getMnStatusLabel,
   getMnTypeLabel,
   getTxTypeLabel,
@@ -130,7 +131,7 @@ export function ConfirmationsBadge({ confirmations }: ConfirmationsBadgeProps) {
   if (confirmations === 0) return <Badge variant="soft">Unconfirmed</Badge>;
   return (
     <Badge variant="soft-success">
-      {confirmations.toLocaleString()}{" "}
+      {formatNumber(confirmations)}{" "}
       {confirmations === 1 ? "confirm" : "confirms"}
     </Badge>
   );

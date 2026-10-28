@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNow } from "@/components/render-clock";
 
 const SOCIAL_LINKS = [
   {
@@ -124,7 +125,8 @@ function AnalogClock({
 }
 
 export default function Footer() {
-  const year = new Date().getFullYear();
+  const now = useNow();
+  const year = new Date(now).getUTCFullYear();
   const [clock, setClock] = useState<{
     hours: number;
     minutes: number;

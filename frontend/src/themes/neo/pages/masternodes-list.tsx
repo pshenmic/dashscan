@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Cell, Pie, PieChart } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import {
   type ChartConfig,
   ChartContainer,
@@ -28,7 +30,7 @@ import {
 import type { ApiMasternode } from "@/lib/api/types";
 import {
   formatCompact,
-  formatRelativeTime,
+  formatNumber,
   getIp,
   getMnStatusBucket,
   getMnTypeBucket,
@@ -97,6 +99,7 @@ function buildTypeConfig(typeChart: { name: string; value: number }[]) {
 }
 
 export default function RedesignMasternodesListPage() {
+  const now = useNow();
   const network = useStore(appStore, (state) => state.network);
   const navigate = useNavigate({ from: "/masternodes/" });
   const [search, setSearch] = useState("");
@@ -184,7 +187,7 @@ export default function RedesignMasternodesListPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    const nowSec = Math.floor(Date.now() / 1000);
+    const nowSec = Math.floor(now / 1000);
     return masternodes.filter((m) => {
       if (q) {
         const match =
@@ -225,7 +228,7 @@ export default function RedesignMasternodesListPage() {
       }
       return true;
     });
-  }, [search, masternodes, filters, countryByHash]);
+  }, [search, masternodes, filters, countryByHash, now]);
 
   const typeConfig = useMemo(
     () =>
@@ -343,7 +346,7 @@ export default function RedesignMasternodesListPage() {
         const stake = getMasternodeCollateral(row.type);
         return (
           <span className="font-mono text-sm font-medium tabular-nums text-accent">
-            {stake.toLocaleString()} <DashIcon />
+            {formatNumber(stake)} <DashIcon />
           </span>
         );
       },
@@ -354,7 +357,11 @@ export default function RedesignMasternodesListPage() {
       align: "right",
       cell: (row) => (
         <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {row.lastPaidTime ? formatRelativeTime(row.lastPaidTime) : "Never"}
+          {row.lastPaidTime ? (
+            <RelativeTime timestamp={row.lastPaidTime} />
+          ) : (
+            "Never"
+          )}
         </span>
       ),
     },
@@ -391,7 +398,7 @@ export default function RedesignMasternodesListPage() {
               <CardHeader>
                 <CardDescription>Enabled</CardDescription>
                 <CardTitle className="text-2xl tabular-nums text-accent">
-                  {stats.loaded > 0 ? stats.enabled.toLocaleString() : "—"}
+                  {stats.loaded > 0 ? formatNumber(stats.enabled) : "—"}
                 </CardTitle>
                 <CardAction>
                   <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
@@ -404,7 +411,7 @@ export default function RedesignMasternodesListPage() {
               <CardHeader>
                 <CardDescription>Banned</CardDescription>
                 <CardTitle className="text-2xl tabular-nums text-accent">
-                  {stats.loaded > 0 ? stats.banned.toLocaleString() : "—"}
+                  {stats.loaded > 0 ? formatNumber(stats.banned) : "—"}
                 </CardTitle>
                 <CardAction>
                   <div className="flex size-9 items-center justify-center rounded-full bg-destructive/12 [&_svg]:text-destructive">
@@ -419,7 +426,7 @@ export default function RedesignMasternodesListPage() {
             <CardHeader>
               <CardDescription>Distribution</CardDescription>
               <CardTitle className="text-xl tabular-nums text-accent">
-                {stats.loaded.toLocaleString()} nodes
+                {formatNumber(stats.loaded)} nodes
               </CardTitle>
             </CardHeader>
             <CardContent>
