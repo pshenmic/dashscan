@@ -55,3 +55,35 @@
   --input: rgb(255 255 255 / 24%);
   --ring: var(--accent);
 }
+
+@utility dash-heading-hero {
+  @apply font-sans text-5xl leading-[3.75rem] font-medium tracking-normal;
+}
+
+@utility dash-heading-page {
+  @apply font-sans text-[2rem] leading-[2.625rem] font-medium tracking-normal;
+}
+
+@utility dash-heading-section {
+  @apply font-sans text-2xl leading-8 font-medium tracking-normal;
+}
+
+@utility dash-body {
+  @apply font-sans text-base leading-6 font-medium tracking-normal;
+}
+
+@utility dash-body-compact {
+  @apply font-sans text-sm leading-5 font-medium tracking-normal;
+}
+
+@utility dash-label-small {
+  @apply font-sans text-xs leading-[1.125rem] font-medium tracking-normal;
+}
+
+@utility dash-metric {
+  @apply font-sans text-2xl leading-8 font-extrabold tracking-normal;
+}
+
+@utility dash-data-mono {
+  @apply font-mono text-xs leading-[1.125rem] font-normal tracking-normal;
+}

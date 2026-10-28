@@ -30,14 +30,10 @@ export function StatCard({
       </div>
       <div className="relative mt-3">
         <div className="flex items-center gap-2">
-          <p className="text-[28px] font-extrabold tracking-[-0.02em] text-card-foreground">
-            {value}
-          </p>
+          <p className="dash-metric text-card-foreground">{value}</p>
           {adornment}
         </div>
-        <p className="mt-1 text-[14px] font-medium text-muted-foreground">
-          {label}
-        </p>
+        <p className="dash-body-compact mt-1 text-muted-foreground">{label}</p>
       </div>
     </Card>
   );

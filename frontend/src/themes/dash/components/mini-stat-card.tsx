@@ -29,7 +29,7 @@ export function MiniStatCard({
         {icon}
       </div>
       <div className="relative flex min-w-0 flex-col gap-1">
-        <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
+        <p className="dash-label-small text-muted-foreground">{label}</p>
         <div className="flex items-center gap-1.5 text-[20px] font-extrabold tracking-[-0.02em] text-card-foreground">
           {value}
         </div>

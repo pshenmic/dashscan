@@ -146,8 +146,8 @@ export default function ClassicDashboardPage() {
   return (
     <main className="mx-auto max-w-[1440px] px-6 py-10">
       <div className="mb-8">
-        <p className="text-sm text-muted-foreground">Welcome to #1</p>
-        <h1 className="text-4xl font-extrabold tracking-tight">
+        <p className="dash-body-compact text-muted-foreground">Welcome to #1</p>
+        <h1 className="dash-heading-page sm:dash-heading-hero">
           <span className="text-accent">Dash</span> Blockchain Explorer
         </h1>
       </div>
