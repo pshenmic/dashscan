@@ -117,8 +117,9 @@ cd frontend
 npm ci
 cp .env.example .env.local
 npm run dev        # development (port 3000)
-npm run typecheck  # TypeScript checks (not part of Vite's build)
-npm run build      # production build
+npm run typecheck  # TypeScript checks after dev/build generates routes
+npm run build      # production build followed by TypeScript checks
+npm run verify     # lint, production build, types and tests
 npm start          # serve the production build
 ```
 
