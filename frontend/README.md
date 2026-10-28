@@ -89,6 +89,17 @@ by default; override with `PORT`). `npm run preview` previews a build via Vite.
 
 ## Dependencies and UI
 
+Use `formatNumber` from `src/lib/format.ts` for locale-independent numeric
+display: thousands use non-breaking spaces (U+00A0), decimals use a dot.
+Use `formatDateTime` for absolute dates in UTC. Keep raw numbers and timestamps
+unchanged in API requests, sorting and calculations.
+
+Use `RelativeTime` for ages and `useNow` for rendered countdowns. The root
+loader provides a request-scoped timestamp through `RenderClock`, so the server
+and initial browser render agree even when the HTML was cached. The clock starts
+updating after hydration. Do not use the browser's default locale, time zone or
+`Date.now()` directly to produce initial page text.
+
 There are two themes, `neo` (default) and `dash`, sharing routes and API queries.
 Check both when changing shared components or state. Map changes also require
 checking the masternode and peer maps, zoom/pan, country hover and markers.
