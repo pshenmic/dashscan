@@ -3,8 +3,8 @@ import { addressQueryOptions } from "@/lib/api/addresses";
 import { blockQueryOptions } from "@/lib/api/blocks";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import { transactionQueryOptions } from "@/lib/api/transactions";
-import { buildOgSvg, type OgPayload } from "@/lib/og";
 import { txTypeNum } from "@/lib/format";
+import { buildOgSvg, type OgPayload } from "@/lib/og";
 import { defaultNetwork } from "@/lib/store";
 
 type OgKind = OgPayload["kind"];

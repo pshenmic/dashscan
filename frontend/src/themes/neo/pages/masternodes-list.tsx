@@ -1,11 +1,11 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { Avatar } from "dash-ui-kit/react";
 import { CircleCheck, Server, ServerCrash, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Cell, Pie, PieChart } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
+import { Avatar } from "@/components/identicon";
 import {
   type ChartConfig,
   ChartContainer,

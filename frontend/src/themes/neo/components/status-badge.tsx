@@ -1,4 +1,9 @@
-import { getMnStatusLabel, getMnTypeLabel, getTxTypeLabel, txTypeNum } from "@/lib/format";
+import {
+  getMnStatusLabel,
+  getMnTypeLabel,
+  getTxTypeLabel,
+  txTypeNum,
+} from "@/lib/format";
 import { Badge } from "@/themes/neo/components/ui/badge";
 
 type BadgeVariant =

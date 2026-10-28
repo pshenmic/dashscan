@@ -256,14 +256,14 @@ export default function RedesignDaoPage() {
   const enoughVotesTotal = budget?.enoughVotesTotal ?? 0;
   const enoughVotesProposalCount = budget?.enoughVotesCount ?? 0;
   const totalRequested = budget?.totalRequested ?? 0;
-  const remainingBudget = budget?.remainingEnoughVotes ?? 0
+  const remainingBudget = budget?.remainingEnoughVotes ?? 0;
 
   const msUntilSuperblock = getMsUntilSuperblock(
     currentHeight,
     network,
     blockTimeMs,
   );
-  const nextSuperblockDate = new Date(new Date().getTime() + msUntilSuperblock);
+  const nextSuperblockDate = new Date(Date.now() + msUntilSuperblock);
   const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
 
   const columns: DataTableColumn<ApiGovernanceObject>[] = [
@@ -467,7 +467,7 @@ export default function RedesignDaoPage() {
             <CardHeader>
               <CardDescription>{fundedLabel}</CardDescription>
               <CardTitle className="text-2xl tabular-nums text-accent">
-                {votingOpen ? totalRequested : enoughFundsTotal }{" "}
+                {votingOpen ? totalRequested : enoughFundsTotal}{" "}
                 <span className="text-muted-foreground text-base">
                   / {availableBudget.toFixed(1)} <DashIcon />
                 </span>
