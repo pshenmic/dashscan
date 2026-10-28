@@ -15,7 +15,7 @@ export function StatCard({
   adornment?: ReactNode;
 }) {
   return (
-    <Card className="relative h-full min-h-[152px] gap-0 overflow-hidden rounded-[24px] border-0 bg-white p-5 shadow-none">
+    <Card className="relative h-full min-h-[152px] gap-0 overflow-hidden rounded-3xl border-0 bg-card p-5 shadow-none">
       <div
         className="pointer-events-none absolute inset-0 bg-no-repeat"
         style={{
@@ -30,7 +30,7 @@ export function StatCard({
       </div>
       <div className="relative mt-3">
         <div className="flex items-center gap-2">
-          <p className="text-[28px] font-extrabold tracking-[-0.02em] text-[#10213f]">
+          <p className="text-[28px] font-extrabold tracking-[-0.02em] text-card-foreground">
             {value}
           </p>
           {adornment}
