@@ -20,6 +20,8 @@ type AreaChartProps<T> = {
   renderTooltip: (item: T) => ReactNode;
   ariaLabel: string;
   className?: string;
+  minimumMax?: number;
+  formatYLabel?: (value: number) => string;
 };
 
 export function AreaChart<T>({
@@ -30,6 +32,8 @@ export function AreaChart<T>({
   renderTooltip,
   ariaLabel,
   className,
+  minimumMax = 1,
+  formatYLabel = String,
 }: AreaChartProps<T>) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const gradientId = useId();
@@ -37,14 +41,19 @@ export function AreaChart<T>({
   const geometry = useMemo(() => {
     if (data.length === 0) return null;
 
-    const maxValue = Math.max(...data.map(getValue), 1);
+    const maxValue = Math.max(
+      ...data.map(getValue),
+      minimumMax,
+      Number.EPSILON,
+    );
     const magnitude = 10 ** Math.floor(Math.log10(maxValue || 1));
-    const step = magnitude < 1 ? 1 : magnitude <= 5 ? magnitude : magnitude / 2;
+    const step =
+      magnitude < 1 ? magnitude : magnitude <= 5 ? magnitude : magnitude / 2;
     const niceMax = Math.ceil(maxValue / step) * step || 1;
     const yTicks = [
       0,
-      Math.round(niceMax / 3),
-      Math.round((niceMax * 2) / 3),
+      niceMax < 3 ? niceMax / 3 : Math.round(niceMax / 3),
+      niceMax < 3 ? (niceMax * 2) / 3 : Math.round((niceMax * 2) / 3),
       niceMax,
     ];
 
@@ -64,7 +73,7 @@ export function AreaChart<T>({
     const labelInterval = Math.max(1, Math.floor(data.length / 8));
 
     return { niceMax, yTicks, points, linePath, areaPath, labelInterval };
-  }, [data, getValue]);
+  }, [data, getValue, minimumMax]);
 
   if (!geometry) return null;
 
@@ -115,7 +124,7 @@ export function AreaChart<T>({
                 className="fill-muted-foreground"
                 fontSize="11"
               >
-                {tick}
+                {formatYLabel(tick)}
               </text>
             </g>
           );
