@@ -49,11 +49,11 @@ export function PriceChart({ data, className, formatValue }: PriceChartProps) {
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop
               offset="0%"
-              stopColor="oklch(from var(--accent) l c h / 0.3)"
+              stopColor="oklch(from var(--chart-1) l c h / 0.3)"
             />
             <stop
               offset="100%"
-              stopColor="oklch(from var(--accent) l c h / 0)"
+              stopColor="oklch(from var(--chart-1) l c h / 0)"
             />
           </linearGradient>
         </defs>
@@ -75,7 +75,7 @@ export function PriceChart({ data, className, formatValue }: PriceChartProps) {
         <path
           d={linePath}
           fill="none"
-          stroke="var(--accent)"
+          stroke="var(--chart-1)"
           strokeWidth="2"
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -94,7 +94,7 @@ export function PriceChart({ data, className, formatValue }: PriceChartProps) {
               cx={p.x}
               cy={p.y}
               r="3"
-              fill="var(--accent)"
+              fill="var(--chart-1)"
               className="opacity-0 transition-opacity group-hover:opacity-100"
             />
             <foreignObject

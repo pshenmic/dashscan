@@ -84,12 +84,12 @@ export function AreaChart<T>({
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop
               offset="0%"
-              stopColor="oklch(from var(--accent) l c h)"
+              stopColor="oklch(from var(--chart-1) l c h)"
               stopOpacity="0.35"
             />
             <stop
               offset="100%"
-              stopColor="oklch(from var(--accent) l c h)"
+              stopColor="oklch(from var(--chart-1) l c h)"
               stopOpacity="0.05"
             />
           </linearGradient>
@@ -125,7 +125,7 @@ export function AreaChart<T>({
         <path
           d={linePath}
           fill="none"
-          stroke="oklch(from var(--accent) l c h)"
+          stroke="oklch(from var(--chart-1) l c h)"
           strokeWidth="1.5"
         />
 
@@ -138,12 +138,12 @@ export function AreaChart<T>({
             r={hoveredIndex === i ? 4 : 2}
             fill={
               hoveredIndex === i
-                ? "oklch(from var(--accent) l c h)"
+                ? "oklch(from var(--chart-1) l c h)"
                 : "transparent"
             }
             stroke={
               hoveredIndex === i
-                ? "oklch(from var(--accent) l c h)"
+                ? "oklch(from var(--chart-1) l c h)"
                 : "transparent"
             }
             strokeWidth="1.5"
