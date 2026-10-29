@@ -1,6 +1,7 @@
 import { HomeBlocks } from "@/themes/dash/components/home-blocks";
 import { HomeGeneralStats } from "@/themes/dash/components/home-general-stats";
 import { HomeHero } from "@/themes/dash/components/home-hero";
+import { HomeTransactions } from "@/themes/dash/components/home-transactions";
 
 export default function HomePage() {
   return (
@@ -9,6 +10,7 @@ export default function HomePage() {
       <div className="space-y-12">
         <HomeGeneralStats />
         <HomeBlocks />
+        <HomeTransactions />
       </div>
     </main>
   );
