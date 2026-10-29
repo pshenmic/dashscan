@@ -15,7 +15,12 @@ describe("theme state", () => {
 
   it("persists the selected theme to the document", () => {
     const document = {
-      documentElement: { setAttribute: vi.fn() },
+      documentElement: {
+        setAttribute: vi.fn(),
+        getAttribute: () => "light",
+        classList: { toggle: vi.fn() },
+        style: {},
+      },
       cookie: "",
     };
     vi.stubGlobal("document", document);
