@@ -40,6 +40,7 @@ export function CopyButton({ value }: { value: string }) {
       <TooltipTrigger asChild>
         <button
           type="button"
+          aria-label="Copy to clipboard"
           onClick={handleClick}
           className="relative cursor-pointer"
         >
