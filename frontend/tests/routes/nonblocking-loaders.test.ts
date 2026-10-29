@@ -74,4 +74,13 @@ describe("route data loading", () => {
     expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(9);
   });
 
+  it("prefetches Home data without old dashboard charts", async () => {
+    const queryClient = { prefetchQuery: vi.fn().mockResolvedValue(undefined) };
+    const loader = homeRoute.options.loader;
+    if (typeof loader !== "function") throw new Error("Expected a route loader");
+    await loader({ context: { queryClient } } as never);
+    expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(6);
+    expect(queryClient.prefetchQuery.mock.calls.map(([options]) => options.queryKey[0]))
+      .toEqual(["blocks", "chainStats", "price", "priceHistorical", "marketcap", "marketcapHistorical"]);
+  });
 });
