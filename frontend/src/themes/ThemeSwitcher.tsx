@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { setTheme, useActiveTheme } from "./active";
+import { HomeIcon } from "./dash/components/home-icon";
 import { THEME_NAMES, type ThemeName } from "./registry";
 
 const THEME_LABELS: Record<ThemeName, string> = {
@@ -30,10 +31,18 @@ export function ThemeSwitcher() {
         <Button
           variant="outline"
           size="sm"
-          className="gap-2 rounded-full"
+          className={
+            active === "dash"
+              ? "h-10 gap-2 rounded-xl border-input bg-transparent px-3 font-medium tracking-wide text-foreground shadow-none hover:bg-secondary hover:text-foreground dark:bg-transparent dark:hover:bg-secondary"
+              : "gap-2 rounded-full"
+          }
           aria-label="Switch theme"
         >
-          <Palette className="size-4" />
+          {active === "dash" ? (
+            <HomeIcon name="theme" />
+          ) : (
+            <Palette className="size-4" />
+          )}
           <span>{THEME_LABELS[active]}</span>
         </Button>
       </DropdownMenuTrigger>

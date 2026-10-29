@@ -1,29 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import {
-  ArrowRightLeft,
-  Box,
-  Loader2,
-  Search,
-  Server,
-  Wallet,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { ArrowRightLeft, Box, Loader2, Server, Wallet } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
-  PopoverTrigger,
 } from "@/components/ui/popover";
 import { searchQueryOptions } from "@/lib/api/search";
+import { formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
+import { HomeIcon } from "./home-icon";
 
 interface SearchBarProps {
   onNavigate?: () => void;
@@ -33,8 +21,10 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
-  const network = useStore(appStore, (s) => s.network);
+  const listId = useId();
+  const network = useStore(appStore, (state) => state.network);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,122 +32,188 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
     return () => clearTimeout(timer);
   }, [query]);
 
-  useEffect(() => {
-    setOpen(debouncedQuery.length > 0);
-  }, [debouncedQuery]);
-
-  const { data, isFetching } = useQuery(
+  const { data, isFetching, isError, refetch } = useQuery(
     searchQueryOptions({ network, query: debouncedQuery }),
   );
+  const pending = query.trim() !== debouncedQuery || isFetching;
+  const current = query.trim() === debouncedQuery ? data : undefined;
+  const results = [
+    ...(current?.block
+      ? [
+          {
+            label: `Block #${formatNumber(current.block.height)}`,
+            icon: Box,
+            to: `/blocks/${current.block.hash}`,
+          },
+        ]
+      : []),
+    ...(current?.transaction
+      ? [
+          {
+            label: `Transaction ${current.transaction.hash}`,
+            icon: ArrowRightLeft,
+            to: `/transactions/${current.transaction.hash}`,
+          },
+        ]
+      : []),
+    ...(current?.masternode
+      ? [
+          {
+            label: `Masternode ${current.masternode.proTxHash}`,
+            icon: Server,
+            to: `/masternodes/${current.masternode.proTxHash}`,
+          },
+        ]
+      : []),
+    ...(current?.address
+      ? [
+          {
+            label: `Address ${current.address.address}`,
+            icon: Wallet,
+            to: `/address/${current.address.address}`,
+          },
+        ]
+      : []),
+  ];
 
-  const results = useMemo(() => {
-    if (!data) return [];
-    const items: {
-      category: string;
-      label: string;
-      icon: typeof Box;
-      to: string;
-    }[] = [];
-
-    if (data.block) {
-      items.push({
-        category: "Block",
-        label: `Block #${data.block.height}`,
-        icon: Box,
-        to: `/blocks/${data.block.hash}`,
-      });
-    }
-    if (data.transaction) {
-      items.push({
-        category: "Transaction",
-        label: `${data.transaction.hash.slice(0, 12)}...`,
-        icon: ArrowRightLeft,
-        to: `/transactions/${data.transaction.hash}`,
-      });
-    }
-    if (data.masternode) {
-      items.push({
-        category: "Masternode",
-        label: `${data.masternode.proTxHash.slice(0, 12)}...`,
-        icon: Server,
-        to: `/masternodes/${data.masternode.proTxHash}`,
-      });
-    }
-    if (data.address) {
-      items.push({
-        category: "Address",
-        label: data.address.address,
-        icon: Wallet,
-        to: `/address/${data.address.address}`,
-      });
-    }
-
-    return items;
-  }, [data]);
-
-  const handleSelect = useCallback(
-    (to: string) => {
-      navigate({ to });
-      setQuery("");
-      setDebouncedQuery("");
-      setOpen(false);
-      onNavigate?.();
-    },
-    [navigate, onNavigate],
-  );
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      setOpen(false);
-      inputRef.current?.blur();
-    }
-  }, []);
+  function selectResult(index: number) {
+    const result = results[index];
+    if (!result) return;
+    void navigate({ to: result.to });
+    setQuery("");
+    setDebouncedQuery("");
+    setOpen(false);
+    setActiveIndex(-1);
+    onNavigate?.();
+  }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div className="flex w-full items-center rounded-xl border border-border bg-transparent transition-[border-color,box-shadow] duration-200 focus-within:border-accent focus-within:shadow-[0_0_0_3px_oklch(from_var(--accent)_l_c_h/0.12)] md:w-auto">
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Search..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="w-full min-w-0 bg-transparent px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none md:w-48"
-          />
-          <button
-            type="button"
-            className="mr-1.5 flex items-center justify-center rounded-md bg-muted p-1.5 transition hover:opacity-80"
-            aria-label="Search"
+    <Popover open={open && query.trim().length > 0} onOpenChange={setOpen}>
+      <search aria-label="Network search">
+        <PopoverAnchor asChild>
+          <form
+            className="flex w-full min-w-0 items-center gap-2 rounded-3xl border border-input bg-transparent p-1.5 pl-6 transition-shadow focus-within:ring-2 focus-within:ring-ring"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setOpen(true);
+              setDebouncedQuery(query.trim());
+              if (!pending) selectResult(Math.max(activeIndex, 0));
+              inputRef.current?.focus();
+            }}
           >
-            {isFetching ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            ) : (
-              <Search className="size-4 text-muted-foreground" />
-            )}
-          </button>
-        </div>
-      </PopoverTrigger>
+            <input
+              ref={inputRef}
+              type="search"
+              role="combobox"
+              aria-label="Search blocks, transactions, addresses and masternodes"
+              aria-autocomplete="list"
+              aria-expanded={open && query.trim().length > 0}
+              aria-controls={open ? listId : undefined}
+              aria-activedescendant={
+                open && !pending && results[activeIndex]
+                  ? `${listId}-${activeIndex}`
+                  : undefined
+              }
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Search..."
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setOpen(true);
+                setActiveIndex(-1);
+              }}
+              onFocus={() => {
+                if (query.trim()) setOpen(true);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setOpen(false);
+                  return;
+                }
+                if (
+                  (event.key === "ArrowDown" || event.key === "ArrowUp") &&
+                  results.length
+                ) {
+                  event.preventDefault();
+                  setOpen(true);
+                  setActiveIndex((index) =>
+                    event.key === "ArrowDown"
+                      ? (index + 1) % results.length
+                      : index <= 0
+                        ? results.length - 1
+                        : index - 1,
+                  );
+                }
+              }}
+              className="min-w-0 flex-1 bg-transparent text-lg font-medium text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            <button
+              type="submit"
+              aria-label="Search"
+              className="flex size-12 shrink-0 items-center justify-center rounded-[18px] bg-foreground/8 text-foreground transition-colors hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              {pending ? (
+                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+              ) : (
+                <HomeIcon name="search" />
+              )}
+            </button>
+          </form>
+        </PopoverAnchor>
+      </search>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] p-0"
+        className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] rounded-2xl p-2"
         align="start"
-        sideOffset={4}
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+        onInteractOutside={(event) => {
+          if (
+            event.target instanceof Node &&
+            inputRef.current?.form?.contains(event.target)
+          )
+            event.preventDefault();
+        }}
       >
-        <Command shouldFilter={false}>
-          <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
-            {results.map((item) => (
-              <CommandGroup key={item.category} heading={item.category}>
-                <CommandItem onSelect={() => handleSelect(item.to)}>
-                  <item.icon />
-                  <span className="truncate">{item.label}</span>
-                </CommandItem>
-              </CommandGroup>
+        <div aria-live="polite" className="text-sm text-muted-foreground">
+          {pending ? (
+            <p className="p-3">Searching…</p>
+          ) : isError ? (
+            <div className="p-3">
+              Search is unavailable.{" "}
+              <button
+                type="button"
+                className="text-accent underline"
+                onClick={() => void refetch()}
+              >
+                Try again
+              </button>
+            </div>
+          ) : !results.length ? (
+            <p className="p-3">No results found.</p>
+          ) : null}
+        </div>
+        <div id={listId} role="listbox" aria-label="Search results">
+          {!pending &&
+            results.map((result, index) => (
+              <button
+                key={result.to}
+                id={`${listId}-${index}`}
+                type="button"
+                role="option"
+                aria-selected={activeIndex === index}
+                className="flex w-full min-w-0 items-center gap-3 rounded-xl p-3 text-left text-sm hover:bg-secondary focus-visible:outline-2 focus-visible:outline-ring aria-selected:bg-secondary"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectResult(index)}
+              >
+                <result.icon
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-accent"
+                />
+                <span className="truncate">{result.label}</span>
+              </button>
             ))}
-          </CommandList>
-        </Command>
+        </div>
       </PopoverContent>
     </Popover>
   );
