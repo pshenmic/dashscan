@@ -55,6 +55,31 @@ interface FetchAddressInput {
   address: string;
 }
 
+export function addressesInfoQueryOptions(params: {
+  network: Network;
+  addresses: string[];
+}) {
+  return queryOptions({
+    queryKey: ["addresses-info", params.network, params.addresses],
+    enabled: params.addresses.length > 0,
+    queryFn: async () => {
+      const url = new URL("/addresses/info", getBaseUrl(params.network));
+      url.searchParams.set("addresses", params.addresses.join(","));
+      const response = await apiFetch(url);
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+      return response.json() as Promise<
+        {
+          address: string | null;
+          balance: string | null;
+          txCount: number | null;
+        }[]
+      >;
+    },
+  });
+}
+
 async function getAddress(params: FetchAddressInput) {
   const url = new URL(`/address/${params.address}`, getBaseUrl(params.network));
   const response = await apiFetch(url);

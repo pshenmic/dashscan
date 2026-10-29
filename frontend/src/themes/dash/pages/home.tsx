@@ -1,3 +1,4 @@
+import { HomeAddresses } from "@/themes/dash/components/home-addresses";
 import { HomeBlocks } from "@/themes/dash/components/home-blocks";
 import { HomeGeneralStats } from "@/themes/dash/components/home-general-stats";
 import { HomeHero } from "@/themes/dash/components/home-hero";
@@ -11,6 +12,7 @@ export default function HomePage() {
         <HomeGeneralStats />
         <HomeBlocks />
         <HomeTransactions />
+        <HomeAddresses />
       </div>
     </main>
   );
