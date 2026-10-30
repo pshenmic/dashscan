@@ -6,6 +6,7 @@ import { HomeDao } from "@/themes/dash/components/home-dao";
 import { HomeGeneralStats } from "@/themes/dash/components/home-general-stats";
 import { HomeHero } from "@/themes/dash/components/home-hero";
 import { HomeMasternodes } from "@/themes/dash/components/home-masternodes";
+import { HomeNetwork } from "@/themes/dash/components/home-network";
 import { HomeTransactions } from "@/themes/dash/components/home-transactions";
 
 export default function HomePage() {
@@ -21,6 +22,7 @@ export default function HomePage() {
         <HomeAssets />
         <HomeCoinJoin />
         <HomeMasternodes />
+        <HomeNetwork />
       </div>
     </main>
   );
