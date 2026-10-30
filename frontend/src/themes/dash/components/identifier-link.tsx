@@ -8,7 +8,7 @@ export function IdentifierLink({
   prefix,
 }: {
   value: string;
-  kind: "address" | "block" | "transaction";
+  kind: "address" | "block" | "transaction" | "masternode";
   prefix?: ReactNode;
 }) {
   const destination =
@@ -19,7 +19,9 @@ export function IdentifierLink({
             to: "/blocks/$hashOrHeight" as const,
             params: { hashOrHeight: value },
           }
-        : { to: "/transactions/$hash" as const, params: { hash: value } };
+        : kind === "masternode"
+          ? { to: "/masternodes/$hash" as const, params: { hash: value } }
+          : { to: "/transactions/$hash" as const, params: { hash: value } };
 
   return (
     <div className="flex w-0 min-w-full items-center gap-2">
