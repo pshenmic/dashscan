@@ -114,7 +114,7 @@ export function HomeTransactions() {
                 Block #{metricNumber(chain.data?.latestHeight, 0)}
               </p>
             </div>
-            <div className="flex min-h-16 flex-1 items-center justify-center rounded-xl border border-dashed border-accent/30 xl:h-full">
+            <div className="flex min-h-16 flex-1 items-center justify-center xl:h-full">
               <MissingApiData
                 inline
                 description="Aggregated fees per block and their history are not exposed by the API."
@@ -346,7 +346,7 @@ export function HomeTransactions() {
               />
             )}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-3xl bg-secondary p-6">
               <h3 className="dash-body-compact text-muted-foreground">
                 Transaction Fees · 24H
