@@ -133,11 +133,29 @@ export function decodeServices(services: number | null): {
 }
 
 async function getAllPeers(params: FetchAllPeersInput): Promise<ApiPeer[]> {
-  const response = await getPeers({
-    network: params.network,
-    order: "desc",
-  });
-  return response.resultSet;
+  const peers = new Map<string, ApiPeer>();
+  let page = 1;
+  let loaded = 0;
+  let total: number | undefined;
+  while (true) {
+    const response = await getPeers({
+      network: params.network,
+      order: "desc",
+      page,
+      limit: 100,
+    });
+    total ??= response.pagination.total;
+    if (response.pagination.page !== page) {
+      throw new Error("Incomplete peer list returned by API");
+    }
+    for (const peer of response.resultSet) peers.set(peer.address, peer);
+    loaded += response.resultSet.length;
+    if (loaded >= total) return [...peers.values()];
+    if (response.resultSet.length === 0) {
+      throw new Error("Incomplete peer list returned by API");
+    }
+    page += 1;
+  }
 }
 
 async function getPeerUserAgents(
