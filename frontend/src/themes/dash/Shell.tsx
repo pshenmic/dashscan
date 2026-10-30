@@ -4,10 +4,10 @@ import Header from "@/themes/dash/components/header";
 
 export default function ClassicShell({ children }: { children: ReactNode }) {
   return (
-    <>
+    <div className="flex min-h-dvh flex-col">
       <Header />
-      {children}
+      <div className="flex-1 pb-12">{children}</div>
       <Footer />
-    </>
+    </div>
   );
 }
