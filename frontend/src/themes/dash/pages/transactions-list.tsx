@@ -158,18 +158,20 @@ const skeletonWidths = ["w-16", "w-44", "w-20", "w-20", "w-24", "w-12", "w-20"];
 interface ClassicTransactionsListPageProps {
   page: number;
   limit: PageSize;
+  coinjoin?: boolean;
 }
 
 export default function ClassicTransactionsListPage({
   page,
   limit,
+  coinjoin,
 }: ClassicTransactionsListPageProps) {
   const network = useStore(appStore, (state) => state.network);
   const navigate = useNavigate({ from: "/transactions/" });
   const [globalFilter, setGlobalFilter] = useState("");
 
   const { data, isFetching } = useQuery(
-    transactionsQueryOptions({ network, page, limit, order: "desc" }),
+    transactionsQueryOptions({ network, page, limit, order: "desc", coinjoin }),
   );
 
   const { data: txStats } = useQuery(
@@ -227,111 +229,120 @@ export default function ClassicTransactionsListPage({
 
   return (
     <main className="mx-auto max-w-[1440px] px-6 py-10">
-      <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
-        <Card className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
-          <CardHeader className="relative px-5 pb-2 sm:px-6">
-            <div className="flex items-start gap-4">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
-                <ArrowLeftRight className="size-5" strokeWidth={1.75} />
+      {coinjoin === undefined && (
+        <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
+          <Card className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
+            <CardHeader className="relative px-5 pb-2 sm:px-6">
+              <div className="flex items-start gap-4">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
+                  <ArrowLeftRight className="size-5" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <p className="text-[15px] font-medium text-muted-foreground">
+                    Transactions Amount (Total)
+                  </p>
+                  <CardTitle className="mt-1 flex flex-wrap items-center gap-2 text-[34px] font-medium tracking-[-0.03em]">
+                    <span className="font-extrabold text-[#21314d]">
+                      {total != null ? formatCompact(total) : "—"}
+                    </span>
+                    <span className="text-muted-foreground">TXs</span>
+                    {change != null && (
+                      <Badge className="h-5 rounded-full border-0 bg-accent/10 px-1.5 text-[10px] font-bold text-accent">
+                        {change >= 0 ? (
+                          <MoveUp className="size-2.5" />
+                        ) : (
+                          <MoveDown className="size-2.5" />
+                        )}
+                        {Math.abs(change).toFixed(1)}%
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </div>
               </div>
-              <div>
-                <p className="text-[15px] font-medium text-muted-foreground">
-                  Transactions Amount (Total)
-                </p>
-                <CardTitle className="mt-1 flex flex-wrap items-center gap-2 text-[34px] font-medium tracking-[-0.03em]">
-                  <span className="font-extrabold text-[#21314d]">
-                    {total != null ? formatCompact(total) : "—"}
+              <CardAction>
+                <Badge className="h-7 gap-1.5 whitespace-nowrap rounded-full border-0 bg-[#EAF0FF] px-2.5 text-[11px] font-medium text-accent">
+                  <Calendar className="size-3 shrink-0" />1 Month
+                </Badge>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="relative flex flex-1 items-end px-3 pb-3 sm:px-4 sm:pb-4">
+              <TransactionsAmountChart
+                className="rounded-[20px]"
+                data={chartData}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 grid-cols-2 grid-rows-2 auto-rows-fr [&>*]:min-w-0">
+            <StatCard
+              icon={<Timer className="size-5" strokeWidth={1.75} />}
+              label="Average Blockchain TPS"
+              value={
+                <>
+                  {tps != null ? tps.toFixed(2) : "—"}{" "}
+                  <span className="text-muted-foreground font-medium">
+                    Transactions
                   </span>
-                  <span className="text-muted-foreground">TXs</span>
-                  {change != null && (
-                    <Badge className="h-5 rounded-full border-0 bg-accent/10 px-1.5 text-[10px] font-bold text-accent">
-                      {change >= 0 ? (
-                        <MoveUp className="size-2.5" />
-                      ) : (
-                        <MoveDown className="size-2.5" />
-                      )}
-                      {Math.abs(change).toFixed(1)}%
-                    </Badge>
-                  )}
-                </CardTitle>
-              </div>
-            </div>
-            <CardAction>
-              <Badge className="h-7 gap-1.5 whitespace-nowrap rounded-full border-0 bg-[#EAF0FF] px-2.5 text-[11px] font-medium text-accent">
-                <Calendar className="size-3 shrink-0" />1 Month
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="relative flex flex-1 items-end px-3 pb-3 sm:px-4 sm:pb-4">
-            <TransactionsAmountChart
-              className="rounded-[20px]"
-              data={chartData}
+                </>
+              }
+              bgImage="/images/blocks/time.png"
             />
-          </CardContent>
-        </Card>
 
-        <div className="grid gap-4 grid-cols-2 grid-rows-2 auto-rows-fr [&>*]:min-w-0">
-          <StatCard
-            icon={<Timer className="size-5" strokeWidth={1.75} />}
-            label="Average Blockchain TPS"
-            value={
-              <>
-                {tps != null ? tps.toFixed(2) : "—"}{" "}
-                <span className="text-muted-foreground font-medium">
-                  Transactions
-                </span>
-              </>
-            }
-            bgImage="/images/blocks/time.png"
-          />
+            <StatCard
+              icon={<Percent className="size-5" strokeWidth={1.75} />}
+              label="Average Transaction Fees"
+              value={
+                <>
+                  —{" "}
+                  <span className="text-muted-foreground font-medium">
+                    Dash
+                  </span>
+                </>
+              }
+              bgImage="/images/blocks/fees.png"
+            />
 
-          <StatCard
-            icon={<Percent className="size-5" strokeWidth={1.75} />}
-            label="Average Transaction Fees"
-            value={
-              <>
-                —{" "}
-                <span className="text-muted-foreground font-medium">Dash</span>
-              </>
-            }
-            bgImage="/images/blocks/fees.png"
-          />
+            <StatCard
+              icon={<BadgePercent className="size-5" strokeWidth={1.75} />}
+              label="Total Transaction Fees"
+              value={
+                <>
+                  —{" "}
+                  <span className="text-muted-foreground font-medium">
+                    Dash
+                  </span>
+                </>
+              }
+              bgImage="/images/blocks/total.png"
+            />
 
-          <StatCard
-            icon={<BadgePercent className="size-5" strokeWidth={1.75} />}
-            label="Total Transaction Fees"
-            value={
-              <>
-                —{" "}
-                <span className="text-muted-foreground font-medium">Dash</span>
-              </>
-            }
-            bgImage="/images/blocks/total.png"
-          />
-
-          <StatCard
-            icon={<Check className="size-5" strokeWidth={2} />}
-            label="Average InstantLock confirmation"
-            value={
-              <>
-                1-3{" "}
-                <span className="text-muted-foreground font-medium">
-                  Seconds
-                </span>
-              </>
-            }
-            bgImage="/images/blocks/latest.png"
-          />
+            <StatCard
+              icon={<Check className="size-5" strokeWidth={2} />}
+              label="Average InstantLock confirmation"
+              value={
+                <>
+                  1-3{" "}
+                  <span className="text-muted-foreground font-medium">
+                    Seconds
+                  </span>
+                </>
+              }
+              bgImage="/images/blocks/latest.png"
+            />
+          </div>
         </div>
-      </div>
-
+      )}
       <Card
         className="border-0 shadow-none animate-fade-in-up"
         style={{ animationDelay: "150ms" }}
       >
         <CardHeader>
           <CardTitle className="text-sm font-medium text-muted-foreground">
-            Transactions
+            {coinjoin === true
+              ? "CoinJoin Transactions"
+              : coinjoin === false
+                ? "Transactions excluding CoinJoin"
+                : "Transactions"}
           </CardTitle>
           <CardAction>
             <SearchInput
@@ -361,10 +372,16 @@ export default function ClassicTransactionsListPage({
         <Pagination
           page={page}
           pageCount={pageCount}
-          onPageChange={(p) => navigate({ search: { page: p, limit } })}
+          onPageChange={(p) =>
+            navigate({
+              search: (previous) => ({ ...previous, page: p, limit }),
+            })
+          }
           pageSize={limit}
           onPageSizeChange={(size) =>
-            navigate({ search: { page: 1, limit: size } })
+            navigate({
+              search: (previous) => ({ ...previous, page: 1, limit: size }),
+            })
           }
         />
       </Card>
