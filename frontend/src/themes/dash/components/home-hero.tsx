@@ -58,13 +58,6 @@ export function HomeHero() {
           height={498}
           className="absolute inset-x-0 top-0 hidden w-full max-w-none dark:block"
         />
-        <img
-          src="/images/home/grid.svg"
-          alt=""
-          width={1440}
-          height={1132}
-          className="absolute inset-x-0 top-0 w-full max-w-none opacity-60 dark:opacity-20"
-        />
       </div>
       <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:gap-32">
         <div>
