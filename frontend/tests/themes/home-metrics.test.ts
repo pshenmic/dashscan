@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ApiBlock } from "@/lib/api/types";
-import { estimatedSupply, historyChange, metricBytes, metricNumber, sortedHistory, upcomingBlocks } from "@/themes/dash/lib/home-metrics";
+import { difficultyAxisLabel, estimatedSupply, historyChange, metricBytes, metricNumber, sortedHistory, upcomingBlocks } from "@/themes/dash/lib/home-metrics";
 
 describe("Home metrics", () => {
+  it("preserves non-zero difficulty ticks on testnet", () => {
+    expect([0, 0.01, 0.015, 0.02].map(difficultyAxisLabel)).toEqual(["0", "0.01", "0.015", "0.02"]);
+    expect(difficultyAxisLabel(0.000012)).toBe("1.2e-5");
+    expect(difficultyAxisLabel(12500)).toBe("12\u00a0500");
+  });
   it("preserves zero and formats grouping with non-breaking spaces", () => {
     expect(metricNumber(0)).toBe("0");
     expect(metricNumber(1580880)).toBe("1\u00a0580\u00a0880");

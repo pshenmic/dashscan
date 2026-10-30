@@ -10,6 +10,7 @@ import { formatCompact, formatDateTime, formatHashRate } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import {
+  difficultyAxisLabel,
   estimatedSupply,
   historyChange,
   metricNumber,
@@ -224,11 +225,7 @@ export function HomeGeneralStats() {
                 )}
                 ariaLabel="Mining difficulty of recent blocks"
                 minimumMax={0}
-                formatYLabel={(value) =>
-                  value !== 0 && value < 0.01
-                    ? value.toExponential(1)
-                    : metricNumber(value, 0)
-                }
+                formatYLabel={difficultyAxisLabel}
                 className="[&_svg]:min-h-40"
               />
             ) : (

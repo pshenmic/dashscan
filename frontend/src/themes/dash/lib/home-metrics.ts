@@ -15,6 +15,12 @@ export function metricNumber(
     : "—";
 }
 
+export function difficultyAxisLabel(value: number) {
+  return value > 0 && value < 0.01
+    ? value.toExponential(1)
+    : metricNumber(value, value < 1 ? 3 : 0);
+}
+
 export function metricBytes(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value) || value < 0) return "—";
   const units = [
