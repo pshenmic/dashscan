@@ -11,7 +11,6 @@ import { ArrowLeftRight, MoveDown, MoveUp, Wallet } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { Avatar } from "@/components/identicon";
 import { RelativeTime } from "@/components/relative-time";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardAction,
@@ -30,8 +29,6 @@ import {
   formatDash,
   formatDateTime,
   formatNumber,
-  getTxTypeBadgeStyle,
-  getTxTypeLabel,
 } from "@/lib/format";
 import { getPageCount, type PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
@@ -44,6 +41,7 @@ import { MiniStatCard } from "@/themes/dash/components/mini-stat-card";
 import { PageStatus } from "@/themes/dash/components/page-status";
 import { Pagination } from "@/themes/dash/components/pagination";
 import { SearchInput } from "@/themes/dash/components/search-input";
+import { TransactionTypeBadge } from "@/themes/dash/components/transaction-type-badge";
 
 type ChartRange = "1d" | "1w" | "1m" | "1y";
 
@@ -102,17 +100,7 @@ const makeTxColumns = (address: string): ColumnDef<ApiTransaction>[] => [
   {
     accessorKey: "type",
     header: "Type",
-    cell: ({ row }) => (
-      <Badge
-        variant="outline"
-        className={cn(
-          "h-6 rounded-full px-2 text-[11px] font-medium",
-          getTxTypeBadgeStyle(row.original.type),
-        )}
-      >
-        {getTxTypeLabel(row.original.type)}
-      </Badge>
-    ),
+    cell: ({ row }) => <TransactionTypeBadge type={row.original.type} />,
   },
   {
     accessorKey: "size",

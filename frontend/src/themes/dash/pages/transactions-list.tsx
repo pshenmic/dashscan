@@ -36,13 +36,7 @@ import {
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
-import {
-  formatCompact,
-  formatDuffs,
-  getTxTypeBadgeStyle,
-  getTxTypeLabel,
-  sumVOut,
-} from "@/lib/format";
+import { formatCompact, formatDuffs, sumVOut } from "@/lib/format";
 import { getPageCount, type PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { CopyButton } from "@/themes/dash/components/copy-button";
@@ -51,6 +45,7 @@ import { HashCell } from "@/themes/dash/components/hash-cell";
 import { Pagination } from "@/themes/dash/components/pagination";
 import { SearchInput } from "@/themes/dash/components/search-input";
 import { StatCard } from "@/themes/dash/components/stat-card";
+import { TransactionTypeBadge } from "@/themes/dash/components/transaction-type-badge";
 import { TransactionsAmountChart } from "@/themes/dash/components/transactions-amount-chart";
 
 const columns: ColumnDef<ApiTransaction>[] = [
@@ -86,13 +81,7 @@ const columns: ColumnDef<ApiTransaction>[] = [
   {
     accessorKey: "type",
     header: "Type",
-    cell: ({ getValue }) => (
-      <Badge
-        className={`h-6 whitespace-nowrap border font-medium ${getTxTypeBadgeStyle(getValue<number>())}`}
-      >
-        {getTxTypeLabel(getValue<number>())}
-      </Badge>
-    ),
+    cell: ({ row }) => <TransactionTypeBadge type={row.original.type} />,
   },
   {
     accessorKey: "blockHeight",

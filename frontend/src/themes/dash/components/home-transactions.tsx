@@ -1,15 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import { LockKeyhole } from "lucide-react";
 import { useId } from "react";
 import { RelativeTime } from "@/components/relative-time";
 import { useClockValue } from "@/components/render-clock";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   transactionsBreakdown24hQueryOptions,
   transactionsStatsQueryOptions,
 } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
-import { formatDateTime, getTxTypeLabel } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
@@ -23,6 +29,7 @@ import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
 import { MissingApiData } from "./missing-api-data";
+import { TransactionTypeBadge } from "./transaction-type-badge";
 
 export function HomeTransactions() {
   const titleId = useId();
@@ -224,19 +231,8 @@ export function HomeTransactions() {
                         }
                       />
                     </td>
-                    <td className="max-w-36 px-3 py-5">
-                      <span
-                        className="block max-w-36 truncate"
-                        title={
-                          transaction.type === null
-                            ? "Unknown"
-                            : getTxTypeLabel(transaction.type)
-                        }
-                      >
-                        {transaction.type === null
-                          ? "Unknown"
-                          : getTxTypeLabel(transaction.type)}
-                      </span>
+                    <td className="px-3 py-5">
+                      <TransactionTypeBadge type={transaction.type} />
                     </td>
                     <td className="whitespace-nowrap px-3 py-5">
                       <div className="flex items-center gap-2">
@@ -245,17 +241,30 @@ export function HomeTransactions() {
                         ) : (
                           "Pending"
                         )}
-                        {transaction.instantLock && (
-                          <span title="InstantSend locked">
-                            <img
-                              src="/icons/home/instant-lock.svg"
-                              alt="InstantSend locked"
-                              width={16}
-                              height={16}
-                              className="size-4"
-                            />
-                          </span>
-                        )}
+                        <span className="flex size-6 shrink-0 items-center justify-center">
+                          {transaction.instantLock && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-label="InstantSend locked"
+                                  className="inline-flex size-6 items-center justify-center rounded-full text-foreground/64 focus-visible:outline-2 focus-visible:outline-ring"
+                                >
+                                  <LockKeyhole
+                                    className="size-3.5"
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-64">
+                                InstantSend locked: a masternode quorum has
+                                locked this transaction's inputs to prevent
+                                double-spending. This is separate from block
+                                confirmations.
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </span>
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-5 text-right text-brand">

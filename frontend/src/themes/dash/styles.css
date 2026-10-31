@@ -61,6 +61,13 @@
   --ring: var(--accent);
 }
 
+:root[data-theme="dash"] [data-slot="tooltip-content"] {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgb(12 28 51 / 8%);
+}
+
 @theme inline {
   --color-brand: var(--brand);
   --color-positive-brand: var(--positive-brand);
