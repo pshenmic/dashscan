@@ -113,7 +113,7 @@ export function HomeGeneralStats() {
   return (
     <section aria-labelledby={titleId} className="space-y-6">
       <h2 id={titleId} className="text-xl font-medium text-muted-foreground">
-        General Stats
+        Overview
       </h2>
       {chain.isError && (
         <p role="alert" className="dash-body-compact text-destructive">
@@ -129,7 +129,7 @@ export function HomeGeneralStats() {
       )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 min-[87.5rem]:grid-cols-[minmax(250px,1.5fr)_minmax(224px,1fr)_minmax(346px,1.7fr)_232px_minmax(200px,1fr)]">
         <StatCard
-          label="Dash Price"
+          label="Dash Price (USD)"
           value={
             price.data?.usd != null ? `$${metricNumber(price.data.usd)}` : "—"
           }
@@ -185,7 +185,7 @@ export function HomeGeneralStats() {
           </div>
         </StatCard>
         <StatCard
-          label="Circulating Supply"
+          label="Estimated Supply"
           value={
             supply === null ? (
               "—"
@@ -195,7 +195,7 @@ export function HomeGeneralStats() {
                   minimumFractionDigits: 3,
                   maximumFractionDigits: 3,
                 })}
-                <span className="whitespace-nowrap font-medium">M Dash</span>
+                <span className="whitespace-nowrap font-medium">M DASH</span>
               </span>
             )
           }
@@ -206,12 +206,12 @@ export function HomeGeneralStats() {
             >
               {supply === null
                 ? "Estimate unavailable"
-                : `≈ ${metricNumber(supply, 0)} Dash`}
+                : `≈ ${metricNumber(supply, 0)} DASH`}
             </span>
           }
         />
         <StatCard
-          label="Hash Rate"
+          label="Network Hashrate"
           value={
             <span title="Estimated network hash rate over the last 120 indexed blocks.">
               {hashRateValue}
@@ -225,7 +225,9 @@ export function HomeGeneralStats() {
           }
           detail={
             <span className="flex flex-wrap items-center gap-1">
-              <span className="rounded-lg bg-secondary px-2 py-1">Block</span>
+              <span className="rounded-lg bg-secondary px-2 py-1">
+                As of block
+              </span>
               {stats?.latestHeight != null ? (
                 <Link
                   to="/blocks/$hashOrHeight"
@@ -244,7 +246,7 @@ export function HomeGeneralStats() {
           <div className="flex min-h-20 min-w-32 flex-col items-center justify-center gap-1">
             <p className="text-xl font-extrabold text-brand">—</p>
             <p className="dash-label-small text-muted-foreground">
-              Highest Recorded
+              Network peak
             </p>
             <MissingApiData
               compact
@@ -253,7 +255,7 @@ export function HomeGeneralStats() {
           </div>
         </StatCard>
         <StatCard
-          label="Mempool Size"
+          label="Pending Transactions"
           value={
             <span title="Number of pending transactions currently indexed.">
               {metricNumber(stats?.mempoolSize, 0)}{" "}
@@ -267,7 +269,7 @@ export function HomeGeneralStats() {
           }
         />
         <StatCard
-          label="Current TPS"
+          label="Transaction Rate"
           value={
             <span
               className="whitespace-nowrap"
@@ -292,7 +294,9 @@ export function HomeGeneralStats() {
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6 rounded-3xl bg-card p-6 sm:flex-row sm:items-center sm:gap-12">
           <div className="min-w-0 shrink-0 space-y-2">
-            <h3 className="text-base font-medium leading-4">Hashrate Graph</h3>
+            <h3 className="text-base font-medium leading-4">
+              Hashrate History
+            </h3>
             <p className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]">
               {hashRateValue}
               {hashRateUnit && (
@@ -326,7 +330,7 @@ export function HomeGeneralStats() {
         <div className="flex min-w-0 flex-col gap-6 rounded-3xl bg-card p-6 sm:flex-row sm:items-center sm:gap-12">
           <div className="min-w-0 shrink-0 space-y-2 sm:max-w-[45%]">
             <h3 className="text-base font-medium leading-4">
-              Difficulty Graph
+              Mining Difficulty
             </h3>
             <div className="flex flex-wrap items-center gap-4">
               <p

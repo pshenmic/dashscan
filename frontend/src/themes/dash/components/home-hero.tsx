@@ -28,12 +28,12 @@ export function HomeHero() {
     first && first > 0 && last !== undefined && history && history.length > 1
       ? ((last - first) / first) * 100
       : undefined;
-  const connected = !!chain.data && !chain.isError;
+  const dataAvailable = !!chain.data && !chain.isError;
   const status = chain.isError
-    ? "Unavailable"
-    : connected
-      ? "Connected"
-      : "Connecting";
+    ? "Data unavailable"
+    : dataAvailable
+      ? "Data available"
+      : "Loading data";
 
   return (
     <section
@@ -49,15 +49,15 @@ export function HomeHero() {
             <span className="text-brand">Dash</span> Blockchain Explorer
           </h1>
           <p className="dash-body mt-6 max-w-xl text-foreground/50">
-            Live blocks, transactions, masternodes &amp; DAO governance -
-            streamed straight from the chain.
+            Explore blocks, transactions, masternodes and governance proposals
+            on the Dash network.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               to="/dashboard"
               className="dash-home-action flex min-h-12 items-center gap-4 rounded-full bg-action-primary py-2 pl-6 pr-2 text-base font-medium text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
-              Explore Dashboard
+              View Dashboard
               <span className="flex size-8 items-center justify-center rounded-full bg-primary-foreground text-brand">
                 <HomeIcon name="explore" />
               </span>
@@ -74,7 +74,7 @@ export function HomeHero() {
           <div className="dash-label-small flex flex-wrap items-center gap-2">
             <span
               className={
-                connected
+                dataAvailable
                   ? "inline-flex items-center gap-2 rounded-full bg-positive-brand/12 px-2 py-1 text-success"
                   : "inline-flex items-center gap-2 rounded-full bg-secondary px-2 py-1 text-muted-foreground"
               }
@@ -82,15 +82,19 @@ export function HomeHero() {
               <span
                 aria-hidden="true"
                 className={
-                  connected
+                  dataAvailable
                     ? "dash-status-dot relative size-2 shrink-0 rounded-full bg-positive-brand"
                     : "size-2 rounded-full bg-current"
                 }
               />
-              {network === "mainnet" ? "Mainnet" : "Testnet"} - {status}
+              {network === "mainnet" ? "Mainnet" : "Testnet"} · {status}
             </span>
             <span className="inline-flex items-center gap-2 rounded-full bg-card px-2 py-1 shadow-card">
-              <span className="text-foreground/48">MCap:</span>{" "}
+              <span className="text-foreground/48">
+                {network === "testnet"
+                  ? "Mainnet Market Cap (USD):"
+                  : "Market Cap (USD):"}
+              </span>{" "}
               {marketCap?.usd !== undefined && Number.isFinite(marketCap.usd)
                 ? formatCompactUsdShort(marketCap.usd)
                 : "—"}
@@ -106,10 +110,10 @@ export function HomeHero() {
           </div>
           <div>
             <h2 className="dash-heading-page">
-              Search <span className="text-foreground/48">Through Network</span>
+              Explore <span className="text-foreground/48">the network</span>
             </h2>
             <p className="dash-body mt-3 text-foreground/48">
-              Find an address, transaction, block or masternode.
+              Blocks, transactions, addresses and masternodes.
             </p>
           </div>
           <SearchBar />
