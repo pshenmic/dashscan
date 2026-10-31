@@ -42,30 +42,44 @@ export function HomeBlocks() {
   const averageSize = blocks.length
     ? blocks.reduce((total, block) => total + block.size, 0) / blocks.length
     : null;
+  const averageDifficulty = blocks.length
+    ? blocks.reduce((total, block) => total + block.difficulty, 0) /
+      blocks.length
+    : null;
+  const [chainSize, chainSizeUnit] = metricBytes(chain.data?.sizeOnDisk).split(
+    " ",
+  );
   const summary = [
     {
       label: "Blockchain Size",
       icon: "blockchain-size",
-      value: metricBytes(chain.data?.sizeOnDisk),
-      detail: `Avg block: ${metricBytes(averageSize)}`,
+      value: chainSize,
+      unit: chainSizeUnit,
+      detailLabel: "AVG",
+      detail: metricBytes(averageSize),
+      detailTitle: `Average block size over the latest ${blocks.length} loaded blocks`,
     },
     {
       label: "Block Height",
       icon: "block-height",
-      value: metricNumber(chain.data?.latestHeight ?? latest?.height, 0),
+      value: metricNumber(latest?.height ?? chain.data?.latestHeight, 0),
+      detailLabel: "Time",
+      detailTitle: "Timestamp of the latest loaded block (UTC)",
       detail: latest
         ? formatDateTime(latest.timestamp, {
             hour: "2-digit",
             minute: "2-digit",
-            timeZoneName: "short",
+            hour12: false,
           })
         : "—",
     },
     {
       label: "Difficulty",
       icon: "difficulty",
-      value: metricNumber(chain.data?.difficulty),
-      detail: "Current mining difficulty",
+      value: metricNumber(chain.data?.difficulty, 4),
+      detailLabel: "AVG",
+      detail: metricNumber(averageDifficulty, 4),
+      detailTitle: `Average mining difficulty over the latest ${blocks.length} loaded blocks`,
     },
   ];
 
@@ -224,30 +238,45 @@ export function HomeBlocks() {
           )}
         </div>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
-        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+      <div className="grid gap-4 lg:grid-cols-[208px_minmax(0,1fr)]">
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-1">
           {summary.map((item) => (
             <div
               key={item.label}
-              className="flex min-w-0 flex-col justify-center gap-4 rounded-3xl bg-secondary px-6 py-4"
+              className="flex min-w-0 flex-col justify-center gap-4 rounded-3xl bg-foreground/3 px-6 py-4"
             >
-              <img
-                src={`/icons/home/${item.icon}.svg`}
-                alt=""
-                width={24}
-                height={24}
-                className="size-6"
-              />
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-card">
+                <img
+                  src={`/icons/home/${item.icon}.svg`}
+                  alt=""
+                  width={item.icon === "difficulty" ? 17 : 24}
+                  height={item.icon === "difficulty" ? 16 : 24}
+                  className={
+                    item.icon === "difficulty" ? "h-4 w-[17px]" : "size-6"
+                  }
+                />
+              </span>
               <div className="space-y-2">
-                <h3 className="dash-body-compact text-muted-foreground">
+                <h3 className="text-sm font-medium leading-[1.1] text-foreground/50">
                   {item.label}
                 </h3>
-                <p className="dash-metric break-words text-brand">
+                <p className="break-words text-2xl font-extrabold leading-[1.2] text-brand">
                   {item.value}
+                  {item.unit && (
+                    <span className="font-medium"> {item.unit}</span>
+                  )}
                 </p>
-                <p className="dash-label-small text-muted-foreground">
-                  {item.detail}
-                </p>
+                <div
+                  className="flex flex-wrap items-center gap-1 text-xs tracking-[-0.009em]"
+                  title={item.detailTitle}
+                >
+                  <span className="rounded-lg bg-secondary px-2 py-1 font-medium text-muted-foreground">
+                    {item.detailLabel}
+                  </span>
+                  <span className="font-extrabold text-brand/64">
+                    {item.detail}
+                  </span>
+                </div>
               </div>
             </div>
           ))}
