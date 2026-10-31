@@ -3,31 +3,15 @@ import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { useId } from "react";
 import { RelativeTime } from "@/components/relative-time";
-import { useNow } from "@/components/render-clock";
 import { formatDateTime } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { useNewBlocks } from "@/themes/dash/hooks/use-new-blocks";
-import {
-  metricBytes,
-  metricNumber,
-  upcomingBlocks,
-} from "@/themes/dash/lib/home-metrics";
+import { metricBytes, metricNumber } from "@/themes/dash/lib/home-metrics";
 import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
 import { MissingApiData } from "./missing-api-data";
-
-function ExpectedBlockTime({ expectedAt }: { expectedAt: number }) {
-  const now = useNow();
-  return (
-    <>
-      {expectedAt > now
-        ? `~${metricNumber(Math.ceil((expectedAt - now) / 60_000), 0)} min`
-        : "Awaiting block"}
-    </>
-  );
-}
 
 export function HomeBlocks() {
   const titleId = useId();
@@ -40,7 +24,21 @@ export function HomeBlocks() {
   );
   const latest = blocks[0];
   const timeline = blocks.slice(0, 3).reverse();
-  const upcoming = upcomingBlocks(latest, chain.data?.blockTime);
+  const upcoming = latest
+    ? ["Next block", "Following block"].map((label, index) => ({
+        height: latest.height + index + 1,
+        label,
+      }))
+    : [];
+  const blockTime = chain.data?.blockTime;
+  const averageSeconds =
+    blockTime != null && Number.isFinite(blockTime) && blockTime > 0
+      ? Math.round(blockTime / 1000)
+      : null;
+  const averageInterval =
+    averageSeconds == null
+      ? "—"
+      : `${metricNumber(Math.floor(averageSeconds / 60), 0)}m ${String(averageSeconds % 60).padStart(2, "0")}s`;
   const averageSize = blocks.length
     ? blocks.reduce((total, block) => total + block.size, 0) / blocks.length
     : null;
@@ -88,8 +86,8 @@ export function HomeBlocks() {
             <span className="font-extrabold text-brand">Blocks</span> Stats
           </h2>
           <p className="dash-body mt-3 text-foreground/50">
-            Dash blocks are mined roughly every 2.5 minutes — explore each one
-            to see more statistics.
+            Dash targets an average block interval of about 2.6 minutes —
+            explore each block to see more statistics.
           </p>
           <Link
             to="/blocks"
@@ -132,9 +130,19 @@ export function HomeBlocks() {
             </span>
           </div>
           <div>
-            <h3 className="text-[2rem] font-medium leading-[1.1]">Timeline</h3>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-[2rem] font-medium leading-[1.1]">
+                Timeline
+              </h3>
+              <span
+                className="dash-label-small text-muted-foreground"
+                title="Average interval over the last 20 indexed blocks, not a countdown."
+              >
+                Avg interval · {averageInterval}
+              </span>
+            </div>
             <p className="mt-2 text-base font-medium leading-[1.1] text-foreground/48">
-              Recently mined blocks and estimated upcoming mining slots.
+              Recently mined blocks and upcoming block heights.
             </p>
           </div>
           {blocksQuery.isPending ? (
@@ -158,7 +166,7 @@ export function HomeBlocks() {
             </p>
           ) : (
             <ol
-              aria-label="Recent and estimated blocks"
+              aria-label="Recent blocks and upcoming heights"
               className="-mx-4 -my-6 flex gap-6 overflow-x-auto px-4 py-6 sm:-mx-6 sm:px-6"
             >
               {timeline.map((block) => (
@@ -204,11 +212,11 @@ export function HomeBlocks() {
                       #{metricNumber(block.height, 0)}
                     </span>
                     <span className="whitespace-nowrap text-xs font-extrabold leading-[1.3]">
-                      <ExpectedBlockTime expectedAt={block.expectedAt} />
+                      {block.label}
                     </span>
                   </div>
                   <div className="relative mt-2 min-h-[26px] pt-3 text-center text-[10px] text-foreground/48 before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-dashed before:border-brand/24 after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)] group-last:before:right-0">
-                    <span className="sr-only">Estimated</span>
+                    <span className="sr-only">Not yet mined</span>
                   </div>
                 </li>
               ))}

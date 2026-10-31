@@ -1,4 +1,4 @@
-import type { ApiBlock, ApiHistoricalEntry } from "@/lib/api/types";
+import type { ApiHistoricalEntry } from "@/lib/api/types";
 import { formatNumber } from "@/lib/format";
 
 export function metricNumber(
@@ -67,23 +67,4 @@ export function estimatedSupply(
     return null;
   const supply = marketCap / price;
   return Number.isFinite(supply) ? supply : null;
-}
-
-export function upcomingBlocks(
-  latest: ApiBlock | undefined,
-  blockTime: number | null | undefined,
-) {
-  if (
-    !latest ||
-    blockTime == null ||
-    !Number.isFinite(blockTime) ||
-    blockTime <= 0
-  )
-    return [];
-  const timestamp = Date.parse(latest.timestamp);
-  if (!Number.isFinite(timestamp)) return [];
-  return [1, 2].map((offset) => ({
-    height: latest.height + offset,
-    expectedAt: timestamp + blockTime * offset,
-  }));
 }
