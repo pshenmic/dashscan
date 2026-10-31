@@ -20,7 +20,7 @@ import {
   formatDateTime,
   formatDuffs,
   formatNumber,
-  txTypeNum,
+  getTxTypeLabel,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { AddressLink } from "@/themes/dash/components/address-link";
@@ -30,23 +30,6 @@ import { HashCell } from "@/themes/dash/components/hash-cell";
 import { PageStatus } from "@/themes/dash/components/page-status";
 
 type IconType = ComponentType<SVGProps<SVGSVGElement>>;
-
-const TX_TYPE_SHORT_LABELS: Record<number, string> = {
-  0: "Normal",
-  1: "Pro Reg Tx",
-  2: "Pro Up Serv Tx",
-  3: "Pro Up Reg Tx",
-  4: "Pro Up Rev Tx",
-  5: "Cb Tx",
-  6: "Qc Tx",
-  7: "Mn Hf Tx",
-  8: "Asset Lock",
-  9: "Asset Unlock",
-};
-
-function getShortTxTypeLabel(type: string | number | null | undefined): string {
-  return TX_TYPE_SHORT_LABELS[txTypeNum(type)] ?? `Type ${type}`;
-}
 
 function sumInputs(vIn: ApiVIn[] | null | undefined): number | null {
   if (!vIn || vIn.length === 0) return null;
@@ -112,7 +95,7 @@ export default function ClassicTransactionDetailPage({
 
   const status = deriveStatus(tx);
   const StatusIcon = status.icon;
-  const typeLabel = getShortTxTypeLabel(tx.type);
+  const typeLabel = getTxTypeLabel(tx.type);
 
   const totalInput = sumInputs(tx.vIn);
   const totalOutput = sumOutputs(tx.vOut);

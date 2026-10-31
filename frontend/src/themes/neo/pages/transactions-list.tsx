@@ -59,6 +59,7 @@ import {
   sumVOut,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
+import { TRANSACTION_TYPES } from "@/lib/transaction-types";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import {
   DataTable,
@@ -555,18 +556,10 @@ export default function RedesignTransactionsListPage() {
   );
 }
 
-const TX_TYPE_OPTIONS: { value: TransactionTypeFilter; label: string }[] = [
-  { value: "CLASSIC", label: "Classic" },
-  { value: "PROVIDER_REGISTRATION", label: "Provider Register" },
-  { value: "PROVIDER_UPDATE_SERVICE", label: "Provider Update Service" },
-  { value: "PROVIDER_UPDATE_REGISTRAR", label: "Provider Update Registrar" },
-  { value: "PROVIDER_UPDATE_REVOCATION", label: "Provider Revocation" },
-  { value: "COINBASE", label: "Coinbase" },
-  { value: "QUORUM_COMMITMENT", label: "Quorum Commitment" },
-  { value: "MASTERNODE_HARD_FORK_SIGNAL", label: "MN Hard Fork Signal" },
-  { value: "ASSET_LOCK", label: "Asset Lock" },
-  { value: "ASSET_UNLOCK", label: "Asset Unlock" },
-];
+const TX_TYPE_OPTIONS = TRANSACTION_TYPES.map(({ name, label }) => ({
+  value: name,
+  label,
+}));
 
 const TX_TYPE_NONE = "__none__";
 
