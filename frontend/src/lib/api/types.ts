@@ -289,6 +289,11 @@ export interface ApiGovernanceBudget {
   enoughFundsCount: number;
   remainingAllPass: number;
   remainingEnoughVotes: number;
+  enoughVotesAndFundsTotal?: number | null;
+  enoughVotesAndFundsCount?: number | null;
+  remainingEnoughVotesAndFunds?: number | null;
+  requiredVotes?: number | null;
+  votingDeadline?: string | null;
 }
 
 export interface ApiChainStats {

@@ -1,5 +1,6 @@
 import { useStore } from "@tanstack/react-store";
 import { Store } from "@tanstack/store";
+import { applyColorMode } from "./color-mode";
 import {
   DEFAULT_THEME,
   isThemeName,
@@ -24,6 +25,7 @@ export function setTheme(theme: ThemeName): void {
   if (typeof document === "undefined") return;
 
   document.documentElement.setAttribute("data-theme", theme);
+  applyColorMode(theme);
   // biome-ignore lint/suspicious/noDocumentCookie: synchronous theme persistence; Cookie Store API is async and not universally supported
   document.cookie = `${THEME_COOKIE_NAME}=${encodeURIComponent(theme)}; path=/; max-age=${THEME_COOKIE_MAX_AGE_SECONDS}; samesite=lax`;
 }

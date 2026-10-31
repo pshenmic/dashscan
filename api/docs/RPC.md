@@ -592,7 +592,7 @@ Returns a single transaction by its hash.
 | `blockHeight`    | number \| null | Height of the block containing this transaction                                              |
 | `blockHash`      | string \| null | Hash of the block containing this transaction                                                |
 | `timestamp`      | string \| null | ISO 8601 block timestamp, or `null` for pending transactions                                 |
-| `amount`         | string \| null | Transferred value in duffs (sum of outputs less change), `null` if unavailable               |
+| `amount`         | string \| null | Total output value in duffs (sum of all outputs, including change), `null` if unavailable               |
 | `version`        | number \| null | Transaction version                                                                          |
 | `size`           | number \| null | Transaction size in bytes                                                                    |
 | `vIn`            | VIn[]          | Array of transaction inputs, in on-chain input order                                         |

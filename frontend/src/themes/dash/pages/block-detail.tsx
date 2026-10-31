@@ -25,8 +25,6 @@ import {
   formatDateTime,
   formatDuffs,
   formatNumber,
-  getTxTypeBadgeStyle,
-  getTxTypeLabel,
   sumVOut,
 } from "@/lib/format";
 import { getPageCount } from "@/lib/pagination";
@@ -37,6 +35,7 @@ import { PageStatus } from "@/themes/dash/components/page-status";
 import { Pagination } from "@/themes/dash/components/pagination";
 import { SearchInput } from "@/themes/dash/components/search-input";
 import { SkeletonBar } from "@/themes/dash/components/skeleton";
+import { TransactionTypeBadge } from "@/themes/dash/components/transaction-type-badge";
 import { TwoLineHash } from "@/themes/dash/components/two-line-hash";
 
 interface ClassicBlockDetailPageProps {
@@ -328,11 +327,7 @@ export default function ClassicBlockDetailPage({
                       </Link>
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                      <Badge
-                        className={`h-6 whitespace-nowrap border font-medium ${getTxTypeBadgeStyle(tx.type)}`}
-                      >
-                        {getTxTypeLabel(tx.type)}
-                      </Badge>
+                      <TransactionTypeBadge type={tx.type} />
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
                       <span>{formatDuffs(sumVOut(tx.vOut))} DASH</span>
