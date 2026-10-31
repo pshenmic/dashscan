@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { type ReactNode, useId } from "react";
 import { marketCapQueryOptions } from "@/lib/api/marketcap";
@@ -6,7 +7,7 @@ import {
   priceHistoricalQueryOptions,
   priceQueryOptions,
 } from "@/lib/api/price";
-import { formatCompact, formatDateTime, formatHashRate } from "@/lib/format";
+import { formatDateTime, formatHashRate, formatNumber } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import {
@@ -56,10 +57,15 @@ function Change({ value }: { value: number | null }) {
           : "font-extrabold text-destructive"
       }
     >
-      {value > 0 ? "+" : ""}
-      {metricNumber(value)}%
+      {value > 0 ? "↑" : value < 0 ? "↓" : ""}
+      {metricNumber(Math.abs(value))}%
     </span>
   );
+}
+
+function priceChartDate(timestamp: number) {
+  const date = timestamp * 1000;
+  return `${formatDateTime(date, { day: "2-digit" })}.${formatDateTime(date, { month: "2-digit" })}`;
 }
 
 export function HomeGeneralStats() {
@@ -75,6 +81,9 @@ export function HomeGeneralStats() {
     marketCapQueryOptions({ network, currency: "usd" }),
   );
   const stats = chain.data;
+  const [hashRateValue, hashRateUnit] = formatHashRate(stats?.hashRate).split(
+    " ",
+  );
   const priceHistory = sortedHistory(history.data);
   const supply = estimatedSupply(marketCap.data?.usd, price.data?.usd);
   const blocks = [...(blocksQuery.data?.resultSet ?? [])]
@@ -100,17 +109,17 @@ export function HomeGeneralStats() {
           </button>
         </p>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[1.5fr_1fr_1.3fr_1fr_1fr]">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 min-[87.5rem]:grid-cols-[minmax(250px,1.5fr)_minmax(224px,1fr)_minmax(346px,1.7fr)_232px_minmax(200px,1fr)]">
         <StatCard
           label="Dash Price"
           value={
             price.data?.usd != null ? `$${metricNumber(price.data.usd)}` : "—"
           }
           detail={
-            <span className="flex flex-wrap items-center gap-2">
+            <span className="flex flex-wrap items-center gap-1">
               <span className="rounded-lg bg-secondary px-2 py-1">
                 {firstPrice && lastPrice
-                  ? "Period"
+                  ? "24H"
                   : price.isPending
                     ? "Loading…"
                     : "USD"}
@@ -120,32 +129,32 @@ export function HomeGeneralStats() {
           }
           className="sm:col-span-2 xl:col-span-1"
         >
-          <div className="w-28 min-w-0 flex-1">
+          <div className="min-w-24 flex-1">
             {priceHistory.length > 1 && firstPrice && lastPrice ? (
               <>
                 <AreaChart
+                  compact
                   data={priceHistory}
                   getValue={(entry) => entry.value}
                   getKey={(entry) => entry.timestamp}
-                  getXLabel={() => ""}
-                  renderTooltip={(entry) => `$${metricNumber(entry.value)}`}
-                  ariaLabel="Dash price history in USD"
+                  getXLabel={(entry) => formatDateTime(entry.timestamp * 1000)}
+                  renderTooltip={(entry) => (
+                    <>
+                      <p className="font-extrabold">
+                        ${metricNumber(entry.value)}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {formatDateTime(entry.timestamp * 1000)}
+                      </p>
+                    </>
+                  )}
+                  formatYLabel={(value) => `$${metricNumber(value)}`}
+                  ariaLabel="Dash price history in USD over the last day"
                   minimumMax={0}
-                  className="[&_svg]:h-20 [&_svg_text]:hidden"
                 />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>
-                    {formatDateTime(firstPrice.timestamp * 1000, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                  <span>
-                    {formatDateTime(lastPrice.timestamp * 1000, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
+                <div className="mt-1 flex justify-between text-[10px] text-foreground/32">
+                  <span>{priceChartDate(firstPrice.timestamp)}</span>
+                  <span>{priceChartDate(lastPrice.timestamp)}</span>
                 </div>
               </>
             ) : (
@@ -159,9 +168,24 @@ export function HomeGeneralStats() {
         </StatCard>
         <StatCard
           label="Circulating Supply"
-          value={supply === null ? "—" : `${formatCompact(supply)} Dash`}
+          value={
+            supply === null ? (
+              "—"
+            ) : (
+              <span className="whitespace-nowrap">
+                {formatNumber(supply / 1_000_000, {
+                  minimumFractionDigits: 3,
+                  maximumFractionDigits: 3,
+                })}
+                <span className="whitespace-nowrap font-medium">M Dash</span>
+              </span>
+            )
+          }
           detail={
-            <span title="Estimated from market capitalization divided by the USD price.">
+            <span
+              className="inline-flex rounded-lg bg-secondary px-2 py-1"
+              title="Estimated from market capitalization divided by the USD price."
+            >
               {supply === null
                 ? "Estimate unavailable"
                 : `≈ ${metricNumber(supply, 0)} Dash`}
@@ -170,18 +194,81 @@ export function HomeGeneralStats() {
         />
         <StatCard
           label="Hash Rate"
-          value={formatHashRate(stats?.hashRate)}
-          detail="Estimated over 120 blocks"
-        />
+          value={
+            <span title="Estimated network hash rate over the last 120 indexed blocks.">
+              {hashRateValue}
+              {hashRateUnit && (
+                <span className="whitespace-nowrap font-medium">
+                  {" "}
+                  {hashRateUnit}
+                </span>
+              )}
+            </span>
+          }
+          detail={
+            <span className="flex flex-wrap items-center gap-1">
+              <span className="rounded-lg bg-secondary px-2 py-1">Block</span>
+              {stats?.latestHeight != null ? (
+                <Link
+                  to="/blocks/$hashOrHeight"
+                  params={{ hashOrHeight: String(stats.latestHeight) }}
+                  className="rounded font-extrabold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  #{metricNumber(stats.latestHeight, 0)}
+                </Link>
+              ) : (
+                <span>—</span>
+              )}
+            </span>
+          }
+          className="flex-wrap gap-4"
+        >
+          <div className="flex min-h-20 min-w-32 flex-col items-center justify-center gap-1">
+            <p className="text-xl font-extrabold text-brand">—</p>
+            <p className="dash-label-small text-muted-foreground">
+              Highest Recorded
+            </p>
+            <MissingApiData
+              compact
+              description="The historical peak hashrate for the selected network is not available."
+            />
+          </div>
+        </StatCard>
         <StatCard
           label="Mempool Size"
-          value={metricNumber(stats?.mempoolSize, 0)}
-          detail="Pending transactions"
+          value={
+            <span title="Number of pending transactions currently indexed.">
+              {metricNumber(stats?.mempoolSize, 0)}{" "}
+              <span className="font-medium">Txs</span>
+            </span>
+          }
+          detail={
+            <span className="inline-flex rounded-lg bg-secondary px-2 py-1">
+              Indexed mempool
+            </span>
+          }
         />
         <StatCard
           label="Current TPS"
-          value={`${metricNumber(stats?.transactionsPerSecond)} Tx/s`}
-          detail="Average over 20 blocks"
+          value={
+            <span
+              className="whitespace-nowrap"
+              title="Average transactions per second over the last 20 indexed blocks."
+            >
+              {metricNumber(stats?.transactionsPerSecond)}{" "}
+              <span className="font-medium">Tx/s</span>
+            </span>
+          }
+          detail={
+            <div className="flex items-center gap-1 whitespace-nowrap">
+              <span className="rounded-lg bg-secondary px-2 py-1">24H</span>
+              <span>—</span>
+              <MissingApiData
+                inline
+                description="The current rate is averaged over the last 20 indexed blocks. A comparable value from 24 hours ago is not available."
+              />
+            </div>
+          }
         />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
