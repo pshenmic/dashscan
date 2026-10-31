@@ -49,6 +49,7 @@ export default function SearchBar({
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const listId = useId();
   const instructionsId = useId();
   const network = useStore(appStore, (state) => state.network);
@@ -58,6 +59,23 @@ export default function SearchBar({
   const trimmedQuery = query.trim();
   const hint = searchHint(trimmedQuery, network);
   const showingHistory = trimmedQuery.length === 0;
+
+  useEffect(() => {
+    if (!open) return;
+    const onScroll = (event: Event) => {
+      if (
+        event.target instanceof Node &&
+        contentRef.current?.contains(event.target)
+      )
+        return;
+      setOpen(false);
+    };
+    window.addEventListener("scroll", onScroll, {
+      capture: true,
+      passive: true,
+    });
+    return () => window.removeEventListener("scroll", onScroll, true);
+  }, [open]);
 
   useEffect(() => {
     if (previousNetwork.current !== network) {
@@ -180,6 +198,7 @@ export default function SearchBar({
                 history.reload();
                 setOpen(true);
               }}
+              onClick={() => setOpen(true)}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   event.preventDefault();
@@ -223,8 +242,10 @@ export default function SearchBar({
         </PopoverAnchor>
       </search>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] rounded-2xl p-2"
+        ref={contentRef}
+        className="max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-2xl p-2"
         align="start"
+        hideWhenDetached
         onOpenAutoFocus={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => {
