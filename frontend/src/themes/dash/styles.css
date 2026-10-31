@@ -99,6 +99,21 @@
   @apply font-mono text-xs leading-[1.125rem] font-normal tracking-normal;
 }
 
+:root[data-theme="dash"] .dash-home-grid-surface {
+  mask-image:
+    linear-gradient(to right, transparent, black clamp(24px, 5vw, 72px), black calc(100% - clamp(24px, 5vw, 72px)), transparent),
+    linear-gradient(to bottom, black calc(100% - 160px), transparent);
+  mask-composite: intersect;
+}
+
+:root[data-theme="dash"] .dash-home-grid-fill {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--foreground) 5%, transparent) 0.8px, transparent 0.8px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 5%, transparent) 0.8px, transparent 0.8px);
+  background-size: 51.399px 51.3703px;
+  background-position: 0.156px 0.927px;
+}
+
 :root[data-theme="dash"] .dash-home-action {
   transition: background-color 160ms ease-out, color 160ms ease-out, transform 120ms ease-out;
 }

@@ -92,7 +92,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
       <search aria-label="Network search">
         <PopoverAnchor asChild>
           <form
-            className="flex w-full min-w-0 items-center gap-2 rounded-3xl border border-input bg-transparent p-1.5 pl-6 transition-shadow duration-150 focus-within:ring-2 focus-within:ring-ring"
+            className="flex w-full min-w-0 items-center gap-2 rounded-3xl border border-input bg-background p-1.5 pl-6 transition-shadow duration-150 focus-within:ring-2 focus-within:ring-ring"
             onSubmit={(event) => {
               event.preventDefault();
               setOpen(true);

@@ -12,7 +12,7 @@ export default function ClassicShell({ children }: { children: ReactNode }) {
       {isHome && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-1/2 -z-10 w-full max-w-[1440px] -translate-x-1/2 overflow-hidden"
+          className="dash-home-grid-surface pointer-events-none absolute inset-y-0 left-1/2 -z-10 w-full max-w-[1440px] -translate-x-1/2 overflow-hidden"
         >
           <div
             className="absolute bottom-0 left-1/2 h-[1132px] w-[1440px] -translate-x-1/2 rotate-180 bg-foreground"

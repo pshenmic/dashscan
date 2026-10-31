@@ -38,27 +38,8 @@ export function HomeHero() {
   return (
     <section
       aria-labelledby={titleId}
-      className="relative isolate pb-12 pt-16 lg:pb-8 lg:pt-[134px]"
+      className="dash-home-hero relative isolate pb-12 pt-16 lg:pb-8 lg:pt-[134px]"
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-x-4 -top-[88px] bottom-0 -z-10 overflow-hidden sm:-inset-x-8"
-      >
-        <img
-          src="/images/home/hero-background.png"
-          alt=""
-          width={1441}
-          height={498}
-          className="absolute inset-x-0 top-0 w-full max-w-none dark:hidden"
-        />
-        <img
-          src="/images/home/hero-background-dark.png"
-          alt=""
-          width={1441}
-          height={498}
-          className="absolute inset-x-0 top-0 hidden w-full max-w-none dark:block"
-        />
-      </div>
       <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:gap-32">
         <div>
           <p className="mb-3 text-xl font-medium text-muted-foreground">
@@ -83,7 +64,7 @@ export function HomeHero() {
             </Link>
             <Link
               to="/dao"
-              className="dash-home-action flex min-h-12 items-center rounded-full bg-action-subtle px-6 text-base font-medium text-brand hover:bg-brand/20 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+              className="dash-home-action flex min-h-12 items-center rounded-full bg-[color-mix(in_srgb,var(--brand)_12%,var(--background))] px-6 text-base font-medium text-brand hover:bg-[color-mix(in_srgb,var(--brand)_20%,var(--background))] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
               Governance
             </Link>
