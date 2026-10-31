@@ -207,7 +207,7 @@ export function HomeAddresses() {
           </p>
           <Link
             to="/addresses"
-            className="mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full bg-action-subtle py-2 pl-6 pr-2 text-brand hover:bg-brand/20 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            className="dash-home-action mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full bg-action-subtle py-2 pl-6 pr-2 text-brand hover:bg-brand/20 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             Explore Addresses
             <span className="flex size-8 items-center justify-center rounded-full bg-action-primary text-primary-foreground">

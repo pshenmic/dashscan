@@ -74,7 +74,7 @@ export function HomeHero() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               to="/dashboard"
-              className="flex min-h-12 items-center gap-4 rounded-full bg-action-primary py-2 pl-6 pr-2 text-base font-medium text-primary-foreground transition-colors hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+              className="dash-home-action flex min-h-12 items-center gap-4 rounded-full bg-action-primary py-2 pl-6 pr-2 text-base font-medium text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
               Explore Dashboard
               <span className="flex size-8 items-center justify-center rounded-full bg-primary-foreground text-brand">
@@ -83,7 +83,7 @@ export function HomeHero() {
             </Link>
             <Link
               to="/dao"
-              className="flex min-h-12 items-center rounded-full bg-action-subtle px-6 text-base font-medium text-brand transition-colors hover:bg-brand/20 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+              className="dash-home-action flex min-h-12 items-center rounded-full bg-action-subtle px-6 text-base font-medium text-brand hover:bg-brand/20 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
               Governance
             </Link>

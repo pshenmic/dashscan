@@ -92,7 +92,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
       <search aria-label="Network search">
         <PopoverAnchor asChild>
           <form
-            className="flex w-full min-w-0 items-center gap-2 rounded-3xl border border-input bg-transparent p-1.5 pl-6 transition-shadow focus-within:ring-2 focus-within:ring-ring"
+            className="flex w-full min-w-0 items-center gap-2 rounded-3xl border border-input bg-transparent p-1.5 pl-6 transition-shadow duration-150 focus-within:ring-2 focus-within:ring-ring"
             onSubmit={(event) => {
               event.preventDefault();
               setOpen(true);
@@ -107,6 +107,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
               role="combobox"
               aria-label="Search blocks, transactions, addresses and masternodes"
               aria-autocomplete="list"
+              aria-busy={pending}
               aria-expanded={open && query.trim().length > 0}
               aria-controls={open ? listId : undefined}
               aria-activedescendant={
@@ -151,7 +152,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
             <button
               type="submit"
               aria-label="Search"
-              className="flex size-12 shrink-0 items-center justify-center rounded-[18px] bg-foreground/8 text-foreground transition-colors hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring"
+              className="dash-home-action flex size-12 shrink-0 items-center justify-center rounded-[18px] bg-foreground/8 text-foreground hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring"
             >
               {pending ? (
                 <Loader2 aria-hidden="true" className="size-4 animate-spin" />

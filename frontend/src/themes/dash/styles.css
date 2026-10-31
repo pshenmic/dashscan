@@ -98,3 +98,46 @@
 @utility dash-data-mono {
   @apply font-mono text-xs leading-[1.125rem] font-normal tracking-normal;
 }
+
+:root[data-theme="dash"] .dash-home-action {
+  transition: background-color 160ms ease-out, color 160ms ease-out, transform 120ms ease-out;
+}
+
+:root[data-theme="dash"] .dash-home-action [data-home-icon="explore"] {
+  transition: transform 160ms ease-out;
+}
+
+:root[data-theme="dash"] .dash-home-action:active {
+  transform: scale(0.99);
+}
+
+:root[data-theme="dash"] .dash-home-action:focus-visible [data-home-icon="explore"] {
+  transform: translate(2px, -2px);
+}
+
+:root[data-theme="dash"] .dash-home-table tbody tr {
+  transition: background-color 160ms ease-out;
+}
+
+:root[data-theme="dash"] .dash-home-table tbody tr:focus-within {
+  background-color: var(--action-subtle);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-theme="dash"] .dash-home-action:hover [data-home-icon="explore"] {
+    transform: translate(2px, -2px);
+  }
+
+  :root[data-theme="dash"] .dash-home-table tbody tr:has(a, button):hover {
+    background-color: var(--action-subtle);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="dash"] .dash-home-action,
+  :root[data-theme="dash"] .dash-home-action [data-home-icon="explore"] {
+    transform: none !important;
+    transition: none;
+  }
+
+}

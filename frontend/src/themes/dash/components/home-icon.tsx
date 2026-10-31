@@ -10,6 +10,7 @@ export function HomeIcon({
   return (
     <span
       aria-hidden="true"
+      data-home-icon={name}
       className={cn("inline-block size-4 shrink-0 bg-current", className)}
       style={{
         mask: `url('/icons/home/${name}.svg') center / contain no-repeat`,
