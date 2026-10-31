@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { type ReactNode, useId } from "react";
-import { useNow } from "@/components/render-clock";
+import { useClockValue, useNow } from "@/components/render-clock";
 import {
   Popover,
   PopoverContent,
@@ -13,7 +13,11 @@ import {
   proposalsQueryOptions,
 } from "@/lib/api/governance";
 import { priceQueryOptions } from "@/lib/api/price";
-import type { ApiGovernanceObject } from "@/lib/api/types";
+import type {
+  ApiBlock,
+  ApiChainStats,
+  ApiGovernanceObject,
+} from "@/lib/api/types";
 import {
   formatCompactUsdShort,
   formatDateTime,
@@ -205,14 +209,94 @@ function DaoMetric({
   );
 }
 
+function DaoTimingCards({
+  chain,
+  latest,
+  deadline,
+  showMissingDeadline,
+}: {
+  chain: ApiChainStats | undefined;
+  latest: ApiBlock | undefined;
+  deadline: string | null | undefined;
+  showMissingDeadline: boolean;
+}) {
+  const now = useNow();
+  const timing = daoTiming(chain, latest, deadline, now);
+  const countdown = (timestamp: number | null, ended: string) =>
+    timestamp == null
+      ? "Time unavailable"
+      : timestamp <= now
+        ? ended
+        : `≈ ${formatDuration(timestamp - now)}`;
+  return (
+    <>
+      <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl bg-foreground/3 px-6 py-4">
+        <div className="min-w-0 flex-1 space-y-2">
+          <h3 className="dash-body-compact text-foreground/50">
+            Voting Closes
+          </h3>
+          <p className="dash-metric text-brand">
+            {timing.votingDeadline == null
+              ? "—"
+              : formatDateTime(timing.votingDeadline, {
+                  month: "short",
+                  day: "2-digit",
+                  year: "numeric",
+                })}
+          </p>
+          <p className="dash-label-small text-muted-foreground">
+            {countdown(timing.votingDeadline, "Estimated deadline reached")}
+          </p>
+          <span className="dash-label-small text-muted-foreground">
+            Estimated · UTC
+          </span>
+        </div>
+        <DaoRing
+          value={timing.votingProgress}
+          label="Estimated voting window elapsed"
+        />
+      </div>
+      <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl bg-foreground/3 px-6 py-4">
+        <div className="min-w-0 flex-1 space-y-2">
+          <h3 className="dash-body-compact text-foreground/50">
+            Next Superblock
+          </h3>
+          <p className="dash-metric break-words text-brand">
+            #{metricNumber(chain?.nextSuperblockHeight, 0)}
+          </p>
+          <p className="dash-label-small text-muted-foreground">
+            {countdown(timing.nextAt, "Awaiting superblock")}
+          </p>
+        </div>
+        <DaoRing
+          value={timing.blockProgress}
+          label="Superblock cycle completed"
+        />
+      </div>
+      {showMissingDeadline && timing.votingDeadline == null && (
+        <MissingApiData
+          compact
+          description="This backend does not provide the voting deadline."
+        />
+      )}
+    </>
+  );
+}
+
 export function HomeDao() {
   const titleId = useId();
-  const now = useNow();
   const network = useStore(appStore, (state) => state.network);
   const proposals = useQuery({
     ...proposalsQueryOptions({ network, proposalType: "all" }),
     refetchInterval: 60_000,
   });
+  const proposalTime = useClockValue((now) =>
+    (proposals.data ?? []).reduce((boundary, proposal) => {
+      const start = (proposal.startEpoch ?? Number.NaN) * 1000;
+      const end = (proposal.endEpoch ?? Number.NaN) * 1000;
+      return Math.max(boundary, start <= now ? start : 0, end <= now ? end : 0);
+    }, 0),
+  );
   const budget = useQuery({
     ...budgetQueryOptions({ network }),
     refetchInterval: 60_000,
@@ -222,19 +306,13 @@ export function HomeDao() {
   const price = useQuery(priceQueryOptions({ network, currency: "usd" }));
   const rows = activeProposals(
     proposals.isError ? undefined : proposals.data,
-    now,
+    proposalTime,
   );
   const latest = [...(blocks.data?.resultSet ?? [])].sort(
     (first, second) => second.height - first.height,
   )[0];
   const currentBudget = budget.isError ? undefined : budget.data;
   const allocation = budgetAllocation(currentBudget);
-  const timing = daoTiming(
-    chain.isError ? undefined : chain.data,
-    blocks.isError ? undefined : latest,
-    currentBudget?.votingDeadline,
-    now,
-  );
   const totalSubmitted = proposals.data?.filter(
     (proposal) => proposal.objectType === "Proposal",
   ).length;
@@ -246,12 +324,6 @@ export function HomeDao() {
     !price.isError
       ? `≈ ${formatCompactUsdShort(amount * price.data.usd)}`
       : "—";
-  const countdown = (timestamp: number | null, ended: string) =>
-    timestamp == null
-      ? "Time unavailable"
-      : timestamp <= now
-        ? ended
-        : `≈ ${formatDuration(timestamp - now)}`;
   const proposalState = proposals.isError ? (
     <p role="alert" className="text-sm text-destructive">
       Could not load proposals.{" "}
@@ -447,61 +519,12 @@ export function HomeDao() {
               />
             ) : null}
           </div>
-          <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl bg-foreground/3 px-6 py-4">
-            <div className="min-w-0 flex-1 space-y-2">
-              <h3 className="dash-body-compact text-foreground/50">
-                Voting Closes
-              </h3>
-              <p className="dash-metric text-brand">
-                {timing.votingDeadline == null
-                  ? "—"
-                  : formatDateTime(timing.votingDeadline, {
-                      month: "short",
-                      day: "2-digit",
-                      year: "numeric",
-                    })}
-              </p>
-              <p className="dash-label-small text-muted-foreground">
-                {countdown(timing.votingDeadline, "Estimated deadline reached")}
-              </p>
-              <span className="dash-label-small text-muted-foreground">
-                Estimated · UTC
-              </span>
-            </div>
-            <DaoRing
-              value={timing.votingProgress}
-              label="Estimated voting window elapsed"
-            />
-          </div>
-          <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl bg-foreground/3 px-6 py-4">
-            <div className="min-w-0 flex-1 space-y-2">
-              <h3 className="dash-body-compact text-foreground/50">
-                Next Superblock
-              </h3>
-              <p className="dash-metric break-words text-brand">
-                #
-                {metricNumber(
-                  chain.isError ? null : chain.data?.nextSuperblockHeight,
-                  0,
-                )}
-              </p>
-              <p className="dash-label-small text-muted-foreground">
-                {countdown(timing.nextAt, "Awaiting superblock")}
-              </p>
-            </div>
-            <DaoRing
-              value={timing.blockProgress}
-              label="Superblock cycle completed"
-            />
-          </div>
-          {!budget.isPending &&
-            !budget.isError &&
-            timing.votingDeadline == null && (
-              <MissingApiData
-                compact
-                description="This backend does not provide the voting deadline."
-              />
-            )}
+          <DaoTimingCards
+            chain={chain.isError ? undefined : chain.data}
+            latest={blocks.isError ? undefined : latest}
+            deadline={currentBudget?.votingDeadline}
+            showMissingDeadline={!budget.isPending && !budget.isError}
+          />
         </div>
         <div className="grid min-w-0 gap-4 sm:grid-cols-3 xl:flex xl:flex-col">
           <DaoMetric

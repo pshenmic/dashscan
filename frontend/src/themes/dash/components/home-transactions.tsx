@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { useId } from "react";
 import { RelativeTime } from "@/components/relative-time";
-import { useNow } from "@/components/render-clock";
+import { useClockValue } from "@/components/render-clock";
 import {
   transactionsBreakdown24hQueryOptions,
   transactionsStatsQueryOptions,
@@ -26,7 +26,7 @@ import { MissingApiData } from "./missing-api-data";
 
 export function HomeTransactions() {
   const titleId = useId();
-  const now = useNow();
+  const day = useClockValue((now) => Math.floor(now / 86_400_000) * 86_400_000);
   const network = useStore(appStore, (state) => state.network);
   const chain = useQuery(homeChainQueryOptions(network));
   const transactions = useQuery({
@@ -37,7 +37,7 @@ export function HomeTransactions() {
     ...transactionsBreakdown24hQueryOptions({ network }),
     refetchInterval: 60_000,
   });
-  const range = transactionHistoryRange(now);
+  const range = transactionHistoryRange(day);
   const history = useQuery(
     transactionsStatsQueryOptions({ network, ...range }),
   );

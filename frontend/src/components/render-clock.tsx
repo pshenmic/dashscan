@@ -4,9 +4,31 @@ import {
   useContext,
   useEffect,
   useState,
+  useSyncExternalStore,
 } from "react";
 
-const RenderClockContext = createContext<number | null>(null);
+function createClock(initialNow: number) {
+  let now = initialNow;
+  const listeners = new Set<() => void>();
+  return {
+    getSnapshot: () => now,
+    getServerSnapshot: () => initialNow,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    tick: () => {
+      now = Date.now();
+      for (const listener of listeners) listener();
+    },
+  };
+}
+
+const RenderClockContext = createContext<ReturnType<typeof createClock> | null>(
+  null,
+);
 
 export function RenderClock({
   initialNow,
@@ -15,23 +37,31 @@ export function RenderClock({
   initialNow: number;
   children: ReactNode;
 }) {
-  const [now, setNow] = useState(initialNow);
+  const [clock] = useState(() => createClock(initialNow));
 
   useEffect(() => {
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    clock.tick();
+    const timer = setInterval(clock.tick, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [clock]);
 
   return (
-    <RenderClockContext.Provider value={now}>
+    <RenderClockContext.Provider value={clock}>
       {children}
     </RenderClockContext.Provider>
   );
 }
 
+export function useClockValue(select: (now: number) => number): number {
+  const clock = useContext(RenderClockContext);
+  if (clock === null) throw new Error("useNow must be used within RenderClock");
+  return useSyncExternalStore(
+    clock.subscribe,
+    () => select(clock.getSnapshot()),
+    () => select(clock.getServerSnapshot()),
+  );
+}
+
 export function useNow(): number {
-  const now = useContext(RenderClockContext);
-  if (now === null) throw new Error("useNow must be used within RenderClock");
-  return now;
+  return useClockValue((now) => now);
 }

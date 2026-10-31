@@ -17,9 +17,19 @@ import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
 
+function ExpectedBlockTime({ expectedAt }: { expectedAt: number }) {
+  const now = useNow();
+  return (
+    <>
+      {expectedAt > now
+        ? `~${metricNumber(Math.ceil((expectedAt - now) / 60_000), 0)} min`
+        : "Awaiting block"}
+    </>
+  );
+}
+
 export function HomeBlocks() {
   const titleId = useId();
-  const now = useNow();
   const network = useStore(appStore, (state) => state.network);
   const chain = useQuery(homeChainQueryOptions(network));
   const blocksQuery = useQuery(homeBlocksQueryOptions(network));
@@ -177,9 +187,7 @@ export function HomeBlocks() {
                       #{metricNumber(block.height, 0)}
                     </span>
                     <span className="dash-label-small font-extrabold">
-                      {block.expectedAt > now
-                        ? `~${metricNumber(Math.ceil((block.expectedAt - now) / 60_000), 0)} min`
-                        : "Awaiting block"}
+                      <ExpectedBlockTime expectedAt={block.expectedAt} />
                     </span>
                   </div>
                   <div className="mt-3 border-t-2 border-dashed border-border pt-2 text-center text-[10px] text-muted-foreground">
