@@ -172,13 +172,13 @@ export function HomeBlocks() {
               {timeline.map((block) => (
                 <li
                   key={block.hash}
-                  data-new-block={newHashes.includes(block.hash) || undefined}
                   className="min-w-[128px] flex-1 rounded-xl"
                 >
                   <Link
                     to="/blocks/$hashOrHeight"
                     params={{ hashOrHeight: block.hash }}
-                    className="flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-brand p-3 text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    data-new-block={newHashes.includes(block.hash) || undefined}
+                    className="dash-timeline-block relative flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-brand p-3 text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
                       <span
