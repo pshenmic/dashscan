@@ -16,6 +16,7 @@ import {
 import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
+import { MissingApiData } from "./missing-api-data";
 
 function ExpectedBlockTime({ expectedAt }: { expectedAt: number }) {
   const now = useNow();
@@ -75,7 +76,7 @@ export function HomeBlocks() {
       aria-labelledby={titleId}
       className="space-y-10 rounded-3xl bg-card p-4 sm:p-8 lg:space-y-16 lg:rounded-[48px]"
     >
-      <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] xl:gap-32">
+      <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] xl:grid-cols-[minmax(0,1fr)_minmax(736px,1.7fr)] xl:gap-16">
         <div>
           <p className="text-xl font-medium text-muted-foreground">
             Dash Chain
@@ -100,7 +101,7 @@ export function HomeBlocks() {
             </span>
           </Link>
         </div>
-        <div className="min-w-0 space-y-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <div className="dash-label-small flex flex-wrap items-center gap-3">
             {chain.data?.latestSuperblockHeight != null ? (
               <Link
@@ -121,12 +122,18 @@ export function HomeBlocks() {
               </span>
             )}
             <span className="text-muted-foreground">
-              Updates every 30 seconds
+              <span className="inline-flex flex-wrap items-center gap-2 rounded-full bg-card px-2 py-1 shadow-[0_0_24px_rgb(12_28_51/8%)]">
+                Block Reward:
+                <MissingApiData
+                  inline
+                  description="Block reward data is not provided by the current API."
+                />
+              </span>
             </span>
           </div>
           <div>
-            <h3 className="dash-heading-page">Timeline</h3>
-            <p className="dash-body mt-2 text-muted-foreground">
+            <h3 className="text-[2rem] font-medium leading-[1.1]">Timeline</h3>
+            <p className="mt-2 text-base font-medium leading-[1.1] text-foreground/48">
               Recently mined blocks and estimated upcoming mining slots.
             </p>
           </div>
@@ -152,46 +159,56 @@ export function HomeBlocks() {
           ) : (
             <ol
               aria-label="Recent and estimated blocks"
-              className="flex gap-3 overflow-x-auto pb-2"
+              className="-mx-4 -my-6 flex gap-6 overflow-x-auto px-4 py-6 sm:-mx-6 sm:px-6"
             >
               {timeline.map((block) => (
                 <li
                   key={block.hash}
                   data-new-block={newHashes.includes(block.hash) || undefined}
-                  className="min-w-28 flex-1 rounded-xl"
+                  className="min-w-[128px] flex-1 rounded-xl"
                 >
                   <Link
                     to="/blocks/$hashOrHeight"
                     params={{ hashOrHeight: block.hash }}
-                    className="flex flex-col gap-3 rounded-xl bg-action-primary p-3 text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    className="flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-brand p-3 text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
-                    <span className="dash-label-small whitespace-nowrap">
+                    <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
+                      <span
+                        aria-hidden="true"
+                        className="h-[11px] w-[10px] shrink-0 bg-current [mask:url('/icons/home/timeline-block.svg')_center/contain_no-repeat]"
+                      />
                       #{metricNumber(block.height, 0)}
                     </span>
                     <span className="flex items-center justify-between gap-2 text-xs">
-                      <span>
+                      <span className="text-sm">
                         <strong>{metricNumber(block.txCount, 0)}</strong> Txs
                       </span>
-                      <span>{metricBytes(block.size)}</span>
+                      <span className="text-primary-foreground/48">
+                        {metricBytes(block.size)}
+                      </span>
                     </span>
                   </Link>
-                  <div className="mt-3 border-t-2 border-brand pt-2 text-center text-[10px] text-muted-foreground">
+                  <div className="relative mt-2 pt-3 text-center text-[10px] text-foreground/48 before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-brand after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)]">
                     <RelativeTime timestamp={block.timestamp} />
                   </div>
                 </li>
               ))}
               {upcoming.map((block) => (
-                <li key={block.height} className="min-w-28 flex-1">
-                  <div className="flex flex-col gap-3 rounded-xl bg-secondary p-3 text-brand">
-                    <span className="dash-label-small whitespace-nowrap">
+                <li key={block.height} className="group min-w-[128px] flex-1">
+                  <div className="flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-card p-3 text-brand shadow-[0_0_24px_rgb(12_28_51/8%)]">
+                    <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
+                      <span
+                        aria-hidden="true"
+                        className="h-[11px] w-[10px] shrink-0 bg-current [mask:url('/icons/home/timeline-block.svg')_center/contain_no-repeat]"
+                      />
                       #{metricNumber(block.height, 0)}
                     </span>
-                    <span className="dash-label-small font-extrabold">
+                    <span className="whitespace-nowrap text-xs font-extrabold leading-[1.3]">
                       <ExpectedBlockTime expectedAt={block.expectedAt} />
                     </span>
                   </div>
-                  <div className="mt-3 border-t-2 border-dashed border-border pt-2 text-center text-[10px] text-muted-foreground">
-                    Estimated
+                  <div className="relative mt-2 min-h-[26px] pt-3 text-center text-[10px] text-foreground/48 before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-dashed before:border-brand/24 after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)] group-last:before:right-0">
+                    <span className="sr-only">Estimated</span>
                   </div>
                 </li>
               ))}
