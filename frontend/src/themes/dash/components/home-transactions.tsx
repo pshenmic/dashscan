@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { LockKeyhole } from "lucide-react";
 import { useId } from "react";
-import { RelativeTime } from "@/components/relative-time";
 import { useClockValue } from "@/components/render-clock";
 import {
   Tooltip,
@@ -25,6 +24,7 @@ import {
   transactionHistorySummary,
 } from "@/themes/dash/lib/transaction-metrics";
 import { AreaChart } from "./area-chart";
+import { BlockAge } from "./block-age";
 import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
@@ -205,9 +205,11 @@ export function HomeTransactions() {
         </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2.7fr)_minmax(0,1fr)]">
-        <div className="min-w-0 rounded-3xl bg-secondary p-4 sm:p-6">
-          <h3 className="dash-heading-section">Transaction List</h3>
-          <p className="dash-body-compact mt-2 text-muted-foreground">
+        <div className="min-w-0 rounded-3xl bg-foreground/3 p-4 sm:p-6">
+          <h3 className="text-2xl font-medium leading-[1.1]">
+            Transaction List
+          </h3>
+          <p className="mt-2 text-sm font-medium leading-[1.1] text-foreground/48">
             Latest indexed transactions · updates every 30 seconds
           </p>
           {transactions.isError && (
@@ -224,13 +226,13 @@ export function HomeTransactions() {
             </p>
           )}
           <div className="mt-6 overflow-x-auto">
-            <HomeTable className="min-w-[620px]">
+            <HomeTable className="min-w-[700px] font-medium">
               <caption className="sr-only">
                 Latest mined transactions, newest blocks first. Age is the age
                 of the containing block. Output total includes all outputs,
                 including change.
               </caption>
-              <thead className="text-muted-foreground">
+              <thead className="text-foreground/48">
                 <tr>
                   {["Transaction Hash", "Type", "Age", "Output total"].map(
                     (label) => (
@@ -244,7 +246,7 @@ export function HomeTransactions() {
                               ? "Sum of all outputs, including change, in DASH"
                               : undefined
                         }
-                        className="border-b border-border px-3 py-3 font-medium last:text-right"
+                        className="border-b border-foreground/8 px-3 pb-3 pt-2 font-medium first:pl-11 [&:nth-child(n+3)]:text-right"
                       >
                         {label}
                       </th>
@@ -256,9 +258,9 @@ export function HomeTransactions() {
                 {rows.map((transaction) => (
                   <tr
                     key={transaction.hash}
-                    className="border-b border-border last:border-0"
+                    className="border-b border-foreground/8 last:border-0"
                   >
-                    <td data-grow className="px-3 py-5">
+                    <td data-grow className="px-3 py-[18px]">
                       <IdentifierLink
                         kind="transaction"
                         value={transaction.hash}
@@ -273,13 +275,13 @@ export function HomeTransactions() {
                         }
                       />
                     </td>
-                    <td className="px-3 py-5">
+                    <td className="px-3 py-[18px]">
                       <TransactionTypeBadge type={transaction.type} />
                     </td>
-                    <td className="whitespace-nowrap px-3 py-5">
-                      <div className="flex items-center gap-2">
+                    <td className="whitespace-nowrap px-3 py-[18px] tabular-nums">
+                      <div className="flex items-center justify-end gap-2">
                         {transaction.timestamp ? (
-                          <RelativeTime timestamp={transaction.timestamp} />
+                          <BlockAge timestamp={transaction.timestamp} />
                         ) : (
                           <span title="Block timestamp is missing">—</span>
                         )}
@@ -309,7 +311,7 @@ export function HomeTransactions() {
                         </span>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-5 text-right text-brand">
+                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums text-brand">
                       {transactionAmount(transaction.amount)}
                     </td>
                   </tr>

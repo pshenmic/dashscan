@@ -3,36 +3,16 @@ import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { useId } from "react";
 import { RelativeTime } from "@/components/relative-time";
-import { useNow } from "@/components/render-clock";
 import { formatDateTime } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { useNewBlocks } from "@/themes/dash/hooks/use-new-blocks";
 import { metricBytes, metricNumber } from "@/themes/dash/lib/home-metrics";
+import { BlockAge } from "./block-age";
 import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
 import { MissingApiData } from "./missing-api-data";
-
-function BlockAge({ timestamp }: { timestamp: string }) {
-  const now = useNow();
-  const seconds = Math.max(0, Math.floor((now - Date.parse(timestamp)) / 1000));
-  if (!Number.isFinite(seconds)) return "—";
-  const age =
-    seconds < 60
-      ? `${seconds}s`
-      : seconds < 3600
-        ? `${Math.floor(seconds / 60)}m ${seconds % 60}s`
-        : seconds < 86400
-          ? `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
-          : `${metricNumber(Math.floor(seconds / 86400), 0)}d`;
-  return (
-    <time dateTime={timestamp} title={formatDateTime(timestamp)}>
-      {age}
-      <span className="sr-only"> ago</span>
-    </time>
-  );
-}
 
 export function HomeBlocks() {
   const titleId = useId();
@@ -312,17 +292,10 @@ export function HomeBlocks() {
             </p>
           )}
           <div className="overflow-x-auto">
-            <HomeTable className="min-w-[700px] table-fixed font-medium [&_td:not([data-grow])]:w-auto">
+            <HomeTable className="min-w-[700px] font-medium">
               <caption className="sr-only">
                 Recently mined blocks, newest first
               </caption>
-              <colgroup>
-                <col className="w-24" />
-                <col className="w-40" />
-                <col />
-                <col className="w-[100px]" />
-                <col className="w-[100px]" />
-              </colgroup>
               <thead className="text-foreground/48">
                 <tr>
                   {["Age", "Height", "Block Hash", "Size", "Count"].map(
