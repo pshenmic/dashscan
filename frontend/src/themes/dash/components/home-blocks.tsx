@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { useId } from "react";
 import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import { formatDateTime } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
@@ -12,6 +13,26 @@ import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
 import { MissingApiData } from "./missing-api-data";
+
+function BlockAge({ timestamp }: { timestamp: string }) {
+  const now = useNow();
+  const seconds = Math.max(0, Math.floor((now - Date.parse(timestamp)) / 1000));
+  if (!Number.isFinite(seconds)) return "—";
+  const age =
+    seconds < 60
+      ? `${seconds}s`
+      : seconds < 3600
+        ? `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+        : seconds < 86400
+          ? `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
+          : `${metricNumber(Math.floor(seconds / 86400), 0)}d`;
+  return (
+    <time dateTime={timestamp} title={formatDateTime(timestamp)}>
+      {age}
+      <span className="sr-only"> ago</span>
+    </time>
+  );
+}
 
 export function HomeBlocks() {
   const titleId = useId();
@@ -281,26 +302,35 @@ export function HomeBlocks() {
             </div>
           ))}
         </div>
-        <div className="min-w-0 rounded-3xl bg-secondary p-4 sm:p-6">
-          <h3 className="dash-heading-section mb-6">Block List</h3>
+        <div className="min-w-0 rounded-3xl bg-foreground/3 p-4 sm:p-6">
+          <h3 className="mb-6 text-2xl font-medium leading-[1.1]">
+            Block List
+          </h3>
           {blocksQuery.isError && blocks.length > 0 && (
             <p role="alert" className="dash-label-small mb-4 text-destructive">
               Could not refresh blocks. Showing the last available data.
             </p>
           )}
           <div className="overflow-x-auto">
-            <HomeTable className="min-w-[660px]">
+            <HomeTable className="min-w-[700px] table-fixed font-medium [&_td:not([data-grow])]:w-auto">
               <caption className="sr-only">
                 Recently mined blocks, newest first
               </caption>
-              <thead className="text-muted-foreground">
+              <colgroup>
+                <col className="w-24" />
+                <col className="w-40" />
+                <col />
+                <col className="w-[100px]" />
+                <col className="w-[100px]" />
+              </colgroup>
+              <thead className="text-foreground/48">
                 <tr>
                   {["Age", "Height", "Block Hash", "Size", "Count"].map(
                     (label) => (
                       <th
                         key={label}
                         scope="col"
-                        className="border-b border-border px-3 py-4 font-medium last:text-right"
+                        className="border-b border-foreground/8 px-3 pb-3 pt-2 font-medium last:text-right"
                       >
                         {label}
                       </th>
@@ -313,34 +343,34 @@ export function HomeBlocks() {
                   <tr
                     key={block.hash}
                     data-new-block={newHashes.includes(block.hash) || undefined}
-                    className="border-b border-border last:border-0"
+                    className="border-b border-foreground/8 last:border-0"
                   >
-                    <td className="whitespace-nowrap px-3 py-5">
-                      <RelativeTime timestamp={block.timestamp} />
+                    <td className="whitespace-nowrap px-3 py-[18px] tabular-nums">
+                      <BlockAge timestamp={block.timestamp} />
                     </td>
-                    <td className="px-3 py-5">
+                    <td className="px-3 py-[18px]">
                       <Link
                         to="/blocks/$hashOrHeight"
                         params={{ hashOrHeight: block.hash }}
-                        className="flex items-center gap-3 whitespace-nowrap text-accent hover:underline"
+                        className="flex items-center gap-3 whitespace-nowrap text-brand hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                       >
                         <img
                           src="/icons/home/block.svg"
                           alt=""
                           width={24}
                           height={24}
-                          className="size-6"
+                          className="size-6 shrink-0"
                         />
                         #{metricNumber(block.height, 0)}
                       </Link>
                     </td>
-                    <td data-grow className="px-3 py-5">
+                    <td data-grow className="px-3 py-[18px]">
                       <IdentifierLink kind="block" value={block.hash} />
                     </td>
-                    <td className="whitespace-nowrap px-3 py-5">
+                    <td className="whitespace-nowrap px-3 py-[18px] tabular-nums">
                       {metricBytes(block.size)}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-5 text-right text-accent">
+                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums text-brand">
                       <strong>{metricNumber(block.txCount, 0)}</strong> Txs
                     </td>
                   </tr>
