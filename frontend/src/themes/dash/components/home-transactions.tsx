@@ -51,7 +51,16 @@ export function HomeTransactions() {
   const summary = transactionHistorySummary(history.data, range.timestampEnd);
   const rows = transactions.data?.resultSet ?? [];
   const total = transactions.data?.pagination.total;
-  const surface = "rounded-3xl bg-popover px-6 py-4 shadow-card";
+  const totalScale =
+    total != null && total >= 1_000_000
+      ? 1_000_000
+      : total != null && total >= 1_000
+        ? 1_000
+        : 1;
+  const totalUnit =
+    totalScale === 1_000_000 ? "M" : totalScale === 1_000 ? "K" : "";
+  const surface = "rounded-3xl bg-card px-6 py-4";
+  const softShadow = "shadow-[0_0_24px_rgb(12_28_51/8%)]";
 
   return (
     <section
@@ -61,18 +70,22 @@ export function HomeTransactions() {
       <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,725fr)_minmax(0,503fr)] xl:gap-8 min-[1400px]:gap-[84px]">
         <div className="relative order-2 grid min-w-0 gap-4 sm:grid-cols-2 xl:order-1 xl:block xl:h-[243px]">
           <div
-            className={`${surface} relative z-10 xl:absolute xl:left-0 xl:top-0`}
+            className={`${surface} ${softShadow} relative z-10 xl:absolute xl:left-0 xl:top-0`}
           >
-            <h3 className="dash-label-small text-muted-foreground">
+            <h3 className="text-xs font-medium leading-[1.1] text-foreground/50">
               Total Transactions
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <p
-                className="text-xl font-extrabold leading-6 text-brand"
+                className="whitespace-nowrap text-xl font-extrabold leading-6 text-brand"
                 title={`Estimated indexed transactions: ${metricNumber(total, 0)}`}
               >
                 {total != null && "≈ "}
-                {metricNumber(total, 0)}
+                {metricNumber(
+                  total == null ? null : total / totalScale,
+                  totalScale === 1 ? 0 : 3,
+                )}
+                <span className="font-medium">{totalUnit}</span>
               </p>
               <span className="dash-label-small rounded-lg bg-secondary px-2 py-1 text-muted-foreground">
                 24H
@@ -90,38 +103,56 @@ export function HomeTransactions() {
             </div>
           </div>
           <div
-            className={`${surface} relative z-10 xl:absolute xl:right-0 xl:top-0`}
+            className={`${surface} ${softShadow} relative z-10 xl:absolute xl:right-0 xl:top-0`}
           >
-            <h3 className="dash-label-small text-muted-foreground">
+            <h3 className="text-xs font-medium leading-[1.1] text-foreground/50">
               Current TPS
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <p
-                className="text-xl font-extrabold leading-6 text-brand"
+                className="whitespace-nowrap text-xl font-extrabold leading-6 text-brand"
                 title="Average over 20 blocks"
               >
                 {metricNumber(chain.data?.transactionsPerSecond)}{" "}
                 <span className="font-medium">Tx/s</span>
               </p>
-              <MissingApiData
-                inline
-                description="The API does not provide the TPS change over 24 hours."
-              />
+              <span className="inline-flex items-center gap-1">
+                <span className="dash-label-small rounded-lg bg-secondary px-2 py-1 text-muted-foreground">
+                  24H
+                </span>
+                <MissingApiData
+                  inline
+                  description="The API does not provide the TPS change over 24 hours."
+                />
+              </span>
             </div>
           </div>
           <div
-            className={`${surface} flex flex-col gap-4 sm:col-span-2 sm:flex-row sm:items-center sm:gap-8 xl:absolute xl:left-[9.5%] xl:top-[55px] xl:h-[133px] xl:w-[82.75%]`}
+            className={`${surface} ${softShadow} flex flex-col gap-4 sm:col-span-2 sm:flex-row sm:items-center sm:gap-12 xl:absolute xl:left-[9.5%] xl:top-[55px] xl:h-[133px] xl:w-[82.75%]`}
           >
             <div className="shrink-0">
-              <h3 className="dash-body-compact text-muted-foreground">
+              <h3 className="text-sm font-medium leading-4 tracking-[-0.009em] text-foreground/48">
                 Transaction fees per block
               </h3>
-              <p className="dash-metric mt-2 text-brand">
+              <p className="mt-2 text-2xl font-extrabold leading-[1.2] text-brand">
                 — <span className="font-medium">DASH</span>
               </p>
-              <p className="dash-label-small mt-2 text-muted-foreground">
-                Block #{metricNumber(chain.data?.latestHeight, 0)}
-              </p>
+              <div className="mt-2 flex items-center gap-1 text-xs">
+                <span className="rounded-lg bg-secondary px-2 py-1 text-muted-foreground">
+                  Block
+                </span>
+                {chain.data?.latestHeight != null ? (
+                  <Link
+                    to="/blocks/$hashOrHeight"
+                    params={{ hashOrHeight: String(chain.data.latestHeight) }}
+                    className="font-extrabold text-brand/64 hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    #{metricNumber(chain.data.latestHeight, 0)}
+                  </Link>
+                ) : (
+                  <span className="text-brand/64">—</span>
+                )}
+              </div>
             </div>
             <div className="flex min-h-16 flex-1 items-center justify-center xl:h-full">
               <MissingApiData
@@ -131,9 +162,9 @@ export function HomeTransactions() {
             </div>
           </div>
           <div
-            className={`${surface} relative z-10 sm:col-span-2 sm:mx-auto sm:w-fit xl:absolute xl:bottom-0 xl:right-[31%]`}
+            className={`${surface} relative z-10 shadow-card sm:col-span-2 sm:mx-auto sm:w-fit xl:absolute xl:bottom-0 xl:right-[31%]`}
           >
-            <h3 className="dash-label-small text-muted-foreground">
+            <h3 className="text-xs font-medium leading-[1.1] text-foreground/50">
               Fees average
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
