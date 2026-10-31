@@ -11,7 +11,6 @@ import { formatDateTime, formatHashRate, formatNumber } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import {
-  difficultyAxisLabel,
   estimatedSupply,
   historyChange,
   metricNumber,
@@ -91,6 +90,25 @@ export function HomeGeneralStats() {
     .sort((first, second) => first.height - second.height);
   const firstPrice = priceHistory[0];
   const lastPrice = priceHistory.at(-1);
+  const difficulty = stats?.difficulty;
+  const difficultyScale =
+    difficulty != null && difficulty >= 1_000_000
+      ? 1_000_000
+      : difficulty != null && difficulty >= 1_000
+        ? 1_000
+        : 1;
+  const difficultyUnit =
+    difficultyScale === 1_000_000 ? "M" : difficultyScale === 1_000 ? "K" : "";
+  const difficultyLabels = Array.from(
+    { length: Math.min(5, blocks.length) },
+    (_, index) =>
+      blocks[
+        Math.round(
+          (index * (blocks.length - 1)) /
+            Math.max(1, Math.min(5, blocks.length) - 1),
+        )
+      ],
+  );
 
   return (
     <section aria-labelledby={titleId} className="space-y-6">
@@ -272,51 +290,107 @@ export function HomeGeneralStats() {
         />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-6 rounded-3xl bg-card p-6 sm:flex-row sm:items-center">
-          <div className="shrink-0 space-y-2">
-            <h3 className="dash-body">Hashrate Graph</h3>
-            <p className="dash-heading-page">
-              {formatHashRate(stats?.hashRate)}
+        <div className="flex min-w-0 flex-col gap-6 rounded-3xl bg-card p-6 sm:flex-row sm:items-center sm:gap-12">
+          <div className="min-w-0 shrink-0 space-y-2">
+            <h3 className="text-base font-medium leading-4">Hashrate Graph</h3>
+            <p className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]">
+              {hashRateValue}
+              {hashRateUnit && (
+                <span className="text-base font-medium"> {hashRateUnit}</span>
+              )}
             </p>
-            <p className="dash-label-small text-muted-foreground">
-              Current network estimate
+            <p className="text-sm font-medium leading-4 text-foreground/48">
+              Estimate over 120 blocks
             </p>
           </div>
-          <MissingApiData
-            description="Historical hashrate is not available from the API yet."
-            className="flex min-h-40 flex-1 flex-col items-center justify-center text-center"
-          />
+          <div className="relative h-32 min-w-0 w-full sm:flex-1">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 inset-y-1 flex flex-col justify-between"
+            >
+              {[0, 1, 2, 3].map((line) => (
+                <div
+                  key={line}
+                  className="border-t border-dashed border-foreground/15"
+                />
+              ))}
+            </div>
+            <div className="relative flex h-full items-center justify-center">
+              <MissingApiData
+                description="Historical hashrate and a comparable value from last month are not available for the selected network."
+                className="rounded-lg bg-card p-2 text-center"
+              />
+            </div>
+          </div>
         </div>
-        <div className="flex min-w-0 flex-col gap-6 rounded-3xl bg-card p-6 sm:flex-row sm:items-center">
-          <div className="shrink-0 space-y-2">
-            <h3 className="dash-body">Difficulty Graph</h3>
-            <p className="dash-heading-page">
-              {metricNumber(stats?.difficulty)}
-            </p>
-            <p className="dash-label-small text-muted-foreground">
+        <div className="flex min-w-0 flex-col gap-6 rounded-3xl bg-card p-6 sm:flex-row sm:items-center sm:gap-12">
+          <div className="min-w-0 shrink-0 space-y-2 sm:max-w-[45%]">
+            <h3 className="text-base font-medium leading-4">
+              Difficulty Graph
+            </h3>
+            <div className="flex flex-wrap items-center gap-4">
+              <p
+                className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]"
+                title={metricNumber(difficulty)}
+              >
+                {metricNumber(
+                  difficulty == null ? null : difficulty / difficultyScale,
+                )}
+                {difficultyUnit && (
+                  <span className="text-base font-medium">
+                    {" "}
+                    {difficultyUnit}
+                  </span>
+                )}
+              </p>
+              <MissingApiData
+                inline
+                description="A comparable mining difficulty value from last month is not available."
+              />
+            </div>
+            <p className="text-sm font-medium leading-4 text-foreground/48">
               Last {metricNumber(blocks.length, 0)} indexed blocks
             </p>
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="@container w-full min-w-0 sm:flex-1">
             {blocks.length > 1 ? (
-              <AreaChart
-                data={blocks}
-                getValue={(block) => block.difficulty}
-                getKey={(block) => block.hash}
-                getXLabel={(block) => `#${metricNumber(block.height, 0)}`}
-                renderTooltip={(block) => (
-                  <>
-                    <p>#{metricNumber(block.height, 0)}</p>
-                    <p>Difficulty: {metricNumber(block.difficulty)}</p>
-                  </>
-                )}
-                ariaLabel="Mining difficulty of recent blocks"
-                minimumMax={0}
-                formatYLabel={difficultyAxisLabel}
-                className="[&_svg]:min-h-40"
-              />
+              <>
+                <AreaChart
+                  compact
+                  compactHeight={128}
+                  data={blocks}
+                  getValue={(block) => block.difficulty}
+                  getKey={(block) => block.hash}
+                  getXLabel={(block) => `#${metricNumber(block.height, 0)}`}
+                  renderTooltip={(block) => (
+                    <>
+                      <p>#{metricNumber(block.height, 0)}</p>
+                      <p>Difficulty: {metricNumber(block.difficulty)}</p>
+                    </>
+                  )}
+                  ariaLabel="Mining difficulty of recent blocks"
+                  minimumMax={0}
+                  formatYLabel={(value) => metricNumber(value)}
+                />
+                <div className="mt-6 flex justify-between gap-2 text-xs font-medium text-foreground/32">
+                  {difficultyLabels.map((block, index) => (
+                    <span
+                      key={block.hash}
+                      className={
+                        index === 0 || index === difficultyLabels.length - 1
+                          ? "whitespace-nowrap"
+                          : index === Math.floor(difficultyLabels.length / 2)
+                            ? "hidden whitespace-nowrap @[16rem]:block"
+                            : "hidden whitespace-nowrap @[24rem]:block"
+                      }
+                    >
+                      #{metricNumber(block.height, 0)}
+                    </span>
+                  ))}
+                </div>
+              </>
             ) : (
-              <p className="dash-body-compact text-muted-foreground">
+              <p className="dash-body-compact flex h-32 items-center justify-center text-muted-foreground">
                 {blocksQuery.isPending
                   ? "Loading chart…"
                   : "Difficulty history unavailable"}
