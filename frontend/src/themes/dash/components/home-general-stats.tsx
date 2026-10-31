@@ -10,6 +10,7 @@ import {
 import { formatDateTime, formatHashRate, formatNumber } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import {
   estimatedSupply,
   historyChange,
@@ -34,7 +35,10 @@ function StatCard({
 }) {
   return (
     <div
-      className={`flex min-w-0 items-center justify-between gap-6 rounded-3xl bg-card px-6 py-4 ${className}`}
+      className={cn(
+        "flex min-w-0 items-center justify-between gap-6 rounded-3xl bg-card px-6 py-4",
+        className,
+      )}
     >
       <div className="min-w-0 space-y-2">
         <h3 className="dash-body-compact text-foreground/50">{label}</h3>
@@ -213,7 +217,10 @@ export function HomeGeneralStats() {
         <StatCard
           label="Network Hashrate"
           value={
-            <span title="Estimated network hash rate over the last 120 indexed blocks.">
+            <span
+              className="whitespace-nowrap text-base tabular-nums @[18rem]:text-2xl"
+              title="Estimated network hash rate over the last 120 indexed blocks."
+            >
               {hashRateValue}
               {hashRateUnit && (
                 <span className="whitespace-nowrap font-medium">
@@ -241,9 +248,9 @@ export function HomeGeneralStats() {
               )}
             </span>
           }
-          className="flex-wrap gap-4"
+          className="@container grid grid-cols-[minmax(0,1fr)_max-content] gap-3 px-4 sm:px-6"
         >
-          <div className="flex min-h-20 min-w-32 flex-col items-center justify-center gap-1">
+          <div className="flex min-h-20 flex-col items-center justify-center gap-1">
             <p className="text-xl font-extrabold text-brand">—</p>
             <p className="dash-label-small text-muted-foreground">
               Network peak
