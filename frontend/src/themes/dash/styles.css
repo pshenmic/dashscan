@@ -114,6 +114,39 @@
   background-position: 0.156px 0.927px;
 }
 
+:root[data-theme="dash"] .dash-grid-signal {
+  opacity: 0;
+}
+
+:root[data-theme="dash"] [data-grid-band] {
+  contain: paint;
+  mask-image: linear-gradient(to right, transparent, black clamp(24px, 5vw, 72px), black calc(100% - clamp(24px, 5vw, 72px)), transparent);
+}
+
+:root[data-theme="dash"] [data-grid-band]:last-child {
+  mask-image:
+    linear-gradient(to right, transparent, black clamp(24px, 5vw, 72px), black calc(100% - clamp(24px, 5vw, 72px)), transparent),
+    linear-gradient(to bottom, black calc(100% - 160px), transparent);
+  mask-composite: intersect;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme="dash"] .dash-home-decoration {
+    animation: dash-hero-enter 480ms cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+
+@keyframes dash-hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 :root[data-theme="dash"] .dash-home-action {
   transition: background-color 160ms ease-out, color 160ms ease-out, transform 120ms ease-out;
 }

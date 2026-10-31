@@ -15,7 +15,7 @@ export default function HomePage() {
     <main className="dash-home relative isolate mx-auto max-w-[1440px] px-4 pb-12 sm:px-8 lg:pb-16">
       <HomeBackground />
       <HomeHero />
-      <div className="space-y-12">
+      <div data-grid-content className="space-y-12">
         <HomeGeneralStats />
         <HomeBlocks />
         <HomeTransactions />
