@@ -6,7 +6,6 @@ import { Route as blocksRoute } from "@/routes/blocks.index";
 import { Route as proposalDetailRoute } from "@/routes/dao.$hash";
 import { Route as daoRoute } from "@/routes/dao.index";
 import { Route as dashboardRoute } from "@/routes/dashboard";
-import { Route as homeRoute } from "@/routes/index";
 import { Route as masternodeDetailRoute } from "@/routes/masternodes.$hash";
 import { Route as masternodesRoute } from "@/routes/masternodes.index";
 import { Route as ogRoute } from "@/routes/og.$kind.$id";
@@ -18,7 +17,6 @@ describe("route data loading", () => {
   it("prefetches the minimum SSR data for every user-facing route", () => {
     const routes = [
       dashboardRoute,
-      homeRoute,
       blocksRoute,
       blockDetailRoute,
       transactionsRoute,
@@ -74,13 +72,4 @@ describe("route data loading", () => {
     expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(9);
   });
 
-  it("prefetches Home data without old dashboard charts", async () => {
-    const queryClient = { prefetchQuery: vi.fn().mockResolvedValue(undefined) };
-    const loader = homeRoute.options.loader;
-    if (typeof loader !== "function") throw new Error("Expected a route loader");
-    await loader({ context: { queryClient } } as never);
-    expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(6);
-    expect(queryClient.prefetchQuery.mock.calls.map(([options]) => options.queryKey[0]))
-      .toEqual(["blocks", "chainStats", "price", "priceHistorical", "marketcap", "marketcapHistorical"]);
-  });
 });
