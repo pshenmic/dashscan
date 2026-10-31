@@ -60,5 +60,5 @@ export function transactionAmount(amount: string | null | undefined) {
     .toString()
     .padStart(8, "0")
     .replace(/0+$/, "");
-  return `${formatNumber(whole)}${fraction ? `.${fraction}` : ""} Dash`;
+  return `${formatNumber(whole)}${fraction ? `.${fraction}` : ""} DASH`;
 }

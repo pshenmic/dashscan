@@ -50,6 +50,7 @@ export function HomeTransactions() {
   );
   const summary = transactionHistorySummary(history.data, range.timestampEnd);
   const rows = transactions.data?.resultSet ?? [];
+  const total = transactions.data?.pagination.total;
   const surface = "rounded-3xl bg-popover px-6 py-4 shadow-card";
 
   return (
@@ -68,9 +69,10 @@ export function HomeTransactions() {
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <p
                 className="text-xl font-extrabold leading-6 text-brand"
-                title="All indexed transactions"
+                title={`Estimated indexed transactions: ${metricNumber(total, 0)}`}
               >
-                {metricNumber(transactions.data?.pagination.total, 0)}
+                {total != null && "≈ "}
+                {metricNumber(total, 0)}
               </p>
               <span className="dash-label-small rounded-lg bg-secondary px-2 py-1 text-muted-foreground">
                 24H
@@ -115,7 +117,7 @@ export function HomeTransactions() {
                 Transaction fees per block
               </h3>
               <p className="dash-metric mt-2 text-brand">
-                — <span className="font-medium">Dash</span>
+                — <span className="font-medium">DASH</span>
               </p>
               <p className="dash-label-small mt-2 text-muted-foreground">
                 Block #{metricNumber(chain.data?.latestHeight, 0)}
@@ -136,7 +138,7 @@ export function HomeTransactions() {
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <p className="text-xl font-extrabold leading-6 text-brand">
-                — <span className="font-medium">Dash</span>
+                — <span className="font-medium">DASH</span>
               </p>
               <MissingApiData
                 inline
@@ -157,8 +159,8 @@ export function HomeTransactions() {
             Stats
           </h2>
           <p className="dash-body mt-3 text-foreground/50">
-            Track Dash transactions in real time. Look up inputs, outputs, fees,
-            and confirmation status, with instant settlement via InstantSend.
+            Explore Dash transactions, their inputs, outputs, fees, and
+            confirmation status. Check InstantSend locks where available.
           </p>
           <Link
             to="/transactions"
@@ -193,15 +195,24 @@ export function HomeTransactions() {
           <div className="mt-6 overflow-x-auto">
             <HomeTable className="min-w-[620px]">
               <caption className="sr-only">
-                Latest indexed transactions, newest first
+                Latest mined transactions, newest blocks first. Age is the age
+                of the containing block. Output total includes all outputs,
+                including change.
               </caption>
               <thead className="text-muted-foreground">
                 <tr>
-                  {["Transaction Hash", "Type", "Age", "Amount"].map(
+                  {["Transaction Hash", "Type", "Age", "Output total"].map(
                     (label) => (
                       <th
                         key={label}
                         scope="col"
+                        title={
+                          label === "Age"
+                            ? "Time since the containing block was mined"
+                            : label === "Output total"
+                              ? "Sum of all outputs, including change, in DASH"
+                              : undefined
+                        }
                         className="border-b border-border px-3 py-3 font-medium last:text-right"
                       >
                         {label}
@@ -239,7 +250,7 @@ export function HomeTransactions() {
                         {transaction.timestamp ? (
                           <RelativeTime timestamp={transaction.timestamp} />
                         ) : (
-                          "Pending"
+                          <span title="Block timestamp is missing">—</span>
                         )}
                         <span className="flex size-6 shrink-0 items-center justify-center">
                           {transaction.instantLock && (
@@ -361,7 +372,7 @@ export function HomeTransactions() {
                 Transaction Fees · 24H
               </h3>
               <p className="dash-metric mt-2 text-brand">
-                — <span className="font-medium">Dash</span>
+                — <span className="font-medium">DASH</span>
               </p>
               <MissingApiData
                 description="The API does not provide total fees or their change over 24 hours."
