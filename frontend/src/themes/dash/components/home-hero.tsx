@@ -75,13 +75,17 @@ export function HomeHero() {
             <span
               className={
                 connected
-                  ? "inline-flex items-center gap-2 rounded-full bg-success/12 px-2 py-1 text-success"
+                  ? "inline-flex items-center gap-2 rounded-full bg-positive-brand/12 px-2 py-1 text-success"
                   : "inline-flex items-center gap-2 rounded-full bg-secondary px-2 py-1 text-muted-foreground"
               }
             >
               <span
                 aria-hidden="true"
-                className="size-2 rounded-full bg-current"
+                className={
+                  connected
+                    ? "relative size-2 shrink-0 rounded-full bg-positive-brand"
+                    : "size-2 rounded-full bg-current"
+                }
               />
               {network === "mainnet" ? "Mainnet" : "Testnet"} - {status}
             </span>

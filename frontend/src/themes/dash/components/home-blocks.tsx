@@ -108,7 +108,7 @@ export function HomeBlocks() {
                 params={{
                   hashOrHeight: String(chain.data.latestSuperblockHeight),
                 }}
-                className="rounded-full bg-success/12 px-2 py-1 text-success hover:underline"
+                className="rounded-full bg-positive-brand/12 px-2 py-1 text-success hover:underline"
               >
                 Latest Superblock —{" "}
                 <strong>

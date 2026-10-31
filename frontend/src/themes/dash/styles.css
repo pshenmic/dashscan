@@ -20,13 +20,14 @@
   --accent-foreground: var(--primary-foreground);
   --destructive: #b42318;
   --destructive-foreground: #ffffff;
+  --positive-brand: #95bf40;
   --success: #4f6e19;
   --success-foreground: #ffffff;
   --border: rgb(12 28 51 / 12%);
   --input: rgb(12 28 51 / 24%);
   --ring: var(--primary);
   --chart-1: var(--brand);
-  --chart-2: #95bf40;
+  --chart-2: var(--positive-brand);
   --chart-3: rgb(76 126 255 / 24%);
   --chart-4: rgb(76 126 255 / 32%);
   --chart-5: rgb(76 126 255 / 64%);
@@ -53,7 +54,7 @@
   --accent-foreground: #0c1c33;
   --destructive: #ff4c4c;
   --destructive-foreground: #0c1c33;
-  --success: #95bf40;
+  --success: var(--positive-brand);
   --success-foreground: #0c1c33;
   --border: rgb(255 255 255 / 12%);
   --input: rgb(255 255 255 / 24%);
@@ -62,6 +63,7 @@
 
 @theme inline {
   --color-brand: var(--brand);
+  --color-positive-brand: var(--positive-brand);
   --color-action-primary: var(--action-primary);
   --color-action-solid: var(--action-solid);
   --color-action-subtle: var(--action-subtle);

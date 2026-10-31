@@ -32,7 +32,7 @@ export default function NetworkSelector() {
           <Circle
             className={
               network === "mainnet"
-                ? "size-1.5 fill-chart-2 text-chart-2"
+                ? "size-1.5 fill-positive-brand text-positive-brand"
                 : "size-1.5 fill-amber-500 text-amber-500"
             }
           />
