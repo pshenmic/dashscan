@@ -58,6 +58,7 @@ export function HomeBackground() {
     <>
       <div
         aria-hidden="true"
+        data-home-motion={enabled && allowed && visible}
         className="pointer-events-none absolute inset-x-0 -top-[88px] bottom-0 -z-10 overflow-hidden"
       >
         <div className="dash-home-grid-surface absolute inset-0">
@@ -84,11 +85,7 @@ export function HomeBackground() {
         <button
           type="button"
           aria-pressed={enabled}
-          title={
-            enabled
-              ? "Pause background animation"
-              : "Resume background animation"
-          }
+          title={enabled ? "Pause home animations" : "Resume home animations"}
           onClick={toggleMotion}
           className="fixed bottom-4 left-4 z-40 inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-xs text-muted-foreground shadow-card hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
@@ -97,7 +94,7 @@ export function HomeBackground() {
           ) : (
             <Play aria-hidden="true" className="size-3.5" />
           )}
-          Background motion
+          Home animations
         </button>
       )}
     </>

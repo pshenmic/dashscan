@@ -83,7 +83,7 @@ export function HomeHero() {
                 aria-hidden="true"
                 className={
                   connected
-                    ? "relative size-2 shrink-0 rounded-full bg-positive-brand"
+                    ? "dash-status-dot relative size-2 shrink-0 rounded-full bg-positive-brand"
                     : "size-2 rounded-full bg-current"
                 }
               />
