@@ -1,5 +1,32 @@
 export type GridArea = { x: number; y: number; width: number; height: number };
 
+const stepX = 51.399;
+const stepY = 51.3703;
+const offsetX = 0.156;
+const offsetY = 0.927;
+
+function gridColumns(width: number, lane?: number) {
+  const left = Math.ceil(((1440 - width) / 2 + 32 - offsetX) / stepX);
+  const right = Math.floor(((1440 + width) / 2 - 32 - offsetX) / stepX);
+  const count = right - left + 1;
+  return {
+    firstColumn:
+      lane === undefined ? left : left + Math.floor((count * lane) / 3),
+    lastColumn:
+      lane === undefined
+        ? right
+        : left + Math.floor((count * (lane + 1)) / 3) - 1,
+  };
+}
+
+export function gridSignalBounds(width: number, lane: number) {
+  const { firstColumn, lastColumn } = gridColumns(width, lane);
+  return {
+    left: firstColumn * stepX + offsetX - 2,
+    width: Math.max(0, (lastColumn - firstColumn) * stepX + 4),
+  };
+}
+
 export const gridSignalMotion = {
   duration: 9600,
   stagger: 3200,
@@ -75,21 +102,7 @@ export function gridSignalRoute({
   upward: boolean;
   lane?: number;
 }) {
-  const stepX = 51.399;
-  const stepY = 51.3703;
-  const offsetX = 0.156;
-  const offsetY = 0.927;
-  const leftColumn = Math.ceil(((1440 - width) / 2 + 32 - offsetX) / stepX);
-  const rightColumn = Math.floor(((1440 + width) / 2 - 32 - offsetX) / stepX);
-  const columns = rightColumn - leftColumn + 1;
-  const firstColumn =
-    lane === undefined
-      ? leftColumn
-      : leftColumn + Math.floor((columns * lane) / 3);
-  const lastColumn =
-    lane === undefined
-      ? rightColumn
-      : leftColumn + Math.floor((columns * (lane + 1)) / 3) - 1;
+  const { firstColumn, lastColumn } = gridColumns(width, lane);
   const firstRow = Math.ceil((top - offsetY) / stepY);
   const lastRow = Math.floor((top + height - offsetY) / stepY);
   if (lastRow <= firstRow || lastColumn <= firstColumn) return [];

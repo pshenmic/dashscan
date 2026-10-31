@@ -2,6 +2,7 @@ import { Pause, Play } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type GridArea,
+  gridSignalBounds,
   gridSignalFrames,
   gridSignalMotion,
   gridSignalRoute,
@@ -283,10 +284,7 @@ function GridSignalRoute({
     };
   }, [active, points, start]);
   if (points.length === 0) return null;
-  const left = Math.min(...points.map((point) => point.x)) - 2;
-  const top = Math.min(...points.map((point) => point.y)) - 2;
-  const routeWidth = Math.max(...points.map((point) => point.x)) - left + 2;
-  const routeHeight = Math.max(...points.map((point) => point.y)) - top + 2;
+  const { left, width: routeWidth } = gridSignalBounds(width, lane);
   const length = points.reduce(
     (total, point, index) =>
       index === 0
@@ -301,9 +299,9 @@ function GridSignalRoute({
       className="absolute overflow-hidden [contain:paint]"
       style={{
         left,
-        top,
+        top: 0,
         width: routeWidth,
-        height: routeHeight,
+        height,
         willChange: active ? "transform" : undefined,
       }}
     >
@@ -311,8 +309,8 @@ function GridSignalRoute({
         aria-hidden="true"
         focusable="false"
         width={routeWidth}
-        height={routeHeight}
-        viewBox={`${left} ${top} ${routeWidth} ${routeHeight}`}
+        height={height}
+        viewBox={`${left} 0 ${routeWidth} ${height}`}
       >
         <path
           ref={element}
