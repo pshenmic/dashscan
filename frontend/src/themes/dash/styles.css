@@ -133,6 +133,15 @@
   }
 }
 
+:root[data-theme="dash"] [data-new-block="true"] {
+  animation: dash-block-arrival 2400ms ease-out;
+}
+
+@keyframes dash-block-arrival {
+  from { box-shadow: inset 3px 0 var(--accent); }
+  to { box-shadow: inset 3px 0 transparent; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root[data-theme="dash"] .dash-home-action,
   :root[data-theme="dash"] .dash-home-action [data-home-icon="explore"] {
@@ -140,4 +149,8 @@
     transition: none;
   }
 
+  :root[data-theme="dash"] [data-new-block="true"] {
+    animation: none;
+    box-shadow: inset 3px 0 var(--accent);
+  }
 }

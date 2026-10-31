@@ -7,6 +7,7 @@ import { useNow } from "@/components/render-clock";
 import { formatDateTime } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
+import { useNewBlocks } from "@/themes/dash/hooks/use-new-blocks";
 import {
   metricBytes,
   metricNumber,
@@ -22,6 +23,7 @@ export function HomeBlocks() {
   const network = useStore(appStore, (state) => state.network);
   const chain = useQuery(homeChainQueryOptions(network));
   const blocksQuery = useQuery(homeBlocksQueryOptions(network));
+  const newHashes = useNewBlocks(blocksQuery.data?.resultSet, network);
   const blocks = [...(blocksQuery.data?.resultSet ?? [])].sort(
     (first, second) => second.height - first.height,
   );
@@ -143,7 +145,11 @@ export function HomeBlocks() {
               className="flex gap-3 overflow-x-auto pb-2"
             >
               {timeline.map((block) => (
-                <li key={block.hash} className="min-w-28 flex-1">
+                <li
+                  key={block.hash}
+                  data-new-block={newHashes.includes(block.hash) || undefined}
+                  className="min-w-28 flex-1 rounded-xl"
+                >
                   <Link
                     to="/blocks/$hashOrHeight"
                     params={{ hashOrHeight: block.hash }}
@@ -244,6 +250,7 @@ export function HomeBlocks() {
                 {blocks.slice(0, 6).map((block) => (
                   <tr
                     key={block.hash}
+                    data-new-block={newHashes.includes(block.hash) || undefined}
                     className="border-b border-border last:border-0"
                   >
                     <td className="whitespace-nowrap px-3 py-5">
