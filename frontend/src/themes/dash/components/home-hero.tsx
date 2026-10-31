@@ -14,6 +14,7 @@ import SearchBar from "./search-bar";
 
 export function HomeHero() {
   const titleId = useId();
+  const searchDescriptionId = useId();
   const network = useStore(appStore, (state) => state.network);
   const chain = useQuery(chainStatsQueryOptions({ network }));
   const { data: marketCap } = useQuery(
@@ -112,11 +113,14 @@ export function HomeHero() {
             <h2 className="dash-heading-page">
               Explore <span className="text-foreground/48">the network</span>
             </h2>
-            <p className="dash-body mt-3 text-foreground/48">
+            <p
+              id={searchDescriptionId}
+              className="dash-body mt-3 text-foreground/48"
+            >
               Blocks, transactions, addresses and masternodes.
             </p>
           </div>
-          <SearchBar />
+          <SearchBar descriptionId={searchDescriptionId} />
         </div>
       </div>
     </section>

@@ -11,32 +11,41 @@ import {
 import { searchQueryOptions } from "@/lib/api/search";
 import { formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
+import { searchHint } from "@/themes/dash/lib/search-history";
 import { HomeIcon } from "./home-icon";
 
 interface SearchBarProps {
   onNavigate?: () => void;
+  descriptionId?: string;
 }
 
-export default function SearchBar({ onNavigate }: SearchBarProps) {
+export default function SearchBar({
+  onNavigate,
+  descriptionId,
+}: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
+  const instructionsId = useId();
   const network = useStore(appStore, (state) => state.network);
   const navigate = useNavigate();
+  const trimmedQuery = query.trim();
+  const hint = searchHint(trimmedQuery, network);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query.trim()), 300);
     return () => clearTimeout(timer);
   }, [query]);
 
-  const { data, isFetching, isError, refetch } = useQuery(
-    searchQueryOptions({ network, query: debouncedQuery }),
-  );
-  const pending = query.trim() !== debouncedQuery || isFetching;
-  const current = query.trim() === debouncedQuery ? data : undefined;
+  const { data, isFetching, isError, refetch } = useQuery({
+    ...searchQueryOptions({ network, query: debouncedQuery }),
+    enabled: !hint && trimmedQuery === debouncedQuery,
+  });
+  const pending = !hint && (trimmedQuery !== debouncedQuery || isFetching);
+  const current = !hint && !pending && !isError ? data : undefined;
   const results = [
     ...(current?.block
       ? [
@@ -108,6 +117,11 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
               aria-label="Search blocks, transactions, addresses and masternodes"
               aria-autocomplete="list"
               aria-busy={pending}
+              aria-describedby={
+                descriptionId
+                  ? `${descriptionId} ${instructionsId}`
+                  : instructionsId
+              }
               aria-expanded={open && query.trim().length > 0}
               aria-controls={open ? listId : undefined}
               aria-activedescendant={
@@ -117,7 +131,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
               }
               autoComplete="off"
               spellCheck={false}
-              placeholder="Search..."
+              placeholder="Search…"
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -149,12 +163,19 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
               }}
               className="min-w-0 flex-1 bg-transparent text-lg font-medium text-foreground outline-none placeholder:text-muted-foreground"
             />
+            <span id={instructionsId} className="sr-only">
+              Enter an address, transaction or block hash, block height, or
+              masternode ProTxHash. Use arrow keys to choose a result, Enter to
+              open it, and Escape to close suggestions.
+            </span>
             <button
               type="submit"
               aria-label="Search"
               className="dash-home-action flex size-12 shrink-0 items-center justify-center rounded-[18px] bg-foreground/8 text-foreground hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring"
             >
-              {pending ? (
+              {hint ? (
+                <p className="p-3">{hint}</p>
+              ) : pending ? (
                 <Loader2 aria-hidden="true" className="size-4 animate-spin" />
               ) : (
                 <HomeIcon name="search" />
@@ -191,7 +212,11 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
               </button>
             </div>
           ) : !results.length ? (
-            <p className="p-3">No results found.</p>
+            <p className="p-3">
+              No results found on{" "}
+              {network === "mainnet" ? "Mainnet" : "Testnet"}. Check the
+              identifier and selected network.
+            </p>
           ) : null}
         </div>
         <div id={listId} role="listbox" aria-label="Search results">
@@ -202,6 +227,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
                 id={`${listId}-${index}`}
                 type="button"
                 role="option"
+                tabIndex={-1}
                 aria-selected={activeIndex === index}
                 className="flex w-full min-w-0 items-center gap-3 rounded-xl p-3 text-left text-sm hover:bg-secondary focus-visible:outline-2 focus-visible:outline-ring aria-selected:bg-secondary"
                 onMouseDown={(event) => event.preventDefault()}
