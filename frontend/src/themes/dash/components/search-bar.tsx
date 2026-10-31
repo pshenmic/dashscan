@@ -1,7 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { ArrowRightLeft, Box, Loader2, Server, Wallet } from "lucide-react";
+import {
+  ArrowRightLeft,
+  Box,
+  History,
+  Loader2,
+  Server,
+  Trash2,
+  Wallet,
+  X,
+} from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   Popover,
@@ -11,13 +20,25 @@ import {
 import { searchQueryOptions } from "@/lib/api/search";
 import { formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
-import { searchHint } from "@/themes/dash/lib/search-history";
+import {
+  type SearchEntry,
+  searchHint,
+  searchPath,
+  useSearchHistory,
+} from "@/themes/dash/lib/search-history";
 import { HomeIcon } from "./home-icon";
 
 interface SearchBarProps {
   onNavigate?: () => void;
   descriptionId?: string;
 }
+
+const resultIcons = {
+  block: Box,
+  transaction: ArrowRightLeft,
+  masternode: Server,
+  address: Wallet,
+};
 
 export default function SearchBar({
   onNavigate,
@@ -31,9 +52,19 @@ export default function SearchBar({
   const listId = useId();
   const instructionsId = useId();
   const network = useStore(appStore, (state) => state.network);
+  const previousNetwork = useRef(network);
   const navigate = useNavigate();
+  const history = useSearchHistory(network);
   const trimmedQuery = query.trim();
   const hint = searchHint(trimmedQuery, network);
+  const showingHistory = trimmedQuery.length === 0;
+
+  useEffect(() => {
+    if (previousNetwork.current !== network) {
+      previousNetwork.current = network;
+      setActiveIndex(-1);
+    }
+  }, [network]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query.trim()), 300);
@@ -46,13 +77,14 @@ export default function SearchBar({
   });
   const pending = !hint && (trimmedQuery !== debouncedQuery || isFetching);
   const current = !hint && !pending && !isError ? data : undefined;
-  const results = [
+  const results: SearchEntry[] = [
     ...(current?.block
       ? [
           {
             label: `Block #${formatNumber(current.block.height)}`,
-            icon: Box,
-            to: `/blocks/${current.block.hash}`,
+            kind: "block" as const,
+            id: current.block.hash,
+            network,
           },
         ]
       : []),
@@ -60,8 +92,9 @@ export default function SearchBar({
       ? [
           {
             label: `Transaction ${current.transaction.hash}`,
-            icon: ArrowRightLeft,
-            to: `/transactions/${current.transaction.hash}`,
+            kind: "transaction" as const,
+            id: current.transaction.hash,
+            network,
           },
         ]
       : []),
@@ -69,8 +102,9 @@ export default function SearchBar({
       ? [
           {
             label: `Masternode ${current.masternode.proTxHash}`,
-            icon: Server,
-            to: `/masternodes/${current.masternode.proTxHash}`,
+            kind: "masternode" as const,
+            id: current.masternode.proTxHash,
+            network,
           },
         ]
       : []),
@@ -78,17 +112,20 @@ export default function SearchBar({
       ? [
           {
             label: `Address ${current.address.address}`,
-            icon: Wallet,
-            to: `/address/${current.address.address}`,
+            kind: "address" as const,
+            id: current.address.address,
+            network,
           },
         ]
       : []),
   ];
+  const options = showingHistory ? history.entries : results;
 
   function selectResult(index: number) {
-    const result = results[index];
+    const result = options[index];
     if (!result) return;
-    void navigate({ to: result.to });
+    if (history.enabled) history.remember(result);
+    void navigate({ to: searchPath(result) });
     setQuery("");
     setDebouncedQuery("");
     setOpen(false);
@@ -97,7 +134,7 @@ export default function SearchBar({
   }
 
   return (
-    <Popover open={open && query.trim().length > 0} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen}>
       <search aria-label="Network search">
         <PopoverAnchor asChild>
           <form
@@ -106,7 +143,8 @@ export default function SearchBar({
               event.preventDefault();
               setOpen(true);
               setDebouncedQuery(query.trim());
-              if (!pending) selectResult(Math.max(activeIndex, 0));
+              if (!pending && (!showingHistory || activeIndex >= 0))
+                selectResult(Math.max(activeIndex, 0));
               inputRef.current?.focus();
             }}
           >
@@ -117,15 +155,15 @@ export default function SearchBar({
               aria-label="Search blocks, transactions, addresses and masternodes"
               aria-autocomplete="list"
               aria-busy={pending}
+              aria-expanded={open}
               aria-describedby={
                 descriptionId
                   ? `${descriptionId} ${instructionsId}`
                   : instructionsId
               }
-              aria-expanded={open && query.trim().length > 0}
               aria-controls={open ? listId : undefined}
               aria-activedescendant={
-                open && !pending && results[activeIndex]
+                open && !pending && options[activeIndex]
                   ? `${listId}-${activeIndex}`
                   : undefined
               }
@@ -139,24 +177,26 @@ export default function SearchBar({
                 setActiveIndex(-1);
               }}
               onFocus={() => {
-                if (query.trim()) setOpen(true);
+                history.reload();
+                setOpen(true);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
+                  event.preventDefault();
                   setOpen(false);
                   return;
                 }
                 if (
                   (event.key === "ArrowDown" || event.key === "ArrowUp") &&
-                  results.length
+                  options.length
                 ) {
                   event.preventDefault();
                   setOpen(true);
                   setActiveIndex((index) =>
                     event.key === "ArrowDown"
-                      ? (index + 1) % results.length
+                      ? (index + 1) % options.length
                       : index <= 0
-                        ? results.length - 1
+                        ? options.length - 1
                         : index - 1,
                   );
                 }
@@ -173,9 +213,7 @@ export default function SearchBar({
               aria-label="Search"
               className="dash-home-action flex size-12 shrink-0 items-center justify-center rounded-[18px] bg-foreground/8 text-foreground hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring"
             >
-              {hint ? (
-                <p className="p-3">{hint}</p>
-              ) : pending ? (
+              {pending ? (
                 <Loader2 aria-hidden="true" className="size-4 animate-spin" />
               ) : (
                 <HomeIcon name="search" />
@@ -198,7 +236,57 @@ export default function SearchBar({
         }}
       >
         <div aria-live="polite" className="text-sm text-muted-foreground">
-          {pending ? (
+          {showingHistory ? (
+            <div className="p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium text-foreground">Recent searches</p>
+                {history.available && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    {history.enabled && options.length > 0 && (
+                      <button
+                        type="button"
+                        aria-label="Clear history"
+                        title="Clear history"
+                        className="flex size-8 items-center justify-center rounded-lg hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                        onClick={() => {
+                          history.clear();
+                          setActiveIndex(-1);
+                        }}
+                      >
+                        <Trash2 aria-hidden="true" className="size-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      aria-label="Save recent searches"
+                      aria-pressed={history.enabled}
+                      title={
+                        history.enabled
+                          ? "Turn off and clear history"
+                          : "Turn on history"
+                      }
+                      className="flex size-8 items-center justify-center rounded-lg hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring aria-pressed:text-accent"
+                      onClick={() => {
+                        history.toggle();
+                        setActiveIndex(-1);
+                      }}
+                    >
+                      <History aria-hidden="true" className="size-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              {!history.available ? (
+                <p>Local history is unavailable in this browser.</p>
+              ) : !history.enabled ? (
+                <p>Search history is off.</p>
+              ) : !options.length ? (
+                <p>No recent searches.</p>
+              ) : null}
+            </div>
+          ) : hint ? (
+            <p className="p-3">{hint}</p>
+          ) : pending ? (
             <p className="p-3">Searching…</p>
           ) : isError ? (
             <div className="p-3">
@@ -217,29 +305,60 @@ export default function SearchBar({
               {network === "mainnet" ? "Mainnet" : "Testnet"}. Check the
               identifier and selected network.
             </p>
-          ) : null}
+          ) : (
+            <p className="sr-only">{results.length} results available.</p>
+          )}
         </div>
-        <div id={listId} role="listbox" aria-label="Search results">
-          {!pending &&
-            results.map((result, index) => (
-              <button
-                key={result.to}
-                id={`${listId}-${index}`}
-                type="button"
-                role="option"
-                tabIndex={-1}
-                aria-selected={activeIndex === index}
-                className="flex w-full min-w-0 items-center gap-3 rounded-xl p-3 text-left text-sm hover:bg-secondary focus-visible:outline-2 focus-visible:outline-ring aria-selected:bg-secondary"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => selectResult(index)}
-              >
-                <result.icon
-                  aria-hidden="true"
-                  className="size-4 shrink-0 text-accent"
-                />
-                <span className="truncate">{result.label}</span>
-              </button>
-            ))}
+        <div className="flex">
+          <div
+            id={listId}
+            role="listbox"
+            aria-label={showingHistory ? "Recent searches" : "Search results"}
+            className="min-w-0 flex-1"
+          >
+            {!pending &&
+              options.map((result, index) => {
+                const Icon = resultIcons[result.kind];
+                return (
+                  <button
+                    key={searchPath(result)}
+                    id={`${listId}-${index}`}
+                    type="button"
+                    role="option"
+                    tabIndex={-1}
+                    aria-selected={activeIndex === index}
+                    className="flex h-12 w-full min-w-0 items-center gap-3 rounded-xl p-3 text-left text-sm hover:bg-secondary focus-visible:outline-2 focus-visible:outline-ring aria-selected:bg-secondary"
+                    title={result.label}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => selectResult(index)}
+                  >
+                    <Icon
+                      aria-hidden="true"
+                      className="size-4 shrink-0 text-accent"
+                    />
+                    <span className="truncate">{result.label}</span>
+                  </button>
+                );
+              })}
+          </div>
+          {showingHistory && options.length > 0 && (
+            <div className="shrink-0">
+              {options.map((entry) => (
+                <button
+                  key={searchPath(entry)}
+                  type="button"
+                  aria-label={`Remove ${entry.label} from recent searches`}
+                  className="flex size-12 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                  onClick={() => {
+                    history.remove(entry);
+                    setActiveIndex(-1);
+                  }}
+                >
+                  <X aria-hidden="true" className="size-4" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>
