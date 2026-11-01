@@ -14,6 +14,8 @@ type AreaChartProps<T> = {
   compact?: boolean;
   compactHeight?: number;
   minimumMax?: number;
+  zeroBaseline?: boolean;
+  getValueText?: (item: T) => string;
   formatYLabel?: (value: number) => string;
 };
 
@@ -28,6 +30,8 @@ export function AreaChart<T>({
   compact = false,
   compactHeight = 62,
   minimumMax = 1,
+  zeroBaseline = false,
+  getValueText,
   formatYLabel = String,
 }: AreaChartProps<T>) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -59,7 +63,8 @@ export function AreaChart<T>({
       Math.abs(maxValue) * 0.001,
       Number.EPSILON,
     );
-    const axisMin = compact ? Math.max(0, minValue - rangePadding) : 0;
+    const axisMin =
+      compact && !zeroBaseline ? Math.max(0, minValue - rangePadding) : 0;
     const niceMax = compact
       ? maxValue + rangePadding
       : Math.ceil(maxValue / step) * step || 1;
@@ -103,6 +108,7 @@ export function AreaChart<T>({
     data,
     getValue,
     minimumMax,
+    zeroBaseline,
     compact,
     chartWidth,
     chartHeight,
@@ -245,7 +251,7 @@ export function AreaChart<T>({
             );
           })}
       </svg>
-      {compact && hoveredIndex !== null && (
+      {compact && (hoveredIndex !== null || points.length === 1) && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-chart-1 bg-card"
@@ -263,7 +269,10 @@ export function AreaChart<T>({
         value={selectedIndex}
         aria-label={`Explore ${ariaLabel}`}
         aria-describedby={instructionsId}
-        aria-valuetext={`${getXLabel(selected.entry)}: ${formatYLabel(getValue(selected.entry))}`}
+        aria-valuetext={
+          getValueText?.(selected.entry) ??
+          `${getXLabel(selected.entry)}: ${formatYLabel(getValue(selected.entry))}`
+        }
         className="absolute m-0 cursor-crosshair touch-pan-y opacity-0"
         style={{
           left: `${(paddingLeft / width) * 100}%`,
