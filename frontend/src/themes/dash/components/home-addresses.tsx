@@ -1,7 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { type ReactNode, useId } from "react";
+import { type PointerEvent, type ReactNode, useId, useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   addressesActivityQueryOptions,
   addressesInfoQueryOptions,
@@ -25,18 +30,34 @@ function AddressMetric({
   value,
   detail,
   missing,
+  period,
 }: {
   label: string;
   value: ReactNode;
   detail: string;
   missing: string;
+  period?: string;
 }) {
   return (
     <div className="flex min-h-[120px] min-w-0 flex-col justify-center gap-2 rounded-3xl bg-foreground/3 px-6 py-4">
-      <h3 className="dash-body-compact text-foreground/50">{label}</h3>
+      <h3 className="dash-body-compact text-foreground/50">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              {label}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{detail}</TooltipContent>
+        </Tooltip>
+      </h3>
       <p className="dash-metric break-words text-brand">{value}</p>
       <div className="flex flex-wrap items-center gap-2">
-        <p className="dash-label-small text-muted-foreground">{detail}</p>
+        <span className="dash-label-small text-muted-foreground">
+          {period ?? detail}
+        </span>
         <MissingApiData inline description={missing} />
       </div>
     </div>
@@ -47,31 +68,39 @@ function AddressTable({
   rows,
   ranked = false,
 }: {
-  rows: { address: string; balance: string | null }[];
+  rows: { address: string; balance: string | null; txCount?: number | null }[];
   ranked?: boolean;
 }) {
   return (
-    <div className="min-h-0 overflow-auto">
+    <div className={`min-h-0 overflow-auto ${ranked ? "max-h-[328px]" : ""}`}>
       <HomeTable className="min-w-[480px]">
         <caption className="sr-only">
           {ranked
             ? "Addresses ranked by balance"
             : "Most active addresses in the last 24 hours"}
         </caption>
-        <thead className="text-foreground/48">
+        <thead className="sticky top-0 z-10 bg-[color-mix(in_srgb,var(--foreground)_3%,var(--card))] text-foreground/48">
           <tr>
             <th
               scope="col"
-              className="border-b border-foreground/8 px-3 py-3 font-medium"
+              className={`border-b border-foreground/8 pb-3 pt-2 pr-3 font-medium ${ranked ? "pl-10" : "pl-3"}`}
             >
               Address
             </th>
             <th
               scope="col"
-              className="border-b border-foreground/8 px-3 py-3 text-right font-medium"
+              className="border-b border-foreground/8 px-3 pb-3 pt-2 text-right font-medium"
             >
               Balance
             </th>
+            {!ranked && (
+              <th
+                scope="col"
+                className="whitespace-nowrap border-b border-foreground/8 px-3 pb-3 pt-2 text-right font-medium"
+              >
+                Txs · 24H
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -87,7 +116,7 @@ function AddressTable({
                   prefix={
                     ranked && (
                       <span
-                        className={`flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] ${index === 0 ? "bg-brand text-primary-foreground" : "bg-action-subtle text-brand"}`}
+                        className={`flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] ${index === 0 ? "bg-brand text-primary-foreground" : index === 1 ? "bg-brand/64 text-primary-foreground" : index === 2 ? "bg-action-subtle text-brand" : "bg-foreground/4 text-foreground"}`}
                       >
                         {index + 1}
                       </span>
@@ -98,10 +127,143 @@ function AddressTable({
               <td className="whitespace-nowrap px-3 py-[18px] text-right text-brand">
                 {transactionAmount(row.balance)}
               </td>
+              {!ranked && (
+                <td className="px-3 py-[18px] text-right tabular-nums">
+                  {metricNumber(row.txCount, 0)}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
       </HomeTable>
+    </div>
+  );
+}
+
+function BalanceDistribution({
+  distribution,
+}: {
+  distribution: NonNullable<ReturnType<typeof addressDistribution>>;
+}) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const selectSegment = (event: PointerEvent<HTMLDivElement>) => {
+    const target = event.target;
+    const index =
+      target instanceof Element
+        ? target.getAttribute("data-balance-segment")
+        : null;
+    setSelected(index === null ? null : Number(index));
+  };
+  const labels = ["Top 1", "Top 2–5", "Top 6–10", "Other"];
+  const colors = [
+    "var(--brand)",
+    "var(--chart-5)",
+    "var(--chart-3)",
+    "var(--action-subtle)",
+  ];
+  if (!distribution.shares || !distribution.amounts) {
+    return (
+      <p className="dash-body-compact text-muted-foreground">
+        No unspent balance to display.
+      </p>
+    );
+  }
+  const segments = distribution.shares.map((value, index) => ({
+    name: labels[index],
+    value,
+  }));
+  return (
+    <div className="flex flex-col items-center gap-6 sm:flex-row lg:flex-col xl:flex-row">
+      <div
+        className="shrink-0"
+        aria-hidden="true"
+        onPointerMove={selectSegment}
+        onPointerDown={selectSegment}
+        onMouseLeave={() => setSelected(null)}
+      >
+        <svg width="160" height="160" viewBox="0 0 160 160" aria-hidden="true">
+          {[3, 2, 1, 0].map((index) => {
+            if (segments[index].value === 0) return null;
+            const cumulative = segments
+              .slice(0, index + 1)
+              .reduce((total, segment) => total + segment.value, 0);
+            return (
+              <circle
+                key={labels[index]}
+                data-balance-segment={index}
+                cx="80"
+                cy="80"
+                r="64"
+                pathLength="100"
+                fill="none"
+                stroke={colors[index]}
+                strokeWidth="32"
+                strokeLinecap="round"
+                strokeDasharray={index === 3 ? undefined : `${cumulative} 100`}
+                transform="translate(160 0) scale(-1 1) rotate(-90 80 80)"
+                className="motion-safe:transition-[filter] motion-safe:duration-150"
+                style={{
+                  filter: selected === index ? "brightness(0.9)" : undefined,
+                }}
+              />
+            );
+          })}
+        </svg>
+      </div>
+      <div className="min-w-0 w-full flex-1 space-y-3">
+        <h3 className="dash-body-compact text-foreground/50">
+          Top 10 addresses
+        </h3>
+        <p className="text-2xl leading-8">
+          <strong className="text-brand">
+            {metricNumber(distribution.topTen)}%
+          </strong>{" "}
+          of unspent balance
+        </p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+          {segments.map((segment, index) => (
+            <Tooltip
+              key={segment.name}
+              open={selected === index}
+              onOpenChange={(open) => setSelected(open ? index : null)}
+            >
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${segment.name}: ${metricNumber(segment.value)}%`}
+                  onFocus={() => setSelected(index)}
+                  onBlur={() => setSelected(null)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setSelected(index);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") setSelected(null);
+                  }}
+                  className={`min-w-0 rounded-lg bg-secondary p-2 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring ${selected === index ? "ring-1 ring-brand" : ""}`}
+                >
+                  <span className="flex items-center gap-1 whitespace-nowrap text-xs text-foreground/50">
+                    <span
+                      className="size-1.5 shrink-0 rounded-full"
+                      style={{ background: colors[index] }}
+                    />
+                    {segment.name}
+                  </span>
+                  <span className="mt-1 block text-sm font-extrabold tabular-nums">
+                    {metricNumber(segment.value)}%
+                  </span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {segment.name} · {metricNumber(segment.value)}%
+                </p>
+                <p>{transactionAmount(distribution.amounts?.[index])}</p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -156,6 +318,8 @@ export function HomeAddresses() {
   });
   const activeRows = activeAddresses.map((address) => ({
     address,
+    txCount: active.data?.resultSet.find((entry) => entry.address === address)
+      ?.txCount,
     balance:
       balances.data?.find((entry) => entry.address === address)?.balance ??
       null,
@@ -167,22 +331,6 @@ export function HomeAddresses() {
   );
   const distribution = addressDistribution(rich.data?.resultSet);
   const supply = estimatedSupply(marketCap.data?.usd, price.data?.usd);
-  const shares = distribution?.shares;
-  const colors = [
-    "var(--brand)",
-    "var(--chart-5)",
-    "var(--chart-3)",
-    "var(--action-subtle)",
-  ];
-  const labels = ["Top 1", "Top 2–5", "Top 6–10", "Other"];
-  let position = 0;
-  const gradient = shares
-    ?.map((share, index) => {
-      const start = position;
-      position += share;
-      return `${colors[index]} ${start}% ${position}%`;
-    })
-    .join(", ");
   const count = unique.data?.pagination.total;
 
   return (
@@ -222,27 +370,28 @@ export function HomeAddresses() {
               value={
                 rich.isPending
                   ? "…"
-                  : rich.isError
+                  : rich.isError && !rich.data
                     ? "Unavailable"
                     : distribution
-                      ? `≈ ${formatCompact(Number(BigInt(distribution.total) / 100_000_000n))} Dash`
+                      ? `≈ ${formatCompact(Number(BigInt(distribution.total) / 100_000_000n))} DASH`
                       : "—"
               }
-              detail="Current UTXO supply"
+              detail="Current UTXO balance"
+              period="24H change"
               missing="The current total is derived from all rich-list balances, including Others. Historical balances and 24-hour change are not exposed."
             />
             <AddressMetric
-              label="Unspent TX Amount"
+              label="Unspent Outputs"
               value="—"
-              detail="Count unavailable"
-              missing="The API does not expose a network-wide unspent transaction/output count or its history."
+              detail="Count"
+              missing="The API does not expose a network-wide unspent output count or its history."
             />
           </div>
           <div className="flex min-h-[392px] min-w-0 flex-1 flex-col gap-6 rounded-3xl bg-foreground/3 p-6">
             <div>
               <h3 className="dash-heading-section">Active Addresses List</h3>
               <p className="dash-body-compact mt-2 text-foreground/48">
-                {active.data
+                {active.data && active.data.pagination.total >= 0
                   ? `${metricNumber(active.data.pagination.total, 0)} addresses · last 24 hours`
                   : "Last 24 hours"}
               </p>
@@ -281,8 +430,9 @@ export function HomeAddresses() {
         <div className="grid gap-4 sm:grid-cols-2">
           <AddressMetric
             label="Circulating Supply"
-            value={supply === null ? "—" : `≈ ${formatCompact(supply)} Dash`}
-            detail="Market estimate"
+            value={supply === null ? "—" : `≈ ${formatCompact(supply)} DASH`}
+            detail="Mainnet DASH supply estimated from market capitalization and price, not the selected network’s UTXO balance."
+            period="Monthly change"
             missing="Monthly supply history and change are not exposed. This is a market-data estimate, not the UTXO total."
           />
           <AddressMetric
@@ -297,58 +447,20 @@ export function HomeAddresses() {
                     : "—"
             }
             detail="All indexed addresses"
+            period="Monthly change"
             missing="Monthly unique-address history and change are not exposed. The list total may be an index estimate."
           />
         </div>
         <div className="flex min-h-[677px] min-w-0 flex-1 flex-col gap-12 rounded-3xl bg-foreground/3 p-6">
-          <div className="flex flex-col items-center gap-6 sm:flex-row lg:flex-col xl:flex-row">
-            <div
-              role="img"
-              aria-label={
-                shares
-                  ? `Balance distribution: ${labels.map((label, index) => `${label} ${metricNumber(shares[index])}%`).join(", ")}`
-                  : "Balance distribution unavailable"
-              }
-              className="relative size-40 shrink-0 rounded-full bg-secondary"
-              style={
-                gradient
-                  ? { background: `conic-gradient(${gradient})` }
-                  : undefined
-              }
-            >
-              <div className="absolute inset-7 rounded-full bg-card">
-                <div className="size-full rounded-full bg-foreground/3" />
-              </div>
-            </div>
-            <div className="min-w-0 flex-1 space-y-3">
-              <h3 className="dash-body-compact text-foreground/50">
-                Top 10 Concentration
-              </h3>
-              <p className="text-2xl leading-8">
-                Controlling{" "}
-                <strong className="text-brand">
-                  {metricNumber(distribution?.topTen)}%
-                </strong>{" "}
-                of supply
-              </p>
-              <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
-                {labels.map((label, index) => (
-                  <div key={label} className="rounded-lg bg-secondary p-2">
-                    <dt className="flex items-center gap-1 whitespace-nowrap text-xs text-foreground/50">
-                      <span
-                        className="size-1.5 rounded-full"
-                        style={{ background: colors[index] }}
-                      />
-                      {label}
-                    </dt>
-                    <dd className="mt-1 text-sm font-extrabold">
-                      {metricNumber(shares?.[index])}%
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          </div>
+          {rich.isPending ? (
+            <p className="dash-body-compact text-muted-foreground">
+              Loading balance distribution…
+            </p>
+          ) : distribution ? (
+            <BalanceDistribution key={network} distribution={distribution} />
+          ) : !rich.isError ? (
+            <MissingApiData description="The API has not provided a complete balance distribution." />
+          ) : null}
           <div className="flex min-h-0 flex-1 flex-col gap-6">
             <div>
               <h3 className="dash-heading-section">Addresses Rich List</h3>
@@ -356,20 +468,21 @@ export function HomeAddresses() {
                 Largest indexed balances · updates every minute
               </p>
             </div>
-            {rich.isError ? (
+            {rich.isError && (
               <LoadError retry={() => void rich.refetch()}>
-                Could not load rich list.
+                {rich.data
+                  ? "Could not refresh balances. Showing previous data."
+                  : "Could not load balances."}
               </LoadError>
-            ) : rich.isPending ? (
+            )}
+            {rich.isPending ? (
               <p className="text-muted-foreground">Loading rich list…</p>
-            ) : !richRows.length ? (
+            ) : rich.isError && !rich.data ? null : !richRows.length ? (
               <p className="text-muted-foreground">
                 No address balances found.
               </p>
             ) : (
-              <div className="max-h-[328px] overflow-auto">
-                <AddressTable rows={richRows} ranked />
-              </div>
+              <AddressTable rows={richRows} ranked />
             )}
           </div>
         </div>

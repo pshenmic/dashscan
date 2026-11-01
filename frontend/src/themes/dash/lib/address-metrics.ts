@@ -17,7 +17,8 @@ export function addressDistribution(
   const sum = (rows: ApiAddressBalanceEntry[]) =>
     rows.reduce((total, entry) => total + BigInt(entry.balance as string), 0n);
   const total = sum(entries);
-  if (total === 0n) return { total: "0", shares: null, topTen: null };
+  if (total === 0n)
+    return { total: "0", shares: null, amounts: null, topTen: null };
   const groups = [
     sum(ranked.slice(0, 1)),
     sum(ranked.slice(1, 5)),
@@ -29,6 +30,7 @@ export function addressDistribution(
   return {
     total: total.toString(),
     shares: [...groups, total - top].map(percentage),
+    amounts: [...groups, total - top].map(String),
     topTen: percentage(top),
   };
 }
