@@ -1,39 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { LockKeyhole } from "lucide-react";
 import { useId } from "react";
-import { useClockValue } from "@/components/render-clock";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  transactionsBreakdown24hQueryOptions,
-  transactionsStatsQueryOptions,
-} from "@/lib/api/stats";
+import { transactionsBreakdown24hQueryOptions } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
-import { formatDateTime } from "@/lib/format";
 import { homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
-import {
-  transactionAmount,
-  transactionHistoryRange,
-  transactionHistorySummary,
-} from "@/themes/dash/lib/transaction-metrics";
-import { AreaChart } from "./area-chart";
-import { BlockAge } from "./block-age";
 import { HomeIcon } from "./home-icon";
-import { HomeTable } from "./home-table";
-import { IdentifierLink } from "./identifier-link";
+import { LatestTransactionsTable } from "./latest-transactions-table";
 import { MissingApiData } from "./missing-api-data";
-import { TransactionTypeBadge } from "./transaction-type-badge";
+import { TransactionHistoryCard } from "./transaction-history-card";
 
 export function HomeTransactions() {
   const titleId = useId();
-  const day = useClockValue((now) => Math.floor(now / 86_400_000) * 86_400_000);
   const network = useStore(appStore, (state) => state.network);
   const chain = useQuery(homeChainQueryOptions(network));
   const transactions = useQuery({
@@ -44,11 +24,6 @@ export function HomeTransactions() {
     ...transactionsBreakdown24hQueryOptions({ network }),
     refetchInterval: 60_000,
   });
-  const range = transactionHistoryRange(day);
-  const history = useQuery(
-    transactionsStatsQueryOptions({ network, ...range }),
-  );
-  const summary = transactionHistorySummary(history.data, range.timestampEnd);
   const rows = transactions.data?.resultSet ?? [];
   const total = transactions.data?.pagination.total;
   const totalScale =
@@ -205,225 +180,42 @@ export function HomeTransactions() {
         </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2.7fr)_minmax(0,1fr)]">
-        <div className="min-w-0 rounded-3xl bg-foreground/3 p-4 sm:p-6">
-          <h3 className="text-2xl font-medium leading-[1.1]">
-            Transaction List
-          </h3>
-          <p className="mt-2 text-sm font-medium leading-[1.1] text-foreground/48">
-            Latest indexed transactions · updates every 30 seconds
-          </p>
-          {transactions.isError && (
-            <p role="alert" className="dash-body-compact mt-4 text-destructive">
-              Could not load transactions.{" "}
-              {rows.length > 0 && "Showing the last available data. "}
-              <button
-                type="button"
-                className="underline"
-                onClick={() => void transactions.refetch()}
-              >
-                Try again
-              </button>
-            </p>
-          )}
-          <div className="mt-6 overflow-x-auto">
-            <HomeTable className="min-w-[700px] font-medium">
-              <caption className="sr-only">
-                Latest mined transactions, newest blocks first. Age is the age
-                of the containing block. Output total includes all outputs,
-                including change.
-              </caption>
-              <thead className="text-foreground/48">
-                <tr>
-                  {["Transaction Hash", "Type", "Age", "Output total"].map(
-                    (label) => (
-                      <th
-                        key={label}
-                        scope="col"
-                        title={
-                          label === "Age"
-                            ? "Time since the containing block was mined"
-                            : label === "Output total"
-                              ? "Sum of all outputs, including change, in DASH"
-                              : undefined
-                        }
-                        className="border-b border-foreground/8 px-3 pb-3 pt-2 font-medium first:pl-11 [&:nth-child(n+3)]:text-right"
-                      >
-                        {label}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((transaction) => (
-                  <tr
-                    key={transaction.hash}
-                    className="border-b border-foreground/8 last:border-0"
-                  >
-                    <td data-grow className="px-3 py-[18px]">
-                      <IdentifierLink
-                        kind="transaction"
-                        value={transaction.hash}
-                        prefix={
-                          <img
-                            src="/icons/home/transaction.svg"
-                            alt=""
-                            width={24}
-                            height={24}
-                            className="size-6 shrink-0"
-                          />
-                        }
-                      />
-                    </td>
-                    <td className="px-3 py-[18px]">
-                      <TransactionTypeBadge type={transaction.type} />
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-[18px] tabular-nums">
-                      <div className="flex items-center justify-end gap-2">
-                        {transaction.timestamp ? (
-                          <BlockAge timestamp={transaction.timestamp} />
-                        ) : (
-                          <span title="Block timestamp is missing">—</span>
-                        )}
-                        <span className="flex size-6 shrink-0 items-center justify-center">
-                          {transaction.instantLock && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  type="button"
-                                  aria-label="InstantSend locked"
-                                  className="inline-flex size-6 items-center justify-center rounded-full text-foreground/64 focus-visible:outline-2 focus-visible:outline-ring"
-                                >
-                                  <LockKeyhole
-                                    className="size-3.5"
-                                    aria-hidden="true"
-                                  />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-64">
-                                InstantSend locked: a masternode quorum has
-                                locked this transaction's inputs to prevent
-                                double-spending. This is separate from block
-                                confirmations.
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums text-brand">
-                      {transactionAmount(transaction.amount)}
-                    </td>
-                  </tr>
-                ))}
-                {!rows.length && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="p-8 text-center text-muted-foreground"
-                    >
-                      {transactions.isPending
-                        ? "Loading transactions…"
-                        : transactions.isError
-                          ? "Transaction data unavailable"
-                          : "No transactions found."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </HomeTable>
-          </div>
-        </div>
+        <LatestTransactionsTable
+          rows={rows}
+          loading={transactions.isPending}
+          error={transactions.isError}
+          onRetry={() => void transactions.refetch()}
+        />
         <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex-1 rounded-3xl bg-secondary p-6">
-            <h3 className="dash-body">Transactions history</h3>
-            <p className="dash-heading-page mt-2">
-              {metricNumber(summary.currentTotal, 0)}{" "}
-              <span className="text-base">TXS</span>
-            </p>
-            <p className="dash-label-small mt-2 text-muted-foreground">
-              Last 30 complete days (UTC)
-            </p>
-            {summary.change !== null && (
-              <p
-                className={`dash-label-small mt-2 ${summary.change >= 0 ? "text-success" : "text-destructive"}`}
-              >
-                {summary.change > 0 ? "+" : ""}
-                {metricNumber(summary.change)}% vs previous 30 days
-              </p>
-            )}
-            {history.isPending ? (
-              <p className="dash-body-compact py-8 text-muted-foreground">
-                Loading history…
-              </p>
-            ) : history.isError ? (
-              <p
-                role="alert"
-                className="dash-body-compact py-6 text-destructive"
-              >
-                History is temporarily unavailable.{" "}
-                <button
-                  type="button"
-                  className="underline"
-                  onClick={() => void history.refetch()}
-                >
-                  Retry history
-                </button>
-              </p>
-            ) : !summary.current.length ? (
-              <p className="dash-body-compact py-8 text-muted-foreground">
-                No transaction history available.
-              </p>
-            ) : (
-              <AreaChart
-                data={summary.current}
-                getValue={(entry) => entry.data.count}
-                getKey={(entry) => entry.timestamp}
-                getXLabel={(entry) =>
-                  formatDateTime(entry.timestamp, { day: "2-digit" })
-                }
-                renderTooltip={(entry) => (
-                  <>
-                    <p>{metricNumber(entry.data.count, 0)} transactions</p>
-                    <p>
-                      {formatDateTime(entry.timestamp, {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                  </>
-                )}
-                ariaLabel="Transaction counts over the last 30 complete days"
-                formatYLabel={(value) => metricNumber(value, 0)}
-                className="mt-4 [&_svg]:min-h-32"
-              />
-            )}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-3xl bg-secondary p-6">
-              <h3 className="dash-body-compact text-muted-foreground">
-                Transaction Fees · 24H
+          <TransactionHistoryCard network={network} />
+          <div className="@container grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-stretch gap-3">
+            <div className="flex min-w-0 flex-col gap-2 rounded-3xl bg-foreground/3 px-3 py-4 @min-[400px]:px-6">
+              <h3 className="min-h-[2.2em] text-sm font-medium leading-[1.1] text-foreground/50">
+                Transaction Fees
               </h3>
-              <p className="dash-metric mt-2 text-brand">
-                — <span className="font-medium">DASH</span>
+              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
+                — <span className="font-normal">DASH</span>
               </p>
-              <MissingApiData
-                description="The API does not provide total fees or their change over 24 hours."
-                compact
-                className="mt-3"
-              />
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="rounded-lg bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">
+                  24H
+                </span>
+                <MissingApiData
+                  description="Total transaction fees for the last 24 hours and their change are not available from the API."
+                  inline
+                />
+              </div>
             </div>
-            <div className="rounded-3xl bg-secondary p-6">
-              <h3 className="dash-body-compact text-muted-foreground">
-                InstantLock time
+            <div className="flex min-w-0 flex-col gap-2 rounded-3xl bg-foreground/3 px-3 py-4 @min-[400px]:px-6">
+              <h3 className="min-h-[2.2em] text-sm font-medium leading-[1.1] text-foreground/50">
+                InstantSend lock time
               </h3>
-              <p className="dash-metric mt-2 text-brand">
-                — <span className="font-medium">Sec</span>
+              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
+                — <span className="font-normal">s</span>
               </p>
               <MissingApiData
-                description="Lock status is available per transaction, but measured lock duration is not."
+                description="The API provides InstantSend lock status, but not the time taken to obtain a lock."
                 compact
-                className="mt-3"
               />
             </div>
           </div>

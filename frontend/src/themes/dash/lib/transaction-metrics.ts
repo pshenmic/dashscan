@@ -39,17 +39,31 @@ export function transactionHistorySummary(
   const previous = valid.filter(
     (entry) => Date.parse(entry.timestamp) < midpoint,
   );
-  const currentTotal = current.length
+  const complete = (period: ApiTransactionsStatsEntry[], start: number) =>
+    period.length === 30 &&
+    period.every(
+      (entry, index) => Date.parse(entry.timestamp) === start + index * DAY_MS,
+    );
+  const currentComplete = complete(current, midpoint);
+  const previousComplete = complete(previous, startTime);
+  const currentTotal = currentComplete
     ? current.reduce((total, entry) => total + entry.data.count, 0)
     : null;
-  const previousTotal = previous.length
+  const previousTotal = previousComplete
     ? previous.reduce((total, entry) => total + entry.data.count, 0)
     : null;
   const change =
     currentTotal !== null && previousTotal !== null && previousTotal > 0
       ? ((currentTotal - previousTotal) / previousTotal) * 100
       : null;
-  return { current, currentTotal, previousTotal, change };
+  return {
+    current,
+    currentTotal,
+    previousTotal,
+    change,
+    currentComplete,
+    previousComplete,
+  };
 }
 
 export function transactionAmount(amount: string | null | undefined) {
