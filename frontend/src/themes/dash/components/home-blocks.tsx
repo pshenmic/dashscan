@@ -2,7 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { useId } from "react";
-import { RelativeTime } from "@/components/relative-time";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDateTime } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
@@ -53,19 +57,24 @@ export function HomeBlocks() {
   const summary = [
     {
       label: "Blockchain Size",
+      description:
+        "Disk space used by this node’s block and undo files, not the total storage used by the network.",
       icon: "blockchain-size",
       value: chainSize,
       unit: chainSizeUnit,
-      detailLabel: "AVG",
+      detailLabel: "Avg block",
       detail: metricBytes(averageSize),
       detailTitle: `Average block size over the latest ${blocks.length} loaded blocks`,
     },
     {
       label: "Block Height",
+      description: "Height of the latest indexed block.",
       icon: "block-height",
       value: metricNumber(latest?.height ?? chain.data?.latestHeight, 0),
-      detailLabel: "Time",
-      detailTitle: "Timestamp of the latest loaded block (UTC)",
+      detailLabel: "UTC",
+      detailTitle: latest
+        ? `Latest indexed block: ${formatDateTime(latest.timestamp)}`
+        : "The latest block timestamp is not available.",
       detail: latest
         ? formatDateTime(latest.timestamp, {
             hour: "2-digit",
@@ -76,9 +85,11 @@ export function HomeBlocks() {
     },
     {
       label: "Difficulty",
+      description:
+        "Current mining difficulty reported by the node. Difficulty is dimensionless.",
       icon: "difficulty",
       value: metricNumber(chain.data?.difficulty, 4),
-      detailLabel: "AVG",
+      detailLabel: `Avg · ${blocks.length || "—"} blocks`,
       detail: metricNumber(averageDifficulty, 4),
       detailTitle: `Average mining difficulty over the latest ${blocks.length} loaded blocks`,
     },
@@ -89,6 +100,19 @@ export function HomeBlocks() {
       aria-labelledby={titleId}
       className="space-y-10 rounded-3xl bg-card p-4 sm:p-8 lg:space-y-16 lg:rounded-[48px]"
     >
+      {chain.isError && (
+        <p role="alert" className="dash-body-compact text-destructive">
+          Could not {chain.data ? "refresh" : "load"} network statistics.{" "}
+          {chain.data && "Showing the last available data. "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void chain.refetch()}
+          >
+            Try again
+          </button>
+        </p>
+      )}
       <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] xl:grid-cols-[minmax(0,1fr)_minmax(736px,1.7fr)] xl:gap-16">
         <div>
           <p className="text-xl font-medium text-muted-foreground">
@@ -149,12 +173,20 @@ export function HomeBlocks() {
               <h3 className="text-[2rem] font-medium leading-[1.1]">
                 Timeline
               </h3>
-              <span
-                className="dash-label-small text-muted-foreground"
-                title="Average interval over the last 20 indexed blocks, not a countdown."
-              >
-                Avg interval · {averageInterval}
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="dash-label-small rounded-sm text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    Avg interval · {averageInterval}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-64">
+                  Average interval over the latest 20 indexed blocks. This is
+                  historical data, not a countdown to the next block.
+                </TooltipContent>
+              </Tooltip>
             </div>
             <p className="mt-2 text-base font-medium leading-[1.1] text-foreground/48">
               Recently mined blocks and upcoming block heights.
@@ -212,7 +244,7 @@ export function HomeBlocks() {
                     </span>
                   </Link>
                   <div className="relative mt-2 pt-3 text-center text-[10px] text-foreground/48 before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-brand after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)]">
-                    <RelativeTime timestamp={block.timestamp} />
+                    <BlockAge timestamp={block.timestamp} />
                   </div>
                 </li>
               ))}
@@ -259,7 +291,19 @@ export function HomeBlocks() {
               </span>
               <div className="space-y-2">
                 <h3 className="text-sm font-medium leading-[1.1] text-foreground/50">
-                  {item.label}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ring"
+                      >
+                        {item.label}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-64">
+                      {item.description}
+                    </TooltipContent>
+                  </Tooltip>
                 </h3>
                 <p className="break-words text-2xl font-extrabold leading-[1.2] text-brand">
                   {item.value}
@@ -267,28 +311,43 @@ export function HomeBlocks() {
                     <span className="font-medium"> {item.unit}</span>
                   )}
                 </p>
-                <div
-                  className="flex flex-wrap items-center gap-1 text-xs tracking-[-0.009em]"
-                  title={item.detailTitle}
-                >
-                  <span className="rounded-lg bg-secondary px-2 py-1 font-medium text-muted-foreground">
-                    {item.detailLabel}
-                  </span>
-                  <span className="font-extrabold text-brand/64">
-                    {item.detail}
-                  </span>
-                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex flex-wrap items-center gap-1 rounded-sm text-left text-xs tracking-[-0.009em] focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      <span className="rounded-lg bg-secondary px-2 py-1 font-medium text-muted-foreground">
+                        {item.detailLabel}
+                      </span>
+                      <span className="font-extrabold text-brand/64">
+                        {item.detail}
+                      </span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-64">
+                    {item.detailTitle}
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
           ))}
         </div>
         <div className="min-w-0 rounded-3xl bg-foreground/3 p-4 sm:p-6">
-          <h3 className="mb-6 text-2xl font-medium leading-[1.1]">
-            Block List
-          </h3>
+          <h3 className="text-2xl font-medium leading-[1.1]">Block List</h3>
+          <p className="mb-6 mt-2 text-sm font-medium leading-[1.1] text-foreground/48">
+            Latest indexed blocks · updates every 30 seconds
+          </p>
           {blocksQuery.isError && blocks.length > 0 && (
             <p role="alert" className="dash-label-small mb-4 text-destructive">
-              Could not refresh blocks. Showing the last available data.
+              Could not refresh blocks. Showing the last available data.{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={() => void blocksQuery.refetch()}
+              >
+                Try again
+              </button>
             </p>
           )}
           <div className="overflow-x-auto">
@@ -298,17 +357,21 @@ export function HomeBlocks() {
               </caption>
               <thead className="text-foreground/48">
                 <tr>
-                  {["Age", "Height", "Block Hash", "Size", "Count"].map(
-                    (label) => (
-                      <th
-                        key={label}
-                        scope="col"
-                        className="border-b border-foreground/8 px-3 pb-3 pt-2 font-medium last:text-right"
-                      >
-                        {label}
-                      </th>
-                    ),
-                  )}
+                  {[
+                    "Height",
+                    "Block Hash",
+                    "Size",
+                    "Transactions",
+                    "Block age",
+                  ].map((label) => (
+                    <th
+                      key={label}
+                      scope="col"
+                      className="border-b border-foreground/8 px-3 pb-3 pt-2 font-medium [&:nth-child(n+3)]:text-right"
+                    >
+                      {label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -318,9 +381,6 @@ export function HomeBlocks() {
                     data-new-block={newHashes.includes(block.hash) || undefined}
                     className="border-b border-foreground/8 last:border-0"
                   >
-                    <td className="whitespace-nowrap px-3 py-[18px] tabular-nums">
-                      <BlockAge timestamp={block.timestamp} />
-                    </td>
                     <td className="px-3 py-[18px]">
                       <Link
                         to="/blocks/$hashOrHeight"
@@ -340,11 +400,14 @@ export function HomeBlocks() {
                     <td data-grow className="px-3 py-[18px]">
                       <IdentifierLink kind="block" value={block.hash} />
                     </td>
-                    <td className="whitespace-nowrap px-3 py-[18px] tabular-nums">
+                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums">
                       {metricBytes(block.size)}
                     </td>
                     <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums text-brand">
-                      <strong>{metricNumber(block.txCount, 0)}</strong> Txs
+                      <strong>{metricNumber(block.txCount, 0)}</strong>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums">
+                      <BlockAge timestamp={block.timestamp} />
                     </td>
                   </tr>
                 ))}
