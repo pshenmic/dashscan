@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ComposableMap,
   Geographies,
+  Geography,
   Marker,
+  useZoomPanContext,
   ZoomableGroup,
 } from "react-simple-maps";
 import Supercluster from "supercluster";
-import { MapGeography } from "@/components/map-geography";
 import {
   Popover,
   PopoverContent,
@@ -20,13 +21,25 @@ import {
 } from "@/themes/dash/lib/masternode-metrics";
 
 const geographyStyle = {
-  fill: "var(--foreground)",
-  fillOpacity: 0.08,
+  fill: "color-mix(in srgb, var(--foreground) 20%, var(--card))",
   stroke: "var(--card)",
-  strokeWidth: 0.4,
+  strokeWidth: 0.75,
   outline: "none",
 };
 const initialCenter: [number, number] = [0, 25];
+
+function getMasternodeId(node: ApiMasternode) {
+  return node.proTxHash;
+}
+
+function getMasternodeLocation(node: ApiMasternode) {
+  return masternodeDistribution([node])?.locations[0];
+}
+
+function FixedSizeMarker({ children }: { children: ReactNode }) {
+  const { k: zoom } = useZoomPanContext();
+  return <g transform={`scale(${1 / zoom})`}>{children}</g>;
+}
 
 export function HomeMasternodeMap({
   nodes,
@@ -46,8 +59,8 @@ export function HomeMasternodeMap({
       selectedHashes={selectedHashes}
       onSelectCountry={onSelectCountry}
       label="masternodes"
-      getId={(node) => node.proTxHash}
-      getLocation={(node) => masternodeDistribution([node])?.locations[0]}
+      getId={getMasternodeId}
+      getLocation={getMasternodeLocation}
       getCountries={masternodeCountries}
     />
   );
@@ -129,7 +142,7 @@ export function HomeNodeMap<Node>({
   return (
     <fieldset
       ref={container}
-      className="relative h-full min-w-0"
+      className="dash-home-node-map relative h-full min-w-0 rounded-[inherit]"
       aria-label={`${label} locations`}
     >
       <ComposableMap
@@ -137,7 +150,7 @@ export function HomeNodeMap<Node>({
         height={207}
         projection="geoEqualEarth"
         projectionConfig={{ scale: width / 5.8 }}
-        className="h-full w-full focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        className="h-full w-full"
         role="group"
         aria-label="Interactive map: scroll or pinch to zoom; keyboard +, − and 0"
         tabIndex={0}
@@ -176,14 +189,13 @@ export function HomeNodeMap<Node>({
           <Geographies geography="/world-110m.json">
             {({ geographies }) =>
               geographies.map((geography) => (
-                <MapGeography
+                <Geography
                   key={geography.rsmKey}
                   geography={geography}
-                  styles={{
-                    default: geographyStyle,
-                    hover: geographyStyle,
-                    pressed: geographyStyle,
-                  }}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  vectorEffect="non-scaling-stroke"
+                  style={geographyStyle}
                 />
               ))
             }
@@ -216,7 +228,7 @@ export function HomeNodeMap<Node>({
                   feature.geometry.coordinates[1],
                 ]}
               >
-                <g transform={`scale(${1 / position.zoom})`}>
+                <FixedSizeMarker>
                   <foreignObject
                     x={-22}
                     y={-22}
@@ -235,7 +247,7 @@ export function HomeNodeMap<Node>({
                           data-filter-match={
                             selectedHashes ? matching > 0 : undefined
                           }
-                          className={`flex size-11 items-center justify-center rounded-full border-[5px] border-brand/20 bg-brand bg-clip-padding text-xs font-extrabold tabular-nums text-primary-foreground shadow-sm hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-ring data-[filter-match=false]:opacity-40 ${active === key || matching > 0 ? "ring-2 ring-foreground" : ""}`}
+                          className={`flex size-11 items-center justify-center rounded-full border-[5px] border-brand/20 bg-brand bg-clip-padding text-xs font-extrabold tabular-nums text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-ring data-[filter-match=false]:opacity-40 ${active === key || matching > 0 ? "ring-2 ring-brand shadow-md shadow-brand/25" : "shadow-sm"}`}
                         >
                           {count > 999
                             ? `${Math.floor(count / 1000)}k+`
@@ -311,7 +323,7 @@ export function HomeNodeMap<Node>({
                       </PopoverContent>
                     </Popover>
                   </foreignObject>
-                </g>
+                </FixedSizeMarker>
               </Marker>
             );
           })}
