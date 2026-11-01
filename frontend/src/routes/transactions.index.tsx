@@ -54,7 +54,7 @@ export const Route = createFileRoute("/transactions/")({
 
 function TransactionsListRoute() {
   const theme = useActiveTheme();
-  const { page, limit, coinjoin } = Route.useSearch();
+  const { page, limit, coinjoin, transaction_type } = Route.useSearch();
   if (theme === "neo") return <RedesignTransactionsListPage />;
   return (
     <Suspense fallback={<LazyThemePageFallback />}>
@@ -62,6 +62,7 @@ function TransactionsListRoute() {
         page={page}
         limit={limit}
         coinjoin={coinjoin}
+        transactionType={transaction_type}
       />
     </Suspense>
   );

@@ -39,6 +39,10 @@ import type { ApiTransaction } from "@/lib/api/types";
 import { formatCompact, formatDuffs, sumVOut } from "@/lib/format";
 import { getPageCount, type PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
+import {
+  getTxTypeLabel,
+  type TransactionTypeFilter,
+} from "@/lib/transaction-types";
 import { CopyButton } from "@/themes/dash/components/copy-button";
 import { DataTable } from "@/themes/dash/components/data-table";
 import { HashCell } from "@/themes/dash/components/hash-cell";
@@ -148,19 +152,28 @@ interface ClassicTransactionsListPageProps {
   page: number;
   limit: PageSize;
   coinjoin?: boolean;
+  transactionType?: TransactionTypeFilter;
 }
 
 export default function ClassicTransactionsListPage({
   page,
   limit,
   coinjoin,
+  transactionType,
 }: ClassicTransactionsListPageProps) {
   const network = useStore(appStore, (state) => state.network);
   const navigate = useNavigate({ from: "/transactions/" });
   const [globalFilter, setGlobalFilter] = useState("");
 
   const { data, isFetching } = useQuery(
-    transactionsQueryOptions({ network, page, limit, order: "desc", coinjoin }),
+    transactionsQueryOptions({
+      network,
+      page,
+      limit,
+      order: "desc",
+      coinjoin,
+      transactionType,
+    }),
   );
 
   const { data: txStats } = useQuery(
@@ -218,7 +231,7 @@ export default function ClassicTransactionsListPage({
 
   return (
     <main className="mx-auto max-w-[1440px] px-6 py-10">
-      {coinjoin === undefined && (
+      {coinjoin === undefined && transactionType === undefined && (
         <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
           <Card className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
             <CardHeader className="relative px-5 pb-2 sm:px-6">
@@ -327,11 +340,13 @@ export default function ClassicTransactionsListPage({
       >
         <CardHeader>
           <CardTitle className="text-sm font-medium text-muted-foreground">
-            {coinjoin === true
-              ? "CoinJoin Transactions"
-              : coinjoin === false
-                ? "Transactions excluding CoinJoin"
-                : "Transactions"}
+            {transactionType
+              ? `${getTxTypeLabel(transactionType)} Transactions`
+              : coinjoin === true
+                ? "CoinJoin Transactions"
+                : coinjoin === false
+                  ? "Transactions excluding CoinJoin"
+                  : "Transactions"}
           </CardTitle>
           <CardAction>
             <SearchInput
