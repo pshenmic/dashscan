@@ -3,11 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { useId, useMemo, useRef, useState } from "react";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -15,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { allMasternodesQueryOptions } from "@/lib/api/masternodes";
-import { getIp, getMnStatusLabel, getMnTypeLabel } from "@/lib/format";
+import { getIp } from "@/lib/format";
 import { appStore, type Network } from "@/lib/store";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import {
@@ -23,35 +18,16 @@ import {
   masternodeDistribution,
 } from "@/themes/dash/lib/masternode-metrics";
 import { HomeIcon } from "./home-icon";
+import { HomeMapSurface } from "./home-map-surface";
 import { HomeMasternodeMap } from "./home-masternode-map";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
+import { InfoPopover } from "./info-popover";
+import {
+  MasternodeStatusBadge,
+  MasternodeTypeBadge,
+} from "./masternode-badges";
 import { MissingApiData } from "./missing-api-data";
-
-function Info({ label, children }: { label: string; children: string }) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={label}
-          className="size-6 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <img
-            src="/icons/home/info.svg"
-            alt=""
-            width={24}
-            height={24}
-            className="size-6 dark:invert"
-          />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="max-w-[calc(100vw-2rem)] text-sm">
-        {children}
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 export function HomeMasternodes() {
   const network = useStore(appStore, (state) => state.network);
@@ -61,6 +37,7 @@ export function HomeMasternodes() {
 function MasternodesSection({ network }: { network: Network }) {
   const titleId = useId();
   const filterId = useId();
+  const mapRef = useRef<HTMLDivElement>(null);
   const [countryCode, setCountryCode] = useState("all");
   const [groupHashes, setGroupHashes] = useState<Set<string> | null>(null);
   const listHeading = useRef<HTMLHeadingElement>(null);
@@ -110,8 +87,9 @@ function MasternodesSection({ network }: { network: Network }) {
   return (
     <section
       aria-labelledby={titleId}
-      className="space-y-8 rounded-3xl bg-card p-4 sm:p-8 lg:space-y-16 lg:rounded-[48px]"
+      className="relative isolate flex flex-col gap-8 rounded-3xl p-4 sm:p-8 lg:gap-16 lg:rounded-[48px]"
     >
+      <HomeMapSurface mapRef={mapRef} />
       <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,442px)_minmax(0,1fr)] xl:gap-32">
         <div className="min-w-0">
           <p className="text-xl font-medium text-muted-foreground">
@@ -139,12 +117,62 @@ function MasternodesSection({ network }: { network: Network }) {
           </Link>
         </div>
         <div className="min-w-0">
-          <h3 className="dash-body">Masternodes Map</h3>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <h3 className="dash-body">Masternodes Map</h3>
+              <InfoPopover label="About map coverage">
+                Locations are estimated from IP addresses. Nodes without
+                coordinates appear only in the list.
+              </InfoPopover>
+            </div>
+            <div className="relative w-full min-w-0 sm:w-48 sm:shrink-0">
+              <label htmlFor={filterId} className="sr-only">
+                Country
+              </label>
+              <Select
+                value={groupHashes ? "map-group" : countryCode}
+                disabled={nodes.isPending || nodes.isError}
+                onValueChange={(value) => {
+                  if (value !== "map-group") selectCountry(value);
+                }}
+              >
+                <SelectTrigger
+                  id={filterId}
+                  className="w-full min-w-0 rounded-xl border-border bg-card px-3 data-[size=default]:h-10 *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  align="start"
+                  className="max-h-[min(18rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)] rounded-xl bg-card"
+                >
+                  {groupHashes && (
+                    <SelectItem value="map-group">
+                      Selected map group
+                    </SelectItem>
+                  )}
+                  <SelectItem value="all">All countries</SelectItem>
+                  {countryCode !== "all" && !selected && (
+                    <SelectItem value={countryCode}>{countryCode}</SelectItem>
+                  )}
+                  {countries.map((country) => (
+                    <SelectItem key={country.code} value={country.code}>
+                      {country.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <p className="mt-2 text-[32px] font-extrabold leading-tight">
             {number(distribution?.total)}{" "}
             <span className="text-base font-medium">Nodes Total</span>
           </p>
-          <div className="relative mt-6 h-[207px] overflow-hidden rounded-3xl border border-foreground/4 bg-gradient-to-b from-transparent to-foreground/4">
+          <div
+            ref={mapRef}
+            className="relative mt-6 h-[207px] overflow-hidden rounded-3xl border border-foreground/4"
+          >
             {nodes.isError ? (
               <div
                 role="alert"
@@ -186,44 +214,40 @@ function MasternodesSection({ network }: { network: Network }) {
               </p>
             )}
           </div>
-          <div className="mt-2 flex min-h-6 items-center justify-between gap-2">
-            <p className="dash-label-small min-w-0 truncate text-foreground/48">
-              Select a group to explore its nodes.
-            </p>
-            <Info label="About map coverage">
-              IP locations are approximate. Nodes without coordinates remain in
-              the list. Groups may span multiple countries. Drag to move the
-              map; scroll or pinch to zoom. With the map focused, use + and − to
-              zoom or 0 to reset. Counts include all node statuses.
-            </Info>
-          </div>
         </div>
       </div>
       <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,623px)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex min-h-[260px] flex-1 flex-col rounded-3xl bg-foreground/3 p-6">
-            <div className="flex justify-between gap-3">
-              <div>
-                <h3 className="dash-body">Masternode growth</h3>
-                <p className="mt-2 text-[32px] font-extrabold leading-tight">
-                  — <span className="text-base font-medium">Nodes</span>
-                </p>
-                <p className="dash-body-compact mt-2 text-foreground/48">
-                  Compared to last month
+          <div className="flex min-h-[260px] min-w-0 flex-1 flex-col gap-8 rounded-3xl bg-foreground/3 p-6">
+            <div className="relative min-w-0">
+              <div className="flex min-w-0 flex-col gap-2">
+                <h3 className="pr-9 text-base font-medium leading-4">
+                  Masternode growth
+                </h3>
+                <div className="flex items-center gap-4">
+                  <p className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]">
+                    — <span className="text-base font-medium">Nodes</span>
+                  </p>
+                  <MissingApiData
+                    inline
+                    className="whitespace-nowrap"
+                    description="Masternode count history and monthly growth are not exposed by the API."
+                  />
+                </div>
+                <p className="text-sm font-medium leading-4 text-foreground/48">
+                  Compared to last{" "}
+                  <strong className="font-extrabold">month</strong>
                 </p>
               </div>
-              <Info label="About masternode growth">
-                The current masternode list is a snapshot, not a historical
-                series. Registration timestamps alone cannot account for nodes
-                removed from the network.
-              </Info>
+              <div className="absolute right-0 top-0">
+                <InfoPopover label="About masternode growth">
+                  The current masternode list is a snapshot, not a historical
+                  series. Registration timestamps alone cannot account for nodes
+                  removed from the network.
+                </InfoPopover>
+              </div>
             </div>
-            <div className="flex flex-1 items-center py-6">
-              <MissingApiData
-                className="w-full"
-                description="Masternode count history and monthly growth are not exposed by the API. The chart will appear when historical data is available."
-              />
-            </div>
+            <div aria-hidden="true" className="min-h-[117px] flex-1" />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {[
@@ -252,77 +276,28 @@ function MasternodesSection({ network }: { network: Network }) {
           </div>
         </div>
         <div className="min-w-0 rounded-3xl bg-foreground/3 p-4 sm:p-6">
-          <div className="flex justify-between gap-3">
-            <div className="min-w-0">
-              <h3
-                ref={listHeading}
-                tabIndex={-1}
-                className="dash-heading-section rounded focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                Masternodes List
-              </h3>
-              <p className="dash-body-compact mt-2 h-5 truncate tabular-nums text-foreground/48">
-                {number(nodes.data ? filtered.length : undefined)} Masternodes
-                Found
-              </p>
-            </div>
-            <Info label="About the masternodes list">
-              Six masternodes per page, ordered by their last paid block, newest
-              first. The country selection filters this list only. Enabled and
-              banned are current node statuses, not uptime measurements.
-            </Info>
-          </div>
-          <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
-            <div className="min-w-0">
-              <label
-                htmlFor={filterId}
-                className="dash-label-small mb-1 block text-muted-foreground"
-              >
-                Country
-              </label>
-              <Select
-                value={groupHashes ? "map-group" : countryCode}
-                disabled={nodes.isPending || nodes.isError}
-                onValueChange={(value) => {
-                  if (value !== "map-group") selectCountry(value);
-                }}
-              >
-                <SelectTrigger
-                  id={filterId}
-                  className="w-full min-w-0 rounded-xl border-border bg-card px-3 data-[size=default]:h-10 *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate"
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="min-w-0">
+                <h3
+                  ref={listHeading}
+                  tabIndex={-1}
+                  className="dash-heading-section rounded focus-visible:outline-2 focus-visible:outline-ring"
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent
-                  position="popper"
-                  align="start"
-                  className="max-h-[min(18rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)] rounded-xl bg-card"
-                >
-                  {groupHashes && (
-                    <SelectItem value="map-group">
-                      Selected map group
-                    </SelectItem>
-                  )}
-                  <SelectItem value="all">All countries</SelectItem>
-                  {countryCode !== "all" && !selected && (
-                    <SelectItem value={countryCode}>{countryCode}</SelectItem>
-                  )}
-                  {countries.map((country) => (
-                    <SelectItem key={country.code} value={country.code}>
-                      {country.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  Masternodes List
+                </h3>
+                <p className="dash-body-compact mt-2 h-5 truncate tabular-nums text-foreground/48">
+                  {number(nodes.data ? filtered.length : undefined)} Masternodes
+                  Found
+                </p>
+              </div>
+              <InfoPopover label="About the masternodes list">
+                Six masternodes per page, ordered by their last paid block,
+                newest first. Country selection filters this list and highlights
+                matching nodes on the map. Enabled and banned are current node
+                statuses, not uptime measurements.
+              </InfoPopover>
             </div>
-            <button
-              type="button"
-              disabled={countryCode === "all" && !groupHashes}
-              onClick={() => selectCountry("all")}
-              className="h-10 rounded-xl px-3 text-sm text-accent hover:bg-action-subtle disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              Reset filter
-            </button>
           </div>
           <div className="mt-4 h-[344px] overflow-auto">
             <HomeTable>
@@ -375,14 +350,10 @@ function MasternodesSection({ network }: { network: Network }) {
                         />
                       </td>
                       <td className="px-2 py-2.5 text-right">
-                        {getMnTypeLabel(node.type)}
+                        <MasternodeTypeBadge type={node.type} />
                       </td>
                       <td className="px-2 py-2.5 text-right">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs ${node.status.toUpperCase() === "ENABLED" ? "bg-action-subtle text-brand" : "bg-foreground/4 text-muted-foreground"}`}
-                        >
-                          {getMnStatusLabel(node.status)}
-                        </span>
+                        <MasternodeStatusBadge status={node.status} />
                       </td>
                     </tr>
                   ))

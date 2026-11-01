@@ -95,7 +95,8 @@ export function getMnTypeBadgeStyle(type: string): string {
 
 export function getMnTypeLabel(type: string): string {
   const t = type.toLowerCase();
-  if (t === "evo" || t === "highperformance") return "Evolution";
+  if (t === "evo" || t === "evolution" || t === "highperformance")
+    return "Evonode";
   if (t === "regular") return "Regular";
   return type;
 }
@@ -110,6 +111,7 @@ export function getMnStatusBadgeStyle(status: string): string {
 export function getMnStatusLabel(status: string): string {
   const s = status.toUpperCase();
   if (s === "ENABLED") return "Enabled";
+  if (s === "POSE_BANNED") return "PoSe banned";
   if (s.includes("BANNED")) return "Banned";
   return status;
 }
