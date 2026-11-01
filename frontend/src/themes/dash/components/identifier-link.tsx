@@ -33,9 +33,7 @@ export function IdentifierLink({
       >
         {value}
       </Link>
-      <span className="flex shrink-0">
-        <CopyButton value={value} />
-      </span>
+      <CopyButton value={value} />
     </div>
   );
 }

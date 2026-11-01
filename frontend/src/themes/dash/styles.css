@@ -202,6 +202,15 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
+  :root[data-theme="dash"] .dash-copy-control[data-status="idle"] .dash-copy-button {
+    opacity: 0;
+  }
+
+  :root[data-theme="dash"] :has(> .dash-copy-control):is(:hover, :focus-within) > .dash-copy-control .dash-copy-button,
+  :root[data-theme="dash"] tr:is(:hover, :focus-within) .dash-copy-control .dash-copy-button {
+    opacity: 1;
+  }
+
   :root[data-theme="dash"] .dash-home-action:hover [data-home-icon="explore"] {
     transform: translate(2px, -2px);
   }

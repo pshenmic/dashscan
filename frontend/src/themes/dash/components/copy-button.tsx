@@ -67,7 +67,10 @@ function CopyControl({ value }: { value: string }) {
           ? Loader2
           : Copy;
   return (
-    <span className="relative inline-flex shrink-0">
+    <span
+      className="dash-copy-control relative inline-flex shrink-0"
+      data-status={status}
+    >
       <Tooltip open={open} onOpenChange={setOpen}>
         <TooltipTrigger asChild>
           <button
@@ -76,7 +79,7 @@ function CopyControl({ value }: { value: string }) {
             aria-disabled={status === "pending"}
             aria-busy={status === "pending"}
             onClick={handleClick}
-            className={`flex size-6 shrink-0 items-center justify-center rounded-md transition-colors duration-150 hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${status === "copied" ? "text-success" : status === "error" ? "text-destructive" : "text-muted-foreground hover:text-foreground"}`}
+            className={`dash-copy-button flex size-6 shrink-0 items-center justify-center rounded-md motion-safe:transition-[color,background-color,opacity] duration-150 hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${status === "copied" ? "text-success" : status === "error" ? "text-destructive" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Icon
               aria-hidden="true"
