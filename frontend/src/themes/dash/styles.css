@@ -112,6 +112,10 @@
   outline: none;
 }
 
+:root[data-theme="dash"] .dash-network-pie :focus {
+  outline: none;
+}
+
 :root[data-theme="dash"] .dash-home-grid-surface {
   mask-image:
     linear-gradient(to right, transparent, black clamp(24px, 5vw, 72px), black calc(100% - clamp(24px, 5vw, 72px)), transparent),

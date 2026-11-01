@@ -84,6 +84,7 @@ async function getPeers(params: FetchPeersInput) {
 
 interface FetchAllPeersInput {
   network: Network;
+  available?: boolean;
 }
 
 export function toGeoPoint(peer: ApiPeer): PeerGeoPoint | null {
@@ -140,6 +141,7 @@ async function getAllPeers(params: FetchAllPeersInput): Promise<ApiPeer[]> {
   while (true) {
     const response = await getPeers({
       network: params.network,
+      available: params.available,
       order: "desc",
       page,
       limit: 100,
@@ -178,7 +180,7 @@ export const fetchAllPeers = createServerFn({ method: "POST" })
 
 export function allPeersQueryOptions(params: FetchAllPeersInput) {
   return queryOptions({
-    queryKey: ["peers-all", params.network],
+    queryKey: ["peers-all", params.network, params.available],
     queryFn: () => getAllPeers(params),
     staleTime: 5 * 60 * 1000,
   });

@@ -44,39 +44,116 @@ export function peerCountries(peers: ApiPeer[]) {
 }
 
 export function peerClient(userAgent: string | null) {
-  const match = userAgent?.match(/^\/([^/:]+):([^/]+)\//);
+  const match = userAgent
+    ?.trim()
+    .match(/^\/([^/:]+):([^/()\s]+)(?:\([^/]*\))?\//);
   return {
     name: match?.[1] ?? (userAgent?.trim() || "Unknown"),
     version: match?.[2] ?? "Unknown",
   };
 }
 
-export function peerSlices(values: string[]) {
-  const counts = new Map<string, number>();
-  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
-  const sorted = [...counts]
-    .map(([label, count]) => ({ label, count }))
-    .sort(
-      (left, right) =>
-        right.count - left.count || left.label.localeCompare(right.label, "en"),
-    );
-  const slices =
+export type PeerFacet = "country" | "client" | "version";
+export type PeerSelection = { facet: PeerFacet; value: string | null };
+export type PeerEntry = { id: string; value: string; label: string };
+export type PeerGroup = { value: string; label: string; ids: string[] };
+export type PeerSlice = {
+  value: string | null;
+  label: string;
+  ids: string[];
+  groups: PeerGroup[];
+  count: number;
+  percent: number;
+};
+
+export function peerDistribution(entries: PeerEntry[]): PeerSlice[] {
+  const groups = new Map<string, PeerGroup>();
+  for (const entry of entries) {
+    const group = groups.get(entry.value);
+    if (group) group.ids.push(entry.id);
+    else
+      groups.set(entry.value, {
+        value: entry.value,
+        label: entry.label,
+        ids: [entry.id],
+      });
+  }
+  const sorted = [...groups.values()].sort(
+    (left, right) =>
+      right.ids.length - left.ids.length ||
+      left.label.localeCompare(right.label, "en"),
+  );
+  const partitions =
     sorted.length <= 4
-      ? sorted
-      : [
-          ...sorted.slice(0, 3),
-          {
-            label: "Other",
-            count: sorted
-              .slice(3)
-              .reduce((total, entry) => total + entry.count, 0),
-          },
-        ];
-  let offset = 0;
-  return slices.map((slice) => {
-    const start = offset;
-    const percent = (slice.count / values.length) * 100;
-    offset += percent;
-    return { ...slice, percent, start, end: offset };
+      ? sorted.map((group) => [group])
+      : [...sorted.slice(0, 3).map((group) => [group]), sorted.slice(3)];
+  return partitions.map((members) => {
+    const ids = members.flatMap((group) => group.ids);
+    return {
+      value: members.length === 1 ? members[0].value : null,
+      label: members.length === 1 ? members[0].label : "Other",
+      ids,
+      groups: members,
+      count: ids.length,
+      percent: (ids.length / entries.length) * 100,
+    };
   });
+}
+
+export function peerNetworkData(peers: ApiPeer[]) {
+  const nodes = peers.filter((peer) => peer.available);
+  const countryGroups = peerCountries(nodes);
+  const clients = nodes.map((peer) => ({
+    id: peer.address,
+    ...peerClient(peer.userAgent),
+  }));
+  const entries: Record<PeerFacet, PeerEntry[]> = {
+    country: countryGroups.flatMap((country) =>
+      country.nodes.map((peer) => ({
+        id: peer.address,
+        value: country.code,
+        label: country.name,
+      })),
+    ),
+    client: clients.map((client) => ({
+      id: client.id,
+      value: client.name,
+      label: client.name,
+    })),
+    version: clients
+      .filter((client) => client.name === "Dash Core")
+      .map((client) => ({
+        id: client.id,
+        value: client.version,
+        label: client.version,
+      })),
+  };
+  return {
+    nodes,
+    located: nodes.filter(peerLocation).length,
+    countryGroups,
+    entries,
+    distributions: {
+      country: peerDistribution(entries.country),
+      client: peerDistribution(entries.client),
+      version: peerDistribution(entries.version),
+    },
+  };
+}
+
+export function selectedPeerIds(
+  data: ReturnType<typeof peerNetworkData>,
+  selection: PeerSelection | null,
+): Set<string> | null {
+  if (!selection) return null;
+  const entries = data.entries[selection.facet];
+  return new Set(
+    selection.value === null
+      ? (data.distributions[selection.facet].find(
+          (slice) => slice.value === null,
+        )?.ids ?? [])
+      : entries
+          .filter((entry) => entry.value === selection.value)
+          .map((entry) => entry.id),
+  );
 }

@@ -1,102 +1,56 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { useId, useMemo } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { type ApiPeer, allPeersQueryOptions } from "@/lib/api/peers";
-import { appStore } from "@/lib/store";
+import { appStore, type Network } from "@/lib/store";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import {
-  peerClient,
+  type PeerSelection,
   peerCountries,
   peerLocation,
-  peerSlices,
+  peerNetworkData,
+  selectedPeerIds,
 } from "@/themes/dash/lib/network-metrics";
 import { HomeIcon } from "./home-icon";
+import { HomeMapSurface } from "./home-map-surface";
 import { HomeNodeMap } from "./home-masternode-map";
 import { MissingApiData } from "./missing-api-data";
-
-const colors = [
-  "var(--chart-1)",
-  "var(--chart-5)",
-  "var(--chart-4)",
-  "var(--chart-3)",
-];
-const peerId = (peer: ApiPeer) => peer.address;
-
-function Distribution({
-  title,
-  values,
-  status,
-}: {
-  title: string;
-  values: string[];
-  status: string | null;
-}) {
-  const slices = peerSlices(values);
-  const gradient = slices
-    .map((slice, index) => `${colors[index]} ${slice.start}% ${slice.end}%`)
-    .join(", ");
-  return (
-    <div className="grid min-w-0 items-center gap-5 rounded-3xl bg-foreground/3 p-6 sm:grid-cols-[100px_minmax(0,1fr)] lg:grid-cols-1 xl:grid-cols-[100px_minmax(0,1fr)]">
-      <div
-        aria-hidden="true"
-        className="size-[100px] shrink-0 rounded-full bg-foreground/5"
-        style={
-          slices.length
-            ? { background: `conic-gradient(${gradient})` }
-            : undefined
-        }
-      />
-      <div className="min-w-0 flex-1">
-        <h3 className="text-sm text-muted-foreground">{title}</h3>
-        {status || !values.length ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            {status ?? "No peers observed"}
-          </p>
-        ) : (
-          <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-            {slices.map((slice, index) => (
-              <li
-                key={slice.label}
-                className="flex min-w-0 items-center gap-1.5"
-                title={`${slice.label}: ${metricNumber(slice.count, 0)} peers`}
-              >
-                <span
-                  className={`min-w-0 truncate rounded-lg px-2 py-1.5 ${index === 0 ? "text-primary-foreground" : "text-foreground"}`}
-                  style={{ background: colors[index] }}
-                >
-                  {slice.label}
-                </span>
-                <span className="shrink-0 tabular-nums text-muted-foreground">
-                  {metricNumber(slice.percent, 1)}%
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
+import { PeerDistributionCard } from "./peer-distribution-card";
 
 export function HomeNetwork() {
-  const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
-  const peers = useQuery(allPeersQueryOptions({ network }));
-  const data = useMemo(() => {
-    const nodes = peers.data ?? [];
-    const countries = peerCountries(nodes);
-    return {
-      nodes,
-      located: nodes.filter(peerLocation).length,
-      available: nodes.filter((peer) => peer.available).length,
-      versions: nodes.map((peer) => peerClient(peer.userAgent).version),
-      clients: nodes.map((peer) => peerClient(peer.userAgent).name),
-      countries: countries.flatMap((country) =>
-        country.nodes.map(() => country.name),
-      ),
-    };
-  }, [peers.data]);
+  return <NetworkSection key={network} network={network} />;
+}
+
+const peerId = (peer: ApiPeer) => peer.address;
+
+function NetworkSection({ network }: { network: Network }) {
+  const titleId = useId();
+  const mapRef = useRef<HTMLDivElement>(null);
+
+  const [selection, setSelection] = useState<PeerSelection | null>(null);
+  const selectPeers = (next: PeerSelection) => {
+    setSelection((current) =>
+      current?.facet === next.facet && current.value === next.value
+        ? null
+        : next,
+    );
+  };
+  const peers = useQuery(allPeersQueryOptions({ network, available: true }));
+  const data = useMemo(() => peerNetworkData(peers.data ?? []), [peers.data]);
+  const selectedIds = useMemo(
+    () => selectedPeerIds(data, selection),
+    [data, selection],
+  );
+  const selectionLabel =
+    selection?.value === null
+      ? "Other"
+      : selection
+        ? (data.entries[selection.facet].find(
+            (entry) => entry.value === selection.value,
+          )?.label ?? selection.value)
+        : null;
   const status = peers.isPending
     ? "Loading peers…"
     : peers.isError && !peers.data
@@ -105,8 +59,9 @@ export function HomeNetwork() {
   return (
     <section
       aria-labelledby={titleId}
-      className="space-y-8 rounded-3xl bg-card p-4 sm:p-8 lg:space-y-16 lg:rounded-[48px]"
+      className="relative isolate flex flex-col gap-8 rounded-3xl p-4 sm:p-8 lg:gap-16 lg:rounded-[48px]"
     >
+      <HomeMapSurface mapRef={mapRef} />
       <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,442px)_minmax(0,1fr)] xl:gap-32">
         <div className="min-w-0">
           <p className="text-xl font-medium text-muted-foreground">
@@ -133,18 +88,33 @@ export function HomeNetwork() {
           </Link>
         </div>
         <div className="min-w-0">
-          <h3 className="dash-body">Peers Map</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="dash-body">Peers Map</h3>
+            {selectedIds && (
+              <button
+                type="button"
+                onClick={() => setSelection(null)}
+                className="max-w-full rounded-lg px-2 py-1 text-sm text-accent hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-ring"
+                aria-label="Clear peer selection"
+              >
+                {selectionLabel} · Clear
+              </button>
+            )}
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <p className="text-[32px] font-extrabold leading-tight">
               {peers.data ? metricNumber(data.nodes.length, 0) : "—"}{" "}
-              <span className="text-base font-medium">Peers Total</span>
+              <span className="text-base font-medium">Reachable Peers</span>
             </p>
             <MissingApiData
               inline
               description="The API does not provide historical peer counts for a growth comparison."
             />
           </div>
-          <div className="relative mt-6 h-[207px] overflow-hidden rounded-3xl border border-foreground/4 bg-gradient-to-b from-transparent to-foreground/4">
+          <div
+            ref={mapRef}
+            className="relative mt-6 h-[207px] overflow-hidden rounded-3xl border border-foreground/4"
+          >
             {status ? (
               <output className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 {status}
@@ -157,6 +127,10 @@ export function HomeNetwork() {
                 getId={peerId}
                 getLocation={peerLocation}
                 getCountries={peerCountries}
+                selectedHashes={selectedIds}
+                onSelectCountry={(code) =>
+                  selectPeers({ facet: "country", value: code })
+                }
               />
             ) : (
               <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -164,12 +138,6 @@ export function HomeNetwork() {
               </p>
             )}
           </div>
-          {peers.data && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              {metricNumber(data.available, 0)} reachable ·{" "}
-              {metricNumber(data.located, 0)} located · Approximate IP locations
-            </p>
-          )}
         </div>
       </div>
       <div>
@@ -188,26 +156,37 @@ export function HomeNetwork() {
           </p>
         )}
         <div className="grid gap-4 lg:grid-cols-3">
-          <Distribution
-            title="Versions Pie Chart"
-            values={data.versions}
+          <PeerDistributionCard
+            title="Dash Core Versions"
+            facet="version"
+            slices={data.distributions.version}
             status={status}
+            selectedIds={selectedIds}
+            selection={selection}
+            onSelect={selectPeers}
           />
-          <Distribution
+          <PeerDistributionCard
             title="Countries Pie Chart"
-            values={data.countries}
+            facet="country"
+            slices={data.distributions.country}
             status={status}
+            selectedIds={selectedIds}
+            selection={selection}
+            onSelect={selectPeers}
           />
-          <Distribution
+          <PeerDistributionCard
             title="User Agent Pie Chart"
-            values={data.clients}
+            facet="client"
+            slices={data.distributions.client}
             status={status}
+            selectedIds={selectedIds}
+            selection={selection}
+            onSelect={selectPeers}
           />
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          All observed peers, including unreachable peers. Versions are reported
-          by clients; missing metadata is included as Unknown. This crawler
-          snapshot is not a census of the entire network.
+          Successfully contacted peers in the latest crawl. Versions refer to
+          Dash Core.
         </p>
       </div>
       <div className="grid items-center gap-6 sm:grid-cols-[184px_minmax(0,1fr)]">
