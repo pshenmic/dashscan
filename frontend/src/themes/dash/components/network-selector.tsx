@@ -18,11 +18,15 @@ const NETWORKS: { value: Network; label: string; url: string }[] = [
   },
 ];
 
-export default function NetworkSelector() {
+export default function NetworkSelector({
+  onOpenChange,
+}: {
+  onOpenChange?: (open: boolean) => void;
+}) {
   const network = useStore(appStore, (state) => state.network);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"

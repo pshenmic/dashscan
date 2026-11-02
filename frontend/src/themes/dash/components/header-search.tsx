@@ -11,22 +11,46 @@ import {
 import { HomeIcon } from "./home-icon";
 import SearchBar from "./search-bar";
 
-export function HeaderSearch() {
+export type HeaderSearchMode = "dialog" | "suggestions" | null;
+
+interface HeaderSearchProps {
+  mode: HeaderSearchMode;
+  onModeChange: (mode: HeaderSearchMode) => void;
+}
+
+export function HeaderSearch({ mode, onModeChange }: HeaderSearchProps) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  return pathname === "/" ? null : <HeaderSearchContent key={pathname} />;
+  return pathname === "/" ? null : (
+    <HeaderSearchContent
+      key={pathname}
+      mode={mode}
+      onModeChange={onModeChange}
+    />
+  );
 }
 
-function HeaderSearchContent() {
-  const [open, setOpen] = useState(false);
+function HeaderSearchContent({ mode, onModeChange }: HeaderSearchProps) {
   const [query, setQuery] = useState("");
   return (
     <>
       <div className="hidden w-[280px] xl:block min-[1400px]:w-[300px]">
-        <SearchBar compact value={query} onValueChange={setQuery} />
+        <SearchBar
+          compact
+          value={query}
+          onValueChange={setQuery}
+          open={mode === "suggestions"}
+          onOpenChange={(next) => {
+            if (next) onModeChange("suggestions");
+            else if (mode === "suggestions") onModeChange(null);
+          }}
+        />
       </div>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={mode === "dialog"}
+        onOpenChange={(next) => onModeChange(next ? "dialog" : null)}
+      >
         <DialogTrigger asChild>
           <Button
             variant="outline"
@@ -45,7 +69,7 @@ function HeaderSearchContent() {
           <SearchBar
             value={query}
             onValueChange={setQuery}
-            onNavigate={() => setOpen(false)}
+            onNavigate={() => onModeChange(null)}
           />
         </DialogContent>
       </Dialog>

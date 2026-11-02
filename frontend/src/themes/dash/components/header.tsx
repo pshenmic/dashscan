@@ -10,8 +10,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useAutoHideHeader } from "../hooks/use-auto-hide-header";
 import { ColorModeToggle } from "./color-mode-toggle";
-import { HeaderSearch } from "./header-search";
+import { HeaderSearch, type HeaderSearchMode } from "./header-search";
 import NetworkSelector from "./network-selector";
 
 const NAV_ITEMS = [
@@ -46,15 +47,22 @@ function isActiveRoute(pathname: string, destination: string) {
 function NavigationLinks({
   mobile = false,
   onNavigate,
+  onOpenChange,
 }: {
   mobile?: boolean;
   onNavigate?: () => void;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
   const [menu, setMenu] = useState("");
   const previousPathname = useRef(pathname);
+
+  useEffect(() => {
+    onOpenChange?.(menu !== "");
+    return () => onOpenChange?.(false);
+  }, [menu, onOpenChange]);
 
   useEffect(() => {
     if (previousPathname.current !== pathname) {
@@ -186,8 +194,46 @@ function NavigationLinks({
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const [networkOpen, setNetworkOpen] = useState(false);
+  const [searchMode, setSearchMode] = useState<HeaderSearchMode>(null);
+  const [focused, setFocused] = useState(false);
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const previousPathname = useRef(pathname);
+  const hidden = useAutoHideHeader(
+    open || navigationOpen || networkOpen || searchMode !== null || focused,
+    pathname,
+  );
+
+  useEffect(() => {
+    if (previousPathname.current !== pathname) {
+      previousPathname.current = pathname;
+      setOpen(false);
+      setSearchMode(null);
+    }
+  }, [pathname]);
+
   return (
-    <header className="sticky top-0 z-40 mx-auto flex h-[88px] w-full max-w-[1440px] items-center justify-between gap-4 rounded-b-3xl border-b border-border bg-card px-4 sm:px-8">
+    <header
+      data-hidden={hidden}
+      onFocusCapture={(event) =>
+        setFocused(event.target.matches(":focus-visible"))
+      }
+      onKeyDownCapture={() => setFocused(true)}
+      onPointerDownCapture={(event) => {
+        setFocused(
+          event.target instanceof Element &&
+            event.target.matches("input, textarea, [contenteditable=true]"),
+        );
+      }}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setFocused(false);
+      }}
+      className="dash-header sticky top-0 z-40 mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4 rounded-b-3xl border-b border-border bg-card px-4 sm:h-[72px] sm:px-8"
+    >
       <div className="flex min-w-0 items-center gap-8 min-[1400px]:gap-[95px]">
         <Link
           to="/"
@@ -209,13 +255,13 @@ export default function Header() {
             className="hidden h-6 w-[130px] sm:w-[154px] dark:block"
           />
         </Link>
-        <NavigationLinks />
+        <NavigationLinks onOpenChange={setNavigationOpen} />
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <HeaderSearch />
+        <HeaderSearch mode={searchMode} onModeChange={setSearchMode} />
         <ColorModeToggle />
         <div className="hidden items-center gap-2 xl:flex">
-          <NetworkSelector />
+          <NetworkSelector onOpenChange={setNetworkOpen} />
         </div>
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>

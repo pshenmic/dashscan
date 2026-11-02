@@ -11,7 +11,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   Popover,
   PopoverAnchor,
@@ -34,6 +34,8 @@ interface SearchBarProps {
   compact?: boolean;
   value?: string;
   onValueChange?: (value: string) => void;
+  onOpenChange?: (open: boolean) => void;
+  open?: boolean;
 }
 
 const resultIcons = {
@@ -49,12 +51,22 @@ export default function SearchBar({
   compact = false,
   value,
   onValueChange,
+  onOpenChange,
+  open: controlledOpen,
 }: SearchBarProps) {
   const [localQuery, setLocalQuery] = useState("");
   const query = value ?? localQuery;
   const setQuery = onValueChange ?? setLocalQuery;
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (controlledOpen === undefined) setLocalOpen(next);
+      onOpenChange?.(next);
+    },
+    [controlledOpen, onOpenChange],
+  );
   const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -83,7 +95,7 @@ export default function SearchBar({
       passive: true,
     });
     return () => window.removeEventListener("scroll", onScroll, true);
-  }, [open]);
+  }, [open, setOpen]);
 
   useEffect(() => {
     if (previousNetwork.current !== network) {
