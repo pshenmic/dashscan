@@ -2,6 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { useId, useMemo, useRef, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { type ApiPeer, allPeersQueryOptions } from "@/lib/api/peers";
 import { appStore, type Network } from "@/lib/store";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
@@ -51,6 +58,14 @@ function NetworkSection({ network }: { network: Network }) {
             (entry) => entry.value === selection.value,
           )?.label ?? selection.value)
         : null;
+  const selectedCountry =
+    selection?.facet === "country" ? selection.value : null;
+  const filterValue =
+    selectedCountry !== null
+      ? `country:${selectedCountry}`
+      : selection
+        ? "chart-selection"
+        : "all";
   const status = peers.isPending
     ? "Loading peers…"
     : peers.isError && !peers.data
@@ -93,16 +108,65 @@ function NetworkSection({ network }: { network: Network }) {
           <HomeMapSurface mapRef={mapRef} />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="dash-body">Peers Map</h3>
-            {selectedIds && (
-              <button
-                type="button"
-                onClick={() => setSelection(null)}
-                className="max-w-full rounded-lg px-2 py-1 text-sm text-accent hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-ring"
-                aria-label="Clear peer selection"
+            <div className="w-full min-w-0 sm:w-48 sm:shrink-0">
+              <Select
+                value={filterValue}
+                disabled={!!status}
+                onValueChange={(value) => {
+                  if (value === "all") setSelection(null);
+                  else if (value.startsWith("country:")) {
+                    setSelection({ facet: "country", value: value.slice(8) });
+                  }
+                }}
               >
-                {selectionLabel} · Clear
-              </button>
-            )}
+                <SelectTrigger
+                  aria-label="Filter peers"
+                  className="w-full min-w-0 rounded-xl border-border bg-card px-3 data-[size=default]:h-10 *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  align="start"
+                  className="max-h-[min(18rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)] rounded-xl bg-card"
+                >
+                  <SelectItem value="all">All peers</SelectItem>
+                  {selection && selectedCountry === null && (
+                    <SelectItem value="chart-selection">
+                      {selection.facet === "version"
+                        ? "Version"
+                        : selection.facet === "client"
+                          ? "Client"
+                          : "Countries"}
+                      : {selectionLabel}
+                    </SelectItem>
+                  )}
+                  {selectedCountry !== null &&
+                    !data.countryGroups.some(
+                      (country) => country.code === selectedCountry,
+                    ) && (
+                      <SelectItem value={`country:${selectedCountry}`}>
+                        {selectionLabel}
+                      </SelectItem>
+                    )}
+                  {data.countryGroups.map((country) => (
+                    <SelectItem
+                      key={country.code}
+                      value={`country:${country.code}`}
+                      textValue={country.name}
+                      className="*:last:min-w-0 *:last:flex-1"
+                    >
+                      <span className="min-w-0 flex-1 truncate">
+                        {country.name}
+                      </span>
+                      <span className="shrink-0 text-muted-foreground tabular-nums">
+                        {metricNumber(country.nodes.length, 0)}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <p className="text-[32px] font-extrabold leading-tight">
