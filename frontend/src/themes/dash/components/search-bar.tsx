@@ -31,6 +31,9 @@ import { HomeIcon } from "./home-icon";
 interface SearchBarProps {
   onNavigate?: () => void;
   descriptionId?: string;
+  compact?: boolean;
+  value?: string;
+  onValueChange?: (value: string) => void;
 }
 
 const resultIcons = {
@@ -43,8 +46,13 @@ const resultIcons = {
 export default function SearchBar({
   onNavigate,
   descriptionId,
+  compact = false,
+  value,
+  onValueChange,
 }: SearchBarProps) {
-  const [query, setQuery] = useState("");
+  const [localQuery, setLocalQuery] = useState("");
+  const query = value ?? localQuery;
+  const setQuery = onValueChange ?? setLocalQuery;
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -156,7 +164,7 @@ export default function SearchBar({
       <search aria-label="Network search">
         <PopoverAnchor asChild>
           <form
-            className="flex w-full min-w-0 items-center gap-2 rounded-3xl border border-input bg-background p-1.5 pl-6 transition-shadow duration-150 focus-within:ring-2 focus-within:ring-ring"
+            className={`flex w-full min-w-0 items-center gap-2 border border-input bg-background transition-shadow duration-150 focus-within:ring-2 focus-within:ring-ring ${compact ? "h-10 rounded-xl p-1 pl-3" : "rounded-3xl p-1.5 pl-6"}`}
             onSubmit={(event) => {
               event.preventDefault();
               setOpen(true);
@@ -200,8 +208,9 @@ export default function SearchBar({
               }}
               onClick={() => setOpen(true)}
               onKeyDown={(event) => {
-                if (event.key === "Escape") {
+                if (event.key === "Escape" && open) {
                   event.preventDefault();
+                  event.stopPropagation();
                   setOpen(false);
                   return;
                 }
@@ -220,7 +229,7 @@ export default function SearchBar({
                   );
                 }
               }}
-              className="min-w-0 flex-1 bg-transparent text-lg font-medium text-foreground outline-none placeholder:text-muted-foreground"
+              className={`min-w-0 flex-1 bg-transparent font-medium text-foreground outline-none placeholder:text-muted-foreground ${compact ? "text-sm" : "text-lg"}`}
             />
             <span id={instructionsId} className="sr-only">
               Enter an address, transaction or block hash, block height, or
@@ -230,7 +239,7 @@ export default function SearchBar({
             <button
               type="submit"
               aria-label="Search"
-              className="dash-home-action flex size-12 shrink-0 items-center justify-center rounded-[18px] bg-foreground/8 text-foreground hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring"
+              className={`dash-home-action flex shrink-0 items-center justify-center bg-foreground/8 text-foreground hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring ${compact ? "size-8 rounded-lg" : "size-12 rounded-[18px]"}`}
             >
               {pending ? (
                 <Loader2 aria-hidden="true" className="size-4 animate-spin" />

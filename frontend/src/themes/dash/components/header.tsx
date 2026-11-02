@@ -213,12 +213,12 @@ export default function Header() {
         <NavigationLinks />
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        <HeaderSearch />
         <ColorModeToggle />
         <div className="hidden items-center gap-2 xl:flex">
           <ThemeSwitcher />
           <NetworkSelector />
         </div>
-        <HeaderSearch />
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button
