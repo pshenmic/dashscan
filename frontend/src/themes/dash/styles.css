@@ -157,7 +157,6 @@
     pointer-events: none;
     animation: dash-status-pulse 3s ease-out infinite;
   }
-
 }
 
 @keyframes dash-status-pulse {
@@ -177,19 +176,37 @@
 }
 
 :root[data-theme="dash"] .dash-home-action {
-  transition: background-color 160ms ease-out, color 160ms ease-out, transform 120ms ease-out;
+  transition: background-color 160ms ease-out, color 160ms ease-out;
 }
 
-:root[data-theme="dash"] .dash-home-action [data-home-icon="explore"] {
-  transition: transform 160ms ease-out;
+:root[data-theme="dash"] .dash-home-action-subtle {
+  position: relative;
+  isolation: isolate;
+  background-color: color-mix(in srgb, var(--brand) 12%, var(--background));
 }
 
-:root[data-theme="dash"] .dash-home-action:active {
-  transform: scale(0.99);
+:root[data-theme="dash"] .dash-home-action-subtle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--brand) 16%, var(--background)), color-mix(in srgb, var(--brand) 24%, var(--background)));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease-out;
 }
 
-:root[data-theme="dash"] .dash-home-action:focus-visible [data-home-icon="explore"] {
-  transform: translate(2px, -2px);
+:root[data-theme="dash"] .dash-home-action-subtle:focus-visible::before {
+  opacity: 1;
+}
+
+:root[data-theme="dash"] .dash-home-action-subtle:active {
+  background-color: color-mix(in srgb, var(--brand) 28%, var(--background));
+}
+
+:root[data-theme="dash"] .dash-home-action-subtle:active::before {
+  opacity: 0;
 }
 
 :root[data-theme="dash"] .dash-home-table tbody tr {
@@ -210,8 +227,8 @@
     opacity: 1;
   }
 
-  :root[data-theme="dash"] .dash-home-action:hover [data-home-icon="explore"] {
-    transform: translate(2px, -2px);
+  :root[data-theme="dash"] .dash-home-action-subtle:hover:not(:active)::before {
+    opacity: 1;
   }
 
   :root[data-theme="dash"] .dash-home-table tbody tr:has(a, button):hover {
@@ -259,8 +276,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   :root[data-theme="dash"] .dash-home-action,
-  :root[data-theme="dash"] .dash-home-action [data-home-icon="explore"] {
-    transform: none !important;
+  :root[data-theme="dash"] .dash-home-action-subtle::before {
     transition: none;
   }
 

@@ -66,7 +66,7 @@ export function HomeHero() {
             </Link>
             <Link
               to="/dao"
-              className="dash-home-action flex min-h-12 items-center rounded-full bg-[color-mix(in_srgb,var(--brand)_12%,var(--background))] px-6 text-base font-medium text-brand hover:bg-[color-mix(in_srgb,var(--brand)_20%,var(--background))] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+              className="dash-home-action dash-home-action-subtle flex min-h-12 items-center rounded-full px-6 text-base font-medium text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
               Governance
             </Link>
