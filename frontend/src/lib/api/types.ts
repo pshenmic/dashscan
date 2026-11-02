@@ -316,6 +316,16 @@ export interface ApiAddressBalanceEntry {
   concentration: string | null;
 }
 
+export interface ApiRichListResponse
+  extends PaginatedResponse<ApiAddressBalanceEntry> {
+  utxoSummary?: {
+    height: number;
+    blockHash: string;
+    outputCount: number;
+    totalAmountDuffs: string;
+  } | null;
+}
+
 export interface ApiAddressActivityEntry {
   address: string | null;
   txCount: number | null;

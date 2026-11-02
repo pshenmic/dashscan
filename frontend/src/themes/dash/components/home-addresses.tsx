@@ -35,7 +35,7 @@ function AddressMetric({
   label: string;
   value: ReactNode;
   detail: string;
-  missing: string;
+  missing?: string;
   period?: string;
 }) {
   return (
@@ -58,7 +58,7 @@ function AddressMetric({
         <span className="dash-label-small text-muted-foreground">
           {period ?? detail}
         </span>
-        <MissingApiData inline description={missing} />
+        {missing && <MissingApiData inline description={missing} />}
       </div>
     </div>
   );
@@ -330,6 +330,23 @@ export function HomeAddresses() {
       : [],
   );
   const distribution = addressDistribution(rich.data?.resultSet);
+  const utxo = rich.data?.utxoSummary;
+  const unspentAmount =
+    utxo?.totalAmountDuffs != null && /^\d+$/.test(utxo.totalAmountDuffs)
+      ? utxo.totalAmountDuffs
+      : distribution?.total;
+  const outputCount =
+    utxo?.outputCount != null &&
+    Number.isSafeInteger(utxo.outputCount) &&
+    utxo.outputCount >= 0
+      ? utxo.outputCount
+      : null;
+  const utxoDetail =
+    utxo?.height != null &&
+    Number.isSafeInteger(utxo.height) &&
+    utxo.height >= 0
+      ? `Core UTXO snapshot at block #${metricNumber(utxo.height, 0)}`
+      : "Core UTXO snapshot";
   const supply = estimatedSupply(marketCap.data?.usd, price.data?.usd);
   const count = unique.data?.pagination.total;
 
@@ -372,19 +389,29 @@ export function HomeAddresses() {
                   ? "…"
                   : rich.isError && !rich.data
                     ? "Unavailable"
-                    : distribution
-                      ? `≈ ${formatCompact(Number(BigInt(distribution.total) / 100_000_000n))} DASH`
+                    : unspentAmount != null
+                      ? `≈ ${formatCompact(Number(BigInt(unspentAmount) / 100_000_000n))} DASH`
                       : "—"
               }
-              detail="Current UTXO balance"
+              detail={utxoDetail}
               period="24H change"
-              missing="The current total is derived from all rich-list balances, including Others. Historical balances and 24-hour change are not exposed."
+              missing="Historical UTXO balances and the 24-hour change are not exposed by the API."
             />
             <AddressMetric
               label="Unspent Outputs"
-              value="—"
-              detail="Count"
-              missing="The API does not expose a network-wide unspent output count or its history."
+              value={
+                rich.isPending
+                  ? "…"
+                  : rich.isError && !rich.data
+                    ? "Unavailable"
+                    : metricNumber(outputCount, 0)
+              }
+              detail={utxoDetail}
+              missing={
+                !rich.isPending && !rich.isError && outputCount == null
+                  ? "This API version does not expose the Core UTXO output count."
+                  : undefined
+              }
             />
           </div>
           <div className="flex min-h-[392px] min-w-0 flex-1 flex-col gap-6 rounded-3xl dash-home-panel p-6">

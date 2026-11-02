@@ -5,9 +5,9 @@ import { apiFetch, getBaseUrl } from "./client";
 import type {
   ApiAddress,
   ApiAddressActivityEntry,
-  ApiAddressBalanceEntry,
   ApiAddressBalancePoint,
   ApiAddressDetail,
+  ApiRichListResponse,
   ApiTransaction,
   ApiUtxoEntry,
   PaginatedResponse,
@@ -285,7 +285,7 @@ async function getRichList(params: FetchRichListInput) {
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
-  return response.json() as Promise<PaginatedResponse<ApiAddressBalanceEntry>>;
+  return response.json() as Promise<ApiRichListResponse>;
 }
 
 export const fetchRichList = createServerFn({ method: "POST" })
