@@ -59,9 +59,8 @@ function NetworkSection({ network }: { network: Network }) {
   return (
     <section
       aria-labelledby={titleId}
-      className="relative isolate flex flex-col gap-8 rounded-3xl p-4 sm:p-8 lg:gap-16 lg:rounded-[48px]"
+      className="relative isolate flex flex-col gap-8 py-4 sm:py-8 lg:gap-16"
     >
-      <HomeMapSurface mapRef={mapRef} />
       <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,442px)_minmax(0,1fr)] xl:gap-32">
         <div className="min-w-0">
           <p className="text-xl font-medium text-muted-foreground">
@@ -87,7 +86,11 @@ function NetworkSection({ network }: { network: Network }) {
             </span>
           </Link>
         </div>
-        <div className="min-w-0">
+        <div
+          data-map-panel
+          className="relative isolate min-w-0 rounded-3xl border border-border p-4 sm:p-6"
+        >
+          <HomeMapSurface mapRef={mapRef} />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="dash-body">Peers Map</h3>
             {selectedIds && (
@@ -112,8 +115,9 @@ function NetworkSection({ network }: { network: Network }) {
             />
           </div>
           <div
+            data-grid-map
             ref={mapRef}
-            className="relative mt-6 h-[207px] overflow-hidden rounded-3xl border border-foreground/4"
+            className="relative mt-6 h-[207px] overflow-hidden rounded-3xl"
           >
             {status ? (
               <output className="flex h-full items-center justify-center text-sm text-muted-foreground">

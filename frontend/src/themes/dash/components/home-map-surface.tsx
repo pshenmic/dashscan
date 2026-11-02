@@ -1,12 +1,18 @@
 import { type RefObject, useEffect, useId, useRef, useState } from "react";
+import { mapSurfaceOutline, mapSurfaceRadius } from "../lib/map-surface";
 
 export function HomeMapSurface({
   mapRef,
+  insetRef,
+  cutoutRef,
 }: {
   mapRef: RefObject<HTMLDivElement | null>;
+  insetRef?: RefObject<HTMLDivElement | null>;
+  cutoutRef?: RefObject<HTMLDivElement | null>;
 }) {
   const surfaceId = useId();
   const surfaceRef = useRef<SVGSVGElement>(null);
+  const [outline, setOutline] = useState<string | null>(null);
   const [mapWindow, setMapWindow] = useState({
     x: 0,
     y: 0,
@@ -15,12 +21,29 @@ export function HomeMapSurface({
   });
 
   useEffect(() => {
-    const section = surfaceRef.current?.closest("section");
+    const section = surfaceRef.current?.closest("[data-map-panel]");
     const map = mapRef.current;
     if (!section || !map) return;
     const update = () => {
       const outer = section.getBoundingClientRect();
       const inner = map.getBoundingClientRect();
+      const inset = insetRef?.current?.getBoundingClientRect();
+      if (inset) {
+        const cutout = cutoutRef?.current?.getBoundingClientRect();
+        const hasCutout = cutout && inset.left > inner.left + 1;
+        setOutline(
+          mapSurfaceOutline({
+            width: outer.width,
+            height: outer.height,
+            cutout: hasCutout
+              ? {
+                  right: cutout.right - outer.left,
+                  top: cutout.top - outer.top,
+                }
+              : undefined,
+          }),
+        );
+      }
       const next = {
         x: inner.left - outer.left,
         y: inner.top - outer.top,
@@ -40,9 +63,11 @@ export function HomeMapSurface({
     observer.observe(section);
     observer.observe(map);
     if (map.parentElement) observer.observe(map.parentElement);
+    if (insetRef?.current) observer.observe(insetRef.current);
+    if (cutoutRef?.current) observer.observe(cutoutRef.current);
     update();
     return () => observer.disconnect();
-  }, [mapRef]);
+  }, [mapRef, insetRef, cutoutRef]);
 
   return (
     <svg
@@ -60,8 +85,12 @@ export function HomeMapSurface({
           width="100%"
           height="100%"
         >
-          <rect width="100%" height="100%" fill="white" />
-          <rect {...mapWindow} rx="24" fill="black" />
+          {outline ? (
+            <path d={outline} fill="white" />
+          ) : (
+            <rect width="100%" height="100%" fill="white" />
+          )}
+          <rect {...mapWindow} rx={mapSurfaceRadius} fill="black" />
         </mask>
       </defs>
       <rect
@@ -70,6 +99,7 @@ export function HomeMapSurface({
         fill="var(--card)"
         mask={`url(#${surfaceId})`}
       />
+      {outline && <path d={outline} fill="none" stroke="var(--border)" />}
     </svg>
   );
 }

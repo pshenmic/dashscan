@@ -37,10 +37,13 @@ export function HomeMasternodes() {
 function MasternodesSection({ network }: { network: Network }) {
   const titleId = useId();
   const filterId = useId();
+  const nodesTitleId = useId();
   const mapRef = useRef<HTMLDivElement>(null);
+  const insetRef = useRef<HTMLDivElement>(null);
+  const growthRef = useRef<HTMLDivElement>(null);
   const [countryCode, setCountryCode] = useState("all");
   const [groupHashes, setGroupHashes] = useState<Set<string> | null>(null);
-  const listHeading = useRef<HTMLHeadingElement>(null);
+  const listResults = useRef<HTMLElement>(null);
   const [page, setPage] = useState(1);
   const nodes = useQuery({
     ...allMasternodesQueryOptions({ network }),
@@ -70,8 +73,8 @@ function MasternodesSection({ network }: { network: Network }) {
       : new Set(filtered.map((node) => node.proTxHash)));
   const focusList = () =>
     requestAnimationFrame(() => {
-      listHeading.current?.focus({ preventScroll: true });
-      listHeading.current?.scrollIntoView({
+      listResults.current?.focus({ preventScroll: true });
+      listResults.current?.scrollIntoView({
         block: "nearest",
         behavior: "instant",
       });
@@ -87,42 +90,52 @@ function MasternodesSection({ network }: { network: Network }) {
   return (
     <section
       aria-labelledby={titleId}
-      className="relative isolate flex flex-col gap-8 rounded-3xl p-4 sm:p-8 lg:gap-16 lg:rounded-[48px]"
+      className="relative isolate grid items-start gap-8 py-4 sm:py-8 xl:grid-cols-[minmax(0,442px)_minmax(0,1fr)] xl:gap-x-16 xl:[--list-offset:128px] 2xl:[--list-offset:160px]"
     >
-      <HomeMapSurface mapRef={mapRef} />
-      <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,442px)_minmax(0,1fr)] xl:gap-32">
-        <div className="min-w-0">
-          <p className="text-xl font-medium text-muted-foreground">
-            Dash Chain
-          </p>
-          <h2
-            id={titleId}
-            className="dash-heading-page mt-2 sm:dash-heading-hero"
-          >
-            <span className="font-extrabold text-brand">Masternodes</span> Stats
-          </h2>
-          <p className="dash-body mt-3 text-foreground/50">
-            Dash is powered by a network of masternodes that enable instant
-            transactions, governance, and CoinJoin. Explore their status and
-            payouts.
-          </p>
-          <Link
-            to="/masternodes"
+      <div className="min-w-0 xl:col-start-1 xl:row-start-1">
+        <p className="text-xl font-medium text-muted-foreground">Dash Chain</p>
+        <h2
+          id={titleId}
+          className="dash-heading-page mt-2 sm:dash-heading-hero"
+        >
+          <span className="font-extrabold text-brand">Masternodes</span> Stats
+        </h2>
+        <p className="dash-body mt-3 text-foreground/50">
+          Dash is powered by a network of masternodes that enable instant
+          transactions, governance, and CoinJoin. Explore their status and
+          payouts.
+        </p>
+        <Link
+          to="/masternodes"
           className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-          >
-            Explore Masternodes
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
-              <HomeIcon name="explore" />
-            </span>
-          </Link>
-        </div>
+        >
+          Explore Masternodes
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
+            <HomeIcon name="explore" />
+          </span>
+        </Link>
+      </div>
+      <section
+        data-map-panel
+        aria-labelledby={nodesTitleId}
+        className="relative isolate min-w-0 rounded-3xl p-4 sm:p-6 xl:col-start-2 xl:row-start-1 xl:row-span-2 xl:grid xl:grid-rows-subgrid"
+      >
+        <HomeMapSurface
+          mapRef={mapRef}
+          insetRef={insetRef}
+          cutoutRef={growthRef}
+        />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <h3 className="dash-body">Masternodes Map</h3>
-              <InfoPopover label="About map coverage">
+              <h3 id={nodesTitleId} className="dash-heading-section">
+                Masternodes
+              </h3>
+              <InfoPopover label="About masternodes">
                 Locations are estimated from IP addresses. Nodes without
-                coordinates appear only in the list.
+                coordinates appear only in the list. Country selection filters
+                the list and highlights matching nodes on the map. Rows are
+                ordered by last paid block, newest first.
               </InfoPopover>
             </div>
             <div className="relative w-full min-w-0 sm:w-48 sm:shrink-0">
@@ -157,21 +170,42 @@ function MasternodesSection({ network }: { network: Network }) {
                     <SelectItem value={countryCode}>{countryCode}</SelectItem>
                   )}
                   {countries.map((country) => (
-                    <SelectItem key={country.code} value={country.code}>
-                      {country.name}
+                    <SelectItem
+                      key={country.code}
+                      value={country.code}
+                      textValue={country.name}
+                      className="*:last:min-w-0 *:last:flex-1"
+                    >
+                      <span className="min-w-0 flex-1 truncate">
+                        {country.name}
+                      </span>
+                      <span className="shrink-0 text-muted-foreground tabular-nums">
+                        {metricNumber(country.nodes.length, 0)}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <p className="mt-2 text-[32px] font-extrabold leading-tight">
-            {number(distribution?.total)}{" "}
-            <span className="text-base font-medium">Nodes Total</span>
+          <p
+            aria-live="polite"
+            aria-atomic="true"
+            className="mt-2 text-[32px] font-extrabold leading-tight tabular-nums"
+          >
+            {number(nodes.data ? filtered.length : undefined)}{" "}
+            <span className="text-base font-medium text-muted-foreground">
+              {selectedHashes ? (
+                <>of {number(distribution?.total)} nodes</>
+              ) : (
+                "Nodes Total"
+              )}
+            </span>
           </p>
           <div
+            data-grid-map
             ref={mapRef}
-            className="relative mt-6 h-[207px] overflow-hidden rounded-3xl border border-foreground/4"
+            className="relative mt-6 h-[207px] overflow-hidden rounded-3xl"
           >
             {nodes.isError ? (
               <div
@@ -215,92 +249,14 @@ function MasternodesSection({ network }: { network: Network }) {
             )}
           </div>
         </div>
-      </div>
-      <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,623px)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex min-h-[260px] min-w-0 flex-1 flex-col gap-8 rounded-3xl bg-foreground/3 p-6">
-            <div className="relative min-w-0">
-              <div className="flex min-w-0 flex-col gap-2">
-                <h3 className="pr-9 text-base font-medium leading-4">
-                  Masternode growth
-                </h3>
-                <div className="flex items-center gap-4">
-                  <p className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]">
-                    — <span className="text-base font-medium">Nodes</span>
-                  </p>
-                  <MissingApiData
-                    inline
-                    className="whitespace-nowrap"
-                    description="Masternode count history and monthly growth are not exposed by the API."
-                  />
-                </div>
-                <p className="text-sm font-medium leading-4 text-foreground/48">
-                  Compared to last{" "}
-                  <strong className="font-extrabold">month</strong>
-                </p>
-              </div>
-              <div className="absolute right-0 top-0">
-                <InfoPopover label="About masternode growth">
-                  The current masternode list is a snapshot, not a historical
-                  series. Registration timestamps alone cannot account for nodes
-                  removed from the network.
-                </InfoPopover>
-              </div>
-            </div>
-            <div aria-hidden="true" className="min-h-[117px] flex-1" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              { label: "Masternode count", count: distribution?.regular },
-              { label: "Evonode count", count: distribution?.evo },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="min-w-0 rounded-3xl bg-foreground/3 px-6 py-4"
-              >
-                <h3 className="dash-body-compact text-foreground/50">
-                  {item.label}
-                </h3>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <p className="dash-metric text-brand">
-                    {number(item.count)}{" "}
-                    <span className="font-medium">Nodes</span>
-                  </p>
-                  <MissingApiData
-                    inline
-                    description="Year-over-year changes require historical node counts, which the API does not provide."
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="min-w-0 rounded-3xl bg-foreground/3 p-4 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="min-w-0">
-                <h3
-                  ref={listHeading}
-                  tabIndex={-1}
-                  className="dash-heading-section rounded focus-visible:outline-2 focus-visible:outline-ring"
-                >
-                  Masternodes List
-                </h3>
-                <p className="dash-body-compact mt-2 h-5 truncate tabular-nums text-foreground/48">
-                  {number(nodes.data ? filtered.length : undefined)} Masternodes
-                  Found
-                </p>
-              </div>
-              <InfoPopover label="About the masternodes list">
-                Six masternodes per page, ordered by their last paid block,
-                newest first. Country selection filters this list and highlights
-                matching nodes on the map. Enabled and banned are current node
-                statuses, not uptime measurements.
-              </InfoPopover>
-            </div>
-          </div>
-          <div className="mt-4 h-[344px] overflow-auto">
-            <HomeTable>
+        <div ref={insetRef} className="min-w-0 xl:ml-[var(--list-offset)]">
+          <section
+            ref={listResults}
+            aria-label="Masternode results"
+            tabIndex={-1}
+            className="mt-6 h-[344px] overflow-auto rounded-lg border-t border-border focus-visible:outline-2 focus-visible:outline-ring xl:mt-0"
+          >
+            <HomeTable aria-label="Masternodes">
               <thead>
                 <tr className="border-b border-foreground/8 text-foreground/48">
                   <th className="px-2 py-3 font-medium">IP Address</th>
@@ -360,7 +316,7 @@ function MasternodesSection({ network }: { network: Network }) {
                 )}
               </tbody>
             </HomeTable>
-          </div>
+          </section>
           {
             <nav
               aria-label="Masternodes list pages"
@@ -387,6 +343,67 @@ function MasternodesSection({ network }: { network: Network }) {
               </button>
             </nav>
           }
+        </div>
+      </section>
+      <div
+        ref={growthRef}
+        className="relative flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-2 xl:w-[calc(100%+var(--list-offset)+40px)]"
+      >
+        <div className="flex min-h-[260px] min-w-0 flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
+          <div className="relative min-w-0">
+            <div className="flex min-w-0 flex-col gap-2">
+              <h3 className="pr-9 text-base font-medium leading-4">
+                Masternode growth
+              </h3>
+              <div className="flex items-center gap-4">
+                <p className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]">
+                  — <span className="text-base font-medium">Nodes</span>
+                </p>
+                <MissingApiData
+                  inline
+                  className="whitespace-nowrap"
+                  description="Masternode count history and monthly growth are not exposed by the API."
+                />
+              </div>
+              <p className="text-sm font-medium leading-4 text-foreground/48">
+                Compared to last{" "}
+                <strong className="font-extrabold">month</strong>
+              </p>
+            </div>
+            <div className="absolute right-0 top-0">
+              <InfoPopover label="About masternode growth">
+                The current masternode list is a snapshot, not a historical
+                series. Registration timestamps alone cannot account for nodes
+                removed from the network.
+              </InfoPopover>
+            </div>
+          </div>
+          <div aria-hidden="true" className="min-h-[117px] flex-1" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[
+            { label: "Masternode count", count: distribution?.regular },
+            { label: "Evonode count", count: distribution?.evo },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="min-w-0 rounded-3xl dash-home-panel px-6 py-4"
+            >
+              <h3 className="dash-body-compact text-foreground/50">
+                {item.label}
+              </h3>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <p className="dash-metric text-brand">
+                  {number(item.count)}{" "}
+                  <span className="font-medium">Nodes</span>
+                </p>
+                <MissingApiData
+                  inline
+                  description="Year-over-year changes require historical node counts, which the API does not provide."
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
