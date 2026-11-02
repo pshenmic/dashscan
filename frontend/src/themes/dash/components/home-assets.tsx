@@ -296,7 +296,7 @@ export function HomeAssets() {
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,716fr)_minmax(0,580fr)]">
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
-          <AssetMetric icon="credit-pool" label="Total credits locked in L2">
+          <AssetMetric icon="credit-pool" label="Core credit pool balance">
             <div className="flex items-center gap-2">
               <p
                 className="whitespace-nowrap text-xl font-extrabold leading-[1.2] text-brand sm:text-2xl"
@@ -313,11 +313,6 @@ export function HomeAssets() {
                     : formatCompact(balance)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
-              <MissingApiData
-                inline
-                className="whitespace-nowrap"
-                description="The amount shown is the Core credit pool balance in DASH. The API does not expose the current outstanding Platform credit supply."
-              />
             </div>
           </AssetMetric>
           <AssetMetric icon="asset-lock" label="Deposited amount in 24 Hours">
@@ -363,12 +358,12 @@ export function HomeAssets() {
         <div className="flex min-h-[256px] min-w-0 flex-col gap-4 rounded-3xl dash-home-panel p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="dash-body">Credits locked in platform</h3>
+              <h3 className="dash-body">Core credit pool history</h3>
               <p className="mt-2 text-[32px] leading-tight">
                 <strong>
                   {blocks.isPending ? "…" : metricNumber(balance)}
                 </strong>{" "}
-                <span className="text-base">Dash</span>
+                <span className="text-base">DASH</span>
               </p>
             </div>
             <InfoPopover label="About the credit pool">
