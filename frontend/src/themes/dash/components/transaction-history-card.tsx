@@ -23,7 +23,7 @@ export function TransactionHistoryCard({ network }: { network: Network }) {
   const summary = transactionHistorySummary(history.data, range.timestampEnd);
 
   return (
-    <div className="flex flex-1 flex-col gap-8 rounded-3xl bg-foreground/3 p-6">
+    <div className="flex flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-base font-medium leading-4 tracking-[-0.009em]">

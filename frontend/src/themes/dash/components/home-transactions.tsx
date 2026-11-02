@@ -40,7 +40,7 @@ export function HomeTransactions() {
   return (
     <section
       aria-labelledby={titleId}
-      className="space-y-10 rounded-3xl bg-card p-4 sm:p-8 lg:space-y-16 lg:rounded-[48px]"
+      className="space-y-10 py-4 sm:py-8 lg:space-y-16"
     >
       <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,725fr)_minmax(0,503fr)] xl:gap-8 min-[1400px]:gap-[84px]">
         <div className="relative order-2 grid min-w-0 gap-4 sm:grid-cols-2 xl:order-1 xl:block xl:h-[243px]">
@@ -189,7 +189,7 @@ export function HomeTransactions() {
         <div className="flex min-w-0 flex-col gap-4">
           <TransactionHistoryCard network={network} />
           <div className="@container grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-stretch gap-3">
-            <div className="flex min-w-0 flex-col gap-2 rounded-3xl bg-foreground/3 px-3 py-4 @min-[400px]:px-6">
+            <div className="flex min-w-0 flex-col gap-2 rounded-3xl dash-home-panel px-3 py-4 @min-[400px]:px-6">
               <h3 className="min-h-[2.2em] text-sm font-medium leading-[1.1] text-foreground/50">
                 Transaction Fees
               </h3>
@@ -206,7 +206,7 @@ export function HomeTransactions() {
                 />
               </div>
             </div>
-            <div className="flex min-w-0 flex-col gap-2 rounded-3xl bg-foreground/3 px-3 py-4 @min-[400px]:px-6">
+            <div className="flex min-w-0 flex-col gap-2 rounded-3xl dash-home-panel px-3 py-4 @min-[400px]:px-6">
               <h3 className="min-h-[2.2em] text-sm font-medium leading-[1.1] text-foreground/50">
                 InstantSend lock time
               </h3>

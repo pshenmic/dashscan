@@ -170,7 +170,7 @@ export function DaoProposalsTable({
   error,
 }: ProposalProps & { loading: boolean; error: boolean }) {
   return (
-    <div className="flex min-h-[528px] min-w-0 flex-col gap-6 rounded-3xl bg-foreground/3 p-6">
+    <div className="flex min-h-[528px] min-w-0 flex-col gap-6 rounded-3xl dash-home-panel p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="dash-heading-section">Budget Proposals</h3>

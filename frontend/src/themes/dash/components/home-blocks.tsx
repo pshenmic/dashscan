@@ -98,7 +98,7 @@ export function HomeBlocks() {
   return (
     <section
       aria-labelledby={titleId}
-      className="space-y-10 rounded-3xl bg-card p-4 sm:p-8 lg:space-y-16 lg:rounded-[48px]"
+      className="space-y-10 py-4 sm:py-8 lg:space-y-16"
     >
       {chain.isError && (
         <p role="alert" className="dash-body-compact text-destructive">
@@ -276,7 +276,7 @@ export function HomeBlocks() {
           {summary.map((item) => (
             <div
               key={item.label}
-              className="flex min-w-0 flex-col justify-center gap-4 rounded-3xl bg-foreground/3 px-6 py-4"
+              className="flex min-w-0 flex-col justify-center gap-4 rounded-3xl dash-home-panel px-6 py-4"
             >
               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-card">
                 <img
@@ -333,7 +333,7 @@ export function HomeBlocks() {
             </div>
           ))}
         </div>
-        <div className="min-w-0 rounded-3xl bg-foreground/3 p-4 sm:p-6">
+        <div className="min-w-0 rounded-3xl dash-home-panel p-4 sm:p-6">
           <h3 className="text-2xl font-medium leading-[1.1]">Block List</h3>
           <p className="mb-6 mt-2 text-sm font-medium leading-[1.1] text-foreground/48">
             Latest indexed blocks · updates every 30 seconds

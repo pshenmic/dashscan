@@ -36,7 +36,7 @@ function StatCard({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-center justify-between gap-6 rounded-3xl bg-card px-6 py-4",
+        "dash-home-panel flex min-w-0 items-center justify-between gap-6 rounded-3xl px-6 py-4",
         className,
       )}
     >
@@ -299,7 +299,7 @@ export function HomeGeneralStats() {
         />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-6 rounded-3xl bg-card p-6 sm:flex-row sm:items-center sm:gap-12">
+        <div className="dash-home-panel flex min-w-0 flex-col gap-6 rounded-3xl p-6 sm:flex-row sm:items-center sm:gap-12">
           <div className="min-w-0 shrink-0 space-y-2">
             <h3 className="text-base font-medium leading-4">
               Hashrate History
@@ -334,7 +334,7 @@ export function HomeGeneralStats() {
             </div>
           </div>
         </div>
-        <div className="flex min-w-0 flex-col gap-6 rounded-3xl bg-card p-6 sm:flex-row sm:items-center sm:gap-12">
+        <div className="dash-home-panel flex min-w-0 flex-col gap-6 rounded-3xl p-6 sm:flex-row sm:items-center sm:gap-12">
           <div className="min-w-0 shrink-0 space-y-2 sm:max-w-[45%]">
             <h3 className="text-base font-medium leading-4">
               Mining Difficulty

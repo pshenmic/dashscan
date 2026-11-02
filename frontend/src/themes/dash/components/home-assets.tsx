@@ -101,7 +101,7 @@ function AssetMetric({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl bg-foreground/3 px-4 py-4 sm:px-6">
+    <div className="flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl dash-home-panel px-4 py-4 sm:px-6">
       <img
         src={`/icons/home/${icon}.svg`}
         alt=""
@@ -198,7 +198,7 @@ export function HomeAssets() {
   return (
     <section
       aria-labelledby={titleId}
-      className="flex flex-col gap-10 rounded-3xl bg-card p-4 sm:p-8 lg:gap-16 lg:rounded-[48px]"
+      className="flex flex-col gap-10 py-4 sm:py-8 lg:gap-16"
     >
       <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,608fr)_minmax(0,672fr)]">
         <div className="min-w-0">
@@ -360,7 +360,7 @@ export function HomeAssets() {
             </div>
           </AssetMetric>
         </div>
-        <div className="flex min-h-[256px] min-w-0 flex-col gap-4 rounded-3xl bg-foreground/3 p-6">
+        <div className="flex min-h-[256px] min-w-0 flex-col gap-4 rounded-3xl dash-home-panel p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h3 className="dash-body">Credits locked in platform</h3>

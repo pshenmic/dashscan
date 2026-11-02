@@ -47,7 +47,8 @@ export function HomeHero() {
             Welcome to #1
           </p>
           <h1 id={titleId} className="dash-heading-page sm:dash-heading-hero">
-            <span className="text-brand">Dash</span> Blockchain Explorer
+            <span className="font-extrabold text-brand">Dash</span> Blockchain
+            Explorer
           </h1>
           <p className="dash-body mt-6 max-w-xl text-foreground/50">
             Explore blocks, transactions, masternodes and governance proposals

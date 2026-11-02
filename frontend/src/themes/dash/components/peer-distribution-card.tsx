@@ -71,7 +71,7 @@ export function PeerDistributionCard({
   }));
   const select = (slice: PeerSlice) => onSelect({ facet, value: slice.value });
   return (
-    <div className="grid min-w-0 items-center gap-8 rounded-3xl bg-foreground/3 p-6 sm:grid-cols-[100px_minmax(0,1fr)] lg:grid-cols-1 2xl:grid-cols-[100px_minmax(0,1fr)]">
+    <div className="grid min-w-0 items-center gap-8 rounded-3xl dash-home-panel p-6 sm:grid-cols-[100px_minmax(0,1fr)] lg:grid-cols-1 2xl:grid-cols-[100px_minmax(0,1fr)]">
       <div
         aria-hidden="true"
         className="dash-network-pie size-[100px] shrink-0"

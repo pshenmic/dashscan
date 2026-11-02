@@ -1,5 +1,5 @@
 import { Pause, Play } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   type GridArea,
   gridSignalBounds,
@@ -71,15 +71,6 @@ export function HomeBackground() {
           />
         </div>
         <GridSignals running={enabled && allowed && visible} />
-        <div className="dash-home-decoration absolute inset-x-0 top-0">
-          <img
-            src="/images/home/hero-decoration.png"
-            alt=""
-            width={1440}
-            height={498}
-            className="block w-full max-w-none"
-          />
-        </div>
       </div>
       {allowed && (
         <button
@@ -126,19 +117,51 @@ function GridSignals({ running }: { running: boolean }) {
           : { width, height },
       );
       setSurfaces(
-        content.map((area) => {
+        content.flatMap((area) => {
           const rectangle = area.getBoundingClientRect();
-          return {
+          const surface = {
             x: rectangle.left - bounds.left + (1440 - width) / 2,
             y: rectangle.top - bounds.top,
             width: rectangle.width,
             height: rectangle.height,
           };
+          const map = area
+            .querySelector("[data-grid-map]")
+            ?.getBoundingClientRect();
+          if (!map) return [surface];
+          const mapLeft = map.left - rectangle.left;
+          const mapTop = map.top - rectangle.top;
+          const mapRight = mapLeft + map.width;
+          const mapBottom = mapTop + map.height;
+          return [
+            { ...surface, height: mapTop },
+            {
+              ...surface,
+              y: surface.y + mapBottom,
+              height: surface.height - mapBottom,
+            },
+            {
+              x: surface.x,
+              y: surface.y + mapTop,
+              width: mapLeft,
+              height: map.height,
+            },
+            {
+              x: surface.x + mapRight,
+              y: surface.y + mapTop,
+              width: surface.width - mapRight,
+              height: map.height,
+            },
+          ];
         }),
       );
     });
     observer.observe(element);
-    for (const area of content) observer.observe(area);
+    for (const area of content) {
+      observer.observe(area);
+      const map = area.querySelector("[data-grid-map]");
+      if (map) observer.observe(map);
+    }
     return () => observer.disconnect();
   }, []);
 
@@ -239,6 +262,7 @@ function GridSignalRoute({
   active: boolean;
 }) {
   const element = useRef<SVGPathElement>(null);
+  const maskId = useId();
   const [cycle, setCycle] = useState(0);
   const elapsed = useRef(
     lane * gridSignalMotion.stagger +
@@ -309,22 +333,52 @@ function GridSignalRoute({
         height={height}
         viewBox={`${left} 0 ${routeWidth} ${height}`}
       >
-        <path
-          ref={element}
-          className="dash-grid-signal"
-          d={points
-            .map(
-              (point, index) =>
-                `${index === 0 ? "M" : "L"}${point.x} ${point.y}`,
-            )
-            .join(" ")}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.25}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={`${gridSignalMotion.trail} ${length + gridSignalMotion.trail}`}
-        />
+        <defs>
+          <mask
+            id={maskId}
+            maskUnits="userSpaceOnUse"
+            x={left}
+            y={0}
+            width={routeWidth}
+            height={height}
+          >
+            <rect x={left} width={routeWidth} height={height} fill="white" />
+            {areas
+              .filter(
+                (area) =>
+                  area.y < (band + 1) * bandHeight &&
+                  area.y + area.height > band * bandHeight,
+              )
+              .map((area) => (
+                <rect
+                  key={`${area.x}:${area.y}`}
+                  x={area.x}
+                  y={area.y - band * bandHeight}
+                  width={area.width}
+                  height={area.height}
+                  fill="black"
+                />
+              ))}
+          </mask>
+        </defs>
+        <g mask={`url(#${maskId})`}>
+          <path
+            ref={element}
+            className="dash-grid-signal"
+            d={points
+              .map(
+                (point, index) =>
+                  `${index === 0 ? "M" : "L"}${point.x} ${point.y}`,
+              )
+              .join(" ")}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.25}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={`${gridSignalMotion.trail} ${length + gridSignalMotion.trail}`}
+          />
+        </g>
       </svg>
     </div>
   );

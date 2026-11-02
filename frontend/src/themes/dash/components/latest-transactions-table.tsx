@@ -22,7 +22,7 @@ export function LatestTransactionsTable({
   onRetry: () => void;
 }) {
   return (
-    <div className="min-w-0 rounded-3xl bg-foreground/3 p-4 sm:p-6">
+    <div className="min-w-0 rounded-3xl dash-home-panel p-4 sm:p-6">
       <h3 className="text-2xl font-medium leading-[1.1]">Transaction List</h3>
       <p className="mt-2 text-sm font-medium leading-[1.1] text-foreground/48">
         Latest indexed transactions · updates every 30 seconds

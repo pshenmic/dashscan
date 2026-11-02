@@ -26,7 +26,7 @@ export function HomeCoinJoin() {
   return (
     <section
       aria-labelledby={titleId}
-      className="grid items-center gap-8 rounded-3xl bg-card p-4 sm:p-8 lg:rounded-[48px] xl:grid-cols-[minmax(0,293fr)_minmax(0,436fr)_minmax(0,455fr)] xl:gap-16"
+      className="grid items-center gap-8 py-4 sm:py-8 xl:grid-cols-[minmax(0,293fr)_minmax(0,436fr)_minmax(0,455fr)] xl:gap-16"
     >
       <div className="min-w-0 xl:order-3">
         <p className="text-xl font-medium text-muted-foreground">Dash Chain</p>
@@ -51,7 +51,7 @@ export function HomeCoinJoin() {
           </span>
         </Link>
       </div>
-      <div className="flex min-w-0 flex-col gap-6 self-stretch xl:order-1 xl:min-h-[316px]">
+      <div className="dash-home-panel flex min-w-0 flex-col gap-6 self-stretch rounded-3xl p-6 xl:order-1 xl:min-h-[316px]">
         <div>
           <h3 className="dash-heading-section">Active Sessions</h3>
           <div className="mt-2">
@@ -90,7 +90,7 @@ export function HomeCoinJoin() {
           )}
         </div>
       </div>
-      <div className="flex min-w-0 flex-col gap-8 self-stretch xl:order-2 xl:min-h-[316px]">
+      <div className="dash-home-panel flex min-w-0 flex-col gap-8 self-stretch rounded-3xl p-6 xl:order-2 xl:min-h-[316px]">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-2">
             <h3 className="text-base font-medium leading-4">Mixed amount</h3>

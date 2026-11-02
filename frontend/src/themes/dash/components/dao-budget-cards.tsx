@@ -92,7 +92,7 @@ function DaoMetric({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col justify-center gap-3 rounded-3xl bg-foreground/3 px-6 py-4">
+    <div className="flex min-w-0 flex-1 flex-col justify-center gap-3 rounded-3xl dash-home-panel px-6 py-4">
       <img
         src={`/icons/home/${icon}.svg`}
         alt=""
@@ -136,7 +136,7 @@ function DaoTimingCards({
         : `≈ ${formatDuration(timestamp - now)}`;
   return (
     <>
-      <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl bg-foreground/3 px-6 py-4">
+      <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
         <div className="min-w-0 flex-1 space-y-2">
           <h3 className="dash-body-compact text-foreground/50">
             <DaoHint description="Estimated voting deadline in UTC. Timing may change as blocks are mined.">
@@ -166,7 +166,7 @@ function DaoTimingCards({
           label="Estimated voting window elapsed"
         />
       </div>
-      <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl bg-foreground/3 px-6 py-4">
+      <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
         <div className="min-w-0 flex-1 space-y-2">
           <h3 className="dash-body-compact text-foreground/50">
             <DaoHint description="Next treasury payout block. The countdown is an estimate, not a scheduled block time.">
@@ -232,7 +232,7 @@ export function DaoBudgetCards({
     <>
       {" "}
       <div className="flex min-w-0 flex-col gap-4">
-        <div className="flex min-h-[232px] flex-1 flex-col gap-8 rounded-3xl bg-foreground/3 p-6">
+        <div className="flex min-h-[232px] flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
           <div className="flex items-center justify-between gap-3">
             <h3 className="dash-body">Budget</h3>
             <InfoPopover label="About the cycle budget">

@@ -39,7 +39,7 @@ function AddressMetric({
   period?: string;
 }) {
   return (
-    <div className="flex min-h-[120px] min-w-0 flex-col justify-center gap-2 rounded-3xl bg-foreground/3 px-6 py-4">
+    <div className="flex min-h-[120px] min-w-0 flex-col justify-center gap-2 rounded-3xl dash-home-panel px-6 py-4">
       <h3 className="dash-body-compact text-foreground/50">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -336,7 +336,7 @@ export function HomeAddresses() {
   return (
     <section
       aria-labelledby={titleId}
-      className="grid gap-8 rounded-3xl bg-card p-4 sm:p-8 lg:grid-cols-2 lg:gap-4 lg:rounded-[48px]"
+      className="grid gap-8 py-4 sm:py-8 lg:grid-cols-2 lg:gap-4"
     >
       <div className="flex min-w-0 flex-col gap-10 lg:gap-16">
         <div className="flex min-h-[221px] flex-col justify-center lg:max-w-[554px]">
@@ -387,7 +387,7 @@ export function HomeAddresses() {
               missing="The API does not expose a network-wide unspent output count or its history."
             />
           </div>
-          <div className="flex min-h-[392px] min-w-0 flex-1 flex-col gap-6 rounded-3xl bg-foreground/3 p-6">
+          <div className="flex min-h-[392px] min-w-0 flex-1 flex-col gap-6 rounded-3xl dash-home-panel p-6">
             <div>
               <h3 className="dash-heading-section">Active Addresses List</h3>
               <p className="dash-body-compact mt-2 text-foreground/48">
@@ -451,7 +451,7 @@ export function HomeAddresses() {
             missing="Monthly unique-address history and change are not exposed. The list total may be an index estimate."
           />
         </div>
-        <div className="flex min-h-[677px] min-w-0 flex-1 flex-col gap-12 rounded-3xl bg-foreground/3 p-6">
+        <div className="flex min-h-[677px] min-w-0 flex-1 flex-col gap-12 rounded-3xl dash-home-panel p-6">
           {rich.isPending ? (
             <p className="dash-body-compact text-muted-foreground">
               Loading balance distribution…
