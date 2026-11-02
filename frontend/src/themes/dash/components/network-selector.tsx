@@ -27,9 +27,10 @@ export default function NetworkSelector() {
         <button
           type="button"
           className="flex h-10 items-center gap-2 rounded-xl border border-input bg-transparent pl-4 pr-3 text-sm font-medium tracking-wide text-foreground transition hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
-          aria-label="Select network"
+          aria-label={`Select network, current: ${network === "mainnet" ? "Mainnet" : "Testnet"}`}
         >
           <Circle
+            aria-hidden="true"
             className={
               network === "mainnet"
                 ? "size-1.5 fill-positive-brand text-positive-brand"
@@ -45,18 +46,23 @@ export default function NetworkSelector() {
           <DropdownMenuItem key={net.value} asChild>
             <a
               href={net.url}
+              aria-current={network === net.value ? "true" : undefined}
               className={network === net.value ? "font-medium" : ""}
             >
               <Circle
+                aria-hidden="true"
                 className={
                   net.value === "mainnet"
-                    ? "size-2.5 fill-green-500 text-green-500"
+                    ? "size-2.5 fill-positive-brand text-positive-brand"
                     : "size-2.5 fill-amber-500 text-amber-500"
                 }
               />
               {net.label}
               {net.value !== network && (
-                <ExternalLink className="ml-auto size-3 text-muted-foreground" />
+                <ExternalLink
+                  aria-hidden="true"
+                  className="ml-auto size-3 text-muted-foreground"
+                />
               )}
             </a>
           </DropdownMenuItem>

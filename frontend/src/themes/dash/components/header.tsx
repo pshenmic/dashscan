@@ -10,7 +10,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ThemeSwitcher } from "@/themes/ThemeSwitcher";
 import { ColorModeToggle } from "./color-mode-toggle";
 import { HeaderSearch } from "./header-search";
 import NetworkSelector from "./network-selector";
@@ -216,7 +215,6 @@ export default function Header() {
         <HeaderSearch />
         <ColorModeToggle />
         <div className="hidden items-center gap-2 xl:flex">
-          <ThemeSwitcher />
           <NetworkSelector />
         </div>
         <Sheet open={open} onOpenChange={setOpen}>
@@ -236,13 +234,12 @@ export default function Header() {
           >
             <SheetTitle className="px-4">Navigation</SheetTitle>
             <SheetDescription className="sr-only">
-              Explore DashScan and choose your network or design.
+              Explore DashScan and choose your network.
             </SheetDescription>
             <nav aria-label="Mobile navigation" className="flex flex-col gap-1">
               <NavigationLinks mobile onNavigate={() => setOpen(false)} />
             </nav>
             <div className="flex flex-wrap gap-2 border-t border-border px-4 pt-6">
-              <ThemeSwitcher />
               <NetworkSelector />
             </div>
           </SheetContent>
