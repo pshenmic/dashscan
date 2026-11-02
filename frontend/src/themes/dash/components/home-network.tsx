@@ -22,6 +22,7 @@ import {
 import { HomeIcon } from "./home-icon";
 import { HomeMapSurface } from "./home-map-surface";
 import { HomeNodeMap } from "./home-masternode-map";
+import { HomeNetworkUpgrades } from "./home-network-upgrades";
 import { MissingApiData } from "./missing-api-data";
 import { PeerDistributionCard } from "./peer-distribution-card";
 
@@ -257,18 +258,7 @@ function NetworkSection({ network }: { network: Network }) {
           Dash Core.
         </p>
       </div>
-      <div className="grid items-center gap-6 sm:grid-cols-[184px_minmax(0,1fr)]">
-        <div>
-          <h3 className="text-sm text-muted-foreground">Hardforks</h3>
-          <p className="mt-2 text-[32px] font-extrabold">
-            — <span className="text-base font-medium">Forks</span>
-          </p>
-        </div>
-        <MissingApiData
-          className="rounded-3xl p-6"
-          description="The API does not expose network upgrade deployments, activation heights, statuses, or dates. The timeline will appear here when this data is available."
-        />
-      </div>
+      <HomeNetworkUpgrades network={network} />
     </section>
   );
 }

@@ -297,6 +297,7 @@ export interface ApiGovernanceBudget {
 }
 
 export interface ApiChainStats {
+  networkUpgrades?: ApiNetworkUpgrade[] | null;
   chain: string | null;
   sizeOnDisk: number | null;
   difficulty: number | null;
@@ -314,6 +315,13 @@ export interface ApiAddressBalanceEntry {
   address: string | null;
   balance: string | null;
   concentration: string | null;
+}
+
+export interface ApiNetworkUpgrade {
+  id: string;
+  type: string;
+  status: string;
+  activationHeight: number | null;
 }
 
 export interface ApiRichListResponse

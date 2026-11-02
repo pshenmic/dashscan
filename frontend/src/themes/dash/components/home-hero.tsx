@@ -2,12 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { useId } from "react";
-import { chainStatsQueryOptions } from "@/lib/api/chain";
 import {
   marketCapHistoricalQueryOptions,
   marketCapQueryOptions,
 } from "@/lib/api/marketcap";
 import { formatCompactUsdShort, formatNumber } from "@/lib/format";
+import { homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { HomeIcon } from "./home-icon";
 import SearchBar from "./search-bar";
@@ -16,7 +16,7 @@ export function HomeHero() {
   const titleId = useId();
   const searchDescriptionId = useId();
   const network = useStore(appStore, (state) => state.network);
-  const chain = useQuery(chainStatsQueryOptions({ network }));
+  const chain = useQuery(homeChainQueryOptions(network));
   const { data: marketCap } = useQuery(
     marketCapQueryOptions({ network, currency: "usd" }),
   );
