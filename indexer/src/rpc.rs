@@ -59,12 +59,22 @@ pub struct MasternodeEntry {
     /// Collateral outpoint (`txid-vout`); populated from the response map key.
     #[serde(default)]
     pub outpoint: String,
+    #[serde(rename = "platformNodeID", default)]
+    pub platform_node_id: Option<String>,
+    #[serde(rename = "platformP2PPort", default)]
+    pub platform_p2p_port: Option<i32>,
+    #[serde(rename = "platformHTTPPort", default)]
+    pub platform_http_port: Option<i32>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct MasternodeAddresses {
     #[serde(default)]
     pub core_p2p: Vec<String>,
+    #[serde(default)]
+    pub platform_p2p: Vec<String>,
+    #[serde(default)]
+    pub platform_https: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -330,6 +340,15 @@ impl DashRpcClient {
                         .unwrap_or_else(|| "[::]:0".to_string()),
                 );
             }
+            // Same deprecation moved Evo platform ports into `addresses`
+            if let Some(addresses) = entry.addresses.as_ref() {
+                if entry.platform_p2p_port.is_none() {
+                    entry.platform_p2p_port = addresses.platform_p2p.first().and_then(|a| parse_port(a));
+                }
+                if entry.platform_http_port.is_none() {
+                    entry.platform_http_port = addresses.platform_https.first().and_then(|a| parse_port(a));
+                }
+            }
             entries.push(entry);
         }
 
@@ -449,4 +468,8 @@ impl DashRpcClient {
         serde_json::from_value(result)
             .map_err(|e| RpcError { code: 0, message: format!("mnsync status parse error: {e}") })
     }
+}
+
+fn parse_port(addr: &str) -> Option<i32> {
+    addr.rsplit_once(':').and_then(|(_, port)| port.parse().ok())
 }

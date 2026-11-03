@@ -30,6 +30,10 @@ interface MasternodeRow {
   voting_address: string;
   collateral_address: string;
   pub_key_operator: string;
+  outpoint: string | null;
+  platform_node_id: string | null;
+  platform_p2p_port: number | null;
+  platform_http_port: number | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -51,6 +55,10 @@ interface MasternodeObject {
   createdAt?: Date | null;
   updatedAt?: Date | null;
   geoIpInfo?: GeoIpInfo | null;
+  outpoint?: string | null;
+  platformNodeId?: string | null;
+  platformP2PPort?: number | null;
+  platformHTTPPort?: number | null;
 }
 
 export default class Masternode {
@@ -70,6 +78,10 @@ export default class Masternode {
   createdAt: Date | null;
   updatedAt: Date | null;
   geoIpInfo: GeoIpInfo | null;
+  outpoint: string | null;
+  platformNodeId: string | null;
+  platformP2PPort: number | null;
+  platformHTTPPort: number | null;
 
   constructor(
     proTxHash?: string,
@@ -88,6 +100,10 @@ export default class Masternode {
     createdAt?: Date,
     updatedAt?: Date,
     geoIpInfo?: GeoIpInfo,
+    outpoint?: string,
+    platformNodeId?: string,
+    platformP2PPort?: number,
+    platformHTTPPort?: number,
   ) {
     this.proTxHash = proTxHash ?? null;
     this.payee = payee ?? null;
@@ -98,6 +114,10 @@ export default class Masternode {
     this.collateralAddress = collateralAddress ?? null;
     this.createdAt = createdAt ?? null;
     this.geoIpInfo = geoIpInfo ?? null;
+    this.outpoint = outpoint ?? null;
+    this.platformNodeId = platformNodeId ?? null;
+    this.platformP2PPort = platformP2PPort ?? null;
+    this.platformHTTPPort = platformHTTPPort ?? null;
     // without default for short form (masternodes map)
     this.address = address;
     this.posPenaltyScore = posPenaltyScore;
@@ -147,6 +167,11 @@ export default class Masternode {
       row.pub_key_operator,
       row.created_at,
       row.updated_at,
+      undefined,
+      row.outpoint ?? undefined,
+      row.platform_node_id ?? undefined,
+      row.platform_p2p_port ?? undefined,
+      row.platform_http_port ?? undefined,
     );
   }
 
@@ -166,8 +191,12 @@ export default class Masternode {
                       pubKeyOperator,
                       createdAt,
                       updatedAt,
-                      geoIpInfo
+                      geoIpInfo,
+                      outpoint,
+                      platformNodeId,
+                      platformP2PPort,
+                      platformHTTPPort,
                     }: MasternodeObject): Masternode {
-    return new Masternode(proTxHash, address, payee, status, type, posPenaltyScore, consecutivePayments, lastPaidTime, lastPaidBlock, ownerAddress, votingAddress, collateralAddress, pubKeyOperator, createdAt, updatedAt, geoIpInfo)
+    return new Masternode(proTxHash, address, payee, status, type, posPenaltyScore, consecutivePayments, lastPaidTime, lastPaidBlock, ownerAddress, votingAddress, collateralAddress, pubKeyOperator, createdAt, updatedAt, geoIpInfo, outpoint, platformNodeId, platformP2PPort, platformHTTPPort)
   }
 }
