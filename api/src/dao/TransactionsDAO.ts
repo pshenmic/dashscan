@@ -339,8 +339,12 @@ export default class TransactionsDAO {
     const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
     const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
 
+    // The trailing partial interval ends at `end`; UNION drops it when the
+    // series already lands there.
     const ranges = this.knex
-      .from(this.knex.raw(`generate_series(${startSql}, ${endSql}, '${interval}'::interval) date_to`))
+      .from(this.knex.raw(
+        `(SELECT generate_series(${startSql}, ${endSql}, '${interval}'::interval) AS date_to UNION SELECT ${endSql}) series`
+      ))
       .select('date_to')
       .select(
         this.knex.raw(
@@ -351,12 +355,13 @@ export default class TransactionsDAO {
 
     // Use blocks.tx_count directly — avoids touching the transactions table entirely.
     // The block_timestamp index covers the range scan; tx_count is in the same row.
+    // Buckets are [date_from, date_to), matching /transactions/stats.
     const bucketsCTE = this.knex('ranges')
       .select('date_from')
       .select(this.knex.raw('COALESCE(SUM(blocks.tx_count), 0)::bigint AS count'))
       .leftJoin('blocks', function () {
-        this.on('blocks.timestamp', '>', 'ranges.date_from')
-          .andOn('blocks.timestamp', '<=', 'ranges.date_to');
+        this.on('blocks.timestamp', '>=', 'ranges.date_from')
+          .andOn('blocks.timestamp', '<', 'ranges.date_to');
       })
       .groupBy('date_from');
 
@@ -717,9 +722,10 @@ export default class TransactionsDAO {
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
   }
 
+  // Window is [start, end) by block timestamp, the same as the chart buckets.
   // Whole hours come from chain_stats_hourly (V32); the partial hours at each
-  // edge are counted live, scoped to literal block heights. A sub-hour window
-  // runs fully live.
+  // edge are counted live. A sub-hour window runs fully live. Confirmed
+  // transactions only, coinbase included (special since DIP3).
   getTransactionStats = async (start: Date, end: Date): Promise<TransactionStats | null> => {
     const msPerHour = 3600000;
     const hourLo = new Date(Math.ceil(start.getTime() / msPerHour) * msPerHour);
@@ -727,13 +733,12 @@ export default class TransactionsDAO {
     const useRollup = hourLo.getTime() < hourHi.getTime();
 
     // Bucket `h` covers [h, h+1h), so it lies entirely inside the window only
-    // for h in [hourLo, hourHi). The -1ms keeps the leading live slice from
-    // overlapping the first bucket it hands off to.
+    // for h in [hourLo, hourHi).
     const liveSlices: Array<{ from: Date; to: Date }> = [];
 
     if (useRollup) {
       if (start.getTime() < hourLo.getTime()) {
-        liveSlices.push({ from: start, to: new Date(hourLo.getTime() - 1) });
+        liveSlices.push({ from: start, to: hourLo });
       }
       if (hourHi.getTime() < end.getTime()) {
         liveSlices.push({ from: hourHi, to: end });
@@ -742,10 +747,11 @@ export default class TransactionsDAO {
       liveSlices.push({ from: start, to: end });
     }
 
-    const totals = { special: 0, coinjoin: 0, multisig: 0, normal: 0 };
+    const totals = { total: 0, special: 0, coinjoin: 0, multisig: 0, normal: 0 };
 
     const add = (row: any) => {
       if (row == null) return;
+      totals.total += Number(row.total ?? 0);
       totals.special += Number(row.special ?? 0);
       totals.coinjoin += Number(row.coinjoin ?? 0);
       totals.multisig += Number(row.multisig ?? 0);
@@ -757,6 +763,7 @@ export default class TransactionsDAO {
         .where('hour', '>=', hourLo.toISOString())
         .andWhere('hour', '<', hourHi.toISOString())
         .select(
+          this.knex.raw('COALESCE(SUM(tx_count), 0)::bigint AS total'),
           this.knex.raw('COALESCE(SUM(special), 0)::bigint AS special'),
           this.knex.raw('COALESCE(SUM(coinjoin), 0)::bigint AS coinjoin'),
           this.knex.raw('COALESCE(SUM(multisig), 0)::bigint AS multisig'),
@@ -766,21 +773,15 @@ export default class TransactionsDAO {
       add(row);
     }
 
+    // Joined on block timestamp, not a MIN..MAX height range: block times are
+    // not monotonic, so a height range can take in blocks outside the slice.
     for (const { from, to } of liveSlices) {
-      const [heights] = await this.knex('blocks')
-        .whereBetween('timestamp', [from.toISOString(), to.toISOString()])
-        .select(
-          this.knex.raw('MIN(height) AS min_height'),
-          this.knex.raw('MAX(height) AS max_height'),
-        ) as any[];
-
-      if (heights?.min_height == null) {
-        continue; // no blocks inside this slice
-      }
-
       const [row] = await this.knex('transactions')
-        .whereBetween('block_height', [heights.min_height, heights.max_height])
+        .join('blocks', 'blocks.height', 'transactions.block_height')
+        .where('blocks.timestamp', '>=', from.toISOString())
+        .andWhere('blocks.timestamp', '<', to.toISOString())
         .select(
+          this.knex.raw('COUNT(*)::bigint AS total'),
           this.knex.raw('COUNT(*) FILTER (WHERE type > 0)::bigint AS special'),
           this.knex.raw('COUNT(*) FILTER (WHERE coinjoin)::bigint AS coinjoin'),
           this.knex.raw('COUNT(*) FILTER (WHERE multisig)::bigint AS multisig'),

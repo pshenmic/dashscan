@@ -1,4 +1,5 @@
 interface TransactionStatsRow {
+  total?: string | number | null;
   special?: string | number | null;
   coinjoin?: string | number | null;
   multisig?: string | number | null;
@@ -20,12 +21,14 @@ export default class TransactionStats {
     this.normal = normal ?? null;
   }
 
-  static fromRow({special, coinjoin, normal, multisig}: TransactionStatsRow): TransactionStats {
+  // Categories overlap (a special tx can also be coinjoin or multisig), so
+  // total is counted independently rather than summed from them.
+  static fromRow({total, special, coinjoin, normal, multisig}: TransactionStatsRow): TransactionStats {
+    const totalCount = Number(total) || 0
     const specialTxsCount = Number(special) || 0
     const coinjoinTxsCount = Number(coinjoin) || 0
     const multisigTxsCount = Number(multisig) || 0
     const normalTxsCount = Number(normal) || 0
-    const totalCount = specialTxsCount + coinjoinTxsCount + multisigTxsCount + normalTxsCount
 
     return new TransactionStats(totalCount, specialTxsCount, coinjoinTxsCount, multisigTxsCount, normalTxsCount);
   }
