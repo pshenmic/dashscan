@@ -129,6 +129,13 @@ export default class BlocksDAO {
       )
       .from('recent');
 
+    const [peak] = await this.knex('chain_stats_hourly')
+      .select(this.knex.raw(`date_trunc('day', hour) AS day`))
+      .select(this.knex.raw('floor(SUM(difficulty_sum) * 4294967296 / 86400)::numeric::text AS hash_rate'))
+      .groupByRaw('1')
+      .orderByRaw('SUM(difficulty_sum) DESC')
+      .limit(1) as any[];
+
     const stats = ChainStats.fromRow(row);
 
     const superblockInterval = SUPERBLOCK_INTERVALS[NETWORK];
@@ -136,7 +143,57 @@ export default class BlocksDAO {
 
     return ChainStats.fromObject({
       ...stats,
-      nextSuperblockHeight: nextSuperblockHeight
+      nextSuperblockHeight: nextSuperblockHeight,
+      peakHashRate: peak?.hash_rate,
+      peakHashRateTimestamp: peak?.day,
+    });
+  };
+
+  // Hour resolution: buckets sum the chain_stats_hourly rows whose hour starts
+  // inside [date_from, date_to). Rates divide by the hours present, so a bucket
+  // with partly indexed hours is not understated.
+  getChainStatsSeries = async (start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
+    const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
+    const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
+
+    const ranges = this.knex
+      .from(this.knex.raw(
+        `(SELECT generate_series(${startSql}, ${endSql}, '${interval}'::interval) AS date_to UNION SELECT ${endSql}) series`
+      ))
+      .select('date_to')
+      .select(
+        this.knex.raw(
+          'LAG(date_to, 1, ?::timestamptz) OVER (ORDER BY date_to ASC) AS date_from',
+          [start.toISOString()]
+        )
+      );
+
+    const rows = await this.knex
+      .with('ranges', ranges)
+      .select('date_from')
+      .select(this.knex.raw('COUNT(chain_stats_hourly.hour) AS hours'))
+      .select(this.knex.raw('SUM(chain_stats_hourly.block_count) AS block_count'))
+      .select(this.knex.raw('SUM(chain_stats_hourly.tx_count) AS tx_count'))
+      .select(this.knex.raw('SUM(chain_stats_hourly.difficulty_sum) AS difficulty_sum'))
+      .from('ranges')
+      .leftJoin('chain_stats_hourly', function () {
+        this.on('chain_stats_hourly.hour', '>=', 'ranges.date_from')
+          .andOn('chain_stats_hourly.hour', '<', 'ranges.date_to');
+      })
+      .groupBy('date_from')
+      .orderBy('date_from', 'asc');
+
+    return rows.map((row: any) => {
+      const seconds = Number(row.hours) * 3600;
+      const difficultySum = Number(row.difficulty_sum ?? 0);
+
+      return new SeriesData(new Date(row.date_from), {
+        hashRate: seconds > 0
+          ? ((BigInt(Math.floor(difficultySum * 1e8)) * (1n << 32n)) / (BigInt(seconds) * 100000000n)).toString()
+          : null,
+        difficulty: Number(row.block_count) > 0 ? difficultySum / Number(row.block_count) : null,
+        transactionsPerSecond: seconds > 0 ? Number((Number(row.tx_count) / seconds).toFixed(2)) : null,
+      });
     });
   };
 

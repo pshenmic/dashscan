@@ -443,6 +443,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       handler: mainController.getChainStats,
     },
     {
+      path: '/chain/stats/chart',
+      method: 'get',
+      handler: mainController.getChainStatsSeries,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
+    },
+    {
       path: '/peers',
       method: 'get',
       handler: peersController.getPeers,

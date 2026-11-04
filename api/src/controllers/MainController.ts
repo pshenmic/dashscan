@@ -3,6 +3,8 @@ import { Knex } from 'knex';
 import { DashCoreRPC } from '../dashcoreRPC';
 import BlocksDAO from '../dao/BlocksDAO';
 import ChainStats from "../models/ChainStats";
+import {calculateInterval, iso8601duration} from "../utils";
+import Intervals from "../enums/Intervals";
 
 export default class MainController {
   private dashcoreRPC: DashCoreRPC;
@@ -36,11 +38,50 @@ export default class MainController {
       this.blocksDAO.getChainStats(120, 20),
     ]);
 
+    const blockStats = await this.dashcoreRPC.getBlockStats(chainInfoResponse.blocks);
+
     response.send(ChainStats.fromObject({
       ...dbStats,
       chain: chainInfoResponse.chain,
       sizeOnDisk: chainInfoResponse.size_on_disk,
       difficulty: chainInfoResponse.difficulty,
+      blockSubsidy: blockStats.subsidy,
+      blockFees: blockStats.totalfee,
     }));
+  }
+
+  getChainStatsSeries = async (
+    request: FastifyRequest<{
+      Querystring: { timestamp_start: string; timestamp_end: string; intervals_count: number }
+    }>,
+    response: FastifyReply
+  ): Promise<void> => {
+    const {
+      timestamp_start: start = new Date(new Date().getTime() - 30 * 86400000).toISOString(),
+      timestamp_end: end = new Date().toISOString(),
+      intervals_count: intervalsCount,
+    } = request.query;
+
+    if (new Date(start).getTime() > new Date(end).getTime()) {
+      return response.status(400).send({ error: 'start timestamp cannot be more than end timestamp' });
+    }
+
+    const intervalInMs =
+      Math.ceil(
+        (new Date(end).getTime() - new Date(start).getTime()) / Number(intervalsCount ?? NaN) / 1000
+      ) * 1000;
+
+    const interval = intervalsCount
+      ? iso8601duration(intervalInMs)
+      : calculateInterval(new Date(start), new Date(end));
+
+    const series = await this.blocksDAO.getChainStatsSeries(
+      new Date(start),
+      new Date(end),
+      interval,
+      isNaN(intervalInMs) ? Intervals[interval] : intervalInMs,
+    );
+
+    response.send(series);
   }
 }

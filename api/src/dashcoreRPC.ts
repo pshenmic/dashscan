@@ -12,6 +12,12 @@ export interface UtxoInfoRPC {
   disk_size: number;
 }
 
+export interface BlockStatsRPC {
+  height: number;
+  subsidy: number;
+  totalfee: number;
+}
+
 export interface BlockchainInfoRPC {
   chain: string;
   blocks: number;
@@ -206,6 +212,10 @@ export class DashCoreRPC {
 
   async getChainInfo(): Promise<BlockchainInfoRPC> {
     return this.callMethod('getblockchaininfo', []);
+  }
+
+  async getBlockStats(height: number): Promise<BlockStatsRPC> {
+    return this.callMethod('getblockstats', [height, ['height', 'subsidy', 'totalfee']]);
   }
 
   async getUtxoInfo(): Promise<UtxoInfoRPC> {

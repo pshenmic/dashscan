@@ -12,6 +12,10 @@ interface ChainStatsObject {
   mempoolSize?: number;
   latestSuperblockHeight?: number;
   nextSuperblockHeight?: number;
+  blockSubsidy?: number;
+  blockFees?: number;
+  peakHashRate?: string;
+  peakHashRateTimestamp?: Date;
 }
 
 interface ChainStatsRow {
@@ -38,8 +42,12 @@ export default class ChainStats {
   mempoolSize: number | null;
   nextSuperblockHeight: number | null;
   latestSuperblockHeight: number | null;
+  blockSubsidy: number | null;
+  blockFees: number | null;
+  peakHashRate: string | null;
+  peakHashRateTimestamp: Date | null;
 
-  constructor(chain?: string, sizeOnDisk?: number, difficulty?: number, blockTime?: number, transactionsPerSecond?: number, transactionsPerMinute?: number, latestHeight?: number, hashRate?: string, mempoolSize?: number, latestSuperblockHeight?: number, nextSuperblockHeight?: number) {
+  constructor(chain?: string, sizeOnDisk?: number, difficulty?: number, blockTime?: number, transactionsPerSecond?: number, transactionsPerMinute?: number, latestHeight?: number, hashRate?: string, mempoolSize?: number, latestSuperblockHeight?: number, nextSuperblockHeight?: number, blockSubsidy?: number, blockFees?: number, peakHashRate?: string, peakHashRateTimestamp?: Date) {
     this.chain = chain ?? null;
     this.sizeOnDisk = sizeOnDisk ?? null;
     this.difficulty = difficulty ?? null;
@@ -51,6 +59,10 @@ export default class ChainStats {
     this.mempoolSize = mempoolSize ?? null;
     this.latestSuperblockHeight = latestSuperblockHeight ?? null;
     this.nextSuperblockHeight = nextSuperblockHeight ?? null;
+    this.blockSubsidy = blockSubsidy ?? null;
+    this.blockFees = blockFees ?? null;
+    this.peakHashRate = peakHashRate ?? null;
+    this.peakHashRateTimestamp = peakHashRateTimestamp ?? null;
   }
 
   static fromRpcResponse({chain, size_on_disk, difficulty}: BlockchainInfoRPC): ChainStats {
@@ -81,8 +93,9 @@ export default class ChainStats {
 
     const hrTimeSpanMs = lastTs != null && firstTs != null ? BigInt(lastTs - firstTs) : 0n;
     const difficultySum = row.work_sum != null ? Number(row.work_sum) : 0;
+    // Scaled by 1e8 before flooring: testnet difficulty sums are below 1
     const hashRate = hrTimeSpanMs > 0n && difficultySum > 0
-      ? ((BigInt(Math.floor(difficultySum)) * (1n << 32n) * 1000n) / hrTimeSpanMs).toString()
+      ? ((BigInt(Math.floor(difficultySum * 1e8)) * (1n << 32n) * 1000n) / (hrTimeSpanMs * 100000000n)).toString()
       : undefined;
 
     return new ChainStats(
@@ -99,7 +112,7 @@ export default class ChainStats {
     );
   }
 
-  static fromObject({chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight, hashRate, mempoolSize, latestSuperblockHeight, nextSuperblockHeight}: ChainStatsObject): ChainStats {
-    return new ChainStats(chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight, hashRate, mempoolSize, latestSuperblockHeight, nextSuperblockHeight);
+  static fromObject({chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight, hashRate, mempoolSize, latestSuperblockHeight, nextSuperblockHeight, blockSubsidy, blockFees, peakHashRate, peakHashRateTimestamp}: ChainStatsObject): ChainStats {
+    return new ChainStats(chain, sizeOnDisk, difficulty, blockTime, transactionsPerSecond, transactionsPerMinute, latestHeight, hashRate, mempoolSize, latestSuperblockHeight, nextSuperblockHeight, blockSubsidy, blockFees, peakHashRate, peakHashRateTimestamp);
   }
 }
