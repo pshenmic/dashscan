@@ -7,6 +7,7 @@ import Intervals from "../enums/Intervals";
 import {Cache} from "../cache";
 import {DashCoreRPC, UtxoInfoRPC} from "../dashcoreRPC";
 import AddressBalance from "../models/AddressBalance";
+import UtxoSummary from "../models/UtxoSummary";
 import {CONCENTRATION_DECIMALS, UTXO_INFO_LIFE_TIME} from "../constants";
 
 export default class AddressesController {
@@ -154,7 +155,7 @@ export default class AddressesController {
 
     balances.pagination.limit = limit
 
-    response.send(balances)
+    response.send({...balances, utxoSummary: UtxoSummary.fromRPC(utxoInfo)})
   }
 
   getAddressesActivity = async (request: FastifyRequest<{
