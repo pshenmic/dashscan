@@ -623,6 +623,8 @@ impl BlockProcessor {
                 special: 0,
                 coinjoin: 0,
                 multisig: 0,
+                fees: 0,
+                fee_tx_count: 0,
             });
 
             bucket.block_count += 1;
@@ -646,6 +648,25 @@ impl BlockProcessor {
                 }
                 if tx_type == 0 && !coinjoin && !multisig {
                     bucket.normal += 1;
+                }
+
+                let inputs: Vec<(&String, i32)> = tx
+                    .vin
+                    .iter()
+                    .filter_map(|vin| vin.txid.as_ref().zip(vin.vout))
+                    .collect();
+                let spent: Option<i64> = inputs
+                    .iter()
+                    .map(|&(h, v)| input_amounts.get(&(h.clone(), v)).copied())
+                    .sum();
+                // AssetUnlocks spend no inputs; their fee is in the payload.
+                if let Some(fee) = tx.asset_unlock_fee() {
+                    bucket.fees += fee;
+                    bucket.fee_tx_count += 1;
+                } else if let (false, Some(spent)) = (inputs.is_empty(), spent) {
+                    let created: i64 = tx.vout.iter().map(|vout| to_sat(vout.value)).sum();
+                    bucket.fees += spent - created;
+                    bucket.fee_tx_count += 1;
                 }
 
                 *type_counts.entry((tx_type, coinjoin, multisig)).or_insert(0) += 1;

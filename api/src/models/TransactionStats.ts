@@ -4,6 +4,8 @@ interface TransactionStatsRow {
   coinjoin?: string | number | null;
   multisig?: string | number | null;
   normal?: string | number | null;
+  fees?: string | number | null;
+  fee_tx_count?: string | number | null;
 }
 
 export default class TransactionStats {
@@ -12,24 +14,31 @@ export default class TransactionStats {
   coinjoin: number | null;
   multisig: number | null;
   normal: number | null;
+  fees: number | null;
+  averageFee: number | null;
 
-  constructor(total?: number, special?: number, coinjoin?: number, multisig?: number, normal?: number) {
+  constructor(total?: number, special?: number, coinjoin?: number, multisig?: number, normal?: number, fees?: number, averageFee?: number) {
     this.total = total ?? null;
     this.special = special ?? null;
     this.coinjoin = coinjoin ?? null;
     this.multisig = multisig ?? null;
     this.normal = normal ?? null;
+    this.fees = fees ?? null;
+    this.averageFee = averageFee ?? null;
   }
 
   // Categories overlap (a special tx can also be coinjoin or multisig), so
   // total is counted independently rather than summed from them.
-  static fromRow({total, special, coinjoin, normal, multisig}: TransactionStatsRow): TransactionStats {
+  static fromRow({total, special, coinjoin, normal, multisig, fees, fee_tx_count}: TransactionStatsRow): TransactionStats {
     const totalCount = Number(total) || 0
     const specialTxsCount = Number(special) || 0
     const coinjoinTxsCount = Number(coinjoin) || 0
     const multisigTxsCount = Number(multisig) || 0
     const normalTxsCount = Number(normal) || 0
+    const feesSum = Number(fees) || 0
+    const feeTxsCount = Number(fee_tx_count) || 0
+    const averageFee = feeTxsCount > 0 ? Math.round(feesSum / feeTxsCount) : undefined
 
-    return new TransactionStats(totalCount, specialTxsCount, coinjoinTxsCount, multisigTxsCount, normalTxsCount);
+    return new TransactionStats(totalCount, specialTxsCount, coinjoinTxsCount, multisigTxsCount, normalTxsCount, feesSum, averageFee);
   }
 }

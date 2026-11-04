@@ -774,7 +774,7 @@ export default class TransactionsDAO {
       liveSlices.push({ from: start, to: end });
     }
 
-    const totals = { total: 0, special: 0, coinjoin: 0, multisig: 0, normal: 0 };
+    const totals = { total: 0, special: 0, coinjoin: 0, multisig: 0, normal: 0, fees: 0, fee_tx_count: 0 };
 
     const add = (row: any) => {
       if (row == null) return;
@@ -783,6 +783,8 @@ export default class TransactionsDAO {
       totals.coinjoin += Number(row.coinjoin ?? 0);
       totals.multisig += Number(row.multisig ?? 0);
       totals.normal += Number(row.normal ?? 0);
+      totals.fees += Number(row.fees ?? 0);
+      totals.fee_tx_count += Number(row.fee_tx_count ?? 0);
     };
 
     if (useRollup) {
@@ -795,6 +797,8 @@ export default class TransactionsDAO {
           this.knex.raw('COALESCE(SUM(coinjoin), 0)::bigint AS coinjoin'),
           this.knex.raw('COALESCE(SUM(multisig), 0)::bigint AS multisig'),
           this.knex.raw('COALESCE(SUM(normal), 0)::bigint AS normal'),
+          this.knex.raw('COALESCE(SUM(fees), 0)::bigint AS fees'),
+          this.knex.raw('COALESCE(SUM(fee_tx_count), 0)::bigint AS fee_tx_count'),
         );
 
       add(row);
@@ -805,10 +809,22 @@ export default class TransactionsDAO {
     for (const { from, to } of liveSlices) {
       const [row] = await this.knex('transactions')
         .join('blocks', 'blocks.height', 'transactions.block_height')
+        .joinRaw(`CROSS JOIN LATERAL (SELECT CASE WHEN transactions.type = ? THEN
+            (SELECT get_byte(p, 9) + (get_byte(p, 10) << 8) + (get_byte(p, 11) << 16) + (get_byte(p, 12)::bigint << 24)
+             FROM special_transactions st, decode(st.payload->>'extraPayload', 'hex') p
+             WHERE st.tx_id = transactions.id)
+          ELSE
+            (SELECT SUM(amount) FROM tx_inputs
+             WHERE tx_id = transactions.id AND coinbase_data IS NULL
+             HAVING COUNT(*) > 0 AND COUNT(*) = COUNT(amount))
+            - (SELECT SUM(value) FROM tx_outputs WHERE tx_id = transactions.id)
+          END AS fee) fee`, [TransactionType.ASSET_UNLOCK])
         .where('blocks.timestamp', '>=', from.toISOString())
         .andWhere('blocks.timestamp', '<', to.toISOString())
         .select(
           this.knex.raw('COUNT(*)::bigint AS total'),
+          this.knex.raw('COALESCE(SUM(fee.fee), 0)::bigint AS fees'),
+          this.knex.raw('COUNT(fee.fee)::bigint AS fee_tx_count'),
           this.knex.raw('COUNT(*) FILTER (WHERE type > 0)::bigint AS special'),
           this.knex.raw('COUNT(*) FILTER (WHERE coinjoin)::bigint AS coinjoin'),
           this.knex.raw('COUNT(*) FILTER (WHERE multisig)::bigint AS multisig'),

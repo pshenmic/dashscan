@@ -19,6 +19,8 @@ pub struct ChainStatsHour {
     pub special: i64,
     pub coinjoin: i64,
     pub multisig: i64,
+    pub fees: i64,
+    pub fee_tx_count: i64,
 }
 
 impl Database {
@@ -48,7 +50,9 @@ impl Database {
                     normal BIGINT, \
                     special BIGINT, \
                     coinjoin BIGINT, \
-                    multisig BIGINT\
+                    multisig BIGINT, \
+                    fees BIGINT, \
+                    fee_tx_count BIGINT\
                  ); \
                  TRUNCATE chain_stats_hourly_stage",
             )
@@ -57,7 +61,8 @@ impl Database {
         let sink = client
             .copy_in(
                 "COPY chain_stats_hourly_stage \
-                 (hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig) \
+                 (hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig, \
+                  fees, fee_tx_count) \
                  FROM STDIN BINARY",
             )
             .await?;
@@ -71,12 +76,14 @@ impl Database {
             Type::INT8,
             Type::INT8,
             Type::INT8,
+            Type::INT8,
+            Type::INT8,
         ];
         let writer = BinaryCopyInWriter::new(sink, &types);
         pin_mut!(writer);
 
         for r in rows {
-            let values: [&(dyn ToSql + Sync); 9] = [
+            let values: [&(dyn ToSql + Sync); 11] = [
                 &r.hour,
                 &r.block_count,
                 &r.tx_count,
@@ -86,6 +93,8 @@ impl Database {
                 &r.special,
                 &r.coinjoin,
                 &r.multisig,
+                &r.fees,
+                &r.fee_tx_count,
             ];
             writer.as_mut().write(&values).await?;
         }
@@ -94,8 +103,10 @@ impl Database {
         client
             .execute(
                 "INSERT INTO chain_stats_hourly \
-                 (hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig) \
-                 SELECT hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig \
+                 (hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig, \
+                  fees, fee_tx_count) \
+                 SELECT hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig, \
+                        fees, fee_tx_count \
                  FROM chain_stats_hourly_stage \
                  ON CONFLICT (hour) DO UPDATE SET \
                     block_count    = chain_stats_hourly.block_count + EXCLUDED.block_count, \
@@ -105,7 +116,9 @@ impl Database {
                     normal         = chain_stats_hourly.normal + EXCLUDED.normal, \
                     special        = chain_stats_hourly.special + EXCLUDED.special, \
                     coinjoin       = chain_stats_hourly.coinjoin + EXCLUDED.coinjoin, \
-                    multisig       = chain_stats_hourly.multisig + EXCLUDED.multisig",
+                    multisig       = chain_stats_hourly.multisig + EXCLUDED.multisig, \
+                    fees           = chain_stats_hourly.fees + EXCLUDED.fees, \
+                    fee_tx_count   = chain_stats_hourly.fee_tx_count + EXCLUDED.fee_tx_count",
                 &[],
             )
             .await?;
