@@ -8,6 +8,7 @@ import { homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { HomeIcon } from "./home-icon";
+import { InfoPopover } from "./info-popover";
 import { LatestTransactionsTable } from "./latest-transactions-table";
 import { MissingApiData } from "./missing-api-data";
 import { TransactionHistoryCard } from "./transaction-history-card";
@@ -211,12 +212,15 @@ export function HomeTransactions() {
                 InstantSend lock time
               </h3>
               <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
-                — <span className="font-normal">s</span>
+                1 <span className="font-normal">s</span>
               </p>
-              <MissingApiData
-                description="The API provides InstantSend lock status, but not the time taken to obtain a lock."
-                compact
-              />
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Reference</span>
+                <InfoPopover label="About the reference lock time">
+                  Fixed display value, not a measured network latency or a
+                  guarantee.
+                </InfoPopover>
+              </div>
             </div>
           </div>
         </div>
