@@ -723,18 +723,30 @@ export default class TransactionsDAO {
 
   // locked amount is the AssetLock's OP_RETURN output, the rest is change
   getAssetStats = async (start: Date, end: Date): Promise<AssetStats> => {
-    const heights = this.knex('blocks')
-      .where('timestamp', '>=', start.toISOString())
-      .andWhere('timestamp', '<', end.toISOString())
-      .select('height');
+    // OFFSET 0 keeps the planner on block_timestamp; MIN/MAX alone walk the height index
+    const [bounds] = await this.knex
+      .from(this.knex('blocks')
+        .where('timestamp', '>=', start.toISOString())
+        .andWhere('timestamp', '<', end.toISOString())
+        .select('height')
+        .offset(0)
+        .as('window'))
+      .select(this.knex.raw('MIN(height) AS lo'), this.knex.raw('MAX(height) AS hi')) as any[];
+
+    if (bounds?.lo == null) {
+      return AssetStats.fromRow({});
+    }
 
     const [row] = await this.knex('transactions')
+      .join('blocks', 'blocks.height', 'transactions.block_height')
       .leftJoin('tx_outputs', function () {
         this.on('tx_outputs.tx_id', 'transactions.id')
           .andOnVal('tx_outputs.script_type', 'nulldata');
       })
       .whereIn('transactions.type', [TransactionType.ASSET_LOCK, TransactionType.ASSET_UNLOCK])
-      .whereIn('transactions.block_height', heights)
+      .whereBetween('transactions.block_height', [bounds.lo, bounds.hi])
+      .where('blocks.timestamp', '>=', start.toISOString())
+      .andWhere('blocks.timestamp', '<', end.toISOString())
       .select(
         this.knex.raw('COUNT(*) FILTER (WHERE transactions.type = ?) AS asset_lock_count', [TransactionType.ASSET_LOCK]),
         this.knex.raw('COALESCE(SUM(tx_outputs.value) FILTER (WHERE transactions.type = ?), 0)::text AS asset_lock_amount', [TransactionType.ASSET_LOCK]),

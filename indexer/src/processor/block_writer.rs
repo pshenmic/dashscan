@@ -600,6 +600,8 @@ impl BlockProcessor {
         // ── 7d. Global hourly rollup (V32) and per-filter transaction totals
         // (V33). Confirmed transactions only — this is the confirmed path, and a
         // mempool transaction reaches it exactly once, when it is mined.
+        let heights: Vec<i32> = pending.iter().map(|p| p.block.height as i32).collect();
+        let new_addresses = self.db.count_new_addresses(client, &heights).await?;
         let mut hourly: HashMap<NaiveDateTime, ChainStatsHour> = HashMap::new();
         let mut type_counts: HashMap<(i16, bool, bool), i64> = HashMap::new();
         for p in pending {
@@ -626,9 +628,11 @@ impl BlockProcessor {
                 fees: 0,
                 fee_tx_count: 0,
                 coinjoin_amount: 0,
+                new_addresses: 0,
             });
 
             bucket.block_count += 1;
+            bucket.new_addresses += new_addresses.get(&(p.block.height as i32)).copied().unwrap_or(0);
             bucket.size += p.block.size;
             bucket.difficulty_sum += p.block.difficulty;
 

@@ -177,7 +177,7 @@ export default class BlocksDAO {
       .select(this.knex('blocks')
         .select('credit_pool_balance')
         .whereRaw('blocks.timestamp >= ranges.date_from AND blocks.timestamp < ranges.date_to')
-        .orderBy('height', 'desc')
+        .orderBy('timestamp', 'desc')
         .limit(1)
         .as('credit_pool_balance'))
       .from('ranges')

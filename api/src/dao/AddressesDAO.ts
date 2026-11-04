@@ -607,7 +607,6 @@ export default class AddressesDAO {
     );
   }
 
-  // totalAddresses is derived from the pg_class estimate, newAddresses is exact
   getAddressesSeries = async (start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
     const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
     const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
@@ -627,35 +626,28 @@ export default class AddressesDAO {
     const rows = await this.knex
       .with('ranges', ranges)
       .select('date_from')
-      .select(this.knex.raw('COUNT(addresses.id) AS new_addresses'))
+      .select(this.knex.raw('COALESCE(SUM(chain_stats_hourly.new_addresses), 0) AS new_addresses'))
       .from('ranges')
-      .leftJoin('blocks', function () {
-        this.on('blocks.timestamp', '>=', 'ranges.date_from')
-          .andOn('blocks.timestamp', '<', 'ranges.date_to');
+      .leftJoin('chain_stats_hourly', function () {
+        this.on('chain_stats_hourly.hour', '>=', 'ranges.date_from')
+          .andOn('chain_stats_hourly.hour', '<', 'ranges.date_to');
       })
-      .leftJoin('addresses', 'addresses.first_seen_block', 'blocks.height')
       .groupBy('date_from')
       .orderBy('date_from', 'asc');
 
-    const [{estimate, after_end: afterEnd}] = await this.knex
-      .select(this.knex.raw(`(SELECT reltuples::bigint FROM pg_class WHERE relname = 'addresses') AS estimate`))
-      .select(this.knex('addresses')
-        .join('blocks', 'blocks.height', 'addresses.first_seen_block')
-        .where('blocks.timestamp', '>=', end.toISOString())
-        .count('*')
-        .as('after_end')) as any[];
+    const [{before}] = await this.knex('chain_stats_hourly')
+      .where('hour', '<', start.toISOString())
+      .select(this.knex.raw('COALESCE(SUM(new_addresses), 0) AS before')) as any[];
 
-    let total = Number(estimate) - Number(afterEnd);
+    let total = Number(before);
 
-    return rows.reverse().map((row: any) => {
-      const point = new SeriesData(new Date(row.date_from), {
+    return rows.map((row: any) => {
+      total += Number(row.new_addresses);
+
+      return new SeriesData(new Date(row.date_from), {
         newAddresses: Number(row.new_addresses),
         totalAddresses: total,
       });
-
-      total -= Number(row.new_addresses);
-
-      return point;
-    }).reverse();
+    });
   }
 }

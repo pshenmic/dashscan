@@ -139,7 +139,8 @@ impl Database {
                      multisig       = c.multisig - s.multisig, \
                      fees           = c.fees - s.fees, \
                      fee_tx_count   = c.fee_tx_count - s.fee_tx_count, \
-                     coinjoin_amount = c.coinjoin_amount - s.coinjoin_amount \
+                     coinjoin_amount = c.coinjoin_amount - s.coinjoin_amount, \
+                     new_addresses  = c.new_addresses - s.new_addresses \
                  FROM (SELECT date_trunc('hour', b.timestamp) AS hour, 1 AS block_count, \
                               b.size, b.difficulty AS difficulty_sum, \
                               COUNT(t.id) AS tx_count, \
@@ -149,7 +150,8 @@ impl Database {
                               COUNT(*) FILTER (WHERE t.multisig) AS multisig, \
                               COALESCE(SUM(f.fee), 0)::bigint AS fees, \
                               COUNT(f.fee) AS fee_tx_count, \
-                              COALESCE(SUM(t.amount) FILTER (WHERE t.coinjoin), 0)::bigint AS coinjoin_amount \
+                              COALESCE(SUM(t.amount) FILTER (WHERE t.coinjoin), 0)::bigint AS coinjoin_amount, \
+                              (SELECT COUNT(*) FROM addresses WHERE first_seen_block = b.height) AS new_addresses \
                        FROM blocks b \
                        LEFT JOIN transactions t ON t.block_height = b.height \
                        LEFT JOIN LATERAL (SELECT CASE WHEN t.type = 9 THEN \
@@ -164,7 +166,7 @@ impl Database {
                                             - (SELECT SUM(value) FROM tx_outputs WHERE tx_id = t.id) \
                                           END AS fee) f ON true \
                        WHERE b.height = $1 \
-                       GROUP BY b.timestamp, b.size, b.difficulty) s \
+                       GROUP BY b.height, b.timestamp, b.size, b.difficulty) s \
                  WHERE c.hour = s.hour",
                 &[&h],
             )
