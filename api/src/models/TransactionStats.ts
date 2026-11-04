@@ -6,6 +6,7 @@ interface TransactionStatsRow {
   normal?: string | number | null;
   fees?: string | number | null;
   fee_tx_count?: string | number | null;
+  coinjoin_amount?: string | number | null;
 }
 
 export default class TransactionStats {
@@ -16,8 +17,9 @@ export default class TransactionStats {
   normal: number | null;
   fees: number | null;
   averageFee: number | null;
+  coinjoinAmount: number | null;
 
-  constructor(total?: number, special?: number, coinjoin?: number, multisig?: number, normal?: number, fees?: number, averageFee?: number) {
+  constructor(total?: number, special?: number, coinjoin?: number, multisig?: number, normal?: number, fees?: number, averageFee?: number, coinjoinAmount?: number) {
     this.total = total ?? null;
     this.special = special ?? null;
     this.coinjoin = coinjoin ?? null;
@@ -25,10 +27,11 @@ export default class TransactionStats {
     this.normal = normal ?? null;
     this.fees = fees ?? null;
     this.averageFee = averageFee ?? null;
+    this.coinjoinAmount = coinjoinAmount ?? null;
   }
 
   // categories overlap, so total is not their sum
-  static fromRow({total, special, coinjoin, normal, multisig, fees, fee_tx_count}: TransactionStatsRow): TransactionStats {
+  static fromRow({total, special, coinjoin, normal, multisig, fees, fee_tx_count, coinjoin_amount}: TransactionStatsRow): TransactionStats {
     const totalCount = Number(total) || 0
     const specialTxsCount = Number(special) || 0
     const coinjoinTxsCount = Number(coinjoin) || 0
@@ -38,6 +41,6 @@ export default class TransactionStats {
     const feeTxsCount = Number(fee_tx_count) || 0
     const averageFee = feeTxsCount > 0 ? Math.round(feesSum / feeTxsCount) : undefined
 
-    return new TransactionStats(totalCount, specialTxsCount, coinjoinTxsCount, multisigTxsCount, normalTxsCount, feesSum, averageFee);
+    return new TransactionStats(totalCount, specialTxsCount, coinjoinTxsCount, multisigTxsCount, normalTxsCount, feesSum, averageFee, Number(coinjoin_amount) || 0);
   }
 }

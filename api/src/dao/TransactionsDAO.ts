@@ -768,7 +768,7 @@ export default class TransactionsDAO {
       liveSlices.push({ from: start, to: end });
     }
 
-    const totals = { total: 0, special: 0, coinjoin: 0, multisig: 0, normal: 0, fees: 0, fee_tx_count: 0 };
+    const totals = { total: 0, special: 0, coinjoin: 0, multisig: 0, normal: 0, fees: 0, fee_tx_count: 0, coinjoin_amount: 0 };
 
     const add = (row: any) => {
       if (row == null) return;
@@ -779,6 +779,7 @@ export default class TransactionsDAO {
       totals.normal += Number(row.normal ?? 0);
       totals.fees += Number(row.fees ?? 0);
       totals.fee_tx_count += Number(row.fee_tx_count ?? 0);
+      totals.coinjoin_amount += Number(row.coinjoin_amount ?? 0);
     };
 
     if (useRollup) {
@@ -793,6 +794,7 @@ export default class TransactionsDAO {
           this.knex.raw('COALESCE(SUM(normal), 0)::bigint AS normal'),
           this.knex.raw('COALESCE(SUM(fees), 0)::bigint AS fees'),
           this.knex.raw('COALESCE(SUM(fee_tx_count), 0)::bigint AS fee_tx_count'),
+          this.knex.raw('COALESCE(SUM(coinjoin_amount), 0)::bigint AS coinjoin_amount'),
         );
 
       add(row);
@@ -818,6 +820,7 @@ export default class TransactionsDAO {
           this.knex.raw('COUNT(*)::bigint AS total'),
           this.knex.raw('COALESCE(SUM(fee.fee), 0)::bigint AS fees'),
           this.knex.raw('COUNT(fee.fee)::bigint AS fee_tx_count'),
+          this.knex.raw('COALESCE(SUM(amount) FILTER (WHERE coinjoin), 0)::bigint AS coinjoin_amount'),
           this.knex.raw('COUNT(*) FILTER (WHERE type > 0)::bigint AS special'),
           this.knex.raw('COUNT(*) FILTER (WHERE coinjoin)::bigint AS coinjoin'),
           this.knex.raw('COUNT(*) FILTER (WHERE multisig)::bigint AS multisig'),

@@ -173,6 +173,7 @@ export default class BlocksDAO {
       .select(this.knex.raw('SUM(chain_stats_hourly.tx_count) AS tx_count'))
       .select(this.knex.raw('SUM(chain_stats_hourly.difficulty_sum) AS difficulty_sum'))
       .select(this.knex.raw('SUM(chain_stats_hourly.fees) AS fees'))
+      .select(this.knex.raw('SUM(chain_stats_hourly.coinjoin_amount) AS coinjoin_amount'))
       .select(this.knex('blocks')
         .select('credit_pool_balance')
         .whereRaw('blocks.timestamp >= ranges.date_from AND blocks.timestamp < ranges.date_to')
@@ -200,6 +201,7 @@ export default class BlocksDAO {
         creditPoolBalance: row.credit_pool_balance,
         fees: Number(row.fees ?? 0),
         feesPerBlock: Number(row.block_count) > 0 ? Math.round(Number(row.fees ?? 0) / Number(row.block_count)) : null,
+        coinjoinAmount: Number(row.coinjoin_amount ?? 0),
       });
     });
   };

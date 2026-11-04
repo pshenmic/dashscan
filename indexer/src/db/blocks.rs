@@ -138,7 +138,8 @@ impl Database {
                      coinjoin       = c.coinjoin - s.coinjoin, \
                      multisig       = c.multisig - s.multisig, \
                      fees           = c.fees - s.fees, \
-                     fee_tx_count   = c.fee_tx_count - s.fee_tx_count \
+                     fee_tx_count   = c.fee_tx_count - s.fee_tx_count, \
+                     coinjoin_amount = c.coinjoin_amount - s.coinjoin_amount \
                  FROM (SELECT date_trunc('hour', b.timestamp) AS hour, 1 AS block_count, \
                               b.size, b.difficulty AS difficulty_sum, \
                               COUNT(t.id) AS tx_count, \
@@ -147,7 +148,8 @@ impl Database {
                               COUNT(*) FILTER (WHERE t.coinjoin) AS coinjoin, \
                               COUNT(*) FILTER (WHERE t.multisig) AS multisig, \
                               COALESCE(SUM(f.fee), 0)::bigint AS fees, \
-                              COUNT(f.fee) AS fee_tx_count \
+                              COUNT(f.fee) AS fee_tx_count, \
+                              COALESCE(SUM(t.amount) FILTER (WHERE t.coinjoin), 0)::bigint AS coinjoin_amount \
                        FROM blocks b \
                        LEFT JOIN transactions t ON t.block_height = b.height \
                        LEFT JOIN LATERAL (SELECT CASE WHEN t.type = 9 THEN \
