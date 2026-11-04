@@ -188,7 +188,21 @@ export default class BlocksDAO {
       .groupBy('date_from', 'date_to')
       .orderBy('date_from', 'asc');
 
+    const snapshotRows = await this.knex
+      .with('ranges', ranges)
+      .distinctOn('date_from')
+      .select('date_from', 'network_snapshots.*')
+      .from('ranges')
+      .join('network_snapshots', function () {
+        this.on('network_snapshots.hour', '>=', 'ranges.date_from')
+          .andOn('network_snapshots.hour', '<', 'ranges.date_to');
+      })
+      .orderBy([{ column: 'date_from' }, { column: 'network_snapshots.hour', order: 'desc' }]);
+
+    const snapshots = new Map(snapshotRows.map((row: any) => [new Date(row.date_from).getTime(), row]));
+
     return rows.map((row: any) => {
+      const snapshot: any = snapshots.get(new Date(row.date_from).getTime());
       const seconds = Number(row.hours) * 3600;
       const difficultySum = Number(row.difficulty_sum ?? 0);
 
@@ -202,6 +216,13 @@ export default class BlocksDAO {
         fees: Number(row.fees ?? 0),
         feesPerBlock: Number(row.block_count) > 0 ? Math.round(Number(row.fees ?? 0) / Number(row.block_count)) : null,
         coinjoinAmount: Number(row.coinjoin_amount ?? 0),
+        masternodes: snapshot?.masternodes ?? null,
+        masternodesEnabled: snapshot?.masternodes_enabled ?? null,
+        evonodes: snapshot?.evonodes ?? null,
+        evonodesEnabled: snapshot?.evonodes_enabled ?? null,
+        peers: snapshot?.peers ?? null,
+        utxoCount: snapshot?.utxo_count != null ? Number(snapshot.utxo_count) : null,
+        utxoAmount: snapshot?.utxo_amount != null ? Number(snapshot.utxo_amount) : null,
       });
     });
   };

@@ -356,6 +356,24 @@ impl DashRpcClient {
     }
 
     /// `gobject list all proposals` — returns a map of `governance_hash → object`.
+    pub async fn get_protx_list(&self, height: i32) -> Result<Vec<Value>, RpcError> {
+        let result = self
+            .call(
+                "protx",
+                vec![Value::from("list"), Value::from("registered"), Value::from(true), Value::from(height)],
+            )
+            .await?;
+
+        result
+            .as_array()
+            .cloned()
+            .ok_or_else(|| RpcError { code: 0, message: "protx list: expected array".to_string() })
+    }
+
+    pub async fn get_txoutset_info(&self) -> Result<Value, RpcError> {
+        self.call("gettxoutsetinfo", vec![]).await
+    }
+
     pub async fn get_governance_objects(&self) -> Result<HashMap<String, Value>, RpcError> {
         let result = self
             .call(

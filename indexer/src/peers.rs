@@ -55,6 +55,11 @@ impl PeerStore {
     /// `DEL` + `HSET` so peers absent from this round vanish immediately, as
     /// chosen for staleness handling. An empty round is treated as "no data
     /// yet" and left untouched rather than wiping good previous snapshots.
+    pub async fn count_available(&self) -> Result<i32, RedisError> {
+        let mut conn = self.pool.get().await?;
+        Ok(conn.hlen(AVAILABLE_KEY).await?)
+    }
+
     pub async fn replace(&self, peers: &[StoredPeer]) -> Result<(), RedisError> {
         if peers.is_empty() {
             return Ok(());
