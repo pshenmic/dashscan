@@ -625,6 +625,7 @@ impl BlockProcessor {
                 multisig: 0,
                 fees: 0,
                 fee_tx_count: 0,
+                coinjoin_amount: 0,
             });
 
             bucket.block_count += 1;
@@ -642,6 +643,7 @@ impl BlockProcessor {
                 }
                 if coinjoin {
                     bucket.coinjoin += 1;
+                    bucket.coinjoin_amount += tx.get_transaction_amount();
                 }
                 if multisig {
                     bucket.multisig += 1;
