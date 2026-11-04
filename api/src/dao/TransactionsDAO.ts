@@ -1,6 +1,7 @@
 import {Knex} from 'knex';
 import Transaction from '../models/Transaction';
 import TransactionStats from '../models/TransactionStats';
+import AssetStats from '../models/AssetStats';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
 import {TransactionType} from "../enums/TransactionType";
@@ -720,6 +721,32 @@ export default class TransactionsDAO {
     const [row] = rows;
 
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
+  }
+
+  // [start, end) by block timestamp, confirmed only. The locked amount is the
+  // AssetLock's OP_RETURN output; its other outputs are change. An AssetUnlock's
+  // amount is its withdrawal output.
+  getAssetStats = async (start: Date, end: Date): Promise<AssetStats> => {
+    const heights = this.knex('blocks')
+      .where('timestamp', '>=', start.toISOString())
+      .andWhere('timestamp', '<', end.toISOString())
+      .select('height');
+
+    const [row] = await this.knex('transactions')
+      .leftJoin('tx_outputs', function () {
+        this.on('tx_outputs.tx_id', 'transactions.id')
+          .andOnVal('tx_outputs.script_type', 'nulldata');
+      })
+      .whereIn('transactions.type', [TransactionType.ASSET_LOCK, TransactionType.ASSET_UNLOCK])
+      .whereIn('transactions.block_height', heights)
+      .select(
+        this.knex.raw('COUNT(*) FILTER (WHERE transactions.type = ?) AS asset_lock_count', [TransactionType.ASSET_LOCK]),
+        this.knex.raw('COALESCE(SUM(tx_outputs.value) FILTER (WHERE transactions.type = ?), 0)::text AS asset_lock_amount', [TransactionType.ASSET_LOCK]),
+        this.knex.raw('COUNT(*) FILTER (WHERE transactions.type = ?) AS asset_unlock_count', [TransactionType.ASSET_UNLOCK]),
+        this.knex.raw('COALESCE(SUM(transactions.amount) FILTER (WHERE transactions.type = ?), 0)::text AS asset_unlock_amount', [TransactionType.ASSET_UNLOCK]),
+      ) as any[];
+
+    return AssetStats.fromRow(row);
   }
 
   // Window is [start, end) by block timestamp, the same as the chart buckets.

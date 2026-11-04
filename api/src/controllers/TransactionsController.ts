@@ -118,6 +118,24 @@ export default class TransactionsController {
     response.send(stats);
   }
 
+  getAssetStats = async (
+    request: FastifyRequest<{ Querystring: { timestamp_start: string; timestamp_end: string } }>,
+    response: FastifyReply
+  ): Promise<void> => {
+    const {
+      timestamp_start: start = new Date(new Date().getTime() - 86400000).toISOString(),
+      timestamp_end: end = new Date().toISOString(),
+    } = request.query;
+
+    if (new Date(start).getTime() > new Date(end).getTime()) {
+      return response.status(400).send({ error: 'start timestamp cannot be more than end timestamp' });
+    }
+
+    const stats = await this.transactionsDAO.getAssetStats(new Date(start), new Date(end));
+
+    response.send(stats);
+  }
+
   getAddressTransactions = async (request: FastifyRequest<{ Params: {address: string}, Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
     const { page = 1, limit = 10, order = 'asc', transaction_type: transactionType } = request.query;
     const { address } = request.params;

@@ -151,7 +151,8 @@ export default class BlocksDAO {
 
   // Hour resolution: buckets sum the chain_stats_hourly rows whose hour starts
   // inside [date_from, date_to). Rates divide by the hours present, so a bucket
-  // with partly indexed hours is not understated.
+  // with partly indexed hours is not understated. creditPoolBalance is the
+  // balance at the bucket's last block, in DASH like Block.creditPoolBalance.
   getChainStatsSeries = async (start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
     const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
     const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
@@ -175,12 +176,18 @@ export default class BlocksDAO {
       .select(this.knex.raw('SUM(chain_stats_hourly.block_count) AS block_count'))
       .select(this.knex.raw('SUM(chain_stats_hourly.tx_count) AS tx_count'))
       .select(this.knex.raw('SUM(chain_stats_hourly.difficulty_sum) AS difficulty_sum'))
+      .select(this.knex('blocks')
+        .select('credit_pool_balance')
+        .whereRaw('blocks.timestamp >= ranges.date_from AND blocks.timestamp < ranges.date_to')
+        .orderBy('height', 'desc')
+        .limit(1)
+        .as('credit_pool_balance'))
       .from('ranges')
       .leftJoin('chain_stats_hourly', function () {
         this.on('chain_stats_hourly.hour', '>=', 'ranges.date_from')
           .andOn('chain_stats_hourly.hour', '<', 'ranges.date_to');
       })
-      .groupBy('date_from')
+      .groupBy('date_from', 'date_to')
       .orderBy('date_from', 'asc');
 
     return rows.map((row: any) => {
@@ -193,6 +200,7 @@ export default class BlocksDAO {
           : null,
         difficulty: Number(row.block_count) > 0 ? difficultySum / Number(row.block_count) : null,
         transactionsPerSecond: seconds > 0 ? Number((Number(row.tx_count) / seconds).toFixed(2)) : null,
+        creditPoolBalance: row.credit_pool_balance,
       });
     });
   };

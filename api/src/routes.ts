@@ -78,6 +78,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/transactions/assets/stats',
+      method: 'get',
+      handler: transactionsController.getAssetStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
+    },
+    {
       path: '/transactions/chart',
       method: 'get',
       handler: transactionsController.getTransactionCountSeries,
@@ -414,6 +422,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       handler: addressesController.getAddressesUtxo,
       schema: {
         querystring: { $ref: 'addressList#' },
+      }
+    },
+    {
+      path: '/addresses/chart',
+      method: 'get',
+      handler: addressesController.getAddressesSeries,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
       }
     },
     {

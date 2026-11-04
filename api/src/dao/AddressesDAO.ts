@@ -606,4 +606,58 @@ export default class AddressesDAO {
       row?.total_count ?? -1,
     );
   }
+
+  // newAddresses is exact: addresses first seen in a block inside the bucket.
+  // totalAddresses is the pg_class estimate (as in getAddresses) minus the
+  // addresses first seen after the bucket, so it inherits the estimate's error.
+  getAddressesSeries = async (start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
+    const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
+    const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
+
+    const ranges = this.knex
+      .from(this.knex.raw(
+        `(SELECT generate_series(${startSql}, ${endSql}, '${interval}'::interval) AS date_to UNION SELECT ${endSql}) series`
+      ))
+      .select('date_to')
+      .select(
+        this.knex.raw(
+          'LAG(date_to, 1, ?::timestamptz) OVER (ORDER BY date_to ASC) AS date_from',
+          [start.toISOString()]
+        )
+      );
+
+    const rows = await this.knex
+      .with('ranges', ranges)
+      .select('date_from')
+      .select(this.knex.raw('COUNT(addresses.id) AS new_addresses'))
+      .from('ranges')
+      .leftJoin('blocks', function () {
+        this.on('blocks.timestamp', '>=', 'ranges.date_from')
+          .andOn('blocks.timestamp', '<', 'ranges.date_to');
+      })
+      .leftJoin('addresses', 'addresses.first_seen_block', 'blocks.height')
+      .groupBy('date_from')
+      .orderBy('date_from', 'asc');
+
+    const [{estimate, after_end: afterEnd}] = await this.knex
+      .select(this.knex.raw(`(SELECT reltuples::bigint FROM pg_class WHERE relname = 'addresses') AS estimate`))
+      .select(this.knex('addresses')
+        .join('blocks', 'blocks.height', 'addresses.first_seen_block')
+        .where('blocks.timestamp', '>=', end.toISOString())
+        .count('*')
+        .as('after_end')) as any[];
+
+    let total = Number(estimate) - Number(afterEnd);
+
+    return rows.reverse().map((row: any) => {
+      const point = new SeriesData(new Date(row.date_from), {
+        newAddresses: Number(row.new_addresses),
+        totalAddresses: total,
+      });
+
+      total -= Number(row.new_addresses);
+
+      return point;
+    }).reverse();
+  }
 }

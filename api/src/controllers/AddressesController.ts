@@ -92,6 +92,36 @@ export default class AddressesController {
     response.send(series);
   }
 
+  getAddressesSeries = async (
+    request: FastifyRequest<{
+      Querystring: { timestamp_start: string; timestamp_end: string; intervals_count: number }
+    }>,
+    response: FastifyReply
+  ): Promise<void> => {
+    const {
+      timestamp_start: start = new Date(new Date().getTime() - 30 * 86400000).toISOString(),
+      timestamp_end: end = new Date().toISOString(),
+      intervals_count: intervalsCount,
+    } = request.query;
+
+    if (new Date(start).getTime() > new Date(end).getTime()) {
+      return response.status(400).send({error: 'start timestamp cannot be more than end timestamp'})
+    }
+
+    const intervalInMs =
+      Math.ceil(
+        (new Date(end).getTime() - new Date(start).getTime()) / Number(intervalsCount ?? NaN) / 1000
+      ) * 1000
+
+    const interval = intervalsCount
+      ? iso8601duration(intervalInMs)
+      : calculateInterval(new Date(start), new Date(end))
+
+    const series = await this.addressesDAO.getAddressesSeries(new Date(start), new Date(end), interval, isNaN(intervalInMs) ? Intervals[interval] : intervalInMs);
+
+    response.send(series);
+  }
+
   getAddressUtxo = async (request: FastifyRequest<{
     Querystring: PaginatedQuery,
     Params: { address: string }
