@@ -92,7 +92,6 @@ export default class MasternodesDAO {
           ['pub_key_operator', keys.pubKeyOperators],
         ].filter((filter): filter is [string, string[]] => filter[1] != null);
 
-        // A node matches if any of its keys is in the corresponding list
         if (keyFilters.length > 0) {
           builder.where((inner) => {
             keyFilters.forEach(([column, values]) => inner.orWhereIn(column, values));

@@ -340,8 +340,7 @@ export default class TransactionsDAO {
     const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
     const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
 
-    // The trailing partial interval ends at `end`; UNION drops it when the
-    // series already lands there.
+    // UNION adds the trailing partial interval
     const ranges = this.knex
       .from(this.knex.raw(
         `(SELECT generate_series(${startSql}, ${endSql}, '${interval}'::interval) AS date_to UNION SELECT ${endSql}) series`
@@ -356,7 +355,6 @@ export default class TransactionsDAO {
 
     // Use blocks.tx_count directly — avoids touching the transactions table entirely.
     // The block_timestamp index covers the range scan; tx_count is in the same row.
-    // Buckets are [date_from, date_to), matching /transactions/stats.
     const bucketsCTE = this.knex('ranges')
       .select('date_from')
       .select(this.knex.raw('COALESCE(SUM(blocks.tx_count), 0)::bigint AS count'))
@@ -723,9 +721,7 @@ export default class TransactionsDAO {
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
   }
 
-  // [start, end) by block timestamp, confirmed only. The locked amount is the
-  // AssetLock's OP_RETURN output; its other outputs are change. An AssetUnlock's
-  // amount is its withdrawal output.
+  // locked amount is the AssetLock's OP_RETURN output, the rest is change
   getAssetStats = async (start: Date, end: Date): Promise<AssetStats> => {
     const heights = this.knex('blocks')
       .where('timestamp', '>=', start.toISOString())
@@ -749,10 +745,8 @@ export default class TransactionsDAO {
     return AssetStats.fromRow(row);
   }
 
-  // Window is [start, end) by block timestamp, the same as the chart buckets.
   // Whole hours come from chain_stats_hourly (V32); the partial hours at each
-  // edge are counted live. A sub-hour window runs fully live. Confirmed
-  // transactions only, coinbase included (special since DIP3).
+  // edge are counted live. A sub-hour window runs fully live.
   getTransactionStats = async (start: Date, end: Date): Promise<TransactionStats | null> => {
     const msPerHour = 3600000;
     const hourLo = new Date(Math.ceil(start.getTime() / msPerHour) * msPerHour);
@@ -804,8 +798,7 @@ export default class TransactionsDAO {
       add(row);
     }
 
-    // Joined on block timestamp, not a MIN..MAX height range: block times are
-    // not monotonic, so a height range can take in blocks outside the slice.
+    // by timestamp, not height range: block times are not monotonic
     for (const { from, to } of liveSlices) {
       const [row] = await this.knex('transactions')
         .join('blocks', 'blocks.height', 'transactions.block_height')

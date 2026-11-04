@@ -607,9 +607,7 @@ export default class AddressesDAO {
     );
   }
 
-  // newAddresses is exact: addresses first seen in a block inside the bucket.
-  // totalAddresses is the pg_class estimate (as in getAddresses) minus the
-  // addresses first seen after the bucket, so it inherits the estimate's error.
+  // totalAddresses is derived from the pg_class estimate, newAddresses is exact
   getAddressesSeries = async (start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
     const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
     const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;

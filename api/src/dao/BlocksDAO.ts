@@ -149,10 +149,6 @@ export default class BlocksDAO {
     });
   };
 
-  // Hour resolution: buckets sum the chain_stats_hourly rows whose hour starts
-  // inside [date_from, date_to). Rates divide by the hours present, so a bucket
-  // with partly indexed hours is not understated. creditPoolBalance is the
-  // balance at the bucket's last block, in DASH like Block.creditPoolBalance.
   getChainStatsSeries = async (start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
     const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
     const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;

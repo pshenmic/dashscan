@@ -27,8 +27,7 @@ export default class TransactionStats {
     this.averageFee = averageFee ?? null;
   }
 
-  // Categories overlap (a special tx can also be coinjoin or multisig), so
-  // total is counted independently rather than summed from them.
+  // categories overlap, so total is not their sum
   static fromRow({total, special, coinjoin, normal, multisig, fees, fee_tx_count}: TransactionStatsRow): TransactionStats {
     const totalCount = Number(total) || 0
     const specialTxsCount = Number(special) || 0

@@ -1,4 +1,3 @@
--- payee and owner_address can hold comma-separated address lists (106 chars on testnet)
 ALTER TABLE masternodes
     ADD COLUMN outpoint             VARCHAR(80),
     ADD COLUMN platform_node_id     CHAR(40),
