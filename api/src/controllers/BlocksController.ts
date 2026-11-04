@@ -4,12 +4,16 @@ import BlocksDAO from '../dao/BlocksDAO';
 import {PaginatedQuery} from "./types";
 import {calculateInterval, iso8601duration} from "../utils";
 import Intervals from "../enums/Intervals";
+import {DashCoreRPC} from "../dashcoreRPC";
+import BlockReward from "../models/BlockReward";
 
 export default class BlocksController {
   private blocksDAO: BlocksDAO;
+  private dashcoreRPC: DashCoreRPC;
 
-  constructor(knex: Knex) {
+  constructor(knex: Knex, dashcoreRPC: DashCoreRPC) {
     this.blocksDAO = new BlocksDAO(knex);
+    this.dashcoreRPC = dashcoreRPC;
   }
 
   getBlocks = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
@@ -65,5 +69,22 @@ export default class BlocksController {
     }
 
     response.send(block);
+  };
+
+  getBlockReward = async (request: FastifyRequest<{ Params: { height: number } }>, response: FastifyReply): Promise<void> => {
+    const { height } = request.params;
+
+    const coinbaseTotal = await this.blocksDAO.getCoinbaseTotal(height);
+
+    if (coinbaseTotal == null) {
+      return response.status(404).send({ error: 'Block not found' });
+    }
+
+    const [stats, payments] = await Promise.all([
+      this.dashcoreRPC.getBlockStats(height),
+      this.dashcoreRPC.getBlockHash(height).then((hash) => this.dashcoreRPC.getMasternodePayments(hash)),
+    ]);
+
+    response.send(BlockReward.fromRPC(stats, payments.find((p) => p.height === height), coinbaseTotal));
   };
 }

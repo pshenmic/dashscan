@@ -62,6 +62,20 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/blocks/:height/reward',
+      method: 'get',
+      handler: blocksController.getBlockReward,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            height: { type: 'integer', minimum: 0 },
+          },
+          required: ['height'],
+        },
+      },
+    },
+    {
       path: '/transactions',
       method: 'get',
       handler: transactionsController.getTransactions,

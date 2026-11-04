@@ -244,4 +244,16 @@ export default class BlocksDAO {
 
     return Block.fromRow(row)
   };
+
+  getCoinbaseTotal = async (height: number): Promise<number | null> => {
+    const [row] = await this.knex('tx_outputs')
+      .join('transactions', 'transactions.id', 'tx_outputs.tx_id')
+      .whereExists(this.knex('tx_inputs')
+        .whereRaw('tx_inputs.tx_id = transactions.id')
+        .whereNotNull('tx_inputs.coinbase_data'))
+      .where('transactions.block_height', height)
+      .select(this.knex.raw('SUM(tx_outputs.value) AS total')) as any[];
+
+    return row?.total != null ? Number(row.total) : null;
+  };
 }
