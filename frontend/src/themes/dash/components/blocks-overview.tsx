@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { useClockValue } from "@/components/render-clock";
 import { transactionsStatsQueryOptions } from "@/lib/api/stats";
 import { formatDateTime } from "@/lib/format";
@@ -12,6 +12,7 @@ import {
   transactionHistorySummary,
 } from "@/themes/dash/lib/transaction-metrics";
 import { AreaChart } from "./area-chart";
+import { ChartDateRange, type ChartPeriod } from "./chart-date-range";
 import { MissingApiData } from "./missing-api-data";
 
 function Metric({
@@ -78,11 +79,32 @@ function Height({ value }: { value: number | null | undefined }) {
 export function BlocksOverview({ network }: { network: Network }) {
   const chain = useQuery(homeChainQueryOptions(network));
   const day = useClockValue((now) => Math.floor(now / 86_400_000) * 86_400_000);
-  const range = transactionHistoryRange(day);
+  const [period, setPeriod] = useState<ChartPeriod>({ days: 30 });
+  const range = transactionHistoryRange(period.end ?? day, period.days);
+  const midpoint = new Date(
+    Date.parse(range.timestampEnd) - period.days * 86_400_000,
+  ).toISOString();
   const history = useQuery(
-    transactionsStatsQueryOptions({ network, ...range }),
+    transactionsStatsQueryOptions({
+      network,
+      timestampStart: midpoint,
+      timestampEnd: range.timestampEnd,
+      intervalsCount: period.days,
+    }),
   );
-  const summary = transactionHistorySummary(history.data, range.timestampEnd);
+  const previousHistory = useQuery(
+    transactionsStatsQueryOptions({
+      network,
+      timestampStart: range.timestampStart,
+      timestampEnd: midpoint,
+      intervalsCount: period.days,
+    }),
+  );
+  const summary = transactionHistorySummary(
+    [...(previousHistory.data ?? []), ...(history.data ?? [])],
+    range.timestampEnd,
+    period.days,
+  );
   const seconds =
     chain.data?.blockTime != null && chain.data.blockTime > 0
       ? Math.round(chain.data.blockTime / 1000)
@@ -162,7 +184,7 @@ export function BlocksOverview({ network }: { network: Network }) {
                 {summary.change != null && (
                   <span
                     className="rounded-full bg-action-subtle px-2 py-1 text-xs text-accent"
-                    title="Compared with the preceding 30 complete UTC days"
+                    title={`Compared with the preceding ${period.days} complete UTC days`}
                   >
                     {summary.change > 0 ? "↑" : summary.change < 0 ? "↓" : ""}{" "}
                     {metricNumber(Math.abs(summary.change))}%
@@ -171,9 +193,7 @@ export function BlocksOverview({ network }: { network: Network }) {
               </p>
             </div>
           </div>
-          <span className="rounded-full bg-action-subtle px-3 py-2 text-xs text-accent">
-            30 days
-          </span>
+          <ChartDateRange value={period} today={day} onChange={setPeriod} />
         </div>
         <div className="min-h-36 sm:min-h-[228px]">
           {history.isPending ? (
