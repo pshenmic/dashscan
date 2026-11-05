@@ -722,7 +722,7 @@ export default class TransactionsDAO {
   }
 
   // locked amount is the AssetLock's OP_RETURN output, the rest is change
-  getAssetStats = async (start: Date, end: Date): Promise<AssetStats> => {
+  getAssetLockStats = async (start: Date, end: Date): Promise<AssetStats> => {
     // OFFSET 0 keeps the planner on block_timestamp; MIN/MAX alone walk the height index
     const [bounds] = await this.knex
       .from(this.knex('blocks')

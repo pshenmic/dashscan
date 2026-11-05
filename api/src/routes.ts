@@ -92,9 +92,9 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
-      path: '/transactions/assets/stats',
+      path: '/transactions/assetlocks/stats',
       method: 'get',
-      handler: transactionsController.getAssetStats,
+      handler: transactionsController.getAssetLockStats,
       schema: {
         querystring: { $ref: 'timeInterval#' },
       },

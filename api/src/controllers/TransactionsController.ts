@@ -118,7 +118,7 @@ export default class TransactionsController {
     response.send(stats);
   }
 
-  getAssetStats = async (
+  getAssetLockStats = async (
     request: FastifyRequest<{ Querystring: { timestamp_start: string; timestamp_end: string } }>,
     response: FastifyReply
   ): Promise<void> => {
@@ -131,7 +131,7 @@ export default class TransactionsController {
       return response.status(400).send({ error: 'start timestamp cannot be more than end timestamp' });
     }
 
-    const stats = await this.transactionsDAO.getAssetStats(new Date(start), new Date(end));
+    const stats = await this.transactionsDAO.getAssetLockStats(new Date(start), new Date(end));
 
     response.send(stats);
   }
