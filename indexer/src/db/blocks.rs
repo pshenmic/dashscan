@@ -136,18 +136,37 @@ impl Database {
                      normal         = c.normal - s.normal, \
                      special        = c.special - s.special, \
                      coinjoin       = c.coinjoin - s.coinjoin, \
-                     multisig       = c.multisig - s.multisig \
+                     multisig       = c.multisig - s.multisig, \
+                     fees           = c.fees - s.fees, \
+                     fee_tx_count   = c.fee_tx_count - s.fee_tx_count, \
+                     coinjoin_amount = c.coinjoin_amount - s.coinjoin_amount, \
+                     new_addresses  = c.new_addresses - s.new_addresses \
                  FROM (SELECT date_trunc('hour', b.timestamp) AS hour, 1 AS block_count, \
                               b.size, b.difficulty AS difficulty_sum, \
                               COUNT(t.id) AS tx_count, \
                               COUNT(*) FILTER (WHERE t.type = 0 AND NOT t.coinjoin AND NOT t.multisig) AS normal, \
                               COUNT(*) FILTER (WHERE t.type > 0) AS special, \
                               COUNT(*) FILTER (WHERE t.coinjoin) AS coinjoin, \
-                              COUNT(*) FILTER (WHERE t.multisig) AS multisig \
+                              COUNT(*) FILTER (WHERE t.multisig) AS multisig, \
+                              COALESCE(SUM(f.fee), 0)::bigint AS fees, \
+                              COUNT(f.fee) AS fee_tx_count, \
+                              COALESCE(SUM(t.amount) FILTER (WHERE t.coinjoin), 0)::bigint AS coinjoin_amount, \
+                              (SELECT COUNT(*) FROM addresses WHERE first_seen_block = b.height) AS new_addresses \
                        FROM blocks b \
                        LEFT JOIN transactions t ON t.block_height = b.height \
+                       LEFT JOIN LATERAL (SELECT CASE WHEN t.type = 9 THEN \
+                                            (SELECT get_byte(p, 9) + (get_byte(p, 10) << 8) + (get_byte(p, 11) << 16) \
+                                                    + (get_byte(p, 12)::bigint << 24) \
+                                             FROM special_transactions st, decode(st.payload->>'extraPayload', 'hex') p \
+                                             WHERE st.tx_id = t.id) \
+                                          ELSE \
+                                            (SELECT SUM(amount) FROM tx_inputs \
+                                             WHERE tx_id = t.id AND coinbase_data IS NULL \
+                                             HAVING COUNT(*) > 0 AND COUNT(*) = COUNT(amount)) \
+                                            - (SELECT SUM(value) FROM tx_outputs WHERE tx_id = t.id) \
+                                          END AS fee) f ON true \
                        WHERE b.height = $1 \
-                       GROUP BY b.timestamp, b.size, b.difficulty) s \
+                       GROUP BY b.height, b.timestamp, b.size, b.difficulty) s \
                  WHERE c.hour = s.hour",
                 &[&h],
             )

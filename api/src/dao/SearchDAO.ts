@@ -67,7 +67,8 @@ export default class SearchDAO {
         'pro_tx_hash', 'address', 'payee', 'status', 'type',
         'pos_penalty_score', 'consecutive_payments', 'last_paid_time',
         'last_paid_block', 'owner_address', 'voting_address',
-        'collateral_address', 'pub_key_operator', 'created_at', 'updated_at',
+        'collateral_address', 'pub_key_operator', 'outpoint', 'platform_node_id',
+        'platform_p2p_port', 'platform_http_port', 'created_at', 'updated_at',
       )
       .where('pro_tx_hash', proTxHash)
       .first();

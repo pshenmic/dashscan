@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::NaiveDateTime;
 use deadpool_postgres::PoolError;
 use futures::pin_mut;
@@ -19,6 +21,10 @@ pub struct ChainStatsHour {
     pub special: i64,
     pub coinjoin: i64,
     pub multisig: i64,
+    pub fees: i64,
+    pub fee_tx_count: i64,
+    pub coinjoin_amount: i64,
+    pub new_addresses: i64,
 }
 
 impl Database {
@@ -48,7 +54,11 @@ impl Database {
                     normal BIGINT, \
                     special BIGINT, \
                     coinjoin BIGINT, \
-                    multisig BIGINT\
+                    multisig BIGINT, \
+                    fees BIGINT, \
+                    fee_tx_count BIGINT, \
+                    coinjoin_amount BIGINT, \
+                    new_addresses BIGINT\
                  ); \
                  TRUNCATE chain_stats_hourly_stage",
             )
@@ -57,7 +67,8 @@ impl Database {
         let sink = client
             .copy_in(
                 "COPY chain_stats_hourly_stage \
-                 (hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig) \
+                 (hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig, \
+                  fees, fee_tx_count, coinjoin_amount, new_addresses) \
                  FROM STDIN BINARY",
             )
             .await?;
@@ -71,12 +82,16 @@ impl Database {
             Type::INT8,
             Type::INT8,
             Type::INT8,
+            Type::INT8,
+            Type::INT8,
+            Type::INT8,
+            Type::INT8,
         ];
         let writer = BinaryCopyInWriter::new(sink, &types);
         pin_mut!(writer);
 
         for r in rows {
-            let values: [&(dyn ToSql + Sync); 9] = [
+            let values: [&(dyn ToSql + Sync); 13] = [
                 &r.hour,
                 &r.block_count,
                 &r.tx_count,
@@ -86,6 +101,10 @@ impl Database {
                 &r.special,
                 &r.coinjoin,
                 &r.multisig,
+                &r.fees,
+                &r.fee_tx_count,
+                &r.coinjoin_amount,
+                &r.new_addresses,
             ];
             writer.as_mut().write(&values).await?;
         }
@@ -94,8 +113,10 @@ impl Database {
         client
             .execute(
                 "INSERT INTO chain_stats_hourly \
-                 (hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig) \
-                 SELECT hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig \
+                 (hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig, \
+                  fees, fee_tx_count, coinjoin_amount, new_addresses) \
+                 SELECT hour, block_count, tx_count, size, difficulty_sum, normal, special, coinjoin, multisig, \
+                        fees, fee_tx_count, coinjoin_amount, new_addresses \
                  FROM chain_stats_hourly_stage \
                  ON CONFLICT (hour) DO UPDATE SET \
                     block_count    = chain_stats_hourly.block_count + EXCLUDED.block_count, \
@@ -105,7 +126,11 @@ impl Database {
                     normal         = chain_stats_hourly.normal + EXCLUDED.normal, \
                     special        = chain_stats_hourly.special + EXCLUDED.special, \
                     coinjoin       = chain_stats_hourly.coinjoin + EXCLUDED.coinjoin, \
-                    multisig       = chain_stats_hourly.multisig + EXCLUDED.multisig",
+                    multisig       = chain_stats_hourly.multisig + EXCLUDED.multisig, \
+                    fees           = chain_stats_hourly.fees + EXCLUDED.fees, \
+                    fee_tx_count   = chain_stats_hourly.fee_tx_count + EXCLUDED.fee_tx_count, \
+                    coinjoin_amount = chain_stats_hourly.coinjoin_amount + EXCLUDED.coinjoin_amount, \
+                    new_addresses  = chain_stats_hourly.new_addresses + EXCLUDED.new_addresses",
                 &[],
             )
             .await?;
@@ -164,5 +189,21 @@ impl Database {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn count_new_addresses(
+        &self,
+        client: &Transaction<'_>,
+        heights: &[i32],
+    ) -> Result<HashMap<i32, i64>, PoolError> {
+        let rows = client
+            .query(
+                "SELECT first_seen_block, COUNT(*) FROM addresses \
+                 WHERE first_seen_block = ANY($1) GROUP BY 1",
+                &[&heights],
+            )
+            .await?;
+
+        Ok(rows.iter().map(|row| (row.get(0), row.get(1))).collect())
     }
 }

@@ -142,6 +142,7 @@ async fn main() {
         .expect("Failed to create Redis pool");
     let dao = DaoStore::new(redis_pool.clone());
     let peer_store = PeerStore::new(redis_pool);
+    let snapshot_peers = peer_store.clone();
 
     // Connect to Dash Core RPC
     let rpc = DashRpcClient::new(
@@ -269,6 +270,11 @@ async fn main() {
     let zmq_rawchainlock_url = config.zmq_url.clone();
     tokio::spawn(async move {
         zmq_rawchainlock_listener(zmq_rawchainlock_url, rawchainlock_tx).await;
+    });
+
+    let snapshot_processor = Arc::clone(&processor);
+    tokio::spawn(async move {
+        snapshot_processor.snapshot_loop(snapshot_peers).await;
     });
 
     // Spawn polling fallback

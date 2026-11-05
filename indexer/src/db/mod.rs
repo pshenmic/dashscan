@@ -6,11 +6,13 @@ mod blocks;
 mod chain_stats;
 mod inputs;
 mod masternodes;
+mod network_snapshots;
 mod outputs;
 mod transactions;
 mod utxo;
 
 pub use chain_stats::ChainStatsHour;
+pub use network_snapshots::NetworkSnapshot;
 
 use deadpool_postgres::{Client, Pool, PoolError};
 

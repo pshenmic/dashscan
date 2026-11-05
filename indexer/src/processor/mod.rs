@@ -2,6 +2,7 @@ mod block_writer;
 mod catch_up;
 mod governance;
 mod mempool;
+mod snapshots;
 mod miner;
 mod utxo_cache;
 

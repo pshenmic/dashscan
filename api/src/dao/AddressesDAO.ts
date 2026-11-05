@@ -606,4 +606,48 @@ export default class AddressesDAO {
       row?.total_count ?? -1,
     );
   }
+
+  getAddressesSeries = async (start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
+    const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
+    const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
+
+    const ranges = this.knex
+      .from(this.knex.raw(
+        `(SELECT generate_series(${startSql}, ${endSql}, '${interval}'::interval) AS date_to UNION SELECT ${endSql}) series`
+      ))
+      .select('date_to')
+      .select(
+        this.knex.raw(
+          'LAG(date_to, 1, ?::timestamptz) OVER (ORDER BY date_to ASC) AS date_from',
+          [start.toISOString()]
+        )
+      );
+
+    const rows = await this.knex
+      .with('ranges', ranges)
+      .select('date_from')
+      .select(this.knex.raw('COALESCE(SUM(chain_stats_hourly.new_addresses), 0) AS new_addresses'))
+      .from('ranges')
+      .leftJoin('chain_stats_hourly', function () {
+        this.on('chain_stats_hourly.hour', '>=', 'ranges.date_from')
+          .andOn('chain_stats_hourly.hour', '<', 'ranges.date_to');
+      })
+      .groupBy('date_from')
+      .orderBy('date_from', 'asc');
+
+    const [{before}] = await this.knex('chain_stats_hourly')
+      .where('hour', '<', start.toISOString())
+      .select(this.knex.raw('COALESCE(SUM(new_addresses), 0) AS before')) as any[];
+
+    let total = Number(before);
+
+    return rows.map((row: any) => {
+      total += Number(row.new_addresses);
+
+      return new SeriesData(new Date(row.date_from), {
+        newAddresses: Number(row.new_addresses),
+        totalAddresses: total,
+      });
+    });
+  }
 }

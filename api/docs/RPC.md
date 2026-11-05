@@ -471,6 +471,50 @@ Returns a single block by its hash.
 
 ---
 
+### GET /blocks/:height/reward
+
+Returns how a block's coinbase was paid out. Subsidy and fees come from Dash Core `getblockstats`, the masternode payment from `masternode payments`.
+
+**Path Parameters**
+
+| Parameter | Type   | Constraints  | Description  |
+|-----------|--------|--------------|--------------|
+| `height`  | number | minimum: 0   | Block height |
+
+**Response `200`**
+
+```json
+{
+  "height": 1580496,
+  "subsidy": 238104286,
+  "fees": 93981,
+  "miner": 59549567,
+  "masternode": 178648700,
+  "platform": 66966830,
+  "treasury": 500000000
+}
+```
+
+| Field        | Type   | Description                                                                              |
+|--------------|--------|------------------------------------------------------------------------------------------|
+| `height`     | number | Block height                                                                             |
+| `subsidy`    | number | Block subsidy in duffs                                                                   |
+| `fees`       | number | Transaction fees in the block, in duffs                                                  |
+| `miner`      | number | Paid to the miner: `subsidy + fees − masternode`                                         |
+| `masternode` | number | Paid to the masternode, including `platform`                                             |
+| `platform`   | number | Part of the masternode payment that goes to the Platform credit pool                     |
+| `treasury`   | number | Superblock payouts to proposals: coinbase total `− subsidy − fees`. `0` for other blocks |
+
+**Response `404`**
+
+```json
+{
+  "error": "Block not found"
+}
+```
+
+---
+
 ### GET /transactions
 
 Returns a paginated list of transactions. Include pending transactions
@@ -1037,9 +1081,17 @@ Returns a paginated rich-list view: addresses sorted by current UTXO balance, ea
     "page": 1,
     "limit": 10,
     "total": 1234567
+  },
+  "utxoSummary": {
+    "height": 1584890,
+    "blockHash": "000000c2db0f69ed56ee4af53fc2db87b0f4a7efbc4ba0b1b42c2979036cc88b",
+    "outputCount": 964539,
+    "totalAmountDuffs": "2360213033516459"
   }
 }
 ```
+
+`utxoSummary` is the Dash Core `gettxoutsetinfo` snapshot used for `concentration`: the block it was taken at, the number of unspent outputs, and their total in duffs.
 
 #### Address Balance Object
 
@@ -1059,6 +1111,43 @@ Returns a paginated rich-list view: addresses sorted by current UTXO balance, ea
 **Caveats.**
 - These are *address*-level shares, not *holder*-level. HD wallets spread one user across many addresses (understates concentration); exchange omnibus addresses pool many users into one (overstates concentration).
 - Because the supply denominator comes from RPC (which counts UTXOs that have no parseable address — OP_RETURN, multisig, etc.) and the matview filters those out, the per-address numerators slightly underrepresent total chain supply. The `"others"` row absorbs this gap, so the page still sums to 100%.
+
+---
+
+### GET /addresses/chart
+
+Returns the number of addresses that appeared on the network for the first time in each bucket, and the running total of unique addresses. Built from the hourly rollup, so buckets have hour resolution. Defaults to the last 30 days.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default                | Constraints          | Description                                                                               |
+|-------------------|--------|------------------------|----------------------|-------------------------------------------------------------------------------------------|
+| `timestamp_start` | string | 30 days ago (ISO 8601) |                      | Start of the time range                                                                   |
+| `timestamp_end`   | string | now (ISO 8601)         |                      | End of the time range                                                                     |
+| `intervals_count` | number | auto                   | minimum: 2, max: 100 | Number of buckets. When omitted, interval is chosen automatically via `calculateInterval` |
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2026-10-05T00:00:00.000Z",
+    "data": { "newAddresses": 763, "totalAddresses": 112798 }
+  }
+]
+```
+
+| Field                 | Type   | Description                                          |
+|-----------------------|--------|------------------------------------------------------|
+| `timestamp`           | string | ISO 8601 start of the bucket                         |
+| `data.newAddresses`   | number | Addresses first seen in a block inside the bucket    |
+| `data.totalAddresses` | number | Unique addresses up to the end of the bucket         |
+
+**Response `400`**
+
+```json
+{ "error": "start timestamp cannot be more than end timestamp" }
+```
 
 ---
 
@@ -1370,6 +1459,8 @@ Returns a time series of transaction counts over a configurable time range, with
 
 > Buckets with zero transactions are included with `count: 0`.
 
+> Buckets are `[start, end)` by block timestamp, the same as [`/transactions/stats`](#get-transactionsstats). When the range is not a multiple of the interval, the last bucket is shorter and ends at `timestamp_end`.
+
 **Response `400`**
 
 ```json
@@ -1380,7 +1471,7 @@ Returns a time series of transaction counts over a configurable time range, with
 
 ### GET /transactions/stats
 
-Returns counts of confirmed transactions over a given time range, partitioned into mutually exclusive categories. Defaults to the last 24 hours when no range is supplied.
+Returns counts, fees and CoinJoin volume of confirmed transactions over `[timestamp_start, timestamp_end)` by block timestamp. Defaults to the last 24 hours when no range is supplied.
 
 **Query Parameters**
 
@@ -1389,16 +1480,16 @@ Returns counts of confirmed transactions over a given time range, partitioned in
 | `timestamp_start` | string | 24 hours ago (ISO 8601) | Start of the time range |
 | `timestamp_end`   | string | now (ISO 8601)          | End of the time range   |
 
-**Categorization (in priority order):**
+**Categories:**
 
-1. **Special** — `type > 0` (Dash special transactions: ProRegTx, ProUpServTx, etc.)
-2. **CoinJoin** — `type = 0 AND coinjoin = TRUE`
-3. **Multisig** — `type = 0 AND coinjoin = FALSE AND multisig = TRUE` (bare multisig outputs or P2SH-wrapped multisig redeem scripts)
-4. **Normal** — `type = 0 AND coinjoin = FALSE AND multisig = FALSE`
+- **Special** — `type > 0` (Dash special transactions: ProRegTx, ProUpServTx, etc.)
+- **CoinJoin** — `coinjoin = TRUE`
+- **Multisig** — `multisig = TRUE` (bare multisig outputs or P2SH-wrapped multisig redeem scripts)
+- **Normal** — `type = 0 AND coinjoin = FALSE AND multisig = FALSE`
 
-Each transaction falls into exactly one bucket; counts sum to `total`.
+Categories can overlap (a special transaction can also be CoinJoin or multisig), so `total` is counted on its own and is not their sum.
 
-Pending (mempool) transactions are excluded.
+Pending (mempool) transactions are excluded. Coinbase transactions are included (special since DIP3).
 
 **Response `200`**
 
@@ -1408,17 +1499,23 @@ Pending (mempool) transactions are excluded.
   "special": 5,
   "coinjoin": 123,
   "multisig": 0,
-  "normal": 1234
+  "normal": 1234,
+  "fees": 45359,
+  "averageFee": 232,
+  "coinjoinAmount": 8000080000
 }
 ```
 
-| Field      | Type           | Description                                                                          |
-|------------|----------------|--------------------------------------------------------------------------------------|
-| `total`    | number \| null | Sum of `special + coinjoin + multisig + normal`                                      |
-| `special`  | number \| null | Confirmed special transactions (`type > 0`) in the range                             |
-| `coinjoin` | number \| null | Confirmed CoinJoin transactions in the range (excludes special)                      |
-| `multisig` | number \| null | Confirmed multisig transactions in the range (excludes special and CoinJoin)         |
-| `normal`   | number \| null | Confirmed transactions that are none of the above in the range                       |
+| Field            | Type           | Description                                                                                         |
+|------------------|----------------|-----------------------------------------------------------------------------------------------------|
+| `total`          | number \| null | Confirmed transactions in the range                                                                 |
+| `special`        | number \| null | Confirmed special transactions (`type > 0`) in the range                                            |
+| `coinjoin`       | number \| null | Confirmed CoinJoin transactions in the range                                                        |
+| `multisig`       | number \| null | Confirmed multisig transactions in the range                                                        |
+| `normal`         | number \| null | Confirmed transactions that are none of the above in the range                                      |
+| `fees`           | number \| null | Sum of transaction fees in duffs. AssetUnlock fees are read from the payload                        |
+| `averageFee`     | number \| null | `fees` divided by the number of fee-paying transactions, in duffs. `null` if none paid a fee        |
+| `coinjoinAmount` | number \| null | Sum of CoinJoin transaction outputs in duffs (mixed volume)                                         |
 
 > All fields are `null` when no rows can be derived (e.g. no indexed blocks). Otherwise counts are `0` or positive integers.
 
@@ -1429,6 +1526,41 @@ Pending (mempool) transactions are excluded.
 ```
 
 Returned when the underlying query yields no result row.
+
+---
+
+### GET /transactions/assetlocks/stats
+
+Returns counts and amounts of confirmed AssetLock (deposit to Platform) and AssetUnlock (withdrawal from Platform) transactions over `[timestamp_start, timestamp_end)` by block timestamp. Defaults to the last 24 hours.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default                 | Description             |
+|-------------------|--------|-------------------------|-------------------------|
+| `timestamp_start` | string | 24 hours ago (ISO 8601) | Start of the time range |
+| `timestamp_end`   | string | now (ISO 8601)          | End of the time range   |
+
+**Response `200`**
+
+```json
+{
+  "assetLock": { "count": 35, "amount": "2259367476" },
+  "assetUnlock": { "count": 69, "amount": "11796092063" }
+}
+```
+
+| Field                | Type   | Description                                                                  |
+|----------------------|--------|------------------------------------------------------------------------------|
+| `assetLock.count`    | number | AssetLock transactions in the range                                          |
+| `assetLock.amount`   | string | Locked amount in duffs: the AssetLock `OP_RETURN` outputs, change excluded   |
+| `assetUnlock.count`  | number | AssetUnlock transactions in the range                                        |
+| `assetUnlock.amount` | string | Withdrawn amount in duffs                                                    |
+
+**Response `400`**
+
+```json
+{ "error": "start timestamp cannot be more than end timestamp" }
+```
 
 ---
 
@@ -1474,13 +1606,19 @@ Returns a list of masternodes, ordered by `lastPaidBlock`. If neither `page` nor
 
 Additional optional filters:
 
-| Parameter          | Type    | Constraints                       | Description                                                         |
-|--------------------|---------|-----------------------------------|---------------------------------------------------------------------|
-| `status`           | string  | `ENABLED` \| `POSE_BANNED`        | Filter by masternode status                                         |
-| `type`             | string  | `REGULAR` \| `EVO`                | Filter by masternode type (case-insensitive at DB level)            |
-| `last_paid_before` | string  | ISO 8601 date-time                | Only masternodes whose `lastPaidTime` is strictly before this point |
-| `has_penalty`      | boolean |                                   | `true` → `posPenaltyScore > 0`; `false` → `posPenaltyScore = 0`     |
-| `country`          | string  | ISO 3166-1 alpha-2 (e.g. `US`)    | Filter by GeoIP country code resolved from the masternode address   |
+| Parameter            | Type    | Constraints                                        | Description                                                         |
+|----------------------|---------|----------------------------------------------------|---------------------------------------------------------------------|
+| `status`             | string  | `ENABLED` \| `POSE_BANNED`                         | Filter by masternode status                                         |
+| `type`               | string  | `REGULAR` \| `EVO`                                 | Filter by masternode type (case-insensitive at DB level)            |
+| `last_paid_before`   | string  | ISO 8601 date-time                                 | Only masternodes whose `lastPaidTime` is strictly before this point |
+| `has_penalty`        | boolean |                                                    | `true` → `posPenaltyScore > 0`; `false` → `posPenaltyScore = 0`     |
+| `country`            | string  | ISO 3166-1 alpha-2 (e.g. `US`)                     | Filter by GeoIP country code resolved from the masternode address   |
+| `owner_address`      | string  | Comma-separated, up to 100 addresses               | Masternodes with one of these owner addresses                       |
+| `voting_address`     | string  | Comma-separated, up to 100 addresses               | Masternodes with one of these voting addresses                      |
+| `collateral_address` | string  | Comma-separated, up to 100 addresses               | Masternodes with one of these collateral addresses                  |
+| `pub_key_operator`   | string  | Comma-separated, up to 100 BLS keys (96 hex chars) | Masternodes with one of these operator public keys                  |
+
+The four key filters are combined with OR: a masternode matches if any of its keys is in the corresponding list. Other filters still apply with AND.
 
 **Response `200`**
 
@@ -1509,7 +1647,11 @@ Additional optional filters:
         "city": "Amsterdam",
         "latitude": 12.3456789101112131,
         "longitude": 12.3456789101112131
-      }
+      },
+      "outpoint": "6ce8545e25d4f03aba1527062d9583ae01827c65b234bd979aca5954c6ae3a59-32",
+      "platformNodeId": "6d57707c196e06487d326094c964f258f5b77c35",
+      "platformP2PPort": 36656,
+      "platformHTTPPort": 1443
     }
   ],
   "pagination": {
@@ -1540,6 +1682,10 @@ Additional optional filters:
 | `createdAt`           | string            | ISO 8601 timestamp when first indexed                             |
 | `updatedAt`           | string            | ISO 8601 timestamp of last update                                 |
 | `geoIpInfo`           | GeoIpInfo \| null | Information about node ip with coordinates. Null if ip is \[::]:0 |
+| `outpoint`            | string \| null    | Collateral outpoint (`txid-vout`)                                 |
+| `platformNodeId`      | string \| null    | Platform node ID. Evo nodes only                                  |
+| `platformP2PPort`     | number \| null    | Platform P2P port. Evo nodes only                                 |
+| `platformHTTPPort`    | number \| null    | Platform HTTP port. Evo nodes only                                |
 
 
 ### GeoIpInfo Object
@@ -2339,7 +2485,11 @@ Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics
   "hashRate": "2383959789491355",
   "mempoolSize": 3,
   "nextSuperblockHeight": 2475784,
-  "latestSuperblockHeight": 2459168
+  "latestSuperblockHeight": 2459168,
+  "blockSubsidy": 238104286,
+  "blockFees": 0,
+  "peakHashRate": "2271176383",
+  "peakHashRateTimestamp": "2026-06-21T00:00:00.000Z"
 }
 ```
 
@@ -2358,3 +2508,73 @@ Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics
 | `mempoolSize`            | number \| null | Number of pending (unconfirmed) transactions currently indexed (`block_height IS NULL`)                                      |
 | `nextSuperblockHeight`   | number \| null | Height of next superblock                                                                                                    |
 | `latestSuperblockHeight` | number \| null | Height of previous superblock (mined)                                                                                        |
+| `blockSubsidy`           | number \| null | Subsidy of the chain tip block in duffs, from Dash Core `getblockstats`                                                      |
+| `blockFees`              | number \| null | Fees of the chain tip block in duffs, from Dash Core `getblockstats`                                                         |
+| `peakHashRate`           | string \| null | Highest daily average network hash rate in H/s                                                                               |
+| `peakHashRateTimestamp`  | string \| null | ISO 8601 day of `peakHashRate`                                                                                               |
+
+---
+
+### GET /chain/stats/chart
+
+Returns network statistics per bucket, built from the hourly rollup (hour resolution) and hourly network snapshots. Defaults to the last 30 days.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default                | Constraints          | Description                                                                               |
+|-------------------|--------|------------------------|----------------------|-------------------------------------------------------------------------------------------|
+| `timestamp_start` | string | 30 days ago (ISO 8601) |                      | Start of the time range                                                                   |
+| `timestamp_end`   | string | now (ISO 8601)         |                      | End of the time range                                                                     |
+| `intervals_count` | number | auto                   | minimum: 2, max: 100 | Number of buckets. When omitted, interval is chosen automatically via `calculateInterval` |
+
+**Response `200`**
+
+```json
+[
+  {
+    "timestamp": "2026-10-05T17:50:03.363Z",
+    "data": {
+      "hashRate": "176812",
+      "difficulty": 0.005717102329551329,
+      "transactionsPerSecond": 0.09,
+      "creditPoolBalance": 374435.11713304,
+      "fees": 82209944,
+      "feesPerBlock": 18877,
+      "coinjoinAmount": 38848110377219,
+      "masternodes": 318,
+      "masternodesEnabled": 55,
+      "evonodes": 73,
+      "evonodesEnabled": 40,
+      "peers": 128,
+      "utxoCount": 973672,
+      "utxoAmount": 2360275112255717
+    }
+  }
+]
+```
+
+| Field                        | Type           | Description                                                                           |
+|------------------------------|----------------|---------------------------------------------------------------------------------------|
+| `timestamp`                  | string         | ISO 8601 start of the bucket                                                          |
+| `data.hashRate`              | string \| null | Average network hash rate in H/s                                                      |
+| `data.difficulty`            | number \| null | Average block difficulty                                                              |
+| `data.transactionsPerSecond` | number \| null | Average transactions per second                                                       |
+| `data.creditPoolBalance`     | number \| null | Platform credit pool balance in DASH at the last block of the bucket                  |
+| `data.fees`                  | number         | Sum of transaction fees in duffs                                                      |
+| `data.feesPerBlock`          | number \| null | Average fees per block in duffs                                                       |
+| `data.coinjoinAmount`        | number         | Sum of CoinJoin transaction outputs in duffs                                          |
+| `data.masternodes`           | number \| null | Registered regular masternodes, from the last snapshot in the bucket                  |
+| `data.masternodesEnabled`    | number \| null | Regular masternodes that are not PoSe-banned                                          |
+| `data.evonodes`              | number \| null | Registered Evo nodes                                                                  |
+| `data.evonodesEnabled`       | number \| null | Evo nodes that are not PoSe-banned                                                    |
+| `data.peers`                 | number \| null | Reachable peers found by the crawler                                                  |
+| `data.utxoCount`             | number \| null | Unspent outputs, from Dash Core `gettxoutsetinfo`                                     |
+| `data.utxoAmount`            | number \| null | Total of unspent outputs in duffs                                                     |
+
+> Snapshot fields are `null` for buckets without a snapshot. Masternode history is backfilled per day from Dash Core; peers and UTXO start when the indexer first takes a snapshot.
+
+**Response `400`**
+
+```json
+{ "error": "start timestamp cannot be more than end timestamp" }
+```

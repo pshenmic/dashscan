@@ -88,7 +88,7 @@ export const start = async (): Promise<FastifyInstance> => {
   await cache.set("utxoInfo", preCacheUtxoInfo, UTXO_INFO_LIFE_TIME)
 
   const mainController = new MainController(dashcoreRPC, knex);
-  const blocksController = new BlocksController(knex);
+  const blocksController = new BlocksController(knex, dashcoreRPC);
   const transactionsController = new TransactionsController(knex);
   const addressesController = new AddressesController(knex, dashcoreRPC, cache);
   const masternodesController = new MasternodesController(knex, geoIPService);
