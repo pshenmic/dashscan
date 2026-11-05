@@ -10,7 +10,7 @@ interface FetchBlocksInput extends PaginationParams {
   superblock?: boolean | null;
 }
 
-async function getBlocks(params: FetchBlocksInput) {
+async function getBlocks(params: FetchBlocksInput, signal?: AbortSignal) {
   const url = new URL("/blocks", getBaseUrl(params.network));
   if (params.page !== undefined)
     url.searchParams.set("page", String(params.page));
@@ -20,7 +20,7 @@ async function getBlocks(params: FetchBlocksInput) {
   if (params.superblock != null)
     url.searchParams.set("superblock", String(params.superblock));
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -41,7 +41,7 @@ export function blocksQueryOptions(params: FetchBlocksInput) {
       params.order,
       params.superblock ?? null,
     ],
-    queryFn: () => getBlocks(params),
+    queryFn: ({ signal }) => getBlocks(params, signal),
   });
 }
 
@@ -58,18 +58,21 @@ export function blocksInfiniteQueryOptions(params: InfiniteBlocksInput) {
   const superblock = params.superblock ?? null;
   return infiniteQueryOptions({
     queryKey: ["blocks-infinite", params.network, limit, order, superblock],
-    queryFn: ({ pageParam }) =>
-      getBlocks({
-        network: params.network,
-        page: pageParam,
-        limit,
-        order,
-        superblock,
-      }),
+    queryFn: ({ pageParam, signal }) =>
+      getBlocks(
+        {
+          network: params.network,
+          page: pageParam,
+          limit,
+          order,
+          superblock,
+        },
+        signal,
+      ),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
-      const { page, limit: pageLimit, total } = lastPage.pagination;
-      return page * pageLimit < total ? page + 1 : undefined;
+      const { page, limit: pageLimit } = lastPage.pagination;
+      return lastPage.resultSet.length === pageLimit ? page + 1 : undefined;
     },
   });
 }
