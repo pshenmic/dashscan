@@ -2,6 +2,7 @@ import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
 import { apiFetch, getBaseUrl } from "./client";
+import { getSearch } from "./search";
 import type { ApiBlock, PaginatedResponse, PaginationParams } from "./types";
 
 interface FetchBlocksInput extends PaginationParams {
@@ -78,9 +79,25 @@ interface FetchBlockInput {
   hash: string;
 }
 
-async function getBlock(params: FetchBlockInput) {
-  const url = new URL(`/block/${params.hash}`, getBaseUrl(params.network));
-  const response = await apiFetch(url);
+class BlockNotFoundError extends Error {
+  constructor() {
+    super("Block not found");
+  }
+}
+
+async function getBlock(params: FetchBlockInput, signal?: AbortSignal) {
+  let hash = params.hash;
+  if (/^\d{1,16}$/.test(hash)) {
+    const result = await getSearch(
+      { network: params.network, query: hash },
+      signal,
+    );
+    if (!result.block) throw new BlockNotFoundError();
+    hash = result.block.hash;
+  }
+  const url = new URL(`/block/${hash}`, getBaseUrl(params.network));
+  const response = await apiFetch(url, { signal });
+  if (response.status === 404) throw new BlockNotFoundError();
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -94,6 +111,26 @@ export const fetchBlock = createServerFn({ method: "POST" })
 export function blockQueryOptions(params: FetchBlockInput) {
   return queryOptions({
     queryKey: ["block", params.network, params.hash],
-    queryFn: () => getBlock(params),
+    queryFn: ({ signal }) => getBlock(params, signal),
+  });
+}
+
+export function blockLookupQueryOptions(params: {
+  network: Network;
+  value: string;
+}) {
+  return queryOptions({
+    queryKey: ["block-lookup", params.network, params.value],
+    queryFn: async ({ signal }) => {
+      try {
+        return await getBlock(
+          { network: params.network, hash: params.value },
+          signal,
+        );
+      } catch (error) {
+        if (error instanceof BlockNotFoundError) return null;
+        throw error;
+      }
+    },
   });
 }
