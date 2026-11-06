@@ -15,6 +15,7 @@ import {
 import { AreaChart } from "./area-chart";
 import { ChartDateRange, type ChartPeriod } from "./chart-date-range";
 import { MissingApiData } from "./missing-api-data";
+import { SkeletonBar } from "./skeleton";
 
 function Metric({
   name,
@@ -128,18 +129,30 @@ export function BlocksOverview({ network }: { network: Network }) {
     >
       <div className="grid min-w-0 grid-cols-2 gap-4 sm:grid-cols-3">
         <Metric name="latest" label="Latest Block">
-          <Height value={latest} />
+          {chain.isPending ? (
+            <SkeletonBar className="h-7 w-28" />
+          ) : (
+            <Height value={latest} />
+          )}
         </Metric>
         <Metric name="time" label="Block Time">
-          <span title="Average interval over the latest 20 indexed blocks">
-            {seconds == null
-              ? "—"
-              : `${Math.floor(seconds / 60)}m ${seconds % 60}s`}
-          </span>
+          {chain.isPending ? (
+            <SkeletonBar className="h-7 w-24" />
+          ) : (
+            <span title="Average interval over the latest 20 indexed blocks">
+              {seconds == null
+                ? "—"
+                : `${Math.floor(seconds / 60)}m ${seconds % 60}s`}
+            </span>
+          )}
         </Metric>
         <Metric name="superblock" label="Latest Superblock">
           <div className="flex flex-wrap items-center gap-2">
-            <Height value={chain.data?.latestSuperblockHeight} />
+            {chain.isPending ? (
+              <SkeletonBar className="h-7 w-28" />
+            ) : (
+              <Height value={chain.data?.latestSuperblockHeight} />
+            )}
             <MissingApiData
               inline
               description="The reward API includes treasury for this block height. Displaying it as actual DAO payouts is pending confirmation of the calculation in #124. Zero alone does not indicate missing data."
@@ -147,7 +160,11 @@ export function BlocksOverview({ network }: { network: Network }) {
           </div>
         </Metric>
         <Metric name="total" label="Total Blocks">
-          {metricNumber(latest == null ? null : latest + 1, 0)}
+          {chain.isPending ? (
+            <SkeletonBar className="h-7 w-28" />
+          ) : (
+            metricNumber(latest == null ? null : latest + 1, 0)
+          )}
         </Metric>
         {(
           [
@@ -156,8 +173,8 @@ export function BlocksOverview({ network }: { network: Network }) {
           ] as const
         ).map(([name, label, field]) => (
           <Metric key={name} name={name} label={label}>
-            {reward.isPending ? (
-              "…"
+            {chain.isPending || reward.isLoading ? (
+              <SkeletonBar className="h-7 w-28" />
             ) : reward.isError ? (
               <button
                 type="button"
@@ -217,9 +234,11 @@ export function BlocksOverview({ network }: { network: Network }) {
                 Block Transactions
               </h2>
               <p className="flex flex-wrap items-center gap-2 text-[32px] font-extrabold leading-none">
-                {history.isPending
-                  ? "…"
-                  : metricNumber(summary.currentTotal, 0)}{" "}
+                {history.isPending ? (
+                  <SkeletonBar className="h-8 w-32" />
+                ) : (
+                  metricNumber(summary.currentTotal, 0)
+                )}{" "}
                 <span className="text-base font-medium text-muted-foreground">
                   Txs
                 </span>
@@ -239,9 +258,18 @@ export function BlocksOverview({ network }: { network: Network }) {
         </div>
         <div className="min-h-36 sm:min-h-[228px]">
           {history.isPending ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">
-              Loading history…
-            </p>
+            <section
+              aria-busy="true"
+              aria-label="Loading transaction history"
+              className="space-y-3"
+            >
+              <SkeletonBar className="h-28 w-full sm:h-48" />
+              <div className="flex justify-between gap-6">
+                <SkeletonBar className="w-16" />
+                <SkeletonBar className="w-16" />
+                <SkeletonBar className="w-16" />
+              </div>
+            </section>
           ) : history.isError ? (
             <button
               type="button"
