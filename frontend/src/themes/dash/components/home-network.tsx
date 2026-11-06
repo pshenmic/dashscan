@@ -188,12 +188,12 @@ function NetworkSection({ network }: { network: Network }) {
                 24H {peerChange > 0 ? "+" : ""}
                 {metricNumber(peerChange)}%
               </span>
-            ) : (
+            ) : snapshots.isSuccess ? (
               <MissingApiData
                 inline
                 description="The API has not yet collected reachable-peer snapshots covering a full 24 hours."
               />
-            )}
+            ) : null}
           </div>
           <div
             data-grid-map

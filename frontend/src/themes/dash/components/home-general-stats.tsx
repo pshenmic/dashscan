@@ -298,7 +298,7 @@ export function HomeGeneralStats() {
             <p className="absolute inset-x-0 top-[75%] text-center text-[10px] font-medium text-muted-foreground @[24rem]:text-xs">
               Peak daily average
             </p>
-            {stats?.peakHashRate == null && (
+            {chain.isSuccess && stats?.peakHashRate == null && (
               <div className="absolute inset-x-0 top-8 flex justify-center bg-card">
                 <MissingApiData
                   compact

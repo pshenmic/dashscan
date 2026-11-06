@@ -128,7 +128,23 @@ export function HomeCoinJoin() {
                 {metricDuffs(volume.data?.coinjoinAmount, 2)}{" "}
                 <span className="text-base font-medium">DASH</span>
               </p>
-              {change != null ? (
+              {volume.isPending || previousVolume.isPending ? (
+                <output aria-label="Loading CoinJoin volume comparison">
+                  …
+                </output>
+              ) : volume.isError || previousVolume.isError ? (
+                <button
+                  type="button"
+                  className="text-sm text-destructive underline"
+                  aria-label="Retry CoinJoin volume comparison"
+                  onClick={() => {
+                    void volume.refetch();
+                    void previousVolume.refetch();
+                  }}
+                >
+                  Retry
+                </button>
+              ) : change != null ? (
                 <span className="text-sm text-accent">
                   {change > 0 ? "+" : ""}
                   {metricNumber(change)}%
@@ -144,7 +160,7 @@ export function HomeCoinJoin() {
                 <MissingApiData
                   inline
                   className="whitespace-nowrap"
-                  description="The weekly volume comparison is unavailable or the preceding week has zero volume."
+                  description="The selected network has not returned volume for both consecutive weeks."
                 />
               )}
             </div>

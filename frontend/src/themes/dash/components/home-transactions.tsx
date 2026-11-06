@@ -46,6 +46,18 @@ export function HomeTransactions() {
       aria-labelledby={titleId}
       className="space-y-10 py-4 sm:py-8 lg:space-y-16"
     >
+      {breakdown.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          Could not load transaction statistics.{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void breakdown.refetch()}
+          >
+            Try again
+          </button>
+        </p>
+      )}
       <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,725fr)_minmax(0,503fr)] xl:gap-8 min-[1400px]:gap-[84px]">
         <div className="relative order-2 grid min-w-0 items-start gap-4 sm:grid-cols-2 xl:order-1">
           <div
@@ -106,11 +118,13 @@ export function HomeTransactions() {
                   >
                     Avg {metricNumber(breakdown.data.total / 86400)} Tx/s
                   </span>
-                ) : (
+                ) : breakdown.isSuccess ? (
                   <MissingApiData
                     inline
-                    description="The API does not provide the 24-hour transaction total."
+                    description="The selected network has not returned the 24-hour transaction total."
                   />
+                ) : (
+                  <span>{breakdown.isPending ? "…" : "—"}</span>
                 )}
               </span>
             </div>
@@ -162,10 +176,10 @@ export function HomeTransactions() {
                 {metricDuffs(breakdown.data?.averageFee)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
-              {breakdown.data?.averageFee == null ? (
+              {breakdown.isSuccess && breakdown.data?.averageFee == null ? (
                 <MissingApiData
                   inline
-                  description="Average transaction fees are not exposed by the API."
+                  description="The selected network has not returned an average transaction fee."
                 />
               ) : (
                 <span
@@ -229,9 +243,9 @@ export function HomeTransactions() {
                 <span className="rounded-lg bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">
                   24H
                 </span>
-                {breakdown.data?.fees == null && (
+                {breakdown.isSuccess && breakdown.data?.fees == null && (
                   <MissingApiData
-                    description="Total transaction fees for the last 24 hours and their change are not available from the API."
+                    description="The selected network has not returned total transaction fees for the last 24 hours."
                     inline
                   />
                 )}

@@ -426,7 +426,7 @@ export function HomeAddresses() {
               period="24H snapshot change"
               change={unspentChange}
               missing={
-                unspentChange == null
+                snapshots.isSuccess && unspentChange == null
                   ? "The API has not yet provided snapshots covering a full 24 hours for the UTXO balance comparison."
                   : undefined
               }
@@ -513,7 +513,7 @@ export function HomeAddresses() {
             period="30D change"
             change={addressChange}
             missing={
-              addressChange == null
+              addressHistory.isSuccess && addressChange == null
                 ? "Complete address history for a 30-day comparison is not available."
                 : undefined
             }

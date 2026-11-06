@@ -398,13 +398,13 @@ function MasternodesSection({ network }: { network: Network }) {
                     {growth > 0 ? "+" : ""}
                     {metricNumber(growth)}%
                   </span>
-                ) : (
+                ) : history.isSuccess ? (
                   <MissingApiData
                     inline
                     className="whitespace-nowrap"
                     description="The API has not yet provided two comparable masternode snapshots 30 days apart."
                   />
-                )}
+                ) : null}
               </div>
               <p className="text-sm font-medium leading-4 text-muted-foreground">
                 30-day snapshot comparison
@@ -470,12 +470,12 @@ function MasternodesSection({ network }: { network: Network }) {
                     {item.change > 0 ? "+" : ""}
                     {metricNumber(item.change)}% · 365D
                   </span>
-                ) : (
+                ) : history.isSuccess && yearAgo.isSuccess ? (
                   <MissingApiData
                     inline
                     description="The selected network does not have comparable masternode snapshots 365 days apart."
                   />
-                )}
+                ) : null}
               </div>
             </div>
           ))}
