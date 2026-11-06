@@ -1567,6 +1567,22 @@ Returns counts and amounts of confirmed AssetLock (deposit to Platform) and Asse
 
 ---
 
+### GET /supply
+
+Returns the total supply of the indexed network from Dash Core `gettxoutsetinfo`: the sum of all unspent outputs. Same snapshot as `utxoSummary` in `/addresses/rich-list`, cached for 30 minutes.
+
+**Response `200`**
+
+```json
+{ "totalSupply": "2360586620005817" }
+```
+
+| Field         | Type   | Description           |
+|---------------|--------|-----------------------|
+| `totalSupply` | string | Total supply in duffs |
+
+---
+
 ### GET /search
 
 Searches across blocks, transactions, masternodes, and addresses. Input type is detected automatically.

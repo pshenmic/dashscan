@@ -282,6 +282,11 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/supply',
+      method: 'get',
+      handler: mainController.getTotalSupply,
+    },
+    {
       path: '/search',
       method: 'get',
       handler: searchController.search,
