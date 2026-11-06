@@ -7,11 +7,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { blockRewardQueryOptions } from "@/lib/api/blocks";
 import { formatDateTime } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { useNewBlocks } from "@/themes/dash/hooks/use-new-blocks";
-import { metricBytes, metricNumber } from "@/themes/dash/lib/home-metrics";
+import {
+  metricBytes,
+  metricDuffs,
+  metricNumber,
+} from "@/themes/dash/lib/home-metrics";
 import { BlockAge } from "./block-age";
 import { HomeIcon } from "./home-icon";
 import { LatestBlocksTable } from "./latest-blocks-table";
@@ -21,6 +26,14 @@ export function HomeBlocks() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
   const chain = useQuery(homeChainQueryOptions(network));
+  const superblockHeight = chain.data?.latestSuperblockHeight;
+  const reward = useQuery(
+    blockRewardQueryOptions({ network, height: superblockHeight }),
+  );
+  const subsidy =
+    reward.data?.height === superblockHeight
+      ? metricDuffs(reward.data?.subsidy)
+      : "—";
   const blocksQuery = useQuery(homeBlocksQueryOptions(network));
   const newHashes = useNewBlocks(blocksQuery.data?.resultSet, network);
   const blocks = [...(blocksQuery.data?.resultSet ?? [])].sort(
@@ -159,11 +172,41 @@ export function HomeBlocks() {
             )}
             <span className="text-muted-foreground">
               <span className="inline-flex flex-wrap items-center gap-2 rounded-full bg-card px-2 py-1 shadow-[0_0_24px_rgb(12_28_51/8%)]">
-                Block Reward:
-                <MissingApiData
-                  inline
-                  description="The API exposes the current Core-tip subsidy, but not the subsidy, fees and treasury payouts tied to this displayed superblock."
-                />
+                Block Subsidy:
+                {superblockHeight == null ? (
+                  <span>—</span>
+                ) : reward.isPending ? (
+                  <output aria-label="Loading block subsidy">…</output>
+                ) : reward.isError ? (
+                  <button
+                    type="button"
+                    className="text-destructive underline"
+                    aria-label="Retry block subsidy"
+                    onClick={() => void reward.refetch()}
+                  >
+                    Retry
+                  </button>
+                ) : subsidy !== "—" ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="rounded text-accent focus-visible:outline-2 focus-visible:outline-ring"
+                      >
+                        {subsidy} DASH
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Subsidy for block #{metricNumber(superblockHeight, 0)},
+                      excluding transaction fees and treasury payouts.
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <MissingApiData
+                    inline
+                    description="The selected network has not returned a subsidy for this superblock."
+                  />
+                )}
               </span>
             </span>
           </div>

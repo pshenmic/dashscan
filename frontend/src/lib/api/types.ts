@@ -31,6 +31,16 @@ export interface ApiBlock {
   superblock?: boolean | null;
 }
 
+export interface ApiBlockReward {
+  height: number | null;
+  subsidy: number | null;
+  fees: number | null;
+  miner: number | null;
+  masternode: number | null;
+  platform: number | null;
+  treasury: number | null;
+}
+
 export interface ApiVIn {
   prevTxHash: string | null;
   vOutIndex: number | null;
