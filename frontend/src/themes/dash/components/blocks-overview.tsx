@@ -94,21 +94,25 @@ export function BlocksOverview({ network }: { network: Network }) {
   const history = useQuery(
     transactionsStatsQueryOptions({
       network,
-      timestampStart: midpoint,
+      timestampStart: period.days === 1 ? range.timestampStart : midpoint,
       timestampEnd: range.timestampEnd,
-      intervalsCount: period.days,
+      intervalsCount: Math.max(2, period.days),
     }),
   );
-  const previousHistory = useQuery(
-    transactionsStatsQueryOptions({
+  const previousHistory = useQuery({
+    ...transactionsStatsQueryOptions({
       network,
       timestampStart: range.timestampStart,
       timestampEnd: midpoint,
-      intervalsCount: period.days,
+      intervalsCount: Math.max(2, period.days),
     }),
-  );
+    enabled: period.days > 1,
+  });
   const summary = transactionHistorySummary(
-    [...(previousHistory.data ?? []), ...(history.data ?? [])],
+    [
+      ...(period.days > 1 ? (previousHistory.data ?? []) : []),
+      ...(history.data ?? []),
+    ],
     range.timestampEnd,
     period.days,
   );

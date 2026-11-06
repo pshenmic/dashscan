@@ -251,7 +251,7 @@ export function AreaChart<T>({
             );
           })}
       </svg>
-      {compact && (hoveredIndex !== null || points.length === 1) && (
+      {((compact && hoveredIndex !== null) || points.length === 1) && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-chart-1 bg-card"
