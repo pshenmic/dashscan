@@ -1,6 +1,7 @@
 import type { Network } from "@/lib/store";
 
 export const SERVER_API_TIMEOUT_MS = 1_000;
+export const CLIENT_API_TIMEOUT_MS = 15_000;
 
 export class ApiTimeoutError extends Error {
   readonly timeoutMs: number;
@@ -32,43 +33,26 @@ export async function apiFetch(
     signal,
     timeoutMs = typeof window === "undefined"
       ? SERVER_API_TIMEOUT_MS
-      : undefined,
+      : CLIENT_API_TIMEOUT_MS,
     ...requestInit
   } = options;
-  const controller = new AbortController();
-  let abortSource: "caller" | "timeout" | null = null;
-
-  const abortFromCaller = () => {
-    if (controller.signal.aborted) return;
-    abortSource = "caller";
-    controller.abort(signal?.reason);
-  };
-
-  if (signal?.aborted) {
-    abortFromCaller();
-  } else {
-    signal?.addEventListener("abort", abortFromCaller, { once: true });
-  }
-
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  if (timeoutMs !== undefined) {
-    timeoutId = setTimeout(() => {
-      if (controller.signal.aborted) return;
-      abortSource = "timeout";
-      controller.abort();
-    }, timeoutMs);
-  }
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const callerSignal =
+    signal ?? (input instanceof Request ? input.signal : undefined);
+  const requestSignal = callerSignal
+    ? AbortSignal.any([callerSignal, timeoutSignal])
+    : timeoutSignal;
 
   try {
-    return await fetch(input, { ...requestInit, signal: controller.signal });
+    return await fetch(input, { ...requestInit, signal: requestSignal });
   } catch (error) {
-    if (abortSource === "timeout" && timeoutMs !== undefined) {
+    if (
+      timeoutSignal.aborted &&
+      requestSignal.reason === timeoutSignal.reason
+    ) {
       throw new ApiTimeoutError(input, timeoutMs, error);
     }
     throw error;
-  } finally {
-    if (timeoutId !== undefined) clearTimeout(timeoutId);
-    signal?.removeEventListener("abort", abortFromCaller);
   }
 }
 
