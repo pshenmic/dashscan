@@ -7,10 +7,16 @@ import {
   priceHistoricalQueryOptions,
   priceQueryOptions,
 } from "@/lib/api/price";
+import { transactionsBreakdown24hQueryOptions } from "@/lib/api/stats";
 import { formatDateTime, formatHashRate, formatNumber } from "@/lib/format";
-import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
+import { homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import {
+  percentageChange,
+  useHistoryRange,
+  useHomeChainHistory,
+} from "@/themes/dash/lib/home-history";
 import {
   estimatedSupply,
   historyChange,
@@ -18,6 +24,7 @@ import {
   sortedHistory,
 } from "@/themes/dash/lib/home-metrics";
 import { AreaChart } from "./area-chart";
+import { ChainHistoryChart } from "./chain-history-chart";
 import { MissingApiData } from "./missing-api-data";
 
 function StatCard({
@@ -75,7 +82,28 @@ export function HomeGeneralStats() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
   const chain = useQuery(homeChainQueryOptions(network));
-  const blocksQuery = useQuery(homeBlocksQueryOptions(network));
+  const chainHistory = useHomeChainHistory(network);
+  const rateRange = useHistoryRange(1);
+  const breakdown = useQuery(
+    transactionsBreakdown24hQueryOptions({
+      network,
+      timestampStart: rateRange.timestampStart,
+      timestampEnd: rateRange.timestampEnd,
+    }),
+  );
+  const previousBreakdown = useQuery(
+    transactionsBreakdown24hQueryOptions({
+      network,
+      timestampStart: new Date(
+        Date.parse(rateRange.timestampStart) - 86_400_000,
+      ).toISOString(),
+      timestampEnd: rateRange.timestampStart,
+    }),
+  );
+  const rateChange = percentageChange(
+    breakdown.data?.total,
+    previousBreakdown.data?.total,
+  );
   const price = useQuery(priceQueryOptions({ network, currency: "usd" }));
   const history = useQuery(
     priceHistoricalQueryOptions({ network, currency: "usd" }),
@@ -89,9 +117,6 @@ export function HomeGeneralStats() {
   );
   const priceHistory = sortedHistory(history.data);
   const supply = estimatedSupply(marketCap.data?.usd, price.data?.usd);
-  const blocks = [...(blocksQuery.data?.resultSet ?? [])]
-    .filter((block) => Number.isFinite(block.difficulty))
-    .sort((first, second) => first.height - second.height);
   const firstPrice = priceHistory[0];
   const lastPrice = priceHistory.at(-1);
   const difficulty = stats?.difficulty;
@@ -103,16 +128,6 @@ export function HomeGeneralStats() {
         : 1;
   const difficultyUnit =
     difficultyScale === 1_000_000 ? "M" : difficultyScale === 1_000 ? "K" : "";
-  const difficultyLabels = Array.from(
-    { length: Math.min(5, blocks.length) },
-    (_, index) =>
-      blocks[
-        Math.round(
-          (index * (blocks.length - 1)) /
-            Math.max(1, Math.min(5, blocks.length) - 1),
-        )
-      ],
-  );
 
   return (
     <section aria-labelledby={titleId} className="space-y-6">
@@ -251,14 +266,25 @@ export function HomeGeneralStats() {
           className="@container grid grid-cols-[minmax(0,1fr)_max-content] gap-3 px-4 sm:px-6"
         >
           <div className="flex min-h-20 flex-col items-center justify-center gap-1">
-            <p className="text-xl font-extrabold text-brand">—</p>
+            <p
+              className="text-xl font-extrabold text-brand"
+              title={
+                stats?.peakHashRateTimestamp
+                  ? formatDateTime(stats.peakHashRateTimestamp)
+                  : undefined
+              }
+            >
+              {formatHashRate(stats?.peakHashRate)}
+            </p>
             <p className="dash-label-small text-muted-foreground">
               Network peak
             </p>
-            <MissingApiData
-              compact
-              description="The historical peak hashrate for the selected network is not available."
-            />
+            {stats?.peakHashRate == null && (
+              <MissingApiData
+                compact
+                description="The historical peak hashrate for the selected network is not available."
+              />
+            )}
           </div>
         </StatCard>
         <StatCard
@@ -276,7 +302,7 @@ export function HomeGeneralStats() {
           }
         />
         <StatCard
-          label="Transaction Rate"
+          label="Current TPS"
           value={
             <span
               className="whitespace-nowrap"
@@ -289,11 +315,36 @@ export function HomeGeneralStats() {
           detail={
             <div className="flex items-center gap-1 whitespace-nowrap">
               <span className="rounded-lg bg-secondary px-2 py-1">24H</span>
-              <span>—</span>
-              <MissingApiData
-                inline
-                description="The current rate is averaged over the last 20 indexed blocks. A comparable value from 24 hours ago is not available."
-              />
+              {breakdown.isPending || previousBreakdown.isPending ? (
+                <output aria-label="Loading TPS comparison">…</output>
+              ) : breakdown.isError || previousBreakdown.isError ? (
+                <button
+                  type="button"
+                  className="text-destructive underline"
+                  aria-label="Retry TPS comparison"
+                  onClick={() => {
+                    void breakdown.refetch();
+                    void previousBreakdown.refetch();
+                  }}
+                >
+                  Retry
+                </button>
+              ) : rateChange != null ? (
+                <span
+                  title={`Change in average confirmed TPS between two consecutive 24-hour periods, ending ${formatDateTime(rateRange.timestampEnd)}. Not a change in the current 20-block estimate.`}
+                >
+                  <Change value={rateChange} />
+                </span>
+              ) : previousBreakdown.data?.total === 0 ? (
+                <span title="Percentage change is undefined because the previous 24-hour period has no confirmed transactions.">
+                  —
+                </span>
+              ) : (
+                <MissingApiData
+                  inline
+                  description="Transaction totals for both consecutive 24-hour periods are required to compare average TPS."
+                />
+              )}
             </div>
           }
         />
@@ -314,22 +365,16 @@ export function HomeGeneralStats() {
               Estimate over 120 blocks
             </p>
           </div>
-          <div className="relative h-32 min-w-0 w-full sm:flex-1">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 inset-y-1 flex flex-col justify-between"
-            >
-              {[0, 1, 2, 3].map((line) => (
-                <div
-                  key={line}
-                  className="border-t border-dashed border-foreground/15"
-                />
-              ))}
-            </div>
-            <div className="relative flex h-full items-center justify-center">
-              <MissingApiData
-                description="Historical hashrate and a comparable value from last month are not available for the selected network."
-                className="rounded-lg bg-card p-2 text-center"
+          <div className="min-w-0 w-full sm:flex-1">
+            <div className="flex items-center justify-center">
+              <ChainHistoryChart
+                data={chainHistory.data}
+                metric="hashRate"
+                label="Historical hashrate · 30 days"
+                formatValue={(value) => formatHashRate(String(value))}
+                loading={chainHistory.isPending}
+                error={chainHistory.isError}
+                onRetry={() => void chainHistory.refetch()}
               />
             </div>
           </div>
@@ -354,59 +399,22 @@ export function HomeGeneralStats() {
                   </span>
                 )}
               </p>
-              <MissingApiData
-                inline
-                description="A comparable mining difficulty value from last month is not available."
-              />
+              <span className="text-xs text-muted-foreground">Current</span>
             </div>
             <p className="text-sm font-medium leading-4 text-foreground/48">
-              Last {metricNumber(blocks.length, 0)} indexed blocks
+              Daily averages · 30 days
             </p>
           </div>
           <div className="@container w-full min-w-0 sm:flex-1">
-            {blocks.length > 1 ? (
-              <>
-                <AreaChart
-                  compact
-                  compactHeight={128}
-                  data={blocks}
-                  getValue={(block) => block.difficulty}
-                  getKey={(block) => block.hash}
-                  getXLabel={(block) => `#${metricNumber(block.height, 0)}`}
-                  renderTooltip={(block) => (
-                    <>
-                      <p>#{metricNumber(block.height, 0)}</p>
-                      <p>Difficulty: {metricNumber(block.difficulty)}</p>
-                    </>
-                  )}
-                  ariaLabel="Mining difficulty of recent blocks"
-                  minimumMax={0}
-                  formatYLabel={(value) => metricNumber(value)}
-                />
-                <div className="mt-6 flex justify-between gap-2 text-xs font-medium text-foreground/32">
-                  {difficultyLabels.map((block, index) => (
-                    <span
-                      key={block.hash}
-                      className={
-                        index === 0 || index === difficultyLabels.length - 1
-                          ? "whitespace-nowrap"
-                          : index === Math.floor(difficultyLabels.length / 2)
-                            ? "hidden whitespace-nowrap @[16rem]:block"
-                            : "hidden whitespace-nowrap @[24rem]:block"
-                      }
-                    >
-                      #{metricNumber(block.height, 0)}
-                    </span>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="dash-body-compact flex h-32 items-center justify-center text-muted-foreground">
-                {blocksQuery.isPending
-                  ? "Loading chart…"
-                  : "Difficulty history unavailable"}
-              </p>
-            )}
+            <ChainHistoryChart
+              data={chainHistory.data}
+              metric="difficulty"
+              label="Daily average mining difficulty · 30 days"
+              formatValue={(value) => metricNumber(value)}
+              loading={chainHistory.isPending}
+              error={chainHistory.isError}
+              onRetry={() => void chainHistory.refetch()}
+            />
           </div>
         </div>
       </div>
