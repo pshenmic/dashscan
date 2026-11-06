@@ -2,6 +2,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { type ReactNode, useId } from "react";
+import { assetStatsQueryOptions } from "@/lib/api/stats";
 import {
   transactionQueryOptions,
   transactionsQueryOptions,
@@ -11,9 +12,14 @@ import { formatCompact } from "@/lib/format";
 import { homeBlocksQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { assetTransferAmount } from "@/themes/dash/lib/asset-metrics";
-import { metricNumber } from "@/themes/dash/lib/home-metrics";
+import {
+  useHistoryRange,
+  useHomeChainHistory,
+} from "@/themes/dash/lib/home-history";
+import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { BlockAge } from "./block-age";
+import { ChainHistoryChart } from "./chain-history-chart";
 import { HomeIcon } from "./home-icon";
 import { InfoPopover } from "./info-popover";
 import { MissingApiData } from "./missing-api-data";
@@ -123,6 +129,13 @@ export function HomeAssets() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
   const blocks = useQuery(homeBlocksQueryOptions(network));
+  const assetRange = useHistoryRange(1, 24);
+  const assetStats = useQuery(
+    assetStatsQueryOptions({ network, ...assetRange }),
+  );
+  const poolHistory = useHomeChainHistory(network);
+  const locked = assetStats.data?.assetLock;
+  const unlocked = assetStats.data?.assetUnlock;
   const locks = useQuery({
     ...transactionsQueryOptions({
       network,
@@ -294,6 +307,15 @@ export function HomeAssets() {
           </div>
         </div>
       </div>
+      {assetStats.isError && (
+        <button
+          type="button"
+          onClick={() => void assetStats.refetch()}
+          className="text-sm text-destructive underline"
+        >
+          Retry transfer statistics
+        </button>
+      )}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,716fr)_minmax(0,580fr)]">
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
           <AssetMetric icon="credit-pool" label="Core credit pool balance">
@@ -318,25 +340,31 @@ export function HomeAssets() {
           <AssetMetric icon="asset-lock" label="Deposited amount in 24 Hours">
             <div className="flex items-center gap-2">
               <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
-                — <span className="font-medium">DASH</span>
+                {assetStats.isPending ? "…" : metricDuffs(locked?.amount)}{" "}
+                <span className="font-medium">DASH</span>
               </p>
-              <MissingApiData
-                inline
-                className="whitespace-nowrap"
-                description="The API provides individual AssetLock transactions but no complete 24-hour locked-amount aggregate. Summing the latest three transactions would be misleading."
-              />
+              {assetStats.isSuccess && locked?.amount == null && (
+                <MissingApiData
+                  inline
+                  className="whitespace-nowrap"
+                  description="The selected network has not returned the 24-hour AssetLock amount."
+                />
+              )}
             </div>
           </AssetMetric>
           <AssetMetric icon="asset-unlock" label="Withdrawn amount in 24 Hours">
             <div className="flex items-center gap-2">
               <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
-                — <span className="font-medium">DASH</span>
+                {assetStats.isPending ? "…" : metricDuffs(unlocked?.amount)}{" "}
+                <span className="font-medium">DASH</span>
               </p>
-              <MissingApiData
-                inline
-                className="whitespace-nowrap"
-                description="A complete 24-hour AssetUnlock amount aggregate is not available. Latest withdrawals are not a daily total."
-              />
+              {assetStats.isSuccess && unlocked?.amount == null && (
+                <MissingApiData
+                  inline
+                  className="whitespace-nowrap"
+                  description="The selected network has not returned the 24-hour AssetUnlock amount."
+                />
+              )}
             </div>
           </AssetMetric>
           <AssetMetric
@@ -345,13 +373,24 @@ export function HomeAssets() {
           >
             <div className="flex items-center gap-2">
               <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
-                — <span className="font-medium">Txs</span>
+                {assetStats.isPending
+                  ? "…"
+                  : metricNumber(
+                      locked?.count != null && unlocked?.count != null
+                        ? locked.count + unlocked.count
+                        : null,
+                      0,
+                    )}{" "}
+                <span className="font-medium">Txs</span>
               </p>
-              <MissingApiData
-                inline
-                className="whitespace-nowrap"
-                description="The API does not expose a 24-hour breakdown for AssetLock and AssetUnlock transaction counts. This is a count, not a DASH or credit amount."
-              />
+              {assetStats.isSuccess &&
+                (locked?.count == null || unlocked?.count == null) && (
+                  <MissingApiData
+                    inline
+                    className="whitespace-nowrap"
+                    description="The API does not expose a 24-hour breakdown for AssetLock and AssetUnlock transaction counts. This is a count, not a DASH or credit amount."
+                  />
+                )}
             </div>
           </AssetMetric>
         </div>
@@ -368,8 +407,8 @@ export function HomeAssets() {
             </div>
             <InfoPopover label="About the credit pool">
               Core credit pool balance in DASH, as reported by indexed blocks.
-              This is not a direct count of issued Platform credits. Multi-day
-              balance history is not yet available through the API.
+              This is not a direct count of issued Platform credits. The chart
+              shows the last indexed balance in each daily interval.
             </InfoPopover>
           </div>
           {blocks.isError ? (
@@ -393,7 +432,15 @@ export function HomeAssets() {
             </p>
           ) : null}
           <div className="flex min-h-[88px] flex-1 flex-col justify-center">
-            <MissingApiData description="A multi-day credit pool history and its percentage change are not exposed by the current API." />
+            <ChainHistoryChart
+              data={poolHistory.data}
+              metric="creditPoolBalance"
+              label="Core credit pool history · 30 days"
+              formatValue={(value) => `${metricNumber(value)} DASH`}
+              loading={poolHistory.isPending}
+              error={poolHistory.isError}
+              onRetry={() => void poolHistory.refetch()}
+            />
           </div>
         </div>
       </div>
