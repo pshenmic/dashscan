@@ -8,6 +8,7 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   pageSize?: number;
   onPageSizeChange?: (size: PageSize) => void;
+  align?: "center" | "end";
 }
 
 export function Pagination({
@@ -16,6 +17,7 @@ export function Pagination({
   onPageChange,
   pageSize,
   onPageSizeChange,
+  align = "center",
 }: PaginationProps) {
   const pageIndex = page - 1;
 
@@ -36,13 +38,18 @@ export function Pagination({
     "flex h-9 items-center justify-center rounded-lg border border-border px-[18px] text-xs font-medium transition-colors";
 
   return (
-    <div className="flex items-center justify-center px-6 pb-4 pt-2">
+    <div
+      className={`flex flex-wrap items-center gap-3 px-2 pb-4 pt-2 sm:px-6 ${align === "end" ? "justify-between" : "justify-center"}`}
+    >
       {pageSize != null && onPageSizeChange && (
         <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
       )}
-      <div className="flex flex-1 items-center justify-center gap-1">
+      <div
+        className={`flex flex-1 basis-full flex-wrap items-center justify-center gap-1 sm:basis-auto ${align === "end" ? "sm:justify-end" : ""}`}
+      >
         <button
           type="button"
+          aria-label="Previous page"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
           className={`${btnBase} hover:bg-accent/10 disabled:opacity-40`}
@@ -58,6 +65,8 @@ export function Pagination({
             <button
               key={p}
               type="button"
+              aria-label={`Page ${p + 1}`}
+              aria-current={p === pageIndex ? "page" : undefined}
               onClick={() => onPageChange(p + 1)}
               className={`${btnBase} ${p === pageIndex ? "border-accent bg-accent text-accent-foreground" : "hover:bg-accent/10"}`}
             >
@@ -67,6 +76,7 @@ export function Pagination({
         )}
         <button
           type="button"
+          aria-label="Next page"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= pageCount}
           className={`${btnBase} hover:bg-accent/10 disabled:opacity-40`}

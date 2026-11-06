@@ -3,22 +3,23 @@ import { formatNumber } from "@/lib/format";
 
 const DAY_MS = 86_400_000;
 
-export function transactionHistoryRange(now: number) {
+export function transactionHistoryRange(now: number, days = 30) {
   const end = Math.floor(now / DAY_MS) * DAY_MS;
   return {
-    timestampStart: new Date(end - 60 * DAY_MS).toISOString(),
+    timestampStart: new Date(end - 2 * days * DAY_MS).toISOString(),
     timestampEnd: new Date(end).toISOString(),
-    intervalsCount: 60,
+    intervalsCount: 2 * days,
   };
 }
 
 export function transactionHistorySummary(
   entries: ApiTransactionsStatsEntry[] | undefined,
   end: string,
+  days = 30,
 ) {
   const endTime = Date.parse(end);
-  const midpoint = endTime - 30 * DAY_MS;
-  const startTime = endTime - 60 * DAY_MS;
+  const midpoint = endTime - days * DAY_MS;
+  const startTime = endTime - 2 * days * DAY_MS;
   const valid = (entries ?? [])
     .filter((entry) => {
       const time = Date.parse(entry.timestamp);
@@ -40,7 +41,7 @@ export function transactionHistorySummary(
     (entry) => Date.parse(entry.timestamp) < midpoint,
   );
   const complete = (period: ApiTransactionsStatsEntry[], start: number) =>
-    period.length === 30 &&
+    period.length === days &&
     period.every(
       (entry, index) => Date.parse(entry.timestamp) === start + index * DAY_MS,
     );

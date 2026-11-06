@@ -15,6 +15,7 @@ type AreaChartProps<T> = {
   compactHeight?: number;
   minimumMax?: number;
   zeroBaseline?: boolean;
+  tooltipPlacement?: "corner" | "point";
   getValueText?: (item: T) => string;
   formatYLabel?: (value: number) => string;
 };
@@ -31,6 +32,7 @@ export function AreaChart<T>({
   compactHeight = 62,
   minimumMax = 1,
   zeroBaseline = false,
+  tooltipPlacement = "corner",
   getValueText,
   formatYLabel = String,
 }: AreaChartProps<T>) {
@@ -54,9 +56,16 @@ export function AreaChart<T>({
       minimumMax,
       Number.EPSILON,
     );
-    const magnitude = 10 ** Math.floor(Math.log10(maxValue || 1));
+    const magnitude = 10 ** Math.floor(Math.log10(maxValue / 3));
+    const normalizedStep = maxValue / 3 / magnitude;
     const step =
-      magnitude < 1 ? magnitude : magnitude <= 5 ? magnitude : magnitude / 2;
+      (normalizedStep <= 1
+        ? 1
+        : normalizedStep <= 2
+          ? 2
+          : normalizedStep <= 5
+            ? 5
+            : 10) * magnitude;
     const minValue = Math.min(...data.map(getValue));
     const rangePadding = Math.max(
       (maxValue - minValue) * 0.1,
@@ -65,18 +74,11 @@ export function AreaChart<T>({
     );
     const axisMin =
       compact && !zeroBaseline ? Math.max(0, minValue - rangePadding) : 0;
-    const niceMax = compact
-      ? maxValue + rangePadding
-      : Math.ceil(maxValue / step) * step || 1;
+    const niceMax = compact ? maxValue + rangePadding : step * 3;
     const axisRange = niceMax - axisMin;
     const yTicks = compact
       ? [0, 1, 2, 3].map((index) => axisMin + (axisRange * index) / 3)
-      : [
-          0,
-          niceMax < 3 ? niceMax / 3 : Math.round(niceMax / 3),
-          niceMax < 3 ? (niceMax * 2) / 3 : Math.round((niceMax * 2) / 3),
-          niceMax,
-        ];
+      : [0, step, step * 2, niceMax];
 
     const points = data.map((entry, i) => {
       const x =
@@ -132,6 +134,7 @@ export function AreaChart<T>({
     points.length - 1,
   );
   const selected = points[selectedIndex];
+  const pointTooltip = !compact && tooltipPlacement === "point";
 
   return (
     <div
@@ -251,7 +254,7 @@ export function AreaChart<T>({
             );
           })}
       </svg>
-      {compact && (hoveredIndex !== null || points.length === 1) && (
+      {((compact && hoveredIndex !== null) || points.length === 1) && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-chart-1 bg-card"
@@ -307,11 +310,32 @@ export function AreaChart<T>({
         <div
           aria-hidden="true"
           className={cn(
-            "pointer-events-none absolute z-10 rounded-xl border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-card",
-            compact
-              ? "bottom-full right-0 mb-2 w-max max-w-[min(16rem,calc(100vw-2rem))]"
-              : "right-2 top-0 max-w-[calc(100%-1rem)]",
+            "pointer-events-none absolute z-10 text-xs",
+            pointTooltip
+              ? "w-max max-w-[calc(50%-1rem)] rounded-lg bg-chart-1/12 px-2 py-1 text-foreground backdrop-blur-sm"
+              : "rounded-xl border border-border bg-popover px-3 py-2 text-popover-foreground shadow-card",
+            !pointTooltip &&
+              (compact
+                ? "bottom-full right-0 mb-2 w-max max-w-[min(16rem,calc(100vw-2rem))]"
+                : "right-2 top-0 max-w-[calc(100%-1rem)]"),
           )}
+          style={
+            pointTooltip
+              ? {
+                  left:
+                    selected.x <= width / 2
+                      ? `calc(${(selected.x / width) * 100}% + 12px)`
+                      : undefined,
+                  right:
+                    selected.x > width / 2
+                      ? `calc(${(1 - selected.x / width) * 100}% + 12px)`
+                      : undefined,
+                  top: `${(selected.y / height) * 100}%`,
+                  transform:
+                    selected.y > height / 2 ? "translateY(-100%)" : undefined,
+                }
+              : undefined
+          }
         >
           {renderTooltip(selected.entry)}
         </div>
