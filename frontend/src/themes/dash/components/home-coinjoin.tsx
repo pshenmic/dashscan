@@ -9,13 +9,37 @@ import {
 } from "@/components/ui/popover";
 import { transactionsBreakdown24hQueryOptions } from "@/lib/api/stats";
 import { appStore } from "@/lib/store";
-import { metricNumber } from "@/themes/dash/lib/home-metrics";
+import {
+  percentageChange,
+  useHistoryRange,
+  useHomeChainHistory,
+} from "@/themes/dash/lib/home-history";
+import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
+import { ChainHistoryChart } from "./chain-history-chart";
 import { HomeIcon } from "./home-icon";
 import { MissingApiData } from "./missing-api-data";
 
 export function HomeCoinJoin() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
+  const range = useHistoryRange(7);
+  const volume = useQuery(
+    transactionsBreakdown24hQueryOptions({ network, ...range }),
+  );
+  const previousVolume = useQuery(
+    transactionsBreakdown24hQueryOptions({
+      network,
+      timestampStart: new Date(
+        Date.parse(range.timestampStart) - 7 * 86400000,
+      ).toISOString(),
+      timestampEnd: range.timestampStart,
+    }),
+  );
+  const history = useHomeChainHistory(network, 7);
+  const change = percentageChange(
+    volume.data?.coinjoinAmount,
+    previousVolume.data?.coinjoinAmount,
+  );
   const stats = useQuery({
     ...transactionsBreakdown24hQueryOptions({ network }),
     refetchInterval: 30_000,
@@ -93,16 +117,36 @@ export function HomeCoinJoin() {
       <div className="dash-home-panel flex min-w-0 flex-col gap-8 self-stretch rounded-3xl p-6 xl:order-2 xl:min-h-[316px]">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-2">
-            <h3 className="text-base font-medium leading-4">Mixed amount</h3>
-            <div className="flex items-center gap-4">
-              <p className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]">
-                — <span className="text-base font-medium">DASH</span>
+            <h3 className="text-base font-medium leading-4">
+              CoinJoin volume · 7D
+            </h3>
+            <div className="flex flex-wrap items-center gap-4">
+              <p
+                className="text-[32px] font-extrabold leading-[1.0813]"
+                title={`${metricDuffs(volume.data?.coinjoinAmount)} DASH`}
+              >
+                {metricDuffs(volume.data?.coinjoinAmount, 2)}{" "}
+                <span className="text-base font-medium">DASH</span>
               </p>
-              <MissingApiData
-                inline
-                className="whitespace-nowrap"
-                description="Mixed DASH volume and its change compared with the previous week are not exposed by the API."
-              />
+              {change != null ? (
+                <span className="text-sm text-accent">
+                  {change > 0 ? "+" : ""}
+                  {metricNumber(change)}%
+                </span>
+              ) : previousVolume.data?.coinjoinAmount === 0 ? (
+                <span
+                  className="text-sm text-muted-foreground"
+                  title="A percentage change cannot be calculated from zero volume."
+                >
+                  —
+                </span>
+              ) : (
+                <MissingApiData
+                  inline
+                  className="whitespace-nowrap"
+                  description="The weekly volume comparison is unavailable or the preceding week has zero volume."
+                />
+              )}
             </div>
             <p className="text-sm font-medium leading-4 text-foreground/48">
               Compared to last <strong className="font-extrabold">week</strong>
@@ -125,14 +169,23 @@ export function HomeCoinJoin() {
               </button>
             </PopoverTrigger>
             <PopoverContent className="max-w-[calc(100vw-2rem)] text-sm">
-              The transaction count cannot be converted into a mixed DASH
-              amount. A complete volume series and a defined comparison period
-              are needed to display this chart and its weekly change.
+              Sum of amounts in transactions classified as CoinJoin, including
+              repeated mixing rounds. This is processed volume, not unique
+              funds.
             </PopoverContent>
           </Popover>
         </div>
         <div className="flex min-h-[164px] flex-1 flex-col justify-center">
-          <MissingApiData description="Mixed DASH volume, its history, and the change compared with the previous week are not exposed by the API." />
+          <ChainHistoryChart
+            data={history.data}
+            metric="coinjoinAmount"
+            label="Daily CoinJoin volume · 7 days"
+            formatValue={(value) => `${metricDuffs(value)} DASH`}
+            loading={history.isPending}
+            error={history.isError}
+            onRetry={() => void history.refetch()}
+            height={164}
+          />
         </div>
       </div>
     </section>
