@@ -33,7 +33,10 @@ export function IdentifierLink({
       >
         {value}
       </Link>
-      <CopyButton value={value} />
+      <CopyButton
+        value={value}
+        label={`Copy ${kind === "address" ? "address" : kind === "masternode" ? "ProTxHash" : `${kind} hash`}`}
+      />
     </div>
   );
 }

@@ -51,6 +51,12 @@ function ProposalName({
   rank?: number;
 }) {
   const name = proposal.name || proposal.hash || "Unnamed proposal";
+  const votingStatus =
+    proposal.enoughVotes == null
+      ? "Vote threshold status unavailable"
+      : proposal.enoughVotes
+        ? "Vote threshold reached; funding is not guaranteed"
+        : "Vote threshold not reached";
   return (
     <div className="flex w-0 min-w-full items-center gap-2">
       {rank != null ? (
@@ -60,20 +66,11 @@ function ProposalName({
           {rank}
         </span>
       ) : (
-        <DaoHint
-          label="Proposal voting status"
-          description={
-            proposal.enoughVotes == null
-              ? "Vote threshold status unavailable"
-              : proposal.enoughVotes
-                ? "Vote threshold reached; funding is not guaranteed"
-                : "Vote threshold not reached"
-          }
-        >
+        <DaoHint label={`${name}: ${votingStatus}`} description={votingStatus}>
           {proposal.enoughVotes ? (
             <img
               src="/icons/home/proposal-passing.svg"
-              alt="Vote threshold reached"
+              alt=""
               width={22}
               height={22}
             />
@@ -81,7 +78,7 @@ function ProposalName({
             <span className="flex size-[22px] items-center justify-center rounded-lg bg-foreground/24">
               <img
                 src="/icons/home/proposal-not-passing.svg"
-                alt="Vote threshold not reached"
+                alt=""
                 width={9}
                 height={9}
               />

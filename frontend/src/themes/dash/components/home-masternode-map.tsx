@@ -146,10 +146,41 @@ export function HomeNodeMap<Node>({
         projectionConfig={{ scale: width / 5.8 }}
         className="h-full w-full"
         role="group"
-        aria-label="Interactive map: scroll or pinch to zoom; keyboard +, − and 0"
+        aria-label="Interactive map: arrow keys to pan; + and − to zoom; 0 to reset"
         tabIndex={0}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
+          if (
+            ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+              event.key,
+            )
+          ) {
+            event.preventDefault();
+            setActive(null);
+            setPosition((current) => {
+              const step = 15 / current.zoom;
+              const [longitude, latitude] = current.coordinates;
+              const horizontal =
+                event.key === "ArrowLeft"
+                  ? -step
+                  : event.key === "ArrowRight"
+                    ? step
+                    : 0;
+              const vertical =
+                event.key === "ArrowUp"
+                  ? step
+                  : event.key === "ArrowDown"
+                    ? -step
+                    : 0;
+              return {
+                ...current,
+                coordinates: [
+                  ((longitude + horizontal + 540) % 360) - 180,
+                  Math.max(-80, Math.min(80, latitude + vertical)),
+                ],
+              };
+            });
+          }
           if (["+", "=", "-", "0"].includes(event.key)) {
             event.preventDefault();
             if (event.key === "0") {

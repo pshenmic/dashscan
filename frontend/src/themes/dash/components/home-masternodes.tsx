@@ -284,10 +284,18 @@ function MasternodesSection({ network }: { network: Network }) {
             <HomeTable aria-label="Masternodes">
               <thead>
                 <tr className="border-b border-foreground/8 text-muted-foreground">
-                  <th className="px-2 py-3 font-medium">IP Address</th>
-                  <th className="px-2 py-3 font-medium">ProTxHash</th>
-                  <th className="px-2 py-3 text-right font-medium">Type</th>
-                  <th className="px-2 py-3 text-right font-medium">Status</th>
+                  <th scope="col" className="px-2 py-3 font-medium">
+                    IP Address
+                  </th>
+                  <th scope="col" className="px-2 py-3 font-medium">
+                    ProTxHash
+                  </th>
+                  <th scope="col" className="px-2 py-3 text-right font-medium">
+                    Type
+                  </th>
+                  <th scope="col" className="px-2 py-3 text-right font-medium">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody>
