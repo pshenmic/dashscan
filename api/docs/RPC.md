@@ -506,7 +506,7 @@ Returns how a block's coinbase was paid out. Subsidy and fees come from Dash Cor
 | `miner`      | number | Paid to the miner: `subsidy + fees − masternode`                                         |
 | `masternode` | number | Paid to the masternode, including `platform`                                             |
 | `platform`   | number | Part of the masternode payment that goes to the Platform credit pool                     |
-| `treasury`   | number | Superblock payouts to proposals: coinbase total `− subsidy − fees`. `0` for other blocks |
+| `treasury`   | number | Superblock payouts: coinbase total `− subsidy − fees`, never negative. `0` otherwise     |
 
 **Response `404`**
 

@@ -4,6 +4,7 @@ import ChainStats from '../models/ChainStats';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
 import {NETWORK, SUPERBLOCK_INTERVALS} from "../constants";
+import {Coinbase} from "../types/block";
 
 export default class BlocksDAO {
   private knex: Knex;
@@ -261,15 +262,18 @@ export default class BlocksDAO {
     return Block.fromRow(row)
   };
 
-  getCoinbaseTotal = async (height: number): Promise<number | null> => {
+  getCoinbase = async (height: number): Promise<Coinbase | null> => {
     const [row] = await this.knex('tx_outputs')
       .join('transactions', 'transactions.id', 'tx_outputs.tx_id')
+      .join('blocks', 'blocks.height', 'transactions.block_height')
       .whereExists(this.knex('tx_inputs')
         .whereRaw('tx_inputs.tx_id = transactions.id')
         .whereNotNull('tx_inputs.coinbase_data'))
       .where('transactions.block_height', height)
+      .groupBy('blocks.superblock')
+      .select('blocks.superblock')
       .select(this.knex.raw('SUM(tx_outputs.value) AS total')) as any[];
 
-    return row?.total != null ? Number(row.total) : null;
+    return row != null ? { total: Number(row.total), superblock: row.superblock } : null;
   };
 }

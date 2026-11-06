@@ -1,4 +1,5 @@
 import {BlockStatsRPC, MasternodePaymentsRPC} from "../dashcoreRPC";
+import {Coinbase} from "../types/block";
 
 export default class BlockReward {
   height: number | null;
@@ -19,8 +20,7 @@ export default class BlockReward {
     this.treasury = treasury ?? null;
   }
 
-  // treasury is the superblock payout: whatever the coinbase pays beyond subsidy and fees
-  static fromRPC({height, subsidy, totalfee}: BlockStatsRPC, payments: MasternodePaymentsRPC | undefined, coinbaseTotal: number): BlockReward {
+  static fromRPC({height, subsidy, totalfee}: BlockStatsRPC, payments: MasternodePaymentsRPC | undefined, {total, superblock}: Coinbase): BlockReward {
     const masternodes = payments?.masternodes ?? [];
     const masternode = masternodes.reduce((acc, mn) => acc + mn.amount, 0);
     const platform = masternodes
@@ -28,6 +28,6 @@ export default class BlockReward {
       .filter((payee) => payee.script === '6a')
       .reduce((acc, payee) => acc + payee.amount, 0);
 
-    return new BlockReward(height, subsidy, totalfee, subsidy + totalfee - masternode, masternode, platform, coinbaseTotal - subsidy - totalfee);
+    return new BlockReward(height, subsidy, totalfee, subsidy + totalfee - masternode, masternode, platform, superblock ? Math.max(total - subsidy - totalfee, 0) : 0);
   }
 }

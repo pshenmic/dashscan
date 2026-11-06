@@ -74,9 +74,9 @@ export default class BlocksController {
   getBlockReward = async (request: FastifyRequest<{ Params: { height: number } }>, response: FastifyReply): Promise<void> => {
     const { height } = request.params;
 
-    const coinbaseTotal = await this.blocksDAO.getCoinbaseTotal(height);
+    const coinbase = await this.blocksDAO.getCoinbase(height);
 
-    if (coinbaseTotal == null) {
+    if (coinbase == null) {
       return response.status(404).send({ error: 'Block not found' });
     }
 
@@ -85,6 +85,6 @@ export default class BlocksController {
       this.dashcoreRPC.getBlockHash(height).then((hash) => this.dashcoreRPC.getMasternodePayments(hash)),
     ]);
 
-    response.send(BlockReward.fromRPC(stats, payments.find((p) => p.height === height), coinbaseTotal));
+    response.send(BlockReward.fromRPC(stats, payments.find((p) => p.height === height), coinbase));
   };
 }
