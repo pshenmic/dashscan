@@ -12,6 +12,20 @@ export default class BlocksDAO {
     this.knex = knex;
   }
 
+  // NULL when any spent input amount is unknown; AssetUnlock fees are in the payload
+  private blockFees = (height: string) => this.knex('transactions')
+    .select(this.knex.raw(`CASE WHEN BOOL_OR(inputs.unknown) THEN NULL
+      ELSE COALESCE(SUM(CASE WHEN transactions.type = 9 THEN asset_unlock.fee ELSE inputs.amount - outputs.value END), 0) END`))
+    .joinRaw(`LEFT JOIN LATERAL (SELECT SUM(amount) AS amount, BOOL_OR(amount IS NULL) AS unknown
+      FROM tx_inputs WHERE tx_inputs.tx_id = transactions.id AND tx_inputs.coinbase_data IS NULL) inputs ON true`)
+    .joinRaw(`LEFT JOIN LATERAL (SELECT SUM(value) AS value
+      FROM tx_outputs WHERE tx_outputs.tx_id = transactions.id) outputs ON true`)
+    .joinRaw(`LEFT JOIN LATERAL (SELECT get_byte(p, 9) + (get_byte(p, 10) << 8) + (get_byte(p, 11) << 16) + (get_byte(p, 12)::bigint << 24) AS fee
+      FROM special_transactions, decode(special_transactions.payload->>'extraPayload', 'hex') p
+      WHERE special_transactions.tx_id = transactions.id AND transactions.type = 9) asset_unlock ON true`)
+    .whereRaw('transactions.block_height = ??', [height])
+    .as('fees');
+
   getBlocks = async (page: number, limit: number, order: string, superblock?: boolean): Promise<PaginatedResultSet<Block>> => {
     const fromRank = (page - 1) * limit;
 
@@ -52,6 +66,7 @@ export default class BlocksDAO {
         'version', 'timestamp', 'tx_count','superblock',
         'size', 'nonce', 'previous_block_hash',
         'merkle_root', 'credit_pool_balance', 'total_count')
+      .select(this.blockFees('subquery.height'))
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
 
     const [row] = rows;
@@ -232,6 +247,7 @@ export default class BlocksDAO {
       .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.superblock',
         'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce',
         'blocks.previous_block_hash', 'blocks.merkle_root', 'blocks.credit_pool_balance')
+      .select(this.blockFees('blocks.height'))
       .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
       .where('blocks.hash', hash)
       .limit(1)

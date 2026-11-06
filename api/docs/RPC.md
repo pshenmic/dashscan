@@ -360,7 +360,8 @@ Returns a paginated list of blocks.
       "previousBlockHash": "000000000000efgh5678...",
       "nonce": 987654321,
       "confirmations": 42,
-      "superblock": false
+      "superblock": false,
+      "fees": 22650
     }
   ],
   "pagination": {
@@ -388,6 +389,7 @@ Returns a paginated list of blocks.
 | `nonce`             | number  | Mining nonce                                                 |
 | `confirmations`     | number  | Number of confirmations (`tip height - block height + 1`)    |
 | `superblock`        | boolean | Whether this block is a governance superblock                |
+| `fees`              | number  | Fees in duffs, excluding subsidy; `null` if unknown          |
 
 ---
 
@@ -457,7 +459,8 @@ Returns a single block by its hash.
   "previousBlockHash": "000000000000efgh5678...",
   "nonce": 987654321,
   "confirmations": 42,
-  "superblock": false
+  "superblock": false,
+  "fees": 22650
 }
 ```
 
