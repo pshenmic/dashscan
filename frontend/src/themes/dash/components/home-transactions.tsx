@@ -47,9 +47,9 @@ export function HomeTransactions() {
       className="space-y-10 py-4 sm:py-8 lg:space-y-16"
     >
       <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,725fr)_minmax(0,503fr)] xl:gap-8 min-[1400px]:gap-[84px]">
-        <div className="relative order-2 grid min-w-0 gap-4 sm:grid-cols-2 xl:order-1 xl:block xl:h-[243px]">
+        <div className="relative order-2 grid min-w-0 items-start gap-4 sm:grid-cols-2 xl:order-1">
           <div
-            className={`${surface} ${softShadow} relative z-10 xl:absolute xl:left-0 xl:top-0`}
+            className={`${surface} ${softShadow} relative min-w-0 xl:justify-self-start`}
           >
             <h3 className="text-xs font-medium leading-[1.1] text-muted-foreground">
               Total Transactions
@@ -82,7 +82,7 @@ export function HomeTransactions() {
             </div>
           </div>
           <div
-            className={`${surface} ${softShadow} relative z-10 xl:absolute xl:right-0 xl:top-0`}
+            className={`${surface} ${softShadow} relative min-w-0 xl:mt-6 xl:justify-self-end`}
           >
             <h3 className="text-xs font-medium leading-[1.1] text-muted-foreground">
               Current TPS
@@ -116,9 +116,9 @@ export function HomeTransactions() {
             </div>
           </div>
           <div
-            className={`${surface} ${softShadow} flex flex-col gap-4 sm:col-span-2 sm:flex-row sm:items-center sm:gap-12 xl:absolute xl:left-[9.5%] xl:top-[55px] xl:h-[133px] xl:w-[82.75%]`}
+            className={`${surface} ${softShadow} flex min-w-0 flex-wrap items-center gap-6 sm:col-span-2 xl:ml-[9.5%] xl:w-[82.75%]`}
           >
-            <div className="shrink-0">
+            <div className="min-w-0 flex-1 basis-40">
               <h3 className="text-sm font-medium leading-4 tracking-[-0.009em] text-muted-foreground">
                 Latest Core block fees
               </h3>
@@ -138,7 +138,7 @@ export function HomeTransactions() {
                 </span>
               </div>
             </div>
-            <div className="flex min-h-16 flex-1 items-center justify-center xl:h-full">
+            <div className="flex min-h-16 min-w-0 flex-1 basis-48 items-center justify-center">
               <ChainHistoryChart
                 data={feeHistory.data}
                 metric="feesPerBlock"
@@ -152,7 +152,7 @@ export function HomeTransactions() {
             </div>
           </div>
           <div
-            className={`${surface} relative z-10 shadow-card sm:col-span-2 sm:mx-auto sm:w-fit xl:absolute xl:bottom-0 xl:right-[31%]`}
+            className={`${surface} relative min-w-0 shadow-card sm:col-span-2 sm:mx-auto sm:w-fit xl:ml-auto xl:mr-[31%]`}
           >
             <h3 className="text-xs font-medium leading-[1.1] text-muted-foreground">
               Fees average

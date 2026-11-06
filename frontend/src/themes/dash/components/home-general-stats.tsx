@@ -133,7 +133,10 @@ export function HomeGeneralStats() {
     difficultyScale === 1_000_000 ? "M" : difficultyScale === 1_000 ? "K" : "";
 
   return (
-    <section aria-labelledby={titleId} className="space-y-6">
+    <section
+      aria-labelledby={titleId}
+      className="@container/overview space-y-6"
+    >
       <h2 id={titleId} className="text-xl font-medium text-muted-foreground">
         Overview
       </h2>
@@ -149,7 +152,7 @@ export function HomeGeneralStats() {
           </button>
         </p>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 min-[87.5rem]:grid-cols-[minmax(250px,1.5fr)_minmax(224px,1fr)_minmax(346px,1.7fr)_232px_minmax(200px,1fr)]">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 @min-[80rem]/overview:grid-cols-[minmax(250px,1.5fr)_minmax(224px,1fr)_minmax(346px,1.7fr)_232px_minmax(200px,1fr)]">
         <StatCard
           label="Dash Price (USD)"
           value={
@@ -322,16 +325,13 @@ export function HomeGeneralStats() {
         <StatCard
           label="Current TPS"
           value={
-            <span
-              className="whitespace-nowrap"
-              title="Average transactions per second over the last 20 indexed blocks."
-            >
+            <span title="Average transactions per second over the last 20 indexed blocks.">
               {metricNumber(stats?.transactionsPerSecond)}{" "}
               <span className="font-medium">Tx/s</span>
             </span>
           }
           detail={
-            <div className="flex items-center gap-1 whitespace-nowrap">
+            <div className="flex flex-wrap items-center gap-1">
               <span className="rounded-lg bg-secondary px-2 py-1">24H</span>
               {breakdown.isPending || previousBreakdown.isPending ? (
                 <output aria-label="Loading TPS comparison">…</output>
