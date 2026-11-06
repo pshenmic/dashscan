@@ -42,7 +42,10 @@ function applyTxFilters(url: URL, params: TransactionsFilterParams) {
   }
 }
 
-async function getTransactions(params: FetchTransactionsInput) {
+async function getTransactions(
+  params: FetchTransactionsInput,
+  signal?: AbortSignal,
+) {
   const url = new URL("/transactions", getBaseUrl(params.network));
   if (params.page !== undefined)
     url.searchParams.set("page", String(params.page));
@@ -51,7 +54,7 @@ async function getTransactions(params: FetchTransactionsInput) {
   if (params.order !== undefined) url.searchParams.set("order", params.order);
   applyTxFilters(url, params);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -75,7 +78,7 @@ export function transactionsQueryOptions(params: FetchTransactionsInput) {
       params.multisig ?? null,
       params.blockHeight ?? null,
     ],
-    queryFn: () => getTransactions(params),
+    queryFn: ({ signal }) => getTransactions(params, signal),
   });
 }
 
@@ -101,20 +104,44 @@ export function transactionsInfiniteQueryOptions(
       params.multisig ?? null,
       params.blockHeight ?? null,
     ],
-    queryFn: ({ pageParam }) =>
-      getTransactions({
-        network: params.network,
-        page: pageParam,
-        limit,
-        order,
-        transactionType: params.transactionType,
-        coinjoin: params.coinjoin,
-        multisig: params.multisig,
-        blockHeight: params.blockHeight,
-      }),
+    queryFn: ({ pageParam, signal }) =>
+      getTransactions(
+        {
+          network: params.network,
+          page: pageParam,
+          limit,
+          order,
+          transactionType: params.transactionType,
+          coinjoin: params.coinjoin,
+          multisig: params.multisig,
+          blockHeight: params.blockHeight,
+        },
+        signal,
+      ),
     initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
+    getNextPageParam: (lastPage, pages, lastPageParam) => {
       const { page, limit: pageLimit, total } = lastPage.pagination;
+      if (
+        page !== lastPageParam ||
+        pageLimit !== limit ||
+        !Number.isSafeInteger(total) ||
+        total < 0 ||
+        lastPage.resultSet.length !== limit
+      )
+        return undefined;
+      const previousHashes = new Set(
+        pages
+          .slice(0, -1)
+          .flatMap((batch) =>
+            batch.resultSet.map((transaction) => transaction.hash),
+          ),
+      );
+      if (
+        lastPage.resultSet.every((transaction) =>
+          previousHashes.has(transaction.hash),
+        )
+      )
+        return undefined;
       return page * pageLimit < total ? page + 1 : undefined;
     },
   });
@@ -125,12 +152,15 @@ interface FetchTransactionInput {
   hash: string;
 }
 
-async function getTransaction(params: FetchTransactionInput) {
+async function getTransaction(
+  params: FetchTransactionInput,
+  signal?: AbortSignal,
+) {
   const url = new URL(
     `/transaction/${params.hash}`,
     getBaseUrl(params.network),
   );
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -144,7 +174,7 @@ export const fetchTransaction = createServerFn({ method: "POST" })
 export function transactionQueryOptions(params: FetchTransactionInput) {
   return queryOptions({
     queryKey: ["transaction", params.network, params.hash],
-    queryFn: () => getTransaction(params),
+    queryFn: ({ signal }) => getTransaction(params, signal),
   });
 }
 
