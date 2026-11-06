@@ -10,13 +10,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { allMasternodesQueryOptions } from "@/lib/api/masternodes";
+import { chainHistoryQueryOptions } from "@/lib/api/stats";
 import { getIp } from "@/lib/format";
 import { appStore, type Network } from "@/lib/store";
+import {
+  percentageChange,
+  snapshotChange,
+  useHistoryRange,
+  useHomeChainHistory,
+} from "@/themes/dash/lib/home-history";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import {
   masternodeCountries,
   masternodeDistribution,
 } from "@/themes/dash/lib/masternode-metrics";
+import { ChainHistoryChart } from "./chain-history-chart";
 import { HomeIcon } from "./home-icon";
 import { HomeMapSurface } from "./home-map-surface";
 import { HomeMasternodeMap } from "./home-masternode-map";
@@ -35,6 +43,23 @@ export function HomeMasternodes() {
 }
 
 function MasternodesSection({ network }: { network: Network }) {
+  const history = useHomeChainHistory(network, 31);
+  const growth = snapshotChange(history.data, "masternodes", 30);
+  const dayRange = useHistoryRange(1, 2);
+  const yearAgo = useQuery(
+    chainHistoryQueryOptions({
+      network,
+      timestampStart: new Date(
+        Date.parse(dayRange.timestampStart) - 365 * 86_400_000,
+      ).toISOString(),
+      timestampEnd: new Date(
+        Date.parse(dayRange.timestampEnd) - 365 * 86_400_000,
+      ).toISOString(),
+      intervalsCount: 2,
+    }),
+  );
+  const latestSnapshot = history.data?.at(-1)?.data;
+  const previousSnapshot = yearAgo.data?.at(-1)?.data;
   const titleId = useId();
   const filterId = useId();
   const nodesTitleId = useId();
@@ -353,37 +378,69 @@ function MasternodesSection({ network }: { network: Network }) {
           <div className="relative min-w-0">
             <div className="flex min-w-0 flex-col gap-2">
               <h3 className="pr-9 text-base font-medium leading-4">
-                Masternode growth
+                Regular masternode history
               </h3>
               <div className="flex items-center gap-4">
                 <p className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]">
-                  — <span className="text-base font-medium">Nodes</span>
+                  {number(distribution?.regular)}{" "}
+                  <span className="text-base font-medium">Nodes</span>
                 </p>
-                <MissingApiData
-                  inline
-                  className="whitespace-nowrap"
-                  description="Masternode count history and monthly growth are not exposed by the API."
-                />
+                {growth != null ? (
+                  <span className="text-sm text-accent">
+                    {growth > 0 ? "+" : ""}
+                    {metricNumber(growth)}%
+                  </span>
+                ) : (
+                  <MissingApiData
+                    inline
+                    className="whitespace-nowrap"
+                    description="The API has not yet provided two comparable masternode snapshots 30 days apart."
+                  />
+                )}
               </div>
               <p className="text-sm font-medium leading-4 text-foreground/48">
-                Compared to last{" "}
-                <strong className="font-extrabold">month</strong>
+                30-day snapshot comparison
               </p>
             </div>
             <div className="absolute right-0 top-0">
               <InfoPopover label="About masternode growth">
-                The current masternode list is a snapshot, not a historical
-                series. Registration timestamps alone cannot account for nodes
-                removed from the network.
+                Regular masternodes across all statuses, excluding Evo nodes.
+                History uses Core snapshots, not registration dates. Only the
+                available continuous history is plotted.
               </InfoPopover>
             </div>
           </div>
-          <div aria-hidden="true" className="min-h-[117px] flex-1" />
+          <div className="min-h-[117px] flex-1">
+            <ChainHistoryChart
+              data={history.data}
+              metric="masternodes"
+              label="Regular masternode snapshot history"
+              formatValue={(value) => `${metricNumber(value, 0)} nodes`}
+              loading={history.isPending}
+              error={history.isError}
+              onRetry={() => void history.refetch()}
+              height={117}
+            />
+          </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {[
-            { label: "Masternode count", count: distribution?.regular },
-            { label: "Evonode count", count: distribution?.evo },
+            {
+              label: "Masternode count",
+              count: distribution?.regular,
+              change: percentageChange(
+                latestSnapshot?.masternodes,
+                previousSnapshot?.masternodes,
+              ),
+            },
+            {
+              label: "Evonode count",
+              count: distribution?.evo,
+              change: percentageChange(
+                latestSnapshot?.evonodes,
+                previousSnapshot?.evonodes,
+              ),
+            },
           ].map((item) => (
             <div
               key={item.label}
@@ -397,10 +454,20 @@ function MasternodesSection({ network }: { network: Network }) {
                   {number(item.count)}{" "}
                   <span className="font-medium">Nodes</span>
                 </p>
-                <MissingApiData
-                  inline
-                  description="Year-over-year changes require historical node counts, which the API does not provide."
-                />
+                {item.change != null ? (
+                  <span
+                    className="text-xs text-muted-foreground"
+                    title="Comparison of the latest daily snapshot with the snapshot 365 days earlier; includes all statuses."
+                  >
+                    {item.change > 0 ? "+" : ""}
+                    {metricNumber(item.change)}% · 365D
+                  </span>
+                ) : (
+                  <MissingApiData
+                    inline
+                    description="The selected network does not have comparable masternode snapshots 365 days apart."
+                  />
+                )}
               </div>
             </div>
           ))}
