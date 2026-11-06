@@ -115,6 +115,9 @@ export function HomeGeneralStats() {
   const [hashRateValue, hashRateUnit] = formatHashRate(stats?.hashRate).split(
     " ",
   );
+  const [peakHashRateValue, peakHashRateUnit] = formatHashRate(
+    stats?.peakHashRate,
+  ).split(" ");
   const priceHistory = sortedHistory(history.data);
   const supply = estimatedSupply(marketCap.data?.usd, price.data?.usd);
   const firstPrice = priceHistory[0];
@@ -247,9 +250,7 @@ export function HomeGeneralStats() {
           }
           detail={
             <span className="flex flex-wrap items-center gap-1">
-              <span className="rounded-lg bg-secondary px-2 py-1">
-                As of block
-              </span>
+              <span className="rounded-lg bg-secondary px-2 py-1">Block</span>
               {stats?.latestHeight != null ? (
                 <Link
                   to="/blocks/$hashOrHeight"
@@ -265,25 +266,42 @@ export function HomeGeneralStats() {
           }
           className="@container grid grid-cols-[minmax(0,1fr)_max-content] gap-3 px-4 sm:px-6"
         >
-          <div className="flex min-h-20 flex-col items-center justify-center gap-1">
+          <div className="relative aspect-[178/84] w-[140px] shrink-0 @[24rem]:w-[178px]">
+            <img
+              src="/icons/home/hashrate-gauge-track.svg"
+              alt=""
+              width={116}
+              height={81}
+              className="pointer-events-none absolute left-[34%] top-0 h-[96.4%] w-[65%]"
+            />
+            <img
+              src="/icons/home/hashrate-gauge-accent.svg"
+              alt=""
+              width={55}
+              height={76}
+              className="pointer-events-none absolute left-0 top-[7.1%] h-[90.5%] w-[31%]"
+            />
             <p
-              className="text-xl font-extrabold text-brand"
+              className="absolute inset-x-2 top-[39%] whitespace-nowrap text-center text-lg font-extrabold leading-6 text-brand @[24rem]:text-xl"
               title={
                 stats?.peakHashRateTimestamp
-                  ? formatDateTime(stats.peakHashRateTimestamp)
-                  : undefined
+                  ? `Highest daily average · ${formatDateTime(stats.peakHashRateTimestamp)}`
+                  : "Highest daily average in indexed history"
               }
             >
-              {formatHashRate(stats?.peakHashRate)}
+              {peakHashRateValue}{" "}
+              <span className="font-normal">{peakHashRateUnit}</span>
             </p>
-            <p className="dash-label-small text-muted-foreground">
-              Network peak
+            <p className="absolute inset-x-0 top-[75%] text-center text-[10px] font-medium text-muted-foreground @[24rem]:text-xs">
+              Peak daily average
             </p>
             {stats?.peakHashRate == null && (
-              <MissingApiData
-                compact
-                description="The historical peak hashrate for the selected network is not available."
-              />
+              <div className="absolute inset-x-0 top-8 flex justify-center bg-card">
+                <MissingApiData
+                  compact
+                  description="The highest daily average hashrate for the selected network is not available."
+                />
+              </div>
             )}
           </div>
         </StatCard>
