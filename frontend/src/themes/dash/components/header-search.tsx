@@ -35,7 +35,7 @@ function HeaderSearchContent({ mode, onModeChange }: HeaderSearchProps) {
   const [query, setQuery] = useState("");
   return (
     <>
-      <div className="hidden w-[280px] xl:block min-[1400px]:w-[300px]">
+      <div className="hidden w-[280px] @min-[76rem]/header:block min-[1400px]:w-[300px]">
         <SearchBar
           compact
           value={query}
@@ -55,7 +55,7 @@ function HeaderSearchContent({ mode, onModeChange }: HeaderSearchProps) {
           <Button
             variant="outline"
             size="icon"
-            className="size-10 rounded-xl border-input bg-transparent text-foreground shadow-none hover:bg-secondary hover:text-foreground xl:hidden dark:bg-transparent dark:hover:bg-secondary"
+            className="size-10 rounded-xl border-input bg-transparent text-foreground shadow-none hover:bg-secondary hover:text-foreground @min-[76rem]/header:hidden dark:bg-transparent dark:hover:bg-secondary"
             aria-label="Open search"
           >
             <HomeIcon name="search" />

@@ -183,7 +183,7 @@ function NavigationLinks({
       aria-label="Main navigation"
       delayDuration={150}
       skipDelayDuration={300}
-      className="relative hidden xl:block"
+      className="relative hidden @min-[76rem]/header:block"
     >
       <NavigationMenu.List className="flex list-none items-center gap-6 whitespace-nowrap min-[1400px]:gap-10">
         {items}
@@ -232,7 +232,7 @@ export default function Header() {
         if (!event.currentTarget.contains(event.relatedTarget))
           setFocused(false);
       }}
-      className="dash-header sticky top-0 z-40 mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4 rounded-b-3xl border-b border-border bg-card px-4 sm:h-[72px] sm:px-8"
+      className="dash-header @container/header sticky top-0 z-40 mx-auto flex min-h-16 w-full max-w-[1440px] items-center justify-between gap-4 rounded-b-3xl border-b border-border bg-card px-4 py-3 sm:min-h-[72px] sm:px-8"
     >
       <div className="flex min-w-0 items-center gap-8 min-[1400px]:gap-[95px]">
         <Link
@@ -260,7 +260,7 @@ export default function Header() {
       <div className="flex shrink-0 items-center gap-2">
         <HeaderSearch mode={searchMode} onModeChange={setSearchMode} />
         <ColorModeToggle />
-        <div className="hidden items-center gap-2 xl:flex">
+        <div className="hidden items-center gap-2 @min-[76rem]/header:flex">
           <NetworkSelector onOpenChange={setNetworkOpen} />
         </div>
         <Sheet open={open} onOpenChange={setOpen}>
@@ -268,7 +268,7 @@ export default function Header() {
             <Button
               variant="outline"
               size="icon"
-              className="size-10 rounded-xl border-input bg-transparent text-foreground shadow-none hover:bg-secondary hover:text-foreground xl:hidden dark:bg-transparent dark:hover:bg-secondary"
+              className="size-10 rounded-xl border-input bg-transparent text-foreground shadow-none hover:bg-secondary hover:text-foreground @min-[76rem]/header:hidden dark:bg-transparent dark:hover:bg-secondary"
               aria-label="Open navigation menu"
             >
               <Menu aria-hidden="true" className="size-4" />
