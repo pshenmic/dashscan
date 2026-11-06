@@ -49,7 +49,7 @@ function AddressMetric({
 }) {
   return (
     <div className="flex min-h-[120px] min-w-0 flex-col justify-center gap-2 rounded-3xl dash-home-panel px-6 py-4">
-      <h3 className="dash-body-compact text-foreground/50">
+      <h3 className="dash-body-compact text-muted-foreground">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -62,7 +62,7 @@ function AddressMetric({
           <TooltipContent>{detail}</TooltipContent>
         </Tooltip>
       </h3>
-      <p className="dash-metric break-words text-brand">{value}</p>
+      <p className="dash-metric break-words text-accent">{value}</p>
       <div className="flex flex-wrap items-center gap-2">
         <span className="dash-label-small text-muted-foreground">
           {period ?? detail}
@@ -94,7 +94,7 @@ function AddressTable({
             ? "Addresses ranked by balance"
             : "Most active addresses in the last 24 hours"}
         </caption>
-        <thead className="sticky top-0 z-10 bg-[color-mix(in_srgb,var(--foreground)_3%,var(--card))] text-foreground/48">
+        <thead className="sticky top-0 z-10 bg-[color-mix(in_srgb,var(--foreground)_3%,var(--card))] text-muted-foreground">
           <tr>
             <th
               scope="col"
@@ -131,7 +131,7 @@ function AddressTable({
                   prefix={
                     ranked && (
                       <span
-                        className={`flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] ${index === 0 ? "bg-brand text-primary-foreground" : index === 1 ? "bg-brand/64 text-primary-foreground" : index === 2 ? "bg-action-subtle text-brand" : "bg-foreground/4 text-foreground"}`}
+                        className={`flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] ${index === 0 ? "bg-action-solid text-primary-foreground" : index === 1 ? "bg-action-subtle text-accent" : index === 2 ? "bg-action-subtle text-accent" : "bg-foreground/4 text-foreground"}`}
                       >
                         {index + 1}
                       </span>
@@ -139,7 +139,7 @@ function AddressTable({
                   }
                 />
               </td>
-              <td className="whitespace-nowrap px-3 py-[18px] text-right text-brand">
+              <td className="whitespace-nowrap px-3 py-[18px] text-right text-accent">
                 {transactionAmount(row.balance)}
               </td>
               {!ranked && (
@@ -226,11 +226,11 @@ function BalanceDistribution({
         </svg>
       </div>
       <div className="min-w-0 w-full flex-1 space-y-3">
-        <h3 className="dash-body-compact text-foreground/50">
+        <h3 className="dash-body-compact text-muted-foreground">
           Top 10 addresses
         </h3>
         <p className="text-2xl leading-8">
-          <strong className="text-brand">
+          <strong className="text-accent">
             {metricNumber(distribution.topTen)}%
           </strong>{" "}
           of unspent balance
@@ -257,7 +257,7 @@ function BalanceDistribution({
                   }}
                   className={`min-w-0 rounded-lg bg-secondary p-2 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring ${selected === index ? "ring-1 ring-brand" : ""}`}
                 >
-                  <span className="flex items-center gap-1 whitespace-nowrap text-xs text-foreground/50">
+                  <span className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
                     <span
                       className="size-1.5 shrink-0 rounded-full"
                       style={{ background: colors[index] }}
@@ -395,13 +395,13 @@ export function HomeAddresses() {
           >
             <span className="font-extrabold text-brand">Addresses</span> Stats
           </h2>
-          <p className="dash-body mt-3 text-foreground/50">
+          <p className="dash-body mt-3 text-muted-foreground">
             Look up balances, incoming and outgoing transactions, and the
             complete history of any Dash address.
           </p>
           <Link
             to="/addresses"
-            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             Explore Addresses
             <span className="flex size-8 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
@@ -451,7 +451,7 @@ export function HomeAddresses() {
           <div className="flex min-h-[392px] min-w-0 flex-1 flex-col gap-6 rounded-3xl dash-home-panel p-6">
             <div>
               <h3 className="dash-heading-section">Active Addresses List</h3>
-              <p className="dash-body-compact mt-2 text-foreground/48">
+              <p className="dash-body-compact mt-2 text-muted-foreground">
                 {active.data && active.data.pagination.total >= 0
                   ? `${metricNumber(active.data.pagination.total, 0)} addresses · last 24 hours`
                   : "Last 24 hours"}
@@ -532,7 +532,7 @@ export function HomeAddresses() {
           <div className="flex min-h-0 flex-1 flex-col gap-6">
             <div>
               <h3 className="dash-heading-section">Addresses Rich List</h3>
-              <p className="dash-body-compact mt-2 text-foreground/48">
+              <p className="dash-body-compact mt-2 text-muted-foreground">
                 Largest indexed balances · updates every minute
               </p>
             </div>

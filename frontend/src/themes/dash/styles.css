@@ -24,7 +24,7 @@
   --success: #4f6e19;
   --success-foreground: #ffffff;
   --border: rgb(12 28 51 / 12%);
-  --input: rgb(12 28 51 / 24%);
+  --input: rgb(12 28 51 / 48%);
   --ring: var(--primary);
   --chart-1: var(--brand);
   --chart-2: var(--positive-brand);
@@ -52,12 +52,12 @@
   --muted-foreground: rgb(255 255 255 / 64%);
   --accent: #8cabff;
   --accent-foreground: #0c1c33;
-  --destructive: #ff4c4c;
+  --destructive: #ff7272;
   --destructive-foreground: #0c1c33;
   --success: var(--positive-brand);
   --success-foreground: #0c1c33;
   --border: rgb(255 255 255 / 12%);
-  --input: rgb(255 255 255 / 24%);
+  --input: rgb(255 255 255 / 48%);
   --ring: var(--accent);
 }
 
@@ -173,6 +173,62 @@
 @utility dash-home-panel {
   background: var(--card);
   box-shadow: inset 0 0 0 1px var(--border);
+}
+
+:root[data-theme="dash"] .dash-node-map-geography {
+  fill: color-mix(in srgb, var(--foreground) 20%, var(--card));
+  stroke: var(--card);
+  stroke-width: 0.75;
+  outline: none;
+}
+
+@media (forced-colors: active) {
+  :root[data-theme="dash"],
+  :root[data-theme="dash"].dark {
+    --brand: LinkText;
+    --accent: LinkText;
+    --action-solid: Highlight;
+    --action-primary: Highlight;
+    --primary-foreground: HighlightText;
+    --card: Canvas;
+    --foreground: CanvasText;
+    --muted-foreground: CanvasText;
+    --border: CanvasText;
+    --ring: Highlight;
+    --chart-1: CanvasText;
+  }
+
+  :root[data-theme="dash"] .dash-home-panel,
+  :root[data-theme="dash"] .dash-home-action {
+    border: 1px solid ButtonText;
+  }
+
+  :root[data-theme="dash"] .dash-home-action,
+  :root[data-theme="dash"] .dash-home-action span {
+    forced-color-adjust: none;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  :root[data-theme="dash"] .dash-home-action::before {
+    display: none;
+  }
+
+  :root[data-theme="dash"] [data-home-icon],
+  :root[data-theme="dash"] .dash-home-action [data-home-icon] {
+    forced-color-adjust: none;
+    background: ButtonText;
+  }
+
+  :root[data-theme="dash"] .dash-home-grid-surface,
+  :root[data-theme="dash"] [data-grid-band] {
+    display: none;
+  }
+
+  :root[data-theme="dash"] .dash-node-map-geography {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
 }
 
 :root[data-theme="dash"] {

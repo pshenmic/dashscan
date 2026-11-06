@@ -71,7 +71,7 @@ function DaoRing({
           />
         )}
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-sm font-extrabold tabular-nums text-brand">
+      <span className="absolute inset-0 flex items-center justify-center text-sm font-extrabold tabular-nums text-accent">
         {progress == null ? "—" : `${metricNumber(progress, 0)}%`}
       </span>
     </div>
@@ -101,10 +101,10 @@ function DaoMetric({
         className="size-6"
       />
       <div className="space-y-2">
-        <h3 className="dash-body-compact text-foreground/50">
+        <h3 className="dash-body-compact text-muted-foreground">
           <DaoHint description={description}>{label}</DaoHint>
         </h3>
-        <p className="dash-metric break-words text-brand">{value}</p>
+        <p className="dash-metric break-words text-accent">{value}</p>
         {children && (
           <div className="dash-label-small text-muted-foreground">
             {children}
@@ -138,12 +138,12 @@ function DaoTimingCards({
     <>
       <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
         <div className="min-w-0 flex-1 space-y-2">
-          <h3 className="dash-body-compact text-foreground/50">
+          <h3 className="dash-body-compact text-muted-foreground">
             <DaoHint description="Estimated voting deadline in UTC. Timing may change as blocks are mined.">
               Voting Deadline
             </DaoHint>
           </h3>
-          <p className="dash-metric whitespace-nowrap text-brand">
+          <p className="dash-metric whitespace-nowrap text-accent">
             {timing.votingDeadline == null
               ? "—"
               : formatDateTime(timing.votingDeadline, {
@@ -156,7 +156,7 @@ function DaoTimingCards({
             <span className="rounded-lg bg-foreground/4 px-2 py-1 text-muted-foreground">
               Time
             </span>
-            <span className="text-foreground/32">
+            <span className="text-muted-foreground">
               {countdown(timing.votingDeadline, "Awaiting cutoff")}
             </span>
           </div>
@@ -168,19 +168,19 @@ function DaoTimingCards({
       </div>
       <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
         <div className="min-w-0 flex-1 space-y-2">
-          <h3 className="dash-body-compact text-foreground/50">
+          <h3 className="dash-body-compact text-muted-foreground">
             <DaoHint description="Next treasury payout block. The countdown is an estimate, not a scheduled block time.">
               Next Superblock
             </DaoHint>
           </h3>
-          <p className="dash-metric whitespace-nowrap text-brand">
+          <p className="dash-metric whitespace-nowrap text-accent">
             #{metricNumber(chain?.nextSuperblockHeight, 0)}
           </p>
           <div className="flex items-center gap-1 whitespace-nowrap text-xs">
             <span className="rounded-lg bg-foreground/4 px-2 py-1 text-muted-foreground">
               Time
             </span>
-            <span className="text-foreground/32">
+            <span className="text-muted-foreground">
               {countdown(timing.nextAt, "Awaiting block")}
             </span>
           </div>
@@ -248,8 +248,8 @@ export function DaoBudgetCards({
               label="Projected budget allocation"
             />
             <div className="min-w-0 flex-1 space-y-2">
-              <p className="dash-body-compact text-foreground/50">Total</p>
-              <p className="whitespace-nowrap text-xl font-extrabold text-brand">
+              <p className="dash-body-compact text-muted-foreground">Total</p>
+              <p className="whitespace-nowrap text-xl font-extrabold text-accent">
                 <DaoHint
                   description={
                     <>
@@ -266,7 +266,7 @@ export function DaoBudgetCards({
                   <span className="ml-1 text-sm font-medium">DASH</span>
                 </DaoHint>
               </p>
-              <p className="dash-label-small text-brand/64">
+              <p className="dash-label-small text-accent">
                 USD {usd(currentBudget?.totalBudget)}
               </p>
             </div>
@@ -358,7 +358,7 @@ export function DaoBudgetCards({
             <span className="rounded-lg bg-foreground/4 px-2 py-1 text-muted-foreground">
               USD
             </span>
-            <span className="font-extrabold text-brand/64">
+            <span className="font-extrabold text-accent">
               {usd(allocation?.remaining)}
             </span>
           </div>

@@ -60,14 +60,14 @@ export function HomeCoinJoin() {
         >
           <span className="font-extrabold text-brand">CoinJoin</span> Stats
         </h2>
-        <p className="dash-body mt-3 text-foreground/50">
+        <p className="dash-body mt-3 text-muted-foreground">
           Explore CoinJoin transactions on the Dash network and track indexed
           mixing activity.
         </p>
         <Link
           to="/transactions"
           search={{ coinjoin: true }}
-          className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
         >
           Explore CoinJoin Transactions
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
@@ -86,7 +86,7 @@ export function HomeCoinJoin() {
           </div>
         </div>
         <div className="mt-auto flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-3">
-          <h4 className="text-sm font-medium leading-4 text-foreground/50">
+          <h4 className="text-sm font-medium leading-4 text-muted-foreground">
             Transactions · 24H
           </h4>
           {stats.isError ? (
@@ -103,7 +103,7 @@ export function HomeCoinJoin() {
           ) : stats.isPending ? (
             <p className="dash-body-compact text-muted-foreground">Loading…</p>
           ) : hasCount ? (
-            <p className="text-sm font-extrabold tabular-nums text-brand">
+            <p className="text-sm font-extrabold tabular-nums text-accent">
               {metricNumber(count, 0)}
             </p>
           ) : (
@@ -148,7 +148,7 @@ export function HomeCoinJoin() {
                 />
               )}
             </div>
-            <p className="text-sm font-medium leading-4 text-foreground/48">
+            <p className="text-sm font-medium leading-4 text-muted-foreground">
               Compared to last <strong className="font-extrabold">week</strong>
             </p>
           </div>

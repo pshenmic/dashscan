@@ -59,14 +59,14 @@ export function TransactionHistoryCard({ network }: { network: Network }) {
           </p>
           {summary.change !== null && (
             <span
-              className={`rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${summary.change > 0 ? "bg-positive-brand/12 text-success" : summary.change < 0 ? "bg-destructive/12 text-destructive" : "bg-foreground/5 text-foreground/64"}`}
+              className={`rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${summary.change > 0 ? "bg-positive-brand/12 text-success" : summary.change < 0 ? "bg-destructive/12 text-destructive" : "bg-foreground/5 text-muted-foreground"}`}
             >
               {summary.change > 0 ? "↑" : summary.change < 0 ? "↓" : ""}
               {metricNumber(Math.abs(summary.change))}%
             </span>
           )}
         </div>
-        <p className="text-sm font-medium leading-4 tracking-[-0.009em] text-foreground/48">
+        <p className="text-sm font-medium leading-4 tracking-[-0.009em] text-muted-foreground">
           {summary.previousTotal !== null ? (
             <>
               Compared to{" "}
@@ -151,7 +151,7 @@ export function TransactionHistoryCard({ network }: { network: Network }) {
             />
             <div
               aria-hidden="true"
-              className="mt-6 flex justify-between gap-2 text-xs font-medium text-foreground/48"
+              className="mt-6 flex justify-between gap-2 text-xs font-medium text-muted-foreground"
             >
               {[0, 10, 19, 29].map((index) => (
                 <span key={summary.current[index].timestamp}>

@@ -125,14 +125,14 @@ function MasternodesSection({ network }: { network: Network }) {
         >
           <span className="font-extrabold text-brand">Masternodes</span> Stats
         </h2>
-        <p className="dash-body mt-3 text-foreground/50">
+        <p className="dash-body mt-3 text-muted-foreground">
           Dash is powered by a network of masternodes that enable instant
           transactions, governance, and CoinJoin. Explore their status and
           payouts.
         </p>
         <Link
           to="/masternodes"
-          className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
         >
           Explore Masternodes
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
@@ -283,7 +283,7 @@ function MasternodesSection({ network }: { network: Network }) {
           >
             <HomeTable aria-label="Masternodes">
               <thead>
-                <tr className="border-b border-foreground/8 text-foreground/48">
+                <tr className="border-b border-foreground/8 text-muted-foreground">
                   <th className="px-2 py-3 font-medium">IP Address</th>
                   <th className="px-2 py-3 font-medium">ProTxHash</th>
                   <th className="px-2 py-3 text-right font-medium">Type</th>
@@ -398,7 +398,7 @@ function MasternodesSection({ network }: { network: Network }) {
                   />
                 )}
               </div>
-              <p className="text-sm font-medium leading-4 text-foreground/48">
+              <p className="text-sm font-medium leading-4 text-muted-foreground">
                 30-day snapshot comparison
               </p>
             </div>
@@ -446,11 +446,11 @@ function MasternodesSection({ network }: { network: Network }) {
               key={item.label}
               className="min-w-0 rounded-3xl dash-home-panel px-6 py-4"
             >
-              <h3 className="dash-body-compact text-foreground/50">
+              <h3 className="dash-body-compact text-muted-foreground">
                 {item.label}
               </h3>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <p className="dash-metric text-brand">
+                <p className="dash-metric text-accent">
                   {number(item.count)}{" "}
                   <span className="font-medium">Nodes</span>
                 </p>

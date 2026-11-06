@@ -80,7 +80,7 @@ export function HomeNetworkUpgrades({ network }: { network: Network }) {
                   Type: {upgrade.type}
                 </p>
                 <div className="flex items-center gap-2">
-                  <h4 className="text-2xl font-extrabold text-brand">
+                  <h4 className="text-2xl font-extrabold text-accent">
                     {upgrade.id}
                   </h4>
                   <span
@@ -105,7 +105,7 @@ export function HomeNetworkUpgrades({ network }: { network: Network }) {
                         params={{
                           hashOrHeight: String(upgrade.activationHeight),
                         }}
-                        className="rounded text-brand hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                        className="rounded text-accent hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                       >
                         #{metricNumber(upgrade.activationHeight, 0)}
                       </Link>

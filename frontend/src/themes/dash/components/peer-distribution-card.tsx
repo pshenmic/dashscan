@@ -114,7 +114,7 @@ export function PeerDistributionCard({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="text-sm font-medium leading-[1.1] text-foreground/50">
+        <h3 className="text-sm font-medium leading-[1.1] text-muted-foreground">
           {title}
         </h3>
         {status || !slices.length ? (
@@ -138,16 +138,20 @@ export function PeerDistributionCard({
                   onClick={() => select(slice)}
                   className={`flex min-h-9 w-full min-w-0 items-center gap-2 rounded-lg text-left hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${selected ? "bg-action-subtle" : ""}`}
                 >
-                  <span
-                    className="min-w-0 truncate rounded-lg px-2 py-1 text-base font-medium leading-normal tracking-[-0.009em] text-primary-foreground"
-                    style={{ background: colors[index] }}
-                  >
-                    {facet === "country" && slice.value
-                      ? (countryLabels[slice.value] ?? slice.label)
-                      : slice.label}
+                  <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+                    <span
+                      aria-hidden="true"
+                      className="size-3 shrink-0 rounded-sm border border-foreground/40"
+                      style={{ background: colors[index] }}
+                    />
+                    <span className="truncate">
+                      {facet === "country" && slice.value
+                        ? (countryLabels[slice.value] ?? slice.label)
+                        : slice.label}
+                    </span>
                   </span>
                   <span
-                    className={`shrink-0 font-medium leading-normal tracking-[-0.009em] tabular-nums ${selected ? "text-accent underline decoration-2 underline-offset-4" : "text-foreground/48"}`}
+                    className={`shrink-0 font-medium leading-normal tracking-[-0.009em] tabular-nums ${selected ? "text-accent underline decoration-2 underline-offset-4" : "text-muted-foreground"}`}
                   >
                     {metricNumber(slice.percent, 1)}%
                   </span>

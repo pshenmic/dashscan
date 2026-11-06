@@ -48,8 +48,8 @@ function StatCard({
       )}
     >
       <div className="min-w-0 space-y-2">
-        <h3 className="dash-body-compact text-foreground/50">{label}</h3>
-        <p className="dash-metric break-words text-brand">{value}</p>
+        <h3 className="dash-body-compact text-muted-foreground">{label}</h3>
+        <p className="dash-metric break-words text-accent">{value}</p>
         <div className="dash-label-small text-muted-foreground">{detail}</div>
       </div>
       {children}
@@ -192,7 +192,7 @@ export function HomeGeneralStats() {
                   ariaLabel="Dash price history in USD over the last day"
                   minimumMax={0}
                 />
-                <div className="mt-1 flex justify-between text-[10px] text-foreground/32">
+                <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
                   <span>{priceChartDate(firstPrice.timestamp)}</span>
                   <span>{priceChartDate(lastPrice.timestamp)}</span>
                 </div>
@@ -255,7 +255,7 @@ export function HomeGeneralStats() {
                 <Link
                   to="/blocks/$hashOrHeight"
                   params={{ hashOrHeight: String(stats.latestHeight) }}
-                  className="rounded font-extrabold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="rounded font-extrabold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   #{metricNumber(stats.latestHeight, 0)}
                 </Link>
@@ -282,7 +282,7 @@ export function HomeGeneralStats() {
               className="pointer-events-none absolute left-0 top-[7.1%] h-[90.5%] w-[31%]"
             />
             <p
-              className="absolute inset-x-2 top-[39%] whitespace-nowrap text-center text-lg font-extrabold leading-6 text-brand @[24rem]:text-xl"
+              className="absolute inset-x-2 top-[39%] whitespace-nowrap text-center text-lg font-extrabold leading-6 text-accent @[24rem]:text-xl"
               title={
                 stats?.peakHashRateTimestamp
                   ? `Highest daily average · ${formatDateTime(stats.peakHashRateTimestamp)}`
@@ -429,7 +429,7 @@ export function HomeGeneralStats() {
               </p>
               <span className="text-xs text-muted-foreground">Current</span>
             </div>
-            <p className="text-sm font-medium leading-4 text-foreground/48">
+            <p className="text-sm font-medium leading-4 text-muted-foreground">
               Daily averages · 30 days
             </p>
           </div>

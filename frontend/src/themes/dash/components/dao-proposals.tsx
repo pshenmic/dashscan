@@ -55,7 +55,7 @@ function ProposalName({
     <div className="flex w-0 min-w-full items-center gap-2">
       {rank != null ? (
         <span
-          className={`flex size-[22px] shrink-0 items-center justify-center rounded-lg text-[10px] ${rank === 1 ? "bg-brand text-primary-foreground" : rank === 2 ? "bg-brand/64 text-primary-foreground" : "bg-action-subtle text-brand"}`}
+          className={`flex size-[22px] shrink-0 items-center justify-center rounded-lg text-[10px] ${rank === 1 ? "bg-action-solid text-primary-foreground" : "bg-action-subtle text-accent"}`}
         >
           {rank}
         </span>
@@ -174,7 +174,7 @@ export function DaoProposalsTable({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="dash-heading-section">Budget Proposals</h3>
-          <p className="dash-body-compact mt-2 text-foreground/48">
+          <p className="dash-body-compact mt-2 text-muted-foreground">
             {loading
               ? "Loading…"
               : error
@@ -194,7 +194,7 @@ export function DaoProposalsTable({
             <caption className="sr-only">
               Active DAO proposals ranked by net yes votes
             </caption>
-            <thead className="text-foreground/48">
+            <thead className="text-muted-foreground">
               <tr>
                 {["Proposal", "Votes", "Payment", "Ends"].map((label) => (
                   <th

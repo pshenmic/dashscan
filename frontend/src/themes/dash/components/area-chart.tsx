@@ -203,7 +203,7 @@ export function AreaChart<T>({
         <path
           d={linePath}
           fill="none"
-          stroke="oklch(from var(--chart-1) l c h)"
+          stroke="var(--chart-1)"
           strokeWidth={compact ? 1 : 1.5}
           strokeLinecap={compact ? "round" : undefined}
           vectorEffect={compact ? "non-scaling-stroke" : undefined}

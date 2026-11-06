@@ -51,12 +51,12 @@ export function HomeTransactions() {
           <div
             className={`${surface} ${softShadow} relative z-10 xl:absolute xl:left-0 xl:top-0`}
           >
-            <h3 className="text-xs font-medium leading-[1.1] text-foreground/50">
+            <h3 className="text-xs font-medium leading-[1.1] text-muted-foreground">
               Total Transactions
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <p
-                className="whitespace-nowrap text-xl font-extrabold leading-6 text-brand"
+                className="whitespace-nowrap text-xl font-extrabold leading-6 text-accent"
                 title={`Estimated indexed transactions: ${metricNumber(total, 0)}`}
               >
                 {total != null && "≈ "}
@@ -84,12 +84,12 @@ export function HomeTransactions() {
           <div
             className={`${surface} ${softShadow} relative z-10 xl:absolute xl:right-0 xl:top-0`}
           >
-            <h3 className="text-xs font-medium leading-[1.1] text-foreground/50">
+            <h3 className="text-xs font-medium leading-[1.1] text-muted-foreground">
               Current TPS
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <p
-                className="whitespace-nowrap text-xl font-extrabold leading-6 text-brand"
+                className="whitespace-nowrap text-xl font-extrabold leading-6 text-accent"
                 title="Average over 20 blocks"
               >
                 {metricNumber(chain.data?.transactionsPerSecond)}{" "}
@@ -119,10 +119,10 @@ export function HomeTransactions() {
             className={`${surface} ${softShadow} flex flex-col gap-4 sm:col-span-2 sm:flex-row sm:items-center sm:gap-12 xl:absolute xl:left-[9.5%] xl:top-[55px] xl:h-[133px] xl:w-[82.75%]`}
           >
             <div className="shrink-0">
-              <h3 className="text-sm font-medium leading-4 tracking-[-0.009em] text-foreground/48">
+              <h3 className="text-sm font-medium leading-4 tracking-[-0.009em] text-muted-foreground">
                 Latest Core block fees
               </h3>
-              <p className="mt-2 text-2xl font-extrabold leading-[1.2] text-brand">
+              <p className="mt-2 text-2xl font-extrabold leading-[1.2] text-accent">
                 {metricDuffs(chain.data?.blockFees)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
@@ -154,11 +154,11 @@ export function HomeTransactions() {
           <div
             className={`${surface} relative z-10 shadow-card sm:col-span-2 sm:mx-auto sm:w-fit xl:absolute xl:bottom-0 xl:right-[31%]`}
           >
-            <h3 className="text-xs font-medium leading-[1.1] text-foreground/50">
+            <h3 className="text-xs font-medium leading-[1.1] text-muted-foreground">
               Fees average
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <p className="text-xl font-extrabold leading-6 text-brand">
+              <p className="text-xl font-extrabold leading-6 text-accent">
                 {metricDuffs(breakdown.data?.averageFee)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
@@ -189,13 +189,13 @@ export function HomeTransactions() {
             <span className="font-extrabold text-brand">Transactions</span>{" "}
             Stats
           </h2>
-          <p className="dash-body mt-3 text-foreground/50">
+          <p className="dash-body mt-3 text-muted-foreground">
             Explore Dash transactions, their inputs, outputs, fees, and
             confirmation status. Check InstantSend locks where available.
           </p>
           <Link
             to="/transactions"
-            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             Explore Transactions
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
@@ -215,11 +215,11 @@ export function HomeTransactions() {
           <TransactionHistoryCard network={network} />
           <div className="@container grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-stretch gap-3">
             <div className="flex min-w-0 flex-col gap-2 rounded-3xl dash-home-panel px-3 py-4 @min-[400px]:px-6">
-              <h3 className="min-h-[2.2em] text-sm font-medium leading-[1.1] text-foreground/50">
+              <h3 className="min-h-[2.2em] text-sm font-medium leading-[1.1] text-muted-foreground">
                 Transaction Fees
               </h3>
               <p
-                className="flex flex-wrap items-baseline gap-x-1 text-xl font-extrabold leading-[1.2] text-brand"
+                className="flex flex-wrap items-baseline gap-x-1 text-xl font-extrabold leading-[1.2] text-accent"
                 title={`${metricDuffs(breakdown.data?.fees)} DASH`}
               >
                 <span>{metricDuffs(breakdown.data?.fees, 4)}</span>
@@ -238,10 +238,10 @@ export function HomeTransactions() {
               </div>
             </div>
             <div className="flex min-w-0 flex-col gap-2 rounded-3xl dash-home-panel px-3 py-4 @min-[400px]:px-6">
-              <h3 className="min-h-[2.2em] text-sm font-medium leading-[1.1] text-foreground/50">
+              <h3 className="min-h-[2.2em] text-sm font-medium leading-[1.1] text-muted-foreground">
                 InstantSend lock time
               </h3>
-              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
+              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 1 <span className="font-normal">s</span>
               </p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">

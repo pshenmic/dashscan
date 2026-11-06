@@ -123,13 +123,13 @@ export function HomeBlocks() {
           >
             <span className="font-extrabold text-brand">Blocks</span> Stats
           </h2>
-          <p className="dash-body mt-3 text-foreground/50">
+          <p className="dash-body mt-3 text-muted-foreground">
             Dash targets an average block interval of about 2.6 minutes —
             explore each block to see more statistics.
           </p>
           <Link
             to="/blocks"
-            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             Explore Blocks
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
@@ -187,7 +187,7 @@ export function HomeBlocks() {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <p className="mt-2 text-base font-medium leading-[1.1] text-foreground/48">
+            <p className="mt-2 text-base font-medium leading-[1.1] text-muted-foreground">
               Recently mined blocks and upcoming block heights.
             </p>
           </div>
@@ -224,7 +224,7 @@ export function HomeBlocks() {
                     to="/blocks/$hashOrHeight"
                     params={{ hashOrHeight: block.hash }}
                     data-new-block={newHashes.includes(block.hash) || undefined}
-                    className="dash-timeline-block relative flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-brand p-3 text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    className="dash-timeline-block relative flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-action-solid p-3 text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
                       <span
@@ -237,19 +237,19 @@ export function HomeBlocks() {
                       <span className="text-sm">
                         <strong>{metricNumber(block.txCount, 0)}</strong> Txs
                       </span>
-                      <span className="text-primary-foreground/48">
+                      <span className="text-primary-foreground">
                         {metricBytes(block.size)}
                       </span>
                     </span>
                   </Link>
-                  <div className="relative mt-2 pt-3 text-center text-[10px] text-foreground/48 before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-brand after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)]">
+                  <div className="relative mt-2 pt-3 text-center text-[10px] text-muted-foreground before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-brand after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)]">
                     <BlockAge timestamp={block.timestamp} />
                   </div>
                 </li>
               ))}
               {upcoming.map((block) => (
                 <li key={block.height} className="group min-w-[128px] flex-1">
-                  <div className="flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-card p-3 text-brand shadow-[0_0_24px_rgb(12_28_51/8%)]">
+                  <div className="flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-card p-3 text-accent shadow-[0_0_24px_rgb(12_28_51/8%)]">
                     <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
                       <span
                         aria-hidden="true"
@@ -261,7 +261,7 @@ export function HomeBlocks() {
                       {block.label}
                     </span>
                   </div>
-                  <div className="relative mt-2 min-h-[26px] pt-3 text-center text-[10px] text-foreground/48 before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-dashed before:border-brand/24 after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)] group-last:before:right-0">
+                  <div className="relative mt-2 min-h-[26px] pt-3 text-center text-[10px] text-muted-foreground before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-dashed before:border-brand/24 after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)] group-last:before:right-0">
                     <span className="sr-only">Not yet mined</span>
                   </div>
                 </li>
@@ -289,7 +289,7 @@ export function HomeBlocks() {
                 />
               </span>
               <div className="space-y-2">
-                <h3 className="text-sm font-medium leading-[1.1] text-foreground/50">
+                <h3 className="text-sm font-medium leading-[1.1] text-muted-foreground">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
@@ -304,7 +304,7 @@ export function HomeBlocks() {
                     </TooltipContent>
                   </Tooltip>
                 </h3>
-                <p className="break-words text-2xl font-extrabold leading-[1.2] text-brand">
+                <p className="break-words text-2xl font-extrabold leading-[1.2] text-accent">
                   {item.value}
                   {item.unit && (
                     <span className="font-medium"> {item.unit}</span>
@@ -319,7 +319,7 @@ export function HomeBlocks() {
                       <span className="rounded-lg bg-secondary px-2 py-1 font-medium text-muted-foreground">
                         {item.detailLabel}
                       </span>
-                      <span className="font-extrabold text-brand/64">
+                      <span className="font-extrabold text-accent">
                         {item.detail}
                       </span>
                     </button>
@@ -334,7 +334,7 @@ export function HomeBlocks() {
         </div>
         <div className="min-w-0 rounded-3xl dash-home-panel p-4 sm:p-6">
           <h3 className="text-2xl font-medium leading-[1.1]">Block List</h3>
-          <p className="mb-6 mt-2 text-sm font-medium leading-[1.1] text-foreground/48">
+          <p className="mb-6 mt-2 text-sm font-medium leading-[1.1] text-muted-foreground">
             Latest indexed blocks · updates every 30 seconds
           </p>
           {blocksQuery.isError && blocks.length > 0 && (

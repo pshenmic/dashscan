@@ -41,7 +41,7 @@ function TransferRow({
   const amount = assetTransferAmount(deposit ? detail : transaction);
   return (
     <li className="grid min-h-[66px] min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl bg-card px-3 py-[18px] text-sm">
-      <span className="text-foreground/64">
+      <span className="text-muted-foreground">
         {transaction.timestamp ? (
           <BlockAge
             timestamp={transaction.timestamp}
@@ -55,7 +55,7 @@ function TransferRow({
         to="/transactions/$hash"
         params={{ hash: transaction.hash }}
         title={transaction.hash}
-        className={`rounded-full border px-2 py-1 text-xs hover:underline focus-visible:outline-2 focus-visible:outline-ring ${deposit ? "border-action-subtle bg-action-subtle text-brand" : "border-border bg-foreground/12"}`}
+        className={`rounded-full border px-2 py-1 text-xs hover:underline focus-visible:outline-2 focus-visible:outline-ring ${deposit ? "border-action-subtle bg-action-subtle text-accent" : "border-border bg-foreground/12"}`}
       >
         {deposit ? "Deposit" : "Withdrawal"}
       </Link>
@@ -116,7 +116,7 @@ function AssetMetric({
         className="size-6"
       />
       <div className="flex min-w-0 flex-col gap-2">
-        <h3 className="text-sm font-medium leading-[1.1] text-foreground/50">
+        <h3 className="text-sm font-medium leading-[1.1] text-muted-foreground">
           {label}
         </h3>
         {children}
@@ -225,7 +225,7 @@ export function HomeAssets() {
             <span className="font-extrabold text-brand">AssetLock/Unlock</span>{" "}
             Stats
           </h2>
-          <p className="dash-body mt-3 text-foreground/50">
+          <p className="dash-body mt-3 text-muted-foreground">
             Track deposits to Dash Platform and withdrawals to Dash Core.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
@@ -234,7 +234,7 @@ export function HomeAssets() {
                 key={type}
                 to="/transactions"
                 search={{ transaction_type: type }}
-                className="dash-home-action dash-home-action-subtle flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                className="dash-home-action dash-home-action-subtle flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
               >
                 Explore {type === "ASSET_LOCK" ? "AssetLocks" : "AssetUnlocks"}
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
@@ -321,7 +321,7 @@ export function HomeAssets() {
           <AssetMetric icon="credit-pool" label="Core credit pool balance">
             <div className="flex items-center gap-2">
               <p
-                className="whitespace-nowrap text-xl font-extrabold leading-[1.2] text-brand sm:text-2xl"
+                className="whitespace-nowrap text-xl font-extrabold leading-[1.2] text-accent sm:text-2xl"
                 title={
                   balance == null
                     ? undefined
@@ -339,7 +339,7 @@ export function HomeAssets() {
           </AssetMetric>
           <AssetMetric icon="asset-lock" label="Deposited amount in 24 Hours">
             <div className="flex items-center gap-2">
-              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
+              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending ? "…" : metricDuffs(locked?.amount)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
@@ -354,7 +354,7 @@ export function HomeAssets() {
           </AssetMetric>
           <AssetMetric icon="asset-unlock" label="Withdrawn amount in 24 Hours">
             <div className="flex items-center gap-2">
-              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
+              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending ? "…" : metricDuffs(unlocked?.amount)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
@@ -372,7 +372,7 @@ export function HomeAssets() {
             label="AssetLocks/AssetUnlocks in 24 Hours"
           >
             <div className="flex items-center gap-2">
-              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
+              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending
                   ? "…"
                   : metricNumber(

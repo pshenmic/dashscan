@@ -74,14 +74,14 @@ export function HomeDao() {
           >
             <span className="font-extrabold text-brand">DAO</span> Stats
           </h2>
-          <p className="dash-body mt-3 text-foreground/50">
+          <p className="dash-body mt-3 text-muted-foreground">
             Dash is governed by its community. Explore active proposals,
             treasury funding, and how masternodes vote to shape the
             network&apos;s future.
           </p>
           <Link
             to="/dao"
-            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             Explore DAO
             <span className="flex size-8 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
