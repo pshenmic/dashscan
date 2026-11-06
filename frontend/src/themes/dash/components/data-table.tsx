@@ -81,8 +81,12 @@ export function DataTable<T>({
       <tbody>
         {isFetching && isEmpty && skeletonWidths.length > 0 ? (
           Array.from({ length: skeletonRows }, (_, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
-            <SkeletonRow key={index} widths={skeletonWidths} index={index} />
+            <SkeletonRow
+              // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
+              key={index}
+              widths={skeletonWidths}
+              variant={variant}
+            />
           ))
         ) : table.getRowModel().rows.length > 0 ? (
           table.getRowModel().rows.map((row) => (
