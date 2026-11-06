@@ -163,7 +163,7 @@ export function HomeBlocks() {
                 Block Reward:
                 <MissingApiData
                   inline
-                  description="Block reward data is not provided by the current API."
+                  description="The API exposes the current Core-tip subsidy, but not the subsidy, fees and treasury payouts tied to this displayed superblock."
                 />
               </span>
             </span>
