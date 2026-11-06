@@ -74,11 +74,11 @@ export function TxTypeBadge({ type }: TxTypeBadgeProps) {
   if (cls) {
     return (
       <Badge variant="outline" className={cls}>
-        {getTxTypeLabel(n)}
+        {getTxTypeLabel(type)}
       </Badge>
     );
   }
-  return <Badge variant={getTxTypeVariant(n)}>{getTxTypeLabel(n)}</Badge>;
+  return <Badge variant={getTxTypeVariant(n)}>{getTxTypeLabel(type)}</Badge>;
 }
 
 interface MnStatusBadgeProps {
