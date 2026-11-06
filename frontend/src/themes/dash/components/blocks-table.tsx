@@ -71,7 +71,7 @@ const columns: ColumnDef<ApiBlock>[] = [
     header: () => (
       <PendingColumnHeader
         label="Mined by"
-        description="Needs mining pool attribution for each block and a server-side pool filter. Unknown pools must remain distinct from missing data."
+        description="The block list does not include mining pool attribution. The attribution source and scope still need agreement."
       />
     ),
     cell: () => <span className="text-muted-foreground">—</span>,
@@ -81,7 +81,7 @@ const columns: ColumnDef<ApiBlock>[] = [
     header: () => (
       <PendingColumnHeader
         label="Txs"
-        description="Transaction counts are available. Needs server-side minimum/maximum transaction-count filters and ascending/descending sorting across all matching blocks."
+        description="Transaction counts are available. Server-side filtering and sorting by transaction count are not supported; scope is not yet agreed."
       />
     ),
     cell: ({ row }) => metricNumber(row.original.txCount, 0),
@@ -91,7 +91,7 @@ const columns: ColumnDef<ApiBlock>[] = [
     header: () => (
       <PendingColumnHeader
         label="Fees (DASH)"
-        description="Needs total transaction fees per block in duffs, excluding the block subsidy, plus range filtering and ascending/descending sorting. Display amounts in DASH; distinguish zero fees from unavailable data."
+        description="Fees are available for individual blocks, but not in the block list. Needs list or batch fee data in duffs, without a request for every row. Zero fees must remain distinct from unavailable data. See #123."
       />
     ),
     cell: () => <span className="text-muted-foreground">—</span>,
@@ -101,7 +101,7 @@ const columns: ColumnDef<ApiBlock>[] = [
     header: () => (
       <PendingColumnHeader
         label="Size"
-        description="Block sizes are available. Needs server-side size range filtering in bytes and ascending/descending sorting across all matching blocks."
+        description="Block sizes are available. Server-side filtering and sorting by size are not supported; scope is not yet agreed."
       />
     ),
     cell: ({ row }) => metricBytes(row.original.size),
@@ -111,7 +111,7 @@ const columns: ColumnDef<ApiBlock>[] = [
     header: () => (
       <PendingColumnHeader
         label="Difficulty"
-        description="Difficulty values are available. Needs server-side difficulty range filtering and ascending/descending sorting. Difficulty is a dimensionless value."
+        description="Difficulty values are available. Server-side filtering and sorting by difficulty are not supported; scope is not yet agreed."
       />
     ),
     cell: ({ row }) => metricNumber(row.original.difficulty, 2),
@@ -121,7 +121,7 @@ const columns: ColumnDef<ApiBlock>[] = [
     header: () => (
       <PendingColumnHeader
         label="Timestamp"
-        description="Block timestamps are available. Needs a UTC timestamp range filter and timestamp sorting with a stable height tie-breaker. Height order is not an exact substitute for timestamp order."
+        description="Block timestamps are available. Server-side date filtering and timestamp sorting are not supported; scope is not yet agreed."
       />
     ),
     cell: ({ row }) => <BlockAge timestamp={row.original.timestamp} />,

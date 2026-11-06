@@ -142,7 +142,7 @@ export function BlocksOverview({ network }: { network: Network }) {
             <Height value={chain.data?.latestSuperblockHeight} />
             <MissingApiData
               inline
-              description="Treasury paid: actual DAO proposal payouts in the displayed superblock. Awaiting a verified amount tied to that block's height and hash, returned in duffs and displayed in DASH. Exclude miner, masternode and Platform rewards; do not substitute the available budget. Distinguish a confirmed zero payout from unavailable data."
+              description="The reward API includes treasury for this block height. Displaying it as actual DAO payouts is pending confirmation of the calculation in #124. Zero alone does not indicate missing data."
             />
           </div>
         </Metric>
