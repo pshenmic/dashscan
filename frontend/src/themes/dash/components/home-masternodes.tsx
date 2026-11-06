@@ -45,7 +45,7 @@ export function HomeMasternodes() {
 function MasternodesSection({ network }: { network: Network }) {
   const history = useHomeChainHistory(network, 31);
   const growth = snapshotChange(history.data, "masternodes", 30);
-  const dayRange = useHistoryRange(1, 2);
+  const dayRange = useHistoryRange(2);
   const yearAgo = useQuery(
     chainHistoryQueryOptions({
       network,
@@ -462,7 +462,23 @@ function MasternodesSection({ network }: { network: Network }) {
                   {number(item.count)}{" "}
                   <span className="font-medium">Nodes</span>
                 </p>
-                {item.change != null ? (
+                {history.isPending || yearAgo.isPending ? (
+                  <output aria-label="Loading yearly masternode comparison">
+                    …
+                  </output>
+                ) : history.isError || yearAgo.isError ? (
+                  <button
+                    type="button"
+                    className="text-xs text-destructive underline"
+                    aria-label={`Retry yearly ${item.label.toLowerCase()} comparison`}
+                    onClick={() => {
+                      void history.refetch();
+                      void yearAgo.refetch();
+                    }}
+                  >
+                    Retry
+                  </button>
+                ) : item.change != null ? (
                   <span
                     className="text-xs text-muted-foreground"
                     title="Comparison of the latest daily snapshot with the snapshot 365 days earlier; includes all statuses."
