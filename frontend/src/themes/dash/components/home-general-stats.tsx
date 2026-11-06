@@ -369,18 +369,27 @@ export function HomeGeneralStats() {
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="dash-home-panel flex min-w-0 flex-col gap-6 rounded-3xl p-6 sm:flex-row sm:items-center sm:gap-12">
-          <div className="min-w-0 shrink-0 space-y-2">
+          <div className="min-w-0 space-y-2 sm:max-w-[48%]">
             <h3 className="text-base font-medium leading-4">
               Hashrate History
             </h3>
-            <p className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]">
-              {hashRateValue}
-              {hashRateUnit && (
-                <span className="text-base font-medium"> {hashRateUnit}</span>
-              )}
-            </p>
-            <p className="text-sm font-medium leading-4 text-foreground/48">
-              Estimate over 120 blocks
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <p
+                className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]"
+                title="Current hashrate estimate over the last 120 indexed blocks. The chart shows daily averages."
+              >
+                {hashRateValue}
+                {hashRateUnit && (
+                  <span className="text-base font-medium"> {hashRateUnit}</span>
+                )}
+              </p>
+              <MissingApiData
+                inline
+                description="Month-over-month hashrate change is not available yet."
+              />
+            </div>
+            <p className="text-sm font-medium leading-4 text-muted-foreground">
+              Daily averages · 30 days
             </p>
           </div>
           <div className="min-w-0 w-full sm:flex-1">
@@ -389,6 +398,7 @@ export function HomeGeneralStats() {
                 data={chainHistory.data}
                 metric="hashRate"
                 label="Historical hashrate · 30 days"
+                detailedAxis
                 formatValue={(value) => formatHashRate(String(value))}
                 loading={chainHistory.isPending}
                 error={chainHistory.isError}
