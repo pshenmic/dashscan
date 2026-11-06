@@ -15,9 +15,16 @@ import {
 } from "@/lib/api/addresses";
 import { marketCapQueryOptions } from "@/lib/api/marketcap";
 import { priceQueryOptions } from "@/lib/api/price";
+import { addressHistoryQueryOptions } from "@/lib/api/stats";
 import { formatCompact } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { addressDistribution } from "@/themes/dash/lib/address-metrics";
+import {
+  percentageChange,
+  snapshotChange,
+  useHistoryRange,
+  useHomeChainHistory,
+} from "@/themes/dash/lib/home-history";
 import { estimatedSupply, metricNumber } from "@/themes/dash/lib/home-metrics";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { HomeIcon } from "./home-icon";
@@ -31,12 +38,14 @@ function AddressMetric({
   detail,
   missing,
   period,
+  change,
 }: {
   label: string;
   value: ReactNode;
   detail: string;
   missing?: string;
   period?: string;
+  change?: number | null;
 }) {
   return (
     <div className="flex min-h-[120px] min-w-0 flex-col justify-center gap-2 rounded-3xl dash-home-panel px-6 py-4">
@@ -59,6 +68,12 @@ function AddressMetric({
           {period ?? detail}
         </span>
         {missing && <MissingApiData inline description={missing} />}
+        {change != null && (
+          <span className="text-xs font-medium text-accent">
+            {change > 0 ? "+" : ""}
+            {metricNumber(change)}%
+          </span>
+        )}
       </div>
     </div>
   );
@@ -349,6 +364,20 @@ export function HomeAddresses() {
       : "Core UTXO snapshot";
   const supply = estimatedSupply(marketCap.data?.usd, price.data?.usd);
   const count = unique.data?.pagination.total;
+  const addressRange = useHistoryRange(31);
+  const addressHistory = useQuery(
+    addressHistoryQueryOptions({ network, ...addressRange }),
+  );
+  const snapshots = useHomeChainHistory(network, 2, 48);
+  const unspentChange = snapshotChange(snapshots.data, "utxoAmount", 1);
+  const indexedCount = addressHistory.data?.at(-1)?.data.totalAddresses;
+  const addressChange =
+    addressHistory.data?.length === 31
+      ? percentageChange(
+          indexedCount,
+          addressHistory.data[0].data.totalAddresses,
+        )
+      : null;
 
   return (
     <section
@@ -394,8 +423,13 @@ export function HomeAddresses() {
                       : "—"
               }
               detail={utxoDetail}
-              period="24H change"
-              missing="Historical UTXO balances and the 24-hour change are not exposed by the API."
+              period="24H snapshot change"
+              change={unspentChange}
+              missing={
+                unspentChange == null
+                  ? "The API has not yet provided snapshots covering a full 24 hours for the UTXO balance comparison."
+                  : undefined
+              }
             />
             <AddressMetric
               label="Unspent Outputs"
@@ -465,17 +499,24 @@ export function HomeAddresses() {
           <AddressMetric
             label="Unique Addresses"
             value={
-              unique.isPending
-                ? "…"
-                : unique.isError
-                  ? "Unavailable"
-                  : count != null && count >= 0
-                    ? `≈ ${metricNumber(count, 0)}`
-                    : "—"
+              indexedCount != null
+                ? metricNumber(indexedCount, 0)
+                : unique.isPending
+                  ? "…"
+                  : unique.isError
+                    ? "Unavailable"
+                    : count != null && count >= 0
+                      ? `≈ ${metricNumber(count, 0)}`
+                      : "—"
             }
-            detail="All indexed addresses"
-            period="Monthly change"
-            missing="Monthly unique-address history and change are not exposed. The list total may be an index estimate."
+            detail="Indexed addresses reconstructed from hourly new-address counts; available through the end of the last complete UTC hour."
+            period="30D change"
+            change={addressChange}
+            missing={
+              addressChange == null
+                ? "Complete address history for a 30-day comparison is not available."
+                : undefined
+            }
           />
         </div>
         <div className="flex min-h-[677px] min-w-0 flex-1 flex-col gap-12 rounded-3xl dash-home-panel p-6">

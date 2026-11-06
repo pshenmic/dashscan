@@ -21,6 +21,17 @@ export function difficultyAxisLabel(value: number) {
     : metricNumber(value, value < 1 ? 3 : 0);
 }
 
+export function metricDuffs(
+  value: number | string | null | undefined,
+  maximumFractionDigits = 8,
+) {
+  if (value == null || !/^\d+$/.test(String(value))) return "—";
+  const amount = Number(value);
+  return Number.isSafeInteger(amount)
+    ? formatNumber(amount / 100_000_000, { maximumFractionDigits })
+    : "—";
+}
+
 export function metricBytes(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value) || value < 0) return "—";
   const units = [

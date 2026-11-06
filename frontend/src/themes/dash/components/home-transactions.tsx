@@ -6,7 +6,9 @@ import { transactionsBreakdown24hQueryOptions } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import { homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
-import { metricNumber } from "@/themes/dash/lib/home-metrics";
+import { useHomeChainHistory } from "@/themes/dash/lib/home-history";
+import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
+import { ChainHistoryChart } from "./chain-history-chart";
 import { HomeIcon } from "./home-icon";
 import { InfoPopover } from "./info-popover";
 import { LatestTransactionsTable } from "./latest-transactions-table";
@@ -17,6 +19,7 @@ export function HomeTransactions() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
   const chain = useQuery(homeChainQueryOptions(network));
+  const feeHistory = useHomeChainHistory(network);
   const transactions = useQuery({
     ...transactionsQueryOptions({ network, page: 1, limit: 6, order: "desc" }),
     refetchInterval: 30_000,
@@ -96,10 +99,19 @@ export function HomeTransactions() {
                 <span className="dash-label-small rounded-lg bg-secondary px-2 py-1 text-muted-foreground">
                   24H
                 </span>
-                <MissingApiData
-                  inline
-                  description="The API does not provide the TPS change over 24 hours."
-                />
+                {breakdown.data?.total != null ? (
+                  <span
+                    className="text-xs text-muted-foreground"
+                    title="Average confirmed transaction rate over the last 24 hours"
+                  >
+                    Avg {metricNumber(breakdown.data.total / 86400)} Tx/s
+                  </span>
+                ) : (
+                  <MissingApiData
+                    inline
+                    description="The API does not provide the 24-hour transaction total."
+                  />
+                )}
               </span>
             </div>
           </div>
@@ -108,32 +120,34 @@ export function HomeTransactions() {
           >
             <div className="shrink-0">
               <h3 className="text-sm font-medium leading-4 tracking-[-0.009em] text-foreground/48">
-                Transaction fees per block
+                Latest Core block fees
               </h3>
               <p className="mt-2 text-2xl font-extrabold leading-[1.2] text-brand">
-                — <span className="font-medium">DASH</span>
+                {metricDuffs(chain.data?.blockFees)}{" "}
+                <span className="font-medium">DASH</span>
               </p>
               <div className="mt-2 flex items-center gap-1 text-xs">
                 <span className="rounded-lg bg-secondary px-2 py-1 text-muted-foreground">
                   Block
                 </span>
-                {chain.data?.latestHeight != null ? (
-                  <Link
-                    to="/blocks/$hashOrHeight"
-                    params={{ hashOrHeight: String(chain.data.latestHeight) }}
-                    className="font-extrabold text-brand/64 hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-                  >
-                    #{metricNumber(chain.data.latestHeight, 0)}
-                  </Link>
-                ) : (
-                  <span className="text-brand/64">—</span>
-                )}
+                <span
+                  className="text-muted-foreground"
+                  title="Fees from the Core tip at API request time. Its height is not returned; it may differ from the latest indexed block."
+                >
+                  Core tip
+                </span>
               </div>
             </div>
             <div className="flex min-h-16 flex-1 items-center justify-center xl:h-full">
-              <MissingApiData
-                inline
-                description="Aggregated fees per block and their history are not exposed by the API."
+              <ChainHistoryChart
+                data={feeHistory.data}
+                metric="feesPerBlock"
+                label="Daily average fees per block · 30 days"
+                formatValue={(value) => `${metricDuffs(value)} DASH`}
+                loading={feeHistory.isPending}
+                error={feeHistory.isError}
+                onRetry={() => void feeHistory.refetch()}
+                height={64}
               />
             </div>
           </div>
@@ -145,12 +159,22 @@ export function HomeTransactions() {
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <p className="text-xl font-extrabold leading-6 text-brand">
-                — <span className="font-medium">DASH</span>
+                {metricDuffs(breakdown.data?.averageFee)}{" "}
+                <span className="font-medium">DASH</span>
               </p>
-              <MissingApiData
-                inline
-                description="Average transaction fees are not exposed by the API."
-              />
+              {breakdown.data?.averageFee == null ? (
+                <MissingApiData
+                  inline
+                  description="Average transaction fees are not exposed by the API."
+                />
+              ) : (
+                <span
+                  className="text-xs text-muted-foreground"
+                  title="Average across transactions with a known fee, excluding coinbase"
+                >
+                  24H
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -194,17 +218,23 @@ export function HomeTransactions() {
               <h3 className="min-h-[2.2em] text-sm font-medium leading-[1.1] text-foreground/50">
                 Transaction Fees
               </h3>
-              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
-                — <span className="font-normal">DASH</span>
+              <p
+                className="flex flex-wrap items-baseline gap-x-1 text-xl font-extrabold leading-[1.2] text-brand"
+                title={`${metricDuffs(breakdown.data?.fees)} DASH`}
+              >
+                <span>{metricDuffs(breakdown.data?.fees, 4)}</span>
+                <span className="text-sm font-normal">DASH</span>
               </p>
               <div className="flex flex-wrap items-center gap-1">
                 <span className="rounded-lg bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">
                   24H
                 </span>
-                <MissingApiData
-                  description="Total transaction fees for the last 24 hours and their change are not available from the API."
-                  inline
-                />
+                {breakdown.data?.fees == null && (
+                  <MissingApiData
+                    description="Total transaction fees for the last 24 hours and their change are not available from the API."
+                    inline
+                  />
+                )}
               </div>
             </div>
             <div className="flex min-w-0 flex-col gap-2 rounded-3xl dash-home-panel px-3 py-4 @min-[400px]:px-6">

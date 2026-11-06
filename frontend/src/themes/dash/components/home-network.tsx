@@ -11,6 +11,10 @@ import {
 } from "@/components/ui/select";
 import { type ApiPeer, allPeersQueryOptions } from "@/lib/api/peers";
 import { appStore, type Network } from "@/lib/store";
+import {
+  snapshotChange,
+  useHomeChainHistory,
+} from "@/themes/dash/lib/home-history";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import {
   type PeerSelection,
@@ -34,6 +38,8 @@ export function HomeNetwork() {
 const peerId = (peer: ApiPeer) => peer.address;
 
 function NetworkSection({ network }: { network: Network }) {
+  const snapshots = useHomeChainHistory(network, 2, 48);
+  const peerChange = snapshotChange(snapshots.data, "peers", 1);
   const titleId = useId();
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -174,10 +180,20 @@ function NetworkSection({ network }: { network: Network }) {
               {peers.data ? metricNumber(data.nodes.length, 0) : "—"}{" "}
               <span className="text-base font-medium">Reachable Peers</span>
             </p>
-            <MissingApiData
-              inline
-              description="The API does not provide historical peer counts for a growth comparison."
-            />
+            {peerChange != null ? (
+              <span
+                className="text-sm text-accent"
+                title="Change between reachable-peer snapshots 24 hours apart, independent of map filters"
+              >
+                24H {peerChange > 0 ? "+" : ""}
+                {metricNumber(peerChange)}%
+              </span>
+            ) : (
+              <MissingApiData
+                inline
+                description="The API has not yet collected reachable-peer snapshots covering a full 24 hours."
+              />
+            )}
           </div>
           <div
             data-grid-map
