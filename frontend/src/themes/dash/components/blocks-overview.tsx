@@ -2,11 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { useClockValue } from "@/components/render-clock";
+import { blockRewardQueryOptions } from "@/lib/api/blocks";
 import { transactionsStatsQueryOptions } from "@/lib/api/stats";
 import { formatDateTime } from "@/lib/format";
 import { homeChainQueryOptions } from "@/lib/home";
 import type { Network } from "@/lib/store";
-import { metricNumber } from "@/themes/dash/lib/home-metrics";
+import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
 import {
   transactionHistoryRange,
   transactionHistorySummary,
@@ -78,6 +79,12 @@ function Height({ value }: { value: number | null | undefined }) {
 
 export function BlocksOverview({ network }: { network: Network }) {
   const chain = useQuery(homeChainQueryOptions(network));
+  const reward = useQuery(
+    blockRewardQueryOptions({
+      network,
+      height: chain.data?.latestHeight,
+    }),
+  );
   const day = useClockValue((now) => Math.floor(now / 86_400_000) * 86_400_000);
   const [period, setPeriod] = useState<ChartPeriod>({ days: 30 });
   const range = transactionHistoryRange(period.end ?? day, period.days);
@@ -138,18 +145,49 @@ export function BlocksOverview({ network }: { network: Network }) {
         <Metric name="total" label="Total Blocks">
           {metricNumber(latest == null ? null : latest + 1, 0)}
         </Metric>
-        <Metric name="reward" label="Block Reward">
-          <MissingApiData
-            inline
-            description="The deployed API does not expose the reward breakdown for a specific block yet."
-          />
-        </Metric>
-        <Metric name="fees" label="Block Fees">
-          <MissingApiData
-            inline
-            description="The deployed API does not expose fees for the latest indexed block yet."
-          />
-        </Metric>
+        {(
+          [
+            ["reward", "Block Subsidy", "subsidy"],
+            ["fees", "Block Fees", "fees"],
+          ] as const
+        ).map(([name, label, field]) => (
+          <Metric key={name} name={name} label={label}>
+            {reward.isPending ? (
+              "…"
+            ) : reward.isError ? (
+              <button
+                type="button"
+                className="text-sm text-destructive underline"
+                onClick={() => void reward.refetch()}
+              >
+                Retry block reward
+              </button>
+            ) : reward.data != null ? (
+              <span
+                className={
+                  field === "subsidy" ? "whitespace-nowrap" : undefined
+                }
+                title={`${metricDuffs(reward.data[field])} DASH · Block #${latest}`}
+              >
+                {metricDuffs(reward.data[field], field === "subsidy" ? 2 : 8)}{" "}
+                <span
+                  className={
+                    field === "subsidy"
+                      ? "font-medium"
+                      : "text-sm font-medium text-muted-foreground"
+                  }
+                >
+                  DASH
+                </span>
+              </span>
+            ) : (
+              <MissingApiData
+                inline
+                description={`${label} for the latest indexed block is not available from this API.`}
+              />
+            )}
+          </Metric>
+        ))}
         {chain.isError && (
           <button
             type="button"

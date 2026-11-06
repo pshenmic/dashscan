@@ -3,7 +3,36 @@ import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
 import { apiFetch, getBaseUrl } from "./client";
 import { getSearch } from "./search";
-import type { ApiBlock, PaginatedResponse, PaginationParams } from "./types";
+import type {
+  ApiBlock,
+  ApiBlockReward,
+  PaginatedResponse,
+  PaginationParams,
+} from "./types";
+
+export function blockRewardQueryOptions(params: {
+  network: Network;
+  height: number | null | undefined;
+}) {
+  return queryOptions({
+    queryKey: ["blockReward", params.network, params.height],
+    enabled: params.height != null,
+    queryFn: async ({ signal }): Promise<ApiBlockReward | null> => {
+      if (params.height == null) return null;
+      const url = new URL(
+        `/blocks/${params.height}/reward`,
+        getBaseUrl(params.network),
+      );
+      const response = await apiFetch(url, { signal });
+      if (response.status === 404) return null;
+      if (!response.ok)
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      return response.json();
+    },
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+}
 
 interface FetchBlocksInput extends PaginationParams {
   network: Network;
