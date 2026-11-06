@@ -207,7 +207,7 @@ export function HomeTransactions() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2.7fr)_minmax(0,1fr)]">
         <LatestTransactionsTable
           rows={rows}
-          loading={transactions.isPending}
+          busy={transactions.isFetching}
           error={transactions.isError}
           onRetry={() => void transactions.refetch()}
         />

@@ -14,8 +14,7 @@ import { useNewBlocks } from "@/themes/dash/hooks/use-new-blocks";
 import { metricBytes, metricNumber } from "@/themes/dash/lib/home-metrics";
 import { BlockAge } from "./block-age";
 import { HomeIcon } from "./home-icon";
-import { HomeTable } from "./home-table";
-import { IdentifierLink } from "./identifier-link";
+import { LatestBlocksTable } from "./latest-blocks-table";
 import { MissingApiData } from "./missing-api-data";
 
 export function HomeBlocks() {
@@ -350,84 +349,12 @@ export function HomeBlocks() {
               </button>
             </p>
           )}
-          <div className="overflow-x-auto">
-            <HomeTable className="min-w-[700px] font-medium">
-              <caption className="sr-only">
-                Recently mined blocks, newest first
-              </caption>
-              <thead className="text-foreground/48">
-                <tr>
-                  {[
-                    "Height",
-                    "Block Hash",
-                    "Size",
-                    "Transactions",
-                    "Block age",
-                  ].map((label) => (
-                    <th
-                      key={label}
-                      scope="col"
-                      className="border-b border-foreground/8 px-3 pb-3 pt-2 font-medium [&:nth-child(n+3)]:text-right"
-                    >
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {blocks.slice(0, 6).map((block) => (
-                  <tr
-                    key={block.hash}
-                    data-new-block={newHashes.includes(block.hash) || undefined}
-                    className="border-b border-foreground/8 last:border-0"
-                  >
-                    <td className="px-3 py-[18px]">
-                      <Link
-                        to="/blocks/$hashOrHeight"
-                        params={{ hashOrHeight: block.hash }}
-                        className="flex items-center gap-3 whitespace-nowrap text-brand hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-                      >
-                        <img
-                          src="/icons/home/block.svg"
-                          alt=""
-                          width={24}
-                          height={24}
-                          className="size-6 shrink-0"
-                        />
-                        #{metricNumber(block.height, 0)}
-                      </Link>
-                    </td>
-                    <td data-grow className="px-3 py-[18px]">
-                      <IdentifierLink kind="block" value={block.hash} />
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums">
-                      {metricBytes(block.size)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums text-brand">
-                      <strong>{metricNumber(block.txCount, 0)}</strong>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums">
-                      <BlockAge timestamp={block.timestamp} />
-                    </td>
-                  </tr>
-                ))}
-                {!blocks.length && (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="p-8 text-center text-muted-foreground"
-                    >
-                      {blocksQuery.isPending
-                        ? "Loading blocks…"
-                        : blocksQuery.isError
-                          ? "Block data unavailable"
-                          : "No blocks found."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </HomeTable>
-          </div>
+          <LatestBlocksTable
+            blocks={blocks}
+            busy={blocksQuery.isFetching}
+            error={blocksQuery.isError}
+            highlightedHashes={newHashes}
+          />
         </div>
       </div>
     </section>
