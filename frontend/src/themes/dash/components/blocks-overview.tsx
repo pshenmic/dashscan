@@ -127,7 +127,7 @@ export function BlocksOverview({ network }: { network: Network }) {
           <Height value={latest} />
         </Metric>
         <Metric name="time" label="Block Time">
-          <span title="Average interval over 120 indexed blocks">
+          <span title="Average interval over the latest 20 indexed blocks">
             {seconds == null
               ? "—"
               : `${Math.floor(seconds / 60)}m ${seconds % 60}s`}
