@@ -253,6 +253,8 @@ export function BlocksOverview({ network }: { network: Network }) {
           ) : summary.currentComplete ? (
             <AreaChart
               data={summary.current}
+              minimumMax={3}
+              tooltipPlacement="point"
               getValue={(entry) => entry.data.count}
               getKey={(entry) => entry.timestamp}
               getXLabel={(entry) =>
@@ -263,14 +265,17 @@ export function BlocksOverview({ network }: { network: Network }) {
               }
               renderTooltip={(entry) => (
                 <>
-                  <p>
+                  <p className="text-xs font-extrabold tabular-nums">
+                    {metricNumber(entry.data.count, 0)} Txs
+                  </p>
+                  <p className="text-[10px] font-medium text-foreground/64">
                     {formatDateTime(entry.timestamp, {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
-                    })}
+                    })}{" "}
+                    UTC
                   </p>
-                  <p>{metricNumber(entry.data.count, 0)} transactions</p>
                 </>
               )}
               ariaLabel="Daily block transactions"
