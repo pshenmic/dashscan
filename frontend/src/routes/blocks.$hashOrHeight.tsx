@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { blockQueryOptions } from "@/lib/api/blocks";
+import { paginationSearchSchema } from "@/lib/pagination";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
 import { useActiveTheme } from "@/themes/active";
@@ -12,6 +13,7 @@ const ClassicBlockDetailPage = lazy(
 );
 
 export const Route = createFileRoute("/blocks/$hashOrHeight")({
+  validateSearch: paginationSearchSchema,
   component: BlockDetailRoute,
   head: ({ params }) => ({
     meta: [
