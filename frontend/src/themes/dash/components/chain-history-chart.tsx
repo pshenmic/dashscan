@@ -30,25 +30,46 @@ export function ChainHistoryChart({
   detailedAxis?: boolean;
 }) {
   const points = chainMetricSeries(data, metric);
-  if (loading)
-    return <p className="text-xs text-muted-foreground">Loading history…</p>;
-  if (error)
+  if (loading || error || points.length < 2)
     return (
-      <button
-        type="button"
-        onClick={onRetry}
-        className="text-xs text-destructive underline"
-      >
-        Retry history
-      </button>
+      <div className="w-full min-w-0" aria-busy={loading}>
+        <div className="relative" style={{ height }}>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 inset-y-1 flex flex-col justify-between"
+          >
+            {["top", "upper", "lower", "bottom"].map((line) => (
+              <div
+                key={line}
+                className="border-t border-dashed border-foreground/15"
+              />
+            ))}
+          </div>
+          <div className="absolute right-0 top-2">
+            {loading ? (
+              <output className="text-xs text-muted-foreground">
+                Loading history…
+              </output>
+            ) : error ? (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="text-xs text-destructive underline"
+              >
+                Retry history
+              </button>
+            ) : (
+              <MissingApiData
+                inline
+                description={`${label}: not enough historical coverage yet. Missing snapshots are not zero values.`}
+              />
+            )}
+          </div>
+        </div>
+        <div aria-hidden="true" className={detailedAxis ? "h-10" : "h-6"} />
+      </div>
     );
-  if (points.length < 2)
-    return (
-      <MissingApiData
-        description={`${label}: not enough historical coverage yet. Missing snapshots are not zero values.`}
-      />
-    );
-  const labelCount = Math.min(points.length, detailedAxis ? 5 : 2);
+  const labelCount = Math.min(points.length, detailedAxis ? 6 : 2);
   const labels = Array.from(
     { length: labelCount },
     (_, index) =>
@@ -70,6 +91,7 @@ export function ChainHistoryChart({
           </>
         )}
         ariaLabel={label}
+        fillFadeStart={0.5}
         formatYLabel={formatValue}
         minimumMax={0}
       />

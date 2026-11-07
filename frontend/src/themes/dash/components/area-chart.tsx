@@ -15,6 +15,7 @@ type AreaChartProps<T> = {
   compactHeight?: number;
   minimumMax?: number;
   zeroBaseline?: boolean;
+  fillFadeStart?: number;
   getValueText?: (item: T) => string;
   formatYLabel?: (value: number) => string;
 };
@@ -31,6 +32,7 @@ export function AreaChart<T>({
   compactHeight = 62,
   minimumMax = 1,
   zeroBaseline = false,
+  fillFadeStart = 0,
   getValueText,
   formatYLabel = String,
 }: AreaChartProps<T>) {
@@ -153,7 +155,13 @@ export function AreaChart<T>({
         aria-label={ariaLabel}
       >
         <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient
+            id={gradientId}
+            x1="0"
+            y1={fillFadeStart}
+            x2="0"
+            y2="1"
+          >
             <stop
               offset="0%"
               stopColor="oklch(from var(--chart-1) l c h)"
