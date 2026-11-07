@@ -31,7 +31,7 @@ function DaoVotes({
         </div>
       }
     >
-      <span className="flex gap-1 whitespace-nowrap text-[10px] tabular-nums">
+      <span className="flex gap-1 whitespace-nowrap text-xs tabular-nums">
         <span className="rounded-full border border-action-subtle bg-action-subtle px-2 py-1">
           <strong>{metricNumber(proposal.yesCount, 0)}</strong> Yes
         </span>
@@ -75,13 +75,11 @@ function ProposalName({
               height={22}
             />
           ) : proposal.enoughVotes === false ? (
-            <span className="flex size-[22px] items-center justify-center rounded-lg bg-foreground/24">
-              <img
-                src="/icons/home/proposal-not-passing.svg"
-                alt=""
-                width={9}
-                height={9}
-              />
+            <span
+              className="flex size-[22px] items-center justify-center rounded-lg bg-secondary text-muted-foreground"
+              aria-hidden="true"
+            >
+              −
             </span>
           ) : (
             "—"
@@ -180,8 +178,10 @@ export function DaoProposalsTable({
               trigger="Budget Proposals"
             >
               Check marks indicate the vote threshold has been reached, not that
-              a payout has occurred. Proposals must also fit the treasury
-              budget. Dates are shown in UTC.
+              a payout has occurred. A dash means the threshold has not yet been
+              reached, not that the proposal was rejected. This list shows
+              active payment periods, not just proposals eligible for the next
+              superblock. Dates are shown in UTC.
             </InfoPopover>
           </h3>
           <p className="dash-body-compact mt-2 text-muted-foreground">
@@ -194,23 +194,26 @@ export function DaoProposalsTable({
         </div>
       </div>
       {proposalState || (
-        <div className="max-h-[400px] min-h-0 overflow-auto">
+        <section
+          className="max-h-[400px] min-h-0 overflow-auto rounded-xl focus-visible:outline-2 focus-visible:outline-ring"
+          aria-label="Budget proposals table"
+        >
           <HomeTable className="min-w-[600px]">
             <caption className="sr-only">
               Active DAO proposals ranked by net yes votes
             </caption>
-            <thead className="text-muted-foreground">
+            <thead className="sticky top-0 z-10 bg-secondary text-muted-foreground">
               <tr>
-                {["Proposal", "Votes", "Payment", "Ends"].map((label) => (
+                {["Proposal", "Votes", "Requested", "Expires"].map((label) => (
                   <th
                     key={label}
                     scope="col"
-                    className={`border-b border-foreground/8 px-3 pb-3 pt-2 font-medium ${label === "Proposal" ? "pl-[42px]" : label === "Payment" || label === "Ends" ? "text-right" : ""}`}
+                    className={`border-b border-foreground/8 px-3 py-3 text-xs font-semibold ${label === "Proposal" ? "pl-[42px]" : label === "Requested" || label === "Expires" ? "text-right" : ""}`}
                   >
-                    {label === "Payment" || label === "Ends" ? (
+                    {label === "Requested" || label === "Expires" ? (
                       <DaoHint
                         description={
-                          label === "Payment"
+                          label === "Requested"
                             ? "Requested DASH payment per budget cycle, not a confirmed payout."
                             : "Proposal expiry in UTC, not the voting deadline."
                         }
@@ -246,7 +249,7 @@ export function DaoProposalsTable({
               ))}
             </tbody>
           </HomeTable>
-        </div>
+        </section>
       )}
     </div>
   );

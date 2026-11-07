@@ -90,7 +90,7 @@ export function HomeDao() {
           </Link>
         </div>
       </div>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_331px_240px]">
+      <div className="grid gap-4 min-[1440px]:grid-cols-[minmax(0,1fr)_331px_240px]">
         <DaoProposalsTable
           rows={rows}
           threshold={currentBudget?.requiredVotes}

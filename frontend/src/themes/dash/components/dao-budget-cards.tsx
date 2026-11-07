@@ -8,7 +8,6 @@ import type {
   ApiGovernanceBudget,
 } from "@/lib/api/types";
 import {
-  formatCompact,
   formatCompactUsdShort,
   formatDateTime,
   formatDuration,
@@ -25,10 +24,12 @@ function DaoRing({
   value,
   label,
   large = false,
+  estimated = false,
 }: {
   value: number | null;
   label: string;
   large?: boolean;
+  estimated?: boolean;
 }) {
   const progress =
     value != null && Number.isFinite(value)
@@ -37,44 +38,47 @@ function DaoRing({
   const size = large ? 120 : 100;
   const strokeWidth = large ? 24 : 16;
   return (
-    <div
-      role="img"
-      aria-label={`${label}: ${progress == null ? "unavailable" : `${metricNumber(progress, 0)}%`}`}
-      className="relative shrink-0"
+    <DaoHint
+      label={`${label}: ${progress == null ? "unavailable" : `${estimated ? "approximately " : ""}${metricNumber(progress, 0)}%`}`}
+      description={label}
     >
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        aria-hidden="true"
-      >
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={(size - strokeWidth) / 2}
-          fill="none"
-          stroke="var(--action-subtle)"
-          strokeWidth={strokeWidth}
-        />
-        {progress != null && progress > 0 && (
+      <span className="relative block shrink-0">
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          aria-hidden="true"
+        >
           <circle
             cx={size / 2}
             cy={size / 2}
             r={(size - strokeWidth) / 2}
             fill="none"
-            stroke="var(--brand)"
+            stroke="var(--action-subtle)"
             strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            pathLength="100"
-            strokeDasharray={progress === 100 ? undefined : `${progress} 100`}
-            transform={`translate(${size} 0) scale(-1 1) rotate(-90 ${size / 2} ${size / 2})`}
           />
-        )}
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-sm font-extrabold tabular-nums text-accent">
-        {progress == null ? "—" : `${metricNumber(progress, 0)}%`}
+          {progress != null && progress > 0 && (
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={(size - strokeWidth) / 2}
+              fill="none"
+              stroke="var(--brand)"
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              pathLength="100"
+              strokeDasharray={progress === 100 ? undefined : `${progress} 100`}
+              transform={`translate(${size} 0) scale(-1 1) rotate(-90 ${size / 2} ${size / 2})`}
+            />
+          )}
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-sm font-extrabold tabular-nums text-accent">
+          {progress == null
+            ? "—"
+            : `${estimated ? "≈ " : ""}${metricNumber(progress, 0)}%`}
+        </span>
       </span>
-    </div>
+    </DaoHint>
   );
 }
 
@@ -137,9 +141,9 @@ function DaoTimingCards({
   return (
     <>
       <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
-        <div className="min-w-0 flex-1 space-y-2">
+        <div className="min-w-[170px] flex-1 space-y-2">
           <h3 className="dash-body-compact text-muted-foreground">
-            <DaoHint description="Estimated voting deadline in UTC. Timing may change as blocks are mined.">
+            <DaoHint description="Estimated cutoff for the next funding cycle, supplied by the API. This is not the proposal expiry date. Timing may change as blocks are mined.">
               Voting Deadline
             </DaoHint>
           </h3>
@@ -163,11 +167,12 @@ function DaoTimingCards({
         </div>
         <DaoRing
           value={timing.votingProgress}
-          label="Estimated voting window elapsed"
+          estimated
+          label="Estimated voting window elapsed, not voter turnout. Calculated from the API deadline and estimated cycle start; timing is not a protocol guarantee."
         />
       </div>
       <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
-        <div className="min-w-0 flex-1 space-y-2">
+        <div className="min-w-[170px] flex-1 space-y-2">
           <h3 className="dash-body-compact text-muted-foreground">
             <DaoHint description="Next treasury payout block. The countdown is an estimate, not a scheduled block time.">
               Next Superblock
@@ -187,7 +192,7 @@ function DaoTimingCards({
         </div>
         <DaoRing
           value={timing.blockProgress}
-          label="Superblock cycle completed"
+          label="Share of blocks mined in the current superblock cycle, not voter turnout."
         />
       </div>
       {showMissingDeadline && timing.votingDeadline == null && (
@@ -231,11 +236,14 @@ export function DaoBudgetCards({
   return (
     <>
       {" "}
-      <div className="flex min-w-0 flex-col gap-4">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-3 min-[1440px]:flex min-[1440px]:flex-col">
         <div className="flex min-h-[232px] flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
           <div className="flex items-center justify-between gap-3">
             <h3 className="dash-body">
-              <InfoPopover label="About the cycle budget" trigger="Budget">
+              <InfoPopover
+                label="About the cycle budget"
+                trigger="Cycle Budget"
+              >
                 The ring shows the share allocated to proposals with enough
                 votes and funding capacity. This is a projection, not a
                 confirmed payout.
@@ -263,13 +271,15 @@ export function DaoBudgetCards({
                     ? "…"
                     : currentBudget?.totalBudget == null
                       ? "—"
-                      : `≈ ${formatCompact(currentBudget.totalBudget)}`}
+                      : metricNumber(currentBudget.totalBudget)}
                   <span className="ml-1 text-sm font-medium">DASH</span>
                 </DaoHint>
               </p>
-              <p className="dash-label-small text-accent">
-                USD {usd(currentBudget?.totalBudget)}
-              </p>
+              {network === "mainnet" && (
+                <p className="dash-label-small text-accent">
+                  USD {usd(currentBudget?.totalBudget)}
+                </p>
+              )}
             </div>
           </div>
           {budget.isError ? (
@@ -297,7 +307,7 @@ export function DaoBudgetCards({
           showMissingDeadline={!budget.isPending && !budget.isError}
         />
       </div>
-      <div className="grid min-w-0 gap-4 sm:grid-cols-3 xl:flex xl:flex-col">
+      <div className="grid min-w-0 gap-4 sm:grid-cols-3 min-[1440px]:flex min-[1440px]:flex-col">
         <DaoMetric
           icon="minimum-votes"
           label="Vote Threshold"
@@ -349,20 +359,26 @@ export function DaoBudgetCards({
           label="Unallocated"
           description="Budget remaining after projected funding, not a treasury account balance."
           value={
-            <>
-              {metricNumber(allocation?.remaining)}{" "}
-              <span className="font-medium">DASH</span>
-            </>
+            <DaoHint
+              description={`${metricNumber(allocation?.remaining, 8)} DASH remaining after projected funding. Unallocated funds are not created, rather than carried over to the next cycle.`}
+            >
+              <span>
+                {metricNumber(allocation?.remaining)}{" "}
+                <span className="font-medium">DASH</span>
+              </span>
+            </DaoHint>
           }
         >
-          <div className="flex min-h-6 items-center gap-1 whitespace-nowrap text-xs">
-            <span className="rounded-lg bg-foreground/4 px-2 py-1 text-muted-foreground">
-              USD
-            </span>
-            <span className="font-extrabold text-accent">
-              {usd(allocation?.remaining)}
-            </span>
-          </div>
+          {network === "mainnet" && (
+            <div className="flex min-h-6 items-center gap-1 whitespace-nowrap text-xs">
+              <span className="rounded-lg bg-foreground/4 px-2 py-1 text-muted-foreground">
+                USD
+              </span>
+              <span className="font-extrabold text-accent">
+                {usd(allocation?.remaining)}
+              </span>
+            </div>
+          )}
         </DaoMetric>
       </div>
     </>
