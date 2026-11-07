@@ -74,13 +74,37 @@ export function HomeCoinJoin() {
       <div className="dash-home-panel flex min-w-0 flex-col gap-6 self-stretch rounded-3xl p-6 xl:order-1 xl:min-h-[316px]">
         <div>
           <h3 className="dash-heading-section">Active Sessions</h3>
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             <MissingApiData
               inline
               description="The API does not expose live CoinJoin sessions, their duration, or participant counts. Indexed transactions are not active mixing sessions."
             />
+            <span>Sessions Found</span>
           </div>
         </div>
+        <section
+          className="flex flex-col gap-3"
+          aria-label="Session layout placeholders"
+        >
+          {["first", "second", "third", "fourth"].map((slot) => (
+            <div
+              key={slot}
+              className="flex min-h-12 items-center justify-between gap-3 rounded-xl bg-secondary/75 px-3 py-2 text-sm"
+            >
+              <MissingApiData
+                inline
+                description="Live CoinJoin session duration is not available from the API. This row is a layout placeholder, not an observed session."
+              />
+              <span className="flex items-center gap-2 text-accent">
+                <MissingApiData
+                  inline
+                  description="The API does not report address counts for live CoinJoin sessions. Addresses do not necessarily represent distinct participants."
+                />
+                Addresses
+              </span>
+            </div>
+          ))}
+        </section>
         <div className="mt-auto flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-3">
           <h4 className="text-sm font-medium leading-4 text-muted-foreground">
             Transactions · 24H
@@ -148,13 +172,16 @@ export function HomeCoinJoin() {
                   Retry
                 </button>
               ) : change != null ? (
-                <span className="text-sm text-accent">
-                  {change > 0 ? "+" : ""}
-                  {metricNumber(change)}%
+                <span
+                  title={`CoinJoin volume change: ${metricNumber(change)}% compared to the previous week`}
+                  className={`rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${change > 0 ? "bg-positive-brand/12 text-success" : change < 0 ? "bg-destructive/12 text-destructive" : "bg-secondary text-muted-foreground"}`}
+                >
+                  {change > 0 ? "↑" : change < 0 ? "↓" : ""}
+                  {metricNumber(Math.abs(change))}%
                 </span>
               ) : previousVolume.data?.coinjoinAmount === 0 ? (
                 <span
-                  className="text-sm text-muted-foreground"
+                  className="rounded-full bg-secondary px-2 py-1 text-xs font-extrabold text-muted-foreground"
                   title="A percentage change cannot be calculated from zero volume."
                 >
                   —
@@ -162,7 +189,7 @@ export function HomeCoinJoin() {
               ) : (
                 <MissingApiData
                   inline
-                  className="whitespace-nowrap"
+                  className="rounded-full whitespace-nowrap"
                   description="The selected network has not returned volume for both consecutive weeks."
                 />
               )}
@@ -182,6 +209,7 @@ export function HomeCoinJoin() {
             error={history.isError}
             onRetry={() => void history.refetch()}
             height={164}
+            detailedAxis
           />
         </div>
       </div>
