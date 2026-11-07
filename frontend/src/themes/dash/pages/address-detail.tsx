@@ -1,481 +1,116 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import {
-  type ColumnDef,
-  getCoreRowModel,
-  getFilteredRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { ArrowLeftRight, MoveDown, MoveUp, Wallet } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
-import { Avatar } from "@/components/identicon";
-import { RelativeTime } from "@/components/relative-time";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  addressBalanceChartQueryOptions,
-  addressQueryOptions,
-  addressTransactionsQueryOptions,
-} from "@/lib/api/addresses";
-import type { ApiTransaction } from "@/lib/api/types";
-import {
-  addressNetAmount,
-  formatDash,
-  formatDateTime,
-  formatNumber,
-} from "@/lib/format";
-import { getPageCount, type PageSize } from "@/lib/pagination";
+import { AddressNotFoundError, addressQueryOptions } from "@/lib/api/addresses";
+import type { PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
-import { AreaChart } from "@/themes/dash/components/area-chart";
+import { AddressBalanceChart } from "@/themes/dash/components/address-balance-chart";
+import { AddressOverview } from "@/themes/dash/components/address-overview";
+import { AddressTransactionsTable } from "@/themes/dash/components/address-transactions-table";
 import { CopyButton } from "@/themes/dash/components/copy-button";
-import { DataTable } from "@/themes/dash/components/data-table";
-import { HashCell } from "@/themes/dash/components/hash-cell";
-import { MiniStatCard } from "@/themes/dash/components/mini-stat-card";
 import { PageStatus } from "@/themes/dash/components/page-status";
-import { Pagination } from "@/themes/dash/components/pagination";
-import { SearchInput } from "@/themes/dash/components/search-input";
-import { TransactionTypeBadge } from "@/themes/dash/components/transaction-type-badge";
+import { SkeletonBar } from "@/themes/dash/components/skeleton";
 
-type ChartRange = "1d" | "1w" | "1m" | "1y";
-
-const RANGE_OPTIONS: { value: ChartRange; label: string }[] = [
-  { value: "1d", label: "1D" },
-  { value: "1w", label: "1W" },
-  { value: "1m", label: "1M" },
-  { value: "1y", label: "1Y" },
-];
-
-const RANGE_MS: Record<ChartRange, number> = {
-  "1d": 24 * 60 * 60 * 1000,
-  "1w": 7 * 24 * 60 * 60 * 1000,
-  "1m": 30 * 24 * 60 * 60 * 1000,
-  "1y": 365 * 24 * 60 * 60 * 1000,
-};
-
-function getRangeBounds(range: ChartRange) {
-  const end = new Date();
-  const start = new Date(end.getTime() - RANGE_MS[range]);
-  return {
-    timestampStart: start.toISOString(),
-    timestampEnd: end.toISOString(),
-  };
-}
-
-const makeTxColumns = (address: string): ColumnDef<ApiTransaction>[] => [
-  {
-    accessorKey: "timestamp",
-    header: "Time",
-    cell: ({ getValue }) => {
-      const ts = getValue<string | null>();
-      return (
-        <span className="text-muted-foreground">
-          {ts ? <RelativeTime timestamp={ts} /> : "Pending"}
-        </span>
-      );
-    },
-  },
-  {
-    accessorKey: "hash",
-    header: "Hash",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-1.5">
-        <Link
-          to="/transactions/$hash"
-          params={{ hash: row.original.hash }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <HashCell hash={row.original.hash} />
-        </Link>
-        <CopyButton value={row.original.hash} />
-      </div>
-    ),
-  },
-  {
-    accessorKey: "type",
-    header: "Type",
-    cell: ({ row }) => <TransactionTypeBadge type={row.original.type} />,
-  },
-  {
-    accessorKey: "size",
-    header: "Size",
-    cell: ({ getValue }) => {
-      const size = getValue<number | null | undefined>();
-      return (
-        <span className="text-muted-foreground">
-          {size != null ? `${Math.max(1, Math.round(size / 1024))} Kb` : "—"}
-        </span>
-      );
-    },
-  },
-  {
-    id: "amount",
-    header: "Amount",
-    cell: ({ row }) => {
-      const net = addressNetAmount(row.original, address);
-      const duffs = Math.abs(net);
-      return (
-        <span
-          className={cn(
-            "font-mono font-medium",
-            net > 0 && "text-success",
-            net < 0 && "text-destructive",
-          )}
-        >
-          {net > 0 ? "+" : net < 0 ? "−" : ""}
-          {formatDash(duffs)}
-        </span>
-      );
-    },
-  },
-  {
-    accessorKey: "confirmations",
-    header: "Confirmations",
-    cell: ({ getValue }) => {
-      const c = getValue<number | null>();
-      return (
-        <span className="text-muted-foreground">
-          {c != null ? formatNumber(c) : "—"}
-        </span>
-      );
-    },
-  },
-];
-
-const txSkeletonWidths = ["w-20", "w-44", "w-24", "w-14", "w-20", "w-16"];
-
-interface ClassicAddressDetailPageProps {
-  address: string;
-  page: number;
-  limit: PageSize;
-}
-
-export default function ClassicAddressDetailPage({
+export default function AddressDetailPage({
   address,
   page,
   limit,
-}: ClassicAddressDetailPageProps) {
+}: {
+  address: string;
+  page: number;
+  limit: PageSize;
+}) {
   const network = useStore(appStore, (state) => state.network);
-  const navigate = useNavigate({ from: "/address/$address" });
-  const tableNavigate = useNavigate();
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [range, setRange] = useState<ChartRange>("1m");
-
-  const {
-    data: detail,
-    isFetching: isDetailFetching,
-    error: detailError,
-  } = useQuery(addressQueryOptions({ network, address }));
-
-  const rangeBounds = useMemo(() => getRangeBounds(range), [range]);
-  const { data: chartData } = useQuery(
-    addressBalanceChartQueryOptions({
-      network,
-      address,
-      ...rangeBounds,
-    }),
-  );
-
-  const { data: txData, isFetching: isTxFetching } = useQuery(
-    addressTransactionsQueryOptions({
-      network,
-      address,
-      page,
-      limit,
-      order: "desc",
-    }),
-  );
-
-  const transactions = txData?.resultSet ?? [];
-  const txPageCount = getPageCount(txData?.pagination);
-
-  const filteredTxs = useMemo(
-    () =>
-      transactions.filter((tx) =>
-        tx.hash.toLowerCase().includes(globalFilter.toLowerCase()),
-      ),
-    [transactions, globalFilter],
-  );
-
-  const txColumns = useMemo(() => makeTxColumns(address), [address]);
-
-  const table = useReactTable({
-    data: filteredTxs,
-    columns: txColumns,
-    state: { globalFilter },
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: "includesString",
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    manualPagination: true,
-    pageCount: txPageCount,
+  const query = useQuery({
+    ...addressQueryOptions({ network, address }),
+    refetchInterval: 30_000,
+    retry: (count, error) =>
+      !(error instanceof AddressNotFoundError) && count < 2,
   });
-
-  const balanceDash = useMemo(() => {
-    if (!detail) return null;
-    return Number(detail.balance) / 1e8;
-  }, [detail]);
-
-  const chartPoints = useMemo(() => {
-    if (!chartData) return [];
-    return chartData.map((p) => ({
-      key: p.timestamp,
-      timestamp: p.timestamp,
-      value: Number(p.data.balance) / 1e8,
-    }));
-  }, [chartData]);
-
-  if (detailError) {
-    return <PageStatus message="Address not found." />;
-  }
-
-  if (isDetailFetching && !detail) {
-    return <PageStatus message="Loading address..." />;
-  }
-
+  const detail = query.data;
+  if (query.isPending) return <AddressSkeleton />;
   if (!detail) {
-    return <PageStatus message="Address not found." />;
+    if (query.error instanceof AddressNotFoundError)
+      return <PageStatus message="Address not found." />;
+    return (
+      <main className="mx-auto max-w-[1440px] px-4 py-16 text-center">
+        <p role="alert">Could not load this address.</p>
+        <button
+          type="button"
+          onClick={() => void query.refetch()}
+          className="mt-3 text-accent underline"
+        >
+          Retry
+        </button>
+      </main>
+    );
   }
-
   return (
-    <main className="mx-auto max-w-[1440px] px-6 py-10">
-      <div className="mb-6 flex flex-wrap items-center gap-4 animate-fade-in-up">
-        <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-accent/12">
-          <Avatar username={detail.address} className="size-8" />
-        </div>
-        <h1 className="flex min-w-0 flex-1 flex-wrap items-baseline gap-3 text-[34px] tracking-tight">
-          <span className="text-muted-foreground">Address</span>
-          <span className="break-all font-mono">{detail.address}</span>
+    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16">
+      <div className="group flex min-w-0 items-center gap-3">
+        <h1 className="dash-heading-page min-w-0 break-words">
+          <span className="text-muted-foreground">Address </span>
+          <span className="break-all">{address}</span>
         </h1>
-        <CopyButton value={detail.address} />
+        <CopyButton value={address} />
       </div>
-
-      <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
-        <div className="flex flex-col gap-4">
-          <div className="grid gap-4 grid-cols-2 [&>*]:min-w-0">
-            <MiniStatCard
-              icon={<Wallet className="size-5" strokeWidth={1.75} />}
-              label="Total Balance"
-              bgImage="/images/blocks/total.png"
-              value={
-                <>
-                  <span>
-                    {formatNumber(Number(detail.balance) / 1e8, {
-                      maximumFractionDigits: 4,
-                    })}
-                  </span>
-                  <img src="/icons/dash.svg" alt="DASH" className="size-4" />
-                </>
-              }
-            />
-
-            <MiniStatCard
-              icon={<MoveDown className="size-5" strokeWidth={2} />}
-              label="Received"
-              bgImage="/images/blocks/latest.png"
-              value={
-                <>
-                  <span>
-                    {formatNumber(Number(detail.received) / 1e8, {
-                      maximumFractionDigits: 4,
-                    })}
-                  </span>
-                  <img src="/icons/dash.svg" alt="DASH" className="size-4" />
-                </>
-              }
-            />
-
-            <MiniStatCard
-              icon={<MoveUp className="size-5" strokeWidth={2} />}
-              label="Sent"
-              bgImage="/images/blocks/reward.png"
-              value={
-                <>
-                  <span>
-                    {formatNumber(Number(detail.sent) / 1e8, {
-                      maximumFractionDigits: 4,
-                    })}
-                  </span>
-                  <img src="/icons/dash.svg" alt="DASH" className="size-4" />
-                </>
-              }
-            />
-
-            <MiniStatCard
-              icon={<ArrowLeftRight className="size-5" strokeWidth={1.75} />}
-              label="Transactions"
-              bgImage="/images/blocks/superblock.png"
-              value={formatNumber(Number(detail.txCount))}
-            />
-          </div>
-
-          <Card className="flex flex-1 flex-col justify-center border-0 px-6 py-4 shadow-none">
-            <div className="flex flex-col">
-              <DetailRow label="First Seen">
-                <span className="text-muted-foreground">—</span>
-              </DetailRow>
-              <DetailRow label="Last Seen">
-                <span className="text-muted-foreground">—</span>
-              </DetailRow>
-              <DetailRow label="Total Fee Spent">
-                <span className="text-muted-foreground">—</span>
-              </DetailRow>
-            </div>
-          </Card>
-        </div>
-
-        <Card className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
-          <CardHeader className="relative px-5 pb-2 sm:px-6">
-            <div className="flex items-start gap-4">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
-                <img src="/icons/dash.svg" alt="" className="size-5" />
-              </div>
-              <div>
-                <p className="text-[15px] font-medium text-muted-foreground">
-                  Balance
-                </p>
-                <CardTitle className="mt-1 flex flex-wrap items-baseline gap-2 text-[34px] font-medium tracking-[-0.03em]">
-                  <span className="font-extrabold text-[#21314d]">
-                    {balanceDash != null
-                      ? formatNumber(balanceDash, {
-                          maximumFractionDigits: 4,
-                        })
-                      : "—"}
-                  </span>
-                  <span className="text-muted-foreground">DASH</span>
-                </CardTitle>
-              </div>
-            </div>
-            <CardAction>
-              <div className="flex items-center gap-1 rounded-full bg-[#EAF0FF] p-1">
-                {RANGE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setRange(opt.value)}
-                    className={cn(
-                      "h-6 rounded-full px-2.5 text-[11px] font-semibold transition-colors",
-                      range === opt.value
-                        ? "bg-accent text-white"
-                        : "text-accent hover:bg-white/60",
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="relative flex flex-1 items-end px-3 pb-3 sm:px-4 sm:pb-4">
-            {chartPoints.length > 0 ? (
-              <AreaChart
-                className="rounded-[20px]"
-                data={chartPoints}
-                getKey={(p) => p.key}
-                getValue={(p) => p.value}
-                getXLabel={(p) => {
-                  const date = new Date(p.timestamp);
-                  if (range === "1d") {
-                    return formatDateTime(date, {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    });
-                  }
-                  return formatDateTime(date, {
-                    month: "short",
-                    day: "numeric",
-                  });
-                }}
-                renderTooltip={(p) => (
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {formatNumber(p.value, {
-                        maximumFractionDigits: 4,
-                      })}{" "}
-                      DASH
-                    </span>
-                    <span className="text-muted-foreground">
-                      {formatDateTime(new Date(p.timestamp))}
-                    </span>
-                  </div>
-                )}
-                ariaLabel="Address balance over time"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-                No balance data for this range.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card
-        className="border-0 shadow-none animate-fade-in-up"
-        style={{ animationDelay: "150ms" }}
-      >
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Transactions
-          </CardTitle>
-          <CardAction>
-            <SearchInput
-              value={globalFilter}
-              onChange={setGlobalFilter}
-              placeholder="Search by Tx Hash..."
-            />
-          </CardAction>
-        </CardHeader>
-        <CardContent className="overflow-x-auto px-3">
-          <DataTable
-            table={table}
-            isFetching={isTxFetching}
-            isEmpty={transactions.length === 0}
-            skeletonWidths={txSkeletonWidths}
-            skeletonRows={limit}
-            emptyMessage="No transactions found."
-            borderless
-            onRowClick={(tx) =>
-              tableNavigate({
-                to: "/transactions/$hash",
-                params: { hash: tx.hash },
-              })
-            }
-          />
-        </CardContent>
-        <Pagination
-          page={page}
-          pageCount={txPageCount}
-          onPageChange={(p) => navigate({ search: { page: p, limit } })}
-          pageSize={limit}
-          onPageSizeChange={(size) =>
-            navigate({ search: { page: 1, limit: size } })
-          }
+      {query.isError && (
+        <output className="block text-sm text-muted-foreground">
+          Address updates are unavailable. Showing the last loaded data.
+        </output>
+      )}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,600fr)_minmax(0,760fr)]">
+        <AddressOverview detail={detail} />
+        <AddressBalanceChart
+          key={`${network}:${address}`}
+          detail={detail}
+          network={network}
         />
-      </Card>
+      </div>
+      <AddressTransactionsTable
+        key={`${network}:${address}`}
+        address={address}
+        network={network}
+        page={page}
+        limit={limit}
+        total={Number(detail.txCount)}
+      />
     </main>
   );
 }
 
-function DetailRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function AddressSkeleton() {
   return (
-    <div className="flex items-center gap-6 py-3">
-      <span className="min-w-24 shrink-0 text-xs text-muted-foreground">
-        {label}
-      </span>
-      <div className="flex min-w-0 items-center text-xs">{children}</div>
-    </div>
+    <main
+      aria-busy="true"
+      aria-label="Loading address"
+      className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16"
+    >
+      <output className="sr-only">Loading address…</output>
+      <SkeletonBar className="h-10 w-full max-w-3xl" />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,600fr)_minmax(0,760fr)]">
+        <div className="space-y-6 rounded-3xl bg-card p-6">
+          <div className="grid grid-cols-2 gap-4">
+            {["balance", "received", "transactions", "sent"].map((field) => (
+              <SkeletonBar key={field} className="h-24 w-full rounded-3xl" />
+            ))}
+          </div>
+          {["first", "last", "fees", "average"].map((field) => (
+            <SkeletonBar key={field} className="w-full" />
+          ))}
+        </div>
+        <div className="space-y-6 rounded-3xl bg-card p-6">
+          <SkeletonBar className="h-16 w-56" />
+          <SkeletonBar className="h-64 w-full" />
+        </div>
+      </div>
+      <div className="space-y-4 rounded-3xl bg-card p-6">
+        <h2 className="text-xl font-extrabold">Transactions</h2>
+        {["header", "first", "second", "third", "fourth", "fifth"].map(
+          (row) => (
+            <SkeletonBar key={row} className="h-11 w-full" />
+          ),
+        )}
+      </div>
+    </main>
   );
 }
