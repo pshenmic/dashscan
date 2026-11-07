@@ -31,7 +31,7 @@ export function TransactionsOverview({ network }: { network: Network }) {
   const slices = validComposition
     ? [
         { name: "Standard", count: total - special, fill: "var(--chart-1)" },
-        { name: "Special", count: special, fill: "var(--chart-4)" },
+        { name: "Special", count: special, fill: "var(--chart-5)" },
       ]
     : [];
   const surface = "rounded-3xl bg-card px-6 py-4 shadow-card dark:bg-secondary";
@@ -172,27 +172,29 @@ export function TransactionsOverview({ network }: { network: Network }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-1 flex-col items-center gap-6 rounded-3xl bg-secondary p-6 sm:flex-row lg:flex-col xl:flex-row">
-            <div className="relative size-[174px] shrink-0" aria-hidden="true">
-              {validComposition && total > 0 ? (
-                <PieChart width={174} height={174} accessibilityLayer={false}>
-                  <Pie
-                    data={slices}
-                    dataKey="count"
-                    nameKey="name"
-                    innerRadius={59}
-                    outerRadius={86}
-                    startAngle={90}
-                    endAngle={-270}
-                    cornerRadius={4}
-                    paddingAngle={2}
-                    stroke="none"
-                    isAnimationActive={false}
-                    rootTabIndex={-1}
-                  />
-                </PieChart>
-              ) : (
-                <div className="size-full rounded-full border-[26px] border-secondary" />
-              )}
+            <div className="relative size-[174px] shrink-0">
+              <div aria-hidden="true">
+                {validComposition && total > 0 ? (
+                  <PieChart width={174} height={174} accessibilityLayer={false}>
+                    <Pie
+                      data={slices}
+                      dataKey="count"
+                      nameKey="name"
+                      innerRadius={59}
+                      outerRadius={86}
+                      startAngle={90}
+                      endAngle={-270}
+                      cornerRadius={4}
+                      paddingAngle={2}
+                      stroke="none"
+                      isAnimationActive={false}
+                      rootTabIndex={-1}
+                    />
+                  </PieChart>
+                ) : (
+                  <div className="size-full rounded-full border-[26px] border-secondary" />
+                )}
+              </div>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-xs text-muted-foreground">Total</span>
                 <strong className="text-xl tabular-nums">
@@ -200,31 +202,37 @@ export function TransactionsOverview({ network }: { network: Network }) {
                 </strong>
               </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-extrabold">24h Tx Composition</h2>
+            <div className="w-full min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-extrabold">Transaction types</h2>
+                <span className="rounded-lg bg-card px-2 py-1 text-xs font-medium text-muted-foreground">
+                  24H
+                </span>
                 <InfoPopover label="About transaction composition">
-                  Standard and special transactions form the chart. CoinJoin and
-                  multisig are separate attributes and can overlap; they are not
-                  additional slices.
+                  Confirmed transactions in the last 24 hours. CoinJoin and
+                  multisig are overlapping attributes, not additional chart
+                  slices.
                 </InfoPopover>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Confirmed transactions by type
-              </p>
-              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+              <dl className="mt-5 space-y-3 text-sm">
                 {slices.map((slice) => (
-                  <div key={slice.name}>
-                    <dt className="flex items-center gap-2">
+                  <div
+                    key={slice.name}
+                    className="flex items-baseline justify-between gap-3"
+                  >
+                    <dt className="flex shrink-0 items-center gap-2">
                       <span
-                        className="size-2 rounded-full"
+                        aria-hidden="true"
+                        className="size-2.5 shrink-0 rounded-full"
                         style={{ background: slice.fill }}
                       />
                       {slice.name}
                     </dt>
-                    <dd className="mt-1 font-extrabold tabular-nums">
-                      {metricNumber(slice.count, 0)}{" "}
-                      <span className="font-medium text-muted-foreground">
+                    <dd className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-right tabular-nums">
+                      <span className="font-extrabold">
+                        {metricNumber(slice.count, 0)}
+                      </span>
+                      <span className="w-[6ch] font-medium text-muted-foreground">
                         {total
                           ? `${metricNumber((slice.count / total) * 100, 1)}%`
                           : ""}
@@ -232,17 +240,25 @@ export function TransactionsOverview({ network }: { network: Network }) {
                     </dd>
                   </div>
                 ))}
-                {(["coinjoin", "multisig"] as const).map((key) => (
-                  <div key={key}>
-                    <dt className="text-muted-foreground">
-                      {key === "coinjoin" ? "CoinJoin" : "Multisig"}
-                    </dt>
-                    <dd className="mt-1 font-extrabold tabular-nums">
-                      {metricNumber(breakdown.data?.[key], 0)}
-                    </dd>
-                  </div>
-                ))}
               </dl>
+              <div className="mt-4 border-t border-border pt-4">
+                <h3 className="text-xs font-medium text-muted-foreground">
+                  Attributes
+                </h3>
+                <dl className="mt-3 space-y-3 text-sm">
+                  {(["coinjoin", "multisig"] as const).map((key) => (
+                    <div
+                      key={key}
+                      className="flex items-baseline justify-between gap-4"
+                    >
+                      <dt>{key === "coinjoin" ? "CoinJoin" : "Multisig"}</dt>
+                      <dd className="text-right font-extrabold tabular-nums">
+                        {metricNumber(breakdown.data?.[key], 0)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-[1.2fr_1.2fr_1fr]">
