@@ -154,14 +154,13 @@ function MasternodesSection({ network }: { network: Network }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <h3 id={nodesTitleId} className="dash-heading-section">
-                Masternodes
+                <InfoPopover label="About masternodes" trigger="Masternodes">
+                  Locations are estimated from IP addresses. Nodes without
+                  coordinates appear only in the list. Country selection filters
+                  the list and highlights matching nodes on the map. Rows are
+                  ordered by last paid block, newest first.
+                </InfoPopover>
               </h3>
-              <InfoPopover label="About masternodes">
-                Locations are estimated from IP addresses. Nodes without
-                coordinates appear only in the list. Country selection filters
-                the list and highlights matching nodes on the map. Rows are
-                ordered by last paid block, newest first.
-              </InfoPopover>
             </div>
             <div className="relative w-full min-w-0 sm:w-48 sm:shrink-0">
               <label htmlFor={filterId} className="sr-only">
@@ -385,8 +384,15 @@ function MasternodesSection({ network }: { network: Network }) {
         <div className="flex min-h-[260px] min-w-0 flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
           <div className="relative min-w-0">
             <div className="flex min-w-0 flex-col gap-2">
-              <h3 className="pr-9 text-base font-medium leading-4">
-                Regular masternode history
+              <h3 className="text-base font-medium leading-4">
+                <InfoPopover
+                  label="About masternode growth"
+                  trigger="Regular masternode history"
+                >
+                  Regular masternodes across all statuses, excluding Evo nodes.
+                  History uses Core snapshots, not registration dates. Only the
+                  available continuous history is plotted.
+                </InfoPopover>
               </h3>
               <div className="flex items-center gap-4">
                 <p className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]">
@@ -410,13 +416,7 @@ function MasternodesSection({ network }: { network: Network }) {
                 30-day snapshot comparison
               </p>
             </div>
-            <div className="absolute right-0 top-0">
-              <InfoPopover label="About masternode growth">
-                Regular masternodes across all statuses, excluding Evo nodes.
-                History uses Core snapshots, not registration dates. Only the
-                available continuous history is plotted.
-              </InfoPopover>
-            </div>
+            <div className="absolute right-0 top-0"></div>
           </div>
           <div className="min-h-[117px] flex-1">
             <ChainHistoryChart

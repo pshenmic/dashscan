@@ -234,12 +234,13 @@ export function DaoBudgetCards({
       <div className="flex min-w-0 flex-col gap-4">
         <div className="flex min-h-[232px] flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="dash-body">Budget</h3>
-            <InfoPopover label="About the cycle budget">
-              The ring shows the share allocated to proposals with enough votes
-              and funding capacity. This is a projection, not a confirmed
-              payout.
-            </InfoPopover>
+            <h3 className="dash-body">
+              <InfoPopover label="About the cycle budget" trigger="Budget">
+                The ring shows the share allocated to proposals with enough
+                votes and funding capacity. This is a projection, not a
+                confirmed payout.
+              </InfoPopover>
+            </h3>
           </div>
           <div className="flex flex-wrap items-center gap-4 sm:gap-6 xl:gap-4">
             <DaoRing

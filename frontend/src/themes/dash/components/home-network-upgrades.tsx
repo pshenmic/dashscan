@@ -29,12 +29,15 @@ export function HomeNetworkUpgrades({ network }: { network: Network }) {
       <div>
         <div className="flex items-center gap-2">
           <h3 id={titleId} className="text-sm text-muted-foreground">
-            Network upgrades
+            <InfoPopover
+              label="About network upgrades"
+              trigger="Network upgrades"
+            >
+              Deployments reported by the connected Dash Core node, not a
+              complete release history. Heights refer to activation, not
+              signaling.
+            </InfoPopover>
           </h3>
-          <InfoPopover label="About network upgrades">
-            Deployments reported by the connected Dash Core node, not a complete
-            release history. Heights refer to activation, not signaling.
-          </InfoPopover>
         </div>
         <p className="mt-2 text-[32px] font-extrabold tabular-nums">
           {chain.isPending ? "…" : metricNumber(upgrades?.length, 0)}{" "}

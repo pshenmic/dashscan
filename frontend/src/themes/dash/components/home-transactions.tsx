@@ -259,8 +259,10 @@ export function HomeTransactions() {
                 1 <span className="font-normal">s</span>
               </p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>Reference</span>
-                <InfoPopover label="About the reference lock time">
+                <InfoPopover
+                  label="About the reference lock time"
+                  trigger="Reference"
+                >
                   Fixed display value, not a measured network latency or a
                   guarantee.
                 </InfoPopover>

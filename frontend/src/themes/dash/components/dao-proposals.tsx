@@ -127,11 +127,15 @@ export function DaoLeaderboard({
   return (
     <div className="relative order-2 min-w-0 xl:order-1 xl:h-[243px]">
       <div className="flex items-center justify-between gap-3 px-3 pb-5 xl:mx-[66px] xl:px-6 xl:pt-6">
-        <h3 className="dash-body">Proposals Leaderboard</h3>
-        <InfoPopover label="About the proposals leaderboard">
-          Active proposals ranked by net yes votes (yes minus no). Amounts are
-          requested payments per cycle, not confirmed payouts.
-        </InfoPopover>
+        <h3 className="dash-body">
+          <InfoPopover
+            label="About the proposals leaderboard"
+            trigger="Proposals Leaderboard"
+          >
+            Active proposals ranked by net yes votes (yes minus no). Amounts are
+            requested payments per cycle, not confirmed payouts.
+          </InfoPopover>
+        </h3>
       </div>
       {proposalState ? (
         <div className="p-6">{proposalState}</div>
@@ -170,7 +174,16 @@ export function DaoProposalsTable({
     <div className="flex min-h-[528px] min-w-0 flex-col gap-6 rounded-3xl dash-home-panel p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="dash-heading-section">Budget Proposals</h3>
+          <h3 className="dash-heading-section">
+            <InfoPopover
+              label="About proposal statuses"
+              trigger="Budget Proposals"
+            >
+              Check marks indicate the vote threshold has been reached, not that
+              a payout has occurred. Proposals must also fit the treasury
+              budget. Dates are shown in UTC.
+            </InfoPopover>
+          </h3>
           <p className="dash-body-compact mt-2 text-muted-foreground">
             {loading
               ? "Loading…"
@@ -179,11 +192,6 @@ export function DaoProposalsTable({
                 : `${metricNumber(rows.length, 0)} active proposals`}
           </p>
         </div>
-        <InfoPopover label="About proposal statuses">
-          Check marks indicate the vote threshold has been reached, not that a
-          payout has occurred. Proposals must also fit the treasury budget.
-          Dates are shown in UTC.
-        </InfoPopover>
       </div>
       {proposalState || (
         <div className="max-h-[400px] min-h-0 overflow-auto">

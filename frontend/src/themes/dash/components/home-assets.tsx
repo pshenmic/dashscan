@@ -251,13 +251,20 @@ export function HomeAssets() {
           />
           <div className="flex items-center justify-between gap-3 px-6 pb-6 pt-6 sm:mx-[30px]">
             <h3 className="dash-heading-section">
-              <strong>Platform</strong> Transfers
+              <InfoPopover
+                label="About Platform transfers"
+                trigger={
+                  <>
+                    <strong>Platform</strong> Transfers
+                  </>
+                }
+              >
+                Latest indexed transactions in each direction. Deposits increase
+                the Core credit pool; withdrawals pay DASH back to Core. Amounts
+                exclude change and withdrawal fees. These are not 24-hour
+                totals.
+              </InfoPopover>
             </h3>
-            <InfoPopover label="About Platform transfers">
-              Latest indexed transactions in each direction. Deposits increase
-              the Core credit pool; withdrawals pay DASH back to Core. Amounts
-              exclude change and withdrawal fees. These are not 24-hour totals.
-            </InfoPopover>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="min-w-0">
@@ -397,7 +404,17 @@ export function HomeAssets() {
         <div className="flex min-h-[256px] min-w-0 flex-col gap-4 rounded-3xl dash-home-panel p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="dash-body">Core credit pool history</h3>
+              <h3 className="dash-body">
+                <InfoPopover
+                  label="About the credit pool"
+                  trigger="Core credit pool history"
+                >
+                  Core credit pool balance in DASH, as reported by indexed
+                  blocks. This is not a direct count of issued Platform credits.
+                  The chart shows the last indexed balance in each daily
+                  interval.
+                </InfoPopover>
+              </h3>
               <p className="mt-2 text-[32px] leading-tight">
                 <strong>
                   {blocks.isPending ? "…" : metricNumber(balance)}
@@ -405,11 +422,6 @@ export function HomeAssets() {
                 <span className="text-base">DASH</span>
               </p>
             </div>
-            <InfoPopover label="About the credit pool">
-              Core credit pool balance in DASH, as reported by indexed blocks.
-              This is not a direct count of issued Platform credits. The chart
-              shows the last indexed balance in each daily interval.
-            </InfoPopover>
           </div>
           {blocks.isError ? (
             <p role="alert" className="text-sm text-destructive">

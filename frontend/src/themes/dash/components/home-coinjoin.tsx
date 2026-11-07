@@ -2,11 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { useId } from "react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { transactionsBreakdown24hQueryOptions } from "@/lib/api/stats";
 import { appStore } from "@/lib/store";
 import {
@@ -17,6 +12,7 @@ import {
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
 import { ChainHistoryChart } from "./chain-history-chart";
 import { HomeIcon } from "./home-icon";
+import { InfoPopover } from "./info-popover";
 import { MissingApiData } from "./missing-api-data";
 
 export function HomeCoinJoin() {
@@ -118,7 +114,14 @@ export function HomeCoinJoin() {
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-2">
             <h3 className="text-base font-medium leading-4">
-              CoinJoin volume · 7D
+              <InfoPopover
+                label="About the mixed amount"
+                trigger="CoinJoin volume · 7D"
+              >
+                Sum of amounts in transactions classified as CoinJoin, including
+                repeated mixing rounds. This is processed volume, not unique
+                funds.
+              </InfoPopover>
             </h3>
             <div className="flex flex-wrap items-center gap-4">
               <p
@@ -168,28 +171,6 @@ export function HomeCoinJoin() {
               Compared to last <strong className="font-extrabold">week</strong>
             </p>
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                aria-label="About the mixed amount"
-                className="size-6 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                <img
-                  src="/icons/home/info.svg"
-                  alt=""
-                  width={24}
-                  height={24}
-                  className="size-6 dark:invert"
-                />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="max-w-[calc(100vw-2rem)] text-sm">
-              Sum of amounts in transactions classified as CoinJoin, including
-              repeated mixing rounds. This is processed volume, not unique
-              funds.
-            </PopoverContent>
-          </Popover>
         </div>
         <div className="flex min-h-[164px] flex-1 flex-col justify-center">
           <ChainHistoryChart
