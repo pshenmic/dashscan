@@ -170,7 +170,6 @@ export function TransactionsOverview({ network }: { network: Network }) {
         </p>
       )}
       <div className="grid gap-4 lg:grid-cols-2">
-        <TransactionHistoryCard network={network} surface="subtle" />
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-1 flex-col items-center gap-6 rounded-3xl bg-secondary p-6 sm:flex-row lg:flex-col xl:flex-row">
             <div className="relative size-[174px] shrink-0" aria-hidden="true">
@@ -283,6 +282,7 @@ export function TransactionsOverview({ network }: { network: Network }) {
             </div>
           </div>
         </div>
+        <TransactionHistoryCard network={network} surface="subtle" />
       </div>
     </section>
   );
