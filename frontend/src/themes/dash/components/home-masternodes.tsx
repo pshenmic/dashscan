@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/select";
 import { allMasternodesQueryOptions } from "@/lib/api/masternodes";
 import { chainHistoryQueryOptions } from "@/lib/api/stats";
-import { getIp } from "@/lib/format";
 import { appStore, type Network } from "@/lib/store";
 import {
   percentageChange,
@@ -28,13 +27,8 @@ import { ChainHistoryChart } from "./chain-history-chart";
 import { HomeIcon } from "./home-icon";
 import { HomeMapSurface } from "./home-map-surface";
 import { HomeMasternodeMap } from "./home-masternode-map";
-import { HomeTable } from "./home-table";
-import { IdentifierLink } from "./identifier-link";
+import { HomeMasternodesTable } from "./home-masternodes-table";
 import { InfoPopover } from "./info-popover";
-import {
-  MasternodeStatusBadge,
-  MasternodeTypeBadge,
-} from "./masternode-badges";
 import { MissingApiData } from "./missing-api-data";
 
 export function HomeMasternodes() {
@@ -152,7 +146,7 @@ function MasternodesSection({ network }: { network: Network }) {
         />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-2">
               <h3 id={nodesTitleId} className="dash-heading-section">
                 <InfoPopover label="About masternodes" trigger="Masternodes">
                   Locations are estimated from IP addresses. Nodes without
@@ -160,7 +154,21 @@ function MasternodesSection({ network }: { network: Network }) {
                   the list and highlights matching nodes on the map. Rows are
                   ordered by last paid block, newest first.
                 </InfoPopover>
-              </h3>
+              </h3>{" "}
+              <p
+                aria-live="polite"
+                aria-atomic="true"
+                className="whitespace-nowrap text-xl font-extrabold leading-tight tabular-nums"
+              >
+                {number(nodes.data ? filtered.length : undefined)}{" "}
+                <span className="text-base font-medium text-muted-foreground">
+                  {selectedHashes ? (
+                    <>of {number(distribution?.total)} nodes</>
+                  ) : (
+                    "Nodes Total"
+                  )}
+                </span>
+              </p>
             </div>
             <div className="relative w-full min-w-0 sm:w-48 sm:shrink-0">
               <label htmlFor={filterId} className="sr-only">
@@ -212,20 +220,7 @@ function MasternodesSection({ network }: { network: Network }) {
               </Select>
             </div>
           </div>
-          <p
-            aria-live="polite"
-            aria-atomic="true"
-            className="mt-2 text-[32px] font-extrabold leading-tight tabular-nums"
-          >
-            {number(nodes.data ? filtered.length : undefined)}{" "}
-            <span className="text-base font-medium text-muted-foreground">
-              {selectedHashes ? (
-                <>of {number(distribution?.total)} nodes</>
-              ) : (
-                "Nodes Total"
-              )}
-            </span>
-          </p>
+
           <div
             data-grid-map
             ref={mapRef}
@@ -278,76 +273,13 @@ function MasternodesSection({ network }: { network: Network }) {
             ref={listResults}
             aria-label="Masternode results"
             tabIndex={-1}
-            className="mt-6 h-[344px] overflow-auto rounded-lg border-t border-border focus-visible:outline-2 focus-visible:outline-ring xl:mt-0"
+            className="mt-6 h-[404px] overflow-auto rounded-xl focus-visible:outline-2 focus-visible:outline-ring xl:mt-0"
           >
-            <HomeTable aria-label="Masternodes">
-              <thead>
-                <tr className="border-b border-foreground/8 text-muted-foreground">
-                  <th scope="col" className="px-2 py-3 font-medium">
-                    IP Address
-                  </th>
-                  <th scope="col" className="px-2 py-3 font-medium">
-                    ProTxHash
-                  </th>
-                  <th scope="col" className="px-2 py-3 text-right font-medium">
-                    Type
-                  </th>
-                  <th scope="col" className="px-2 py-3 text-right font-medium">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {nodes.isError || nodes.isPending || rows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-2 py-8 text-center text-muted-foreground"
-                    >
-                      {nodes.isError
-                        ? "Masternodes unavailable."
-                        : nodes.isPending
-                          ? "Loading…"
-                          : "No masternodes found."}
-                    </td>
-                  </tr>
-                ) : (
-                  rows.map((node) => (
-                    <tr
-                      key={node.proTxHash}
-                      className="border-b border-foreground/8 last:border-0"
-                    >
-                      <td className="px-2 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src="/icons/home/masternode.svg"
-                            alt=""
-                            width={24}
-                            height={24}
-                            className="size-6 shrink-0"
-                          />
-                          <span className="font-bold">
-                            {getIp(node.address)}
-                          </span>
-                        </div>
-                      </td>
-                      <td data-grow className="px-2 py-2.5">
-                        <IdentifierLink
-                          value={node.proTxHash}
-                          kind="masternode"
-                        />
-                      </td>
-                      <td className="px-2 py-2.5 text-right">
-                        <MasternodeTypeBadge type={node.type} />
-                      </td>
-                      <td className="px-2 py-2.5 text-right">
-                        <MasternodeStatusBadge status={node.status} />
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </HomeTable>
+            <HomeMasternodesTable
+              rows={rows}
+              busy={nodes.isFetching}
+              error={nodes.isError}
+            />
           </section>
           {
             <nav
@@ -381,7 +313,7 @@ function MasternodesSection({ network }: { network: Network }) {
         ref={growthRef}
         className="relative flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-2 xl:w-[calc(100%+var(--list-offset)+40px)]"
       >
-        <div className="flex min-h-[260px] min-w-0 flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
+        <div className="flex min-h-[260px] min-w-0 flex-1 flex-col gap-8 rounded-3xl bg-secondary/75 p-6">
           <div className="relative min-w-0">
             <div className="flex min-w-0 flex-col gap-2">
               <h3 className="text-base font-medium leading-4">
@@ -394,29 +326,28 @@ function MasternodesSection({ network }: { network: Network }) {
                   available continuous history is plotted.
                 </InfoPopover>
               </h3>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <p className="whitespace-nowrap text-[32px] font-extrabold leading-[1.0813]">
                   {number(distribution?.regular)}{" "}
                   <span className="text-base font-medium">Nodes</span>
                 </p>
                 {growth != null ? (
-                  <span className="text-sm text-accent">
+                  <span className="rounded-full bg-accent/12 px-2 py-1 text-xs font-extrabold text-accent tabular-nums">
                     {growth > 0 ? "+" : ""}
                     {metricNumber(growth)}%
                   </span>
                 ) : history.isSuccess ? (
                   <MissingApiData
                     inline
-                    className="whitespace-nowrap"
+                    className="rounded-full whitespace-nowrap"
                     description="The API has not yet provided two comparable masternode snapshots 30 days apart."
                   />
                 ) : null}
               </div>
               <p className="text-sm font-medium leading-4 text-muted-foreground">
-                30-day snapshot comparison
+                Compared to the last <strong>30 days</strong>
               </p>
             </div>
-            <div className="absolute right-0 top-0"></div>
           </div>
           <div className="min-h-[117px] flex-1">
             <ChainHistoryChart
@@ -428,6 +359,7 @@ function MasternodesSection({ network }: { network: Network }) {
               error={history.isError}
               onRetry={() => void history.refetch()}
               height={117}
+              detailedAxis
             />
           </div>
         </div>
