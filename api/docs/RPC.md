@@ -2428,6 +2428,37 @@ Returns a list of pending transactions.
 
 ---
 
+### GET /governance/proposals/stats
+
+Returns the number of active proposals at `timestamp_end` and at `timestamp_start`, from the live `gobject list`. A proposal is active at a time when it was created before it and its payment window (`startEpoch` to `endEpoch`) covers it. This is independent of funding or eligibility for the next superblock.
+
+Core prunes proposals shortly after their payment window ends, so `previousActive` does not include proposals that ended at a superblock between `timestamp_start` and now. The further back `timestamp_start` is, the less complete it gets.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default        | Description                              |
+|-------------------|--------|----------------|------------------------------------------|
+| `timestamp_start` | string | now − 24 hours | ISO 8601 time for `previousActive`       |
+| `timestamp_end`   | string | now            | ISO 8601 time for `active`               |
+
+**Response `200`**
+
+```json
+{
+  "active": 4,
+  "previousActive": 3
+}
+```
+
+| Field            | Type   | Description                           |
+|------------------|--------|---------------------------------------|
+| `active`         | number | Active proposals at `timestamp_end`   |
+| `previousActive` | number | Active proposals at `timestamp_start` |
+
+**Response `400`** — `timestamp_start` is after `timestamp_end`
+
+---
+
 ### GET /governance/budget
 
 Returns treasury stats for the next superblock: the budget from Dash Core RPC plus aggregate figures computed across currently pending proposals.

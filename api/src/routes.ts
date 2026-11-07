@@ -468,6 +468,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       }
     },
     {
+      path: '/governance/proposals/stats',
+      method: 'get',
+      handler: governanceController.getProposalStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
+    },
+    {
       path: '/governance/budget',
       method: 'get',
       handler: governanceController.getBudgetInfo,

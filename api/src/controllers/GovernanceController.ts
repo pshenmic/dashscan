@@ -91,6 +91,21 @@ export default class GovernanceController {
     response.send(proposals)
   }
 
+  getProposalStats = async (request: FastifyRequest<{ Querystring: { timestamp_start: string; timestamp_end: string } }>, response: FastifyReply): Promise<void> => {
+    const {
+      timestamp_start: start = new Date(new Date().getTime() - 86400000).toISOString(),
+      timestamp_end: end = new Date().toISOString(),
+    } = request.query;
+
+    if (new Date(start).getTime() > new Date(end).getTime()) {
+      return response.status(400).send({error: 'start timestamp cannot be more than end timestamp'});
+    }
+
+    const stats = await this.governanceDAO.getProposalStats(new Date(start), new Date(end))
+
+    response.send(stats)
+  }
+
   getBudgetInfo = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
     const {resultSet: superblocks} = await this.blocksDAO.getBlocks(1, 2, 'desc', true)
     const [lastSuperblock, prevSuperblock] = superblocks

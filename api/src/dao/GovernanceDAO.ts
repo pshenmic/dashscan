@@ -4,6 +4,7 @@ import {DashCoreRPC, GovernanceInfoRPC, GovernanceObjectSignal} from "../dashcor
 import {GovernanceObject} from "../models/GovernanceObject";
 import {ProposalVote} from "../models/ProposalVote";
 import SeriesData from "../models/SeriesData";
+import ProposalStats from "../models/ProposalStats";
 import MasternodesDAO from "./MasternodesDAO";
 import {Cache} from "../cache";
 import {PROTX_OUTPOINT_MAP_LIFE_TIME, REDIS_VOTES_KEY_PART} from "../constants";
@@ -279,6 +280,19 @@ export default class GovernanceDAO {
 
       return new SeriesData(new Date(bucket.from), {yes: bucket.yes, no: bucket.no, abstain: bucket.abstain});
     });
+  }
+
+  getProposalStats = async (start: Date, end: Date): Promise<ProposalStats> => {
+    const response = await this.dashCoreRPC.getGovernanceObjects('all', 'proposals')
+    const proposals = Object.values(response).map(obj => GovernanceObject.fromObject(obj))
+
+    const activeAt = (time: number): number => proposals.filter(p =>
+      (p.creationTime?.getTime() ?? Infinity) <= time * 1000 &&
+      (p.startEpoch ?? Infinity) <= time &&
+      time < (p.endEpoch ?? 0)
+    ).length
+
+    return new ProposalStats(activeAt(Math.floor(end.getTime() / 1000)), activeAt(Math.floor(start.getTime() / 1000)))
   }
 
   getBudgetInfo = async (superblockHeight: number): Promise<number> => {
