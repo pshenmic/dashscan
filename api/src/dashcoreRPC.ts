@@ -29,6 +29,23 @@ export interface MasternodePaymentsRPC {
   }[];
 }
 
+export interface DeploymentRPC {
+  type: string;
+  active: boolean;
+  height?: number;
+  bip9?: {
+    status: string;
+    since: number;
+    ehf_height?: number;
+  };
+}
+
+export interface DeploymentInfoRPC {
+  hash: string;
+  height: number;
+  deployments: Record<string, DeploymentRPC>;
+}
+
 export interface BlockchainInfoRPC {
   chain: string;
   blocks: number;
@@ -231,6 +248,10 @@ export class DashCoreRPC {
 
   async getBlockHash(height: number): Promise<string> {
     return this.callMethod('getblockhash', [height]);
+  }
+
+  async getDeploymentInfo(): Promise<DeploymentInfoRPC> {
+    return this.callMethod('getDeploymentInfo', []);
   }
 
   async getMasternodePayments(blockHash: string): Promise<MasternodePaymentsRPC[]> {

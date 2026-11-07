@@ -481,6 +481,11 @@ export default function Routes({ fastify, mainController, blocksController, tran
       handler: governanceController.getBudgetInfo,
     },
     {
+      path: '/chain/deployments',
+      method: 'get',
+      handler: mainController.getDeployments,
+    },
+    {
       path: '/chain/stats',
       method: 'get',
       handler: mainController.getChainStats,

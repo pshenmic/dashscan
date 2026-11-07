@@ -14,9 +14,9 @@
   resolved "https://registry.yarnpkg.com/@cto.af/wtf8/-/wtf8-0.0.6.tgz#f0ab000e427b5d2fa6c71e42bf4eb93d1e8ac268"
   integrity sha512-xp/zbWLXuh2WBxi9tIc+Jep7BAwLu8ETTI8xN68ks10bxOBMISs/jcu9DBEkOeGXLaTKUbA0Y2Ficx/jmmPABg==
 
-"@dashevo/dashd-rpc@github:owl352/dashd-rpc":
-  version "19.0.0"
-  resolved "https://codeload.github.com/owl352/dashd-rpc/tar.gz/aa2cdec82e05f136e669b89a05adf45243f95ad3"
+"@dashevo/dashd-rpc@github:owl352/dashd-rpc#272b02dfbb5f55ffa718f08e38c9bf98a8c9d4dc":
+  version "19.1.0"
+  resolved "https://codeload.github.com/owl352/dashd-rpc/tar.gz/272b02dfbb5f55ffa718f08e38c9bf98a8c9d4dc"
   dependencies:
     async "^3.2.4"
     bluebird "^3.7.2"

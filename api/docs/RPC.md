@@ -2517,6 +2517,38 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
 
 ---
 
+### GET /chain/deployments
+
+Returns the network's soft fork deployments from Dash Core `getdeploymentinfo` at the current tip. Values are passed through as Core reports them: nothing is inferred, so `height` is `null` until Core provides an activation height. The list is network-specific (mainnet and testnet have different heights and pending deployments).
+
+**Response `200`**
+
+```json
+{
+  "hash": "000000eaac98687ef3e31c24ec8b3e8582beff8661fe1a7c7d3dbcb9bd83d5fe",
+  "height": 1587183,
+  "deployments": [
+    { "id": "v20", "type": "buried", "active": true, "height": 905100, "status": null, "since": null, "ehfHeight": null },
+    { "id": "v24", "type": "bip9", "active": true, "height": 1578000, "status": "active", "since": 1578000, "ehfHeight": 1565132 },
+    { "id": "evo_shares", "type": "bip9", "active": false, "height": null, "status": "defined", "since": 0, "ehfHeight": null }
+  ]
+}
+```
+
+| Field       | Type            | Description                                                                         |
+|-------------|-----------------|-------------------------------------------------------------------------------------|
+| `id`        | string          | Deployment name                                                                     |
+| `type`      | string          | `buried` (fixed activation height) or `bip9` (signalled)                            |
+| `active`    | boolean         | Whether the rules are enforced at the tip                                           |
+| `height`    | number \| null  | Activation height, when Core provides it                                            |
+| `status`    | string \| null  | BIP9 state: `defined`, `started`, `locked_in`, `active`, `failed`; buried: `null`  |
+| `since`     | number \| null  | Height the current BIP9 state started at                                            |
+| `ehfHeight` | number \| null  | Height of the EHF signal, for EHF-activated deployments                             |
+
+`hash` and `height` are the tip the deployment states were evaluated at.
+
+---
+
 ### GET /chain/stats
 
 Returns blockchain metadata from Dash Core RPC, enriched with throughput metrics from the last 20 indexed blocks, network hash rate from the last 120 indexed blocks, and the current indexed mempool size.

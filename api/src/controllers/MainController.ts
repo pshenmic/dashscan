@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 import { DashCoreRPC } from '../dashcoreRPC';
 import BlocksDAO from '../dao/BlocksDAO';
 import ChainStats from "../models/ChainStats";
+import Deployment from "../models/Deployment";
 import {calculateInterval, getUtxoInfo, iso8601duration} from "../utils";
 import Intervals from "../enums/Intervals";
 import {Cache} from "../cache";
@@ -87,6 +88,16 @@ export default class MainController {
 
     response.send(series);
   }
+
+  getDeployments = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
+    const {hash, height, deployments} = await this.dashcoreRPC.getDeploymentInfo();
+
+    response.send({
+      hash,
+      height,
+      deployments: Object.entries(deployments).map(([id, deployment]) => Deployment.fromRPC(id, deployment)),
+    });
+  };
 
   getTotalSupply = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
     const {total_amount} = await getUtxoInfo(this.dashcoreRPC, this.cache);
