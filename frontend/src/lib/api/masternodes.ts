@@ -51,15 +51,29 @@ interface FetchMasternodeInput {
   hash: string;
 }
 
-async function getMasternode(params: FetchMasternodeInput) {
+async function getMasternode(
+  params: FetchMasternodeInput,
+  signal?: AbortSignal,
+) {
+  if (!/^[a-f\d]{64}$/i.test(params.hash)) return null;
   const url = new URL("/search", getBaseUrl(params.network));
   url.searchParams.set("query", params.hash);
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
   const json = (await response.json()) as SearchResponse;
-  return json.masternode;
+  if (!json.masternode) return null;
+  const registration = json.transaction;
+  return {
+    ...json.masternode,
+    registrationTimestamp:
+      registration?.hash.toLowerCase() ===
+        json.masternode.proTxHash.toLowerCase() &&
+      registration.type === "PROVIDER_REGISTRATION"
+        ? registration.timestamp
+        : null,
+  };
 }
 
 export const fetchMasternode = createServerFn({ method: "POST" })
@@ -69,17 +83,19 @@ export const fetchMasternode = createServerFn({ method: "POST" })
 export function masternodeQueryOptions(params: FetchMasternodeInput) {
   return queryOptions({
     queryKey: ["masternode", params.network, params.hash],
-    queryFn: () => getMasternode(params),
+    queryFn: ({ signal }) => getMasternode(params, signal),
   });
 }
 
-async function getMasternodeVotes(params: FetchMasternodeInput) {
+async function getMasternodeVotes(
+  params: FetchMasternodeInput,
+  signal?: AbortSignal,
+) {
   const url = new URL(
     `/masternode/${params.hash}/votes`,
     getBaseUrl(params.network),
   );
-  const response = await apiFetch(url);
-  if (response.status === 404) return [];
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -89,7 +105,7 @@ async function getMasternodeVotes(params: FetchMasternodeInput) {
 export function masternodeVotesQueryOptions(params: FetchMasternodeInput) {
   return queryOptions({
     queryKey: ["masternode-votes", params.network, params.hash],
-    queryFn: () => getMasternodeVotes(params),
+    queryFn: ({ signal }) => getMasternodeVotes(params, signal),
     staleTime: 60 * 1000,
   });
 }
@@ -100,6 +116,7 @@ interface FetchMasternodeTransactionsInput
 
 async function getMasternodeTransactions(
   params: FetchMasternodeTransactionsInput,
+  signal?: AbortSignal,
 ) {
   const url = new URL(
     `/masternode/${params.hash}/transactions`,
@@ -111,7 +128,7 @@ async function getMasternodeTransactions(
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -134,7 +151,7 @@ export function masternodeTransactionsQueryOptions(
       params.limit,
       params.order,
     ],
-    queryFn: () => getMasternodeTransactions(params),
+    queryFn: ({ signal }) => getMasternodeTransactions(params, signal),
   });
 }
 
@@ -156,14 +173,17 @@ export function masternodeTransactionsInfiniteQueryOptions(
       limit,
       order,
     ],
-    queryFn: ({ pageParam }) =>
-      getMasternodeTransactions({
-        network: params.network,
-        hash: params.hash,
-        page: pageParam,
-        limit,
-        order,
-      }),
+    queryFn: ({ pageParam, signal }) =>
+      getMasternodeTransactions(
+        {
+          network: params.network,
+          hash: params.hash,
+          page: pageParam,
+          limit,
+          order,
+        },
+        signal,
+      ),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
       const { page, limit: pageLimit, total } = lastPage.pagination;
