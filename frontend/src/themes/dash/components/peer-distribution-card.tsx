@@ -47,6 +47,7 @@ export function PeerDistributionCard({
   facet,
   slices,
   status,
+  loading = false,
   selectedIds,
   selection,
   onSelect,
@@ -55,6 +56,7 @@ export function PeerDistributionCard({
   facet: PeerFacet;
   slices: PeerSlice[];
   status: string | null;
+  loading?: boolean;
   selectedIds: Set<string> | null;
   selection: PeerSelection | null;
   onSelect: (selection: PeerSelection) => void;
@@ -71,7 +73,10 @@ export function PeerDistributionCard({
   }));
   const select = (slice: PeerSlice) => onSelect({ facet, value: slice.value });
   return (
-    <div className="grid min-w-0 items-center gap-8 rounded-3xl dash-home-panel p-6 sm:grid-cols-[100px_minmax(0,1fr)] lg:grid-cols-1 2xl:grid-cols-[100px_minmax(0,1fr)]">
+    <div
+      aria-busy={loading}
+      className="grid min-w-0 grid-cols-[100px_minmax(0,1fr)] items-center gap-4 rounded-3xl dash-home-panel p-4 sm:p-6 2xl:gap-8"
+    >
       <div
         aria-hidden="true"
         className="dash-network-pie size-[100px] shrink-0"
@@ -110,19 +115,37 @@ export function PeerDistributionCard({
             />
           </PieChart>
         ) : (
-          <div className="size-full rounded-full bg-foreground/5" />
+          <div
+            className={`size-full rounded-full bg-foreground/5 ${loading ? "motion-safe:animate-pulse" : ""}`}
+          />
         )}
       </div>
       <div className="min-w-0 flex-1">
         <h3 className="text-sm font-medium leading-[1.1] text-muted-foreground">
           {title}
         </h3>
-        {status || !slices.length ? (
-          <p className="mt-3 text-sm text-muted-foreground">
+        {loading ? (
+          <output
+            className="mt-3 grid min-h-[84px] grid-cols-2 gap-x-4 gap-y-3"
+            aria-label={`Loading ${title}`}
+          >
+            {["first", "second", "third", "fourth"].map((slot) => (
+              <span
+                key={slot}
+                aria-hidden="true"
+                className="flex min-h-9 items-center gap-2 motion-safe:animate-pulse"
+              >
+                <span className="h-6 min-w-0 flex-1 rounded-lg bg-foreground/5" />
+                <span className="h-3 w-6 shrink-0 rounded bg-foreground/5" />
+              </span>
+            ))}
+          </output>
+        ) : status || !slices.length ? (
+          <p className="mt-3 flex min-h-[84px] items-center text-sm text-muted-foreground">
             {status ?? "No peers observed"}
           </p>
         ) : (
-          <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+          <ul className="mt-3 grid min-h-[84px] grid-cols-2 gap-x-4 gap-y-3 text-xs">
             {slices.map((slice, index) => {
               const selected =
                 selection?.facet === facet && selection.value === slice.value;
