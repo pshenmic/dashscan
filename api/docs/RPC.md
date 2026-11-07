@@ -2,6 +2,8 @@
 
 Base URL: `http://<host>:<port>`
 
+Responses over 1 KB are compressed with brotli, gzip or deflate when the request sends a matching `Accept-Encoding` header; otherwise they are returned uncompressed.
+
 ---
 
 ## Common Structures

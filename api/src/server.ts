@@ -5,6 +5,8 @@ import { Knex } from 'knex';
 import Redis from 'ioredis';
 import { getKnex, getRedis } from './utils';
 import cors from '@fastify/cors';
+import compress from '@fastify/compress';
+import zlib from 'zlib';
 import schemas from './schemas';
 import Routes from './routes';
 import ServiceNotAvailableError from './errors/ServiceNotAvailableError';
@@ -62,6 +64,11 @@ export const start = async (): Promise<FastifyInstance> => {
 
   await fastify.register(cors, {
     // put your options here
+  });
+
+  await fastify.register(compress, {
+    encodings: ['br', 'gzip', 'deflate'],
+    brotliOptions: { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 } },
   });
 
   await fastify.register(metricsPlugin, {

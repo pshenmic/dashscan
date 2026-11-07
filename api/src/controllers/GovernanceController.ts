@@ -27,7 +27,7 @@ export default class GovernanceController {
 
     const votes = await this.governanceDAO.getMasternodeVotes(proTxHash)
 
-    response.send(votes)
+    return response.send(votes)
   }
 
   getProposalVoteSeries = async (
@@ -68,7 +68,7 @@ export default class GovernanceController {
       runningTotal,
     );
 
-    response.send(series);
+    return response.send(series);
   }
 
   getProposalByHash = async (request: FastifyRequest<{ Params: { hash: string } }>, response: FastifyReply): Promise<void> => {
@@ -80,7 +80,7 @@ export default class GovernanceController {
       return response.status(404).send({error: 'Proposal not found'})
     }
 
-    response.send(proposal)
+    return response.send(proposal)
   }
 
   getProposals = async (request: FastifyRequest<{ Querystring: { proposalType?: GovernanceObjectSignal, order?: string, order_by?: string } }>, response: FastifyReply): Promise<void> => {
@@ -88,7 +88,7 @@ export default class GovernanceController {
 
     const proposals = await this.governanceDAO.getProposals(proposalType, orderBy, order)
 
-    response.send(proposals)
+    return response.send(proposals)
   }
 
   getProposalStats = async (request: FastifyRequest<{ Querystring: { timestamp_start: string; timestamp_end: string } }>, response: FastifyReply): Promise<void> => {
@@ -103,7 +103,7 @@ export default class GovernanceController {
 
     const stats = await this.governanceDAO.getProposalStats(new Date(start), new Date(end))
 
-    response.send(stats)
+    return response.send(stats)
   }
 
   getBudgetInfo = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
@@ -111,8 +111,7 @@ export default class GovernanceController {
     const [lastSuperblock, prevSuperblock] = superblocks
 
     if (lastSuperblock?.timestamp == null || prevSuperblock?.timestamp == null) {
-      response.code(404).send({error: 'Not enough superblocks indexed to compute next superblock time'})
-      return
+      return response.code(404).send({error: 'Not enough superblocks indexed to compute next superblock time'})
     }
 
     const [governanceInfo, allProposals, masternodeStats] = await Promise.all([
@@ -122,7 +121,7 @@ export default class GovernanceController {
     ])
 
     if(governanceInfo.lastsuperblock>lastSuperblock.height) {
-      response.status(500).send({error: 'Cannot find the last superblock in the database. Please wait if the sync progress is not at 100%.'})
+      return response.status(500).send({error: 'Cannot find the last superblock in the database. Please wait if the sync progress is not at 100%.'})
     }
 
     const totalBudget = await this.governanceDAO.getBudgetInfo(governanceInfo.nextsuperblock)
@@ -178,7 +177,7 @@ export default class GovernanceController {
         return false
       })
 
-    response.send({
+    return response.send({
       totalBudget,
       totalProposals: proposals.length,
       totalRequested,

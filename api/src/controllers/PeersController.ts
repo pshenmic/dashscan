@@ -27,7 +27,7 @@ export default class PeersController {
 
     const peers = await this.peersDAO.getPeers(page, limit, order, available, country, userAgent, ip);
 
-    response.send(peers);
+    return response.send(peers);
   };
 
   getPeerUserAgents = async (
@@ -38,6 +38,6 @@ export default class PeersController {
 
     const userAgents = await this.peersDAO.getUserAgents(page, limit, order);
 
-    response.send(userAgents);
+    return response.send(userAgents);
   };
 }

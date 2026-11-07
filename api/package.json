@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@dashevo/dashd-rpc": "github:owl352/dashd-rpc#272b02dfbb5f55ffa718f08e38c9bf98a8c9d4dc",
+    "@fastify/compress": "^9.3.0",
     "@fastify/cors": "^11.2.0",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",

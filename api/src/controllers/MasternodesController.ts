@@ -41,12 +41,12 @@ export default class MasternodesController {
       },
     );
 
-    response.send(masternodes);
+    return response.send(masternodes);
   };
 
   getMasternodeStats = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
     const stats = await this.masternodesDAO.getMasternodeStats();
 
-    response.send(stats);
+    return response.send(stats);
   };
 }

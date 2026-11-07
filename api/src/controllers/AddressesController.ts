@@ -28,7 +28,7 @@ export default class AddressesController {
 
     const addresses = await this.addressesDAO.getAddresses(page, limit, order);
 
-    response.send(addresses);
+    return response.send(addresses);
   };
 
   getAddress = async (request: FastifyRequest<{
@@ -39,11 +39,10 @@ export default class AddressesController {
     const result = await this.addressesDAO.getAddress(address);
 
     if (!result) {
-      response.status(404).send({error: 'Address not found'});
-      return;
+      return response.status(404).send({error: 'Address not found'});
     }
 
-    response.send(result);
+    return response.send(result);
   }
 
   getAddressesInfo = async (request: FastifyRequest<{
@@ -53,7 +52,7 @@ export default class AddressesController {
 
     const result = await this.addressesDAO.getAddressesInfo(addresses.split(','));
 
-    response.send(result);
+    return response.send(result);
   }
 
   getAddressBalanceSeries = async (
@@ -89,7 +88,7 @@ export default class AddressesController {
 
     const series = await this.addressesDAO.getAddressBalanceSeries(address, new Date(start), new Date(end), interval, isNaN(intervalInMs) ? Intervals[interval] : intervalInMs);
 
-    response.send(series);
+    return response.send(series);
   }
 
   getAddressesSeries = async (
@@ -119,7 +118,7 @@ export default class AddressesController {
 
     const series = await this.addressesDAO.getAddressesSeries(new Date(start), new Date(end), interval, isNaN(intervalInMs) ? Intervals[interval] : intervalInMs);
 
-    response.send(series);
+    return response.send(series);
   }
 
   getAddressUtxo = async (request: FastifyRequest<{
@@ -131,7 +130,7 @@ export default class AddressesController {
 
     const utxo = await this.addressesDAO.getAddressUtxo(address, page, limit, order);
 
-    response.send(utxo)
+    return response.send(utxo)
   }
 
   getAddressesUtxo = async (request: FastifyRequest<{
@@ -141,7 +140,7 @@ export default class AddressesController {
 
     const utxo = await this.addressesDAO.getAddressesUtxo(addresses.split(','));
 
-    response.send(utxo)
+    return response.send(utxo)
   }
 
   getBalancesInfo = async (request: FastifyRequest<{
@@ -180,7 +179,7 @@ export default class AddressesController {
 
     balances.pagination.limit = limit
 
-    response.send({...balances, utxoSummary: UtxoSummary.fromRPC(utxoInfo)})
+    return response.send({...balances, utxoSummary: UtxoSummary.fromRPC(utxoInfo)})
   }
 
   getAddressesActivity = async (request: FastifyRequest<{
@@ -197,6 +196,6 @@ export default class AddressesController {
 
     const addresses = await this.addressesDAO.getAddressesActivity(start, end, Number(page), Number(limit), order);
 
-    response.send(addresses);
+    return response.send(addresses);
   }
 }
