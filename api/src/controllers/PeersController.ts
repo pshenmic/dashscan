@@ -15,7 +15,7 @@ export default class PeersController {
     request: FastifyRequest<{ Querystring: PaginatedQuery }>,
     response: FastifyReply,
   ): Promise<void> => {
-    const {page = 1, limit = 10, order = 'asc', available, country, user_agent, ip} = request.query;
+    const {page = 1, limit, order = 'asc', available, country, user_agent, ip} = request.query;
 
     let userAgent: RegExp | undefined;
 
