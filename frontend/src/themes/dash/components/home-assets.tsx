@@ -11,7 +11,10 @@ import type { ApiTransaction } from "@/lib/api/types";
 import { formatCompact } from "@/lib/format";
 import { homeBlocksQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
-import { assetTransferAmount } from "@/themes/dash/lib/asset-metrics";
+import {
+  assetTransferAmount,
+  creditsEquivalent,
+} from "@/themes/dash/lib/asset-metrics";
 import {
   useHistoryRange,
   useHomeChainHistory,
@@ -23,6 +26,40 @@ import { ChainHistoryChart } from "./chain-history-chart";
 import { HomeIcon } from "./home-icon";
 import { InfoPopover } from "./info-popover";
 import { MissingApiData } from "./missing-api-data";
+
+const compactCredits = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const exactCredits = new Intl.NumberFormat("en-US");
+
+function CreditsEquivalentBadge({
+  duffs,
+  loading,
+}: {
+  duffs: string | number | null | undefined;
+  loading: boolean;
+}) {
+  const credits = creditsEquivalent(duffs);
+  if (!loading && credits == null) return null;
+  return (
+    <span className="shrink-0 whitespace-nowrap rounded-lg bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">
+      {loading ? (
+        <output aria-label="Loading credits equivalent">… Credits</output>
+      ) : credits != null ? (
+        <InfoPopover
+          label="About the credits equivalent"
+          trigger={`${compactCredits.format(credits).replaceAll(",", "\u00a0")} Credits`}
+        >
+          {exactCredits.format(credits).replaceAll(",", "\u00a0")} credits
+          equivalent. Conversion: 1 DASH = 100 billion credits. This is the
+          displayed Core amount converted to credits, not a measured Platform
+          balance or the actual credits issued or burned after fees.
+        </InfoPopover>
+      ) : null}
+    </span>
+  );
+}
 
 function TransferRow({
   transaction,
@@ -107,7 +144,7 @@ function AssetMetric({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl dash-home-panel px-4 py-4 sm:px-6">
+    <div className="flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl bg-secondary/75 px-4 py-4 sm:px-6">
       <img
         src={`/icons/home/${icon}.svg`}
         alt=""
@@ -326,7 +363,7 @@ export function HomeAssets() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,716fr)_minmax(0,580fr)]">
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
           <AssetMetric icon="credit-pool" label="Core credit pool balance">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <p
                 className="whitespace-nowrap text-xl font-extrabold leading-[1.2] text-accent sm:text-2xl"
                 title={
@@ -342,14 +379,24 @@ export function HomeAssets() {
                     : formatCompact(balance)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
+              <CreditsEquivalentBadge
+                duffs={
+                  balance == null ? null : Math.round(balance * 100_000_000)
+                }
+                loading={blocks.isPending}
+              />
             </div>
           </AssetMetric>
           <AssetMetric icon="asset-lock" label="Deposited amount in 24 Hours">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending ? "…" : metricDuffs(locked?.amount)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
+              <CreditsEquivalentBadge
+                duffs={locked?.amount}
+                loading={assetStats.isPending}
+              />
               {assetStats.isSuccess && locked?.amount == null && (
                 <MissingApiData
                   inline
@@ -360,11 +407,15 @@ export function HomeAssets() {
             </div>
           </AssetMetric>
           <AssetMetric icon="asset-unlock" label="Withdrawn amount in 24 Hours">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending ? "…" : metricDuffs(unlocked?.amount)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
+              <CreditsEquivalentBadge
+                duffs={unlocked?.amount}
+                loading={assetStats.isPending}
+              />
               {assetStats.isSuccess && unlocked?.amount == null && (
                 <MissingApiData
                   inline
