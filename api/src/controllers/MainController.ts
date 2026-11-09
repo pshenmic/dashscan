@@ -3,16 +3,20 @@ import { Knex } from 'knex';
 import { DashCoreRPC } from '../dashcoreRPC';
 import BlocksDAO from '../dao/BlocksDAO';
 import ChainStats from "../models/ChainStats";
-import {calculateInterval, iso8601duration} from "../utils";
+import Deployment from "../models/Deployment";
+import {calculateInterval, getUtxoInfo, iso8601duration} from "../utils";
 import Intervals from "../enums/Intervals";
+import {Cache} from "../cache";
 
 export default class MainController {
   private dashcoreRPC: DashCoreRPC;
   private blocksDAO: BlocksDAO;
+  private cache: Cache;
 
-  constructor(dashcoreRPC: DashCoreRPC, knex: Knex) {
+  constructor(dashcoreRPC: DashCoreRPC, cache: Cache, knex: Knex) {
     this.dashcoreRPC = dashcoreRPC;
     this.blocksDAO = new BlocksDAO(knex);
+    this.cache = cache;
   }
 
   getStatus = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
@@ -40,7 +44,7 @@ export default class MainController {
 
     const blockStats = await this.dashcoreRPC.getBlockStats(chainInfoResponse.blocks);
 
-    response.send(ChainStats.fromObject({
+    return response.send(ChainStats.fromObject({
       ...dbStats,
       chain: chainInfoResponse.chain,
       sizeOnDisk: chainInfoResponse.size_on_disk,
@@ -82,6 +86,23 @@ export default class MainController {
       isNaN(intervalInMs) ? Intervals[interval] : intervalInMs,
     );
 
-    response.send(series);
+    return response.send(series);
   }
+
+  getDeployments = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
+    const {hash, height, deployments} = await this.dashcoreRPC.getDeploymentInfo();
+
+    return response.send({
+      hash,
+      height,
+      deployments: Object.entries(deployments).map(([id, deployment]) => Deployment.fromRPC(id, deployment)),
+    });
+  };
+
+  getTotalSupply = async (_: FastifyRequest, response: FastifyReply): Promise<void> => {
+    const {total_amount} = await getUtxoInfo(this.dashcoreRPC, this.cache);
+
+    // all other endpoints returns value in duffs, while total_amount in DASH's
+    return response.send({totalSupply: BigInt(Math.round(total_amount * 1e8)).toString()});
+  };
 }

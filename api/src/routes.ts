@@ -282,6 +282,11 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/supply',
+      method: 'get',
+      handler: mainController.getTotalSupply,
+    },
+    {
       path: '/search',
       method: 'get',
       handler: searchController.search,
@@ -463,9 +468,22 @@ export default function Routes({ fastify, mainController, blocksController, tran
       }
     },
     {
+      path: '/governance/proposals/stats',
+      method: 'get',
+      handler: governanceController.getProposalStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
+    },
+    {
       path: '/governance/budget',
       method: 'get',
       handler: governanceController.getBudgetInfo,
+    },
+    {
+      path: '/chain/deployments',
+      method: 'get',
+      handler: mainController.getDeployments,
     },
     {
       path: '/chain/stats',

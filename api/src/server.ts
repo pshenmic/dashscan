@@ -5,6 +5,8 @@ import { Knex } from 'knex';
 import Redis from 'ioredis';
 import { getKnex, getRedis } from './utils';
 import cors from '@fastify/cors';
+import compress from '@fastify/compress';
+import zlib from 'zlib';
 import schemas from './schemas';
 import Routes from './routes';
 import ServiceNotAvailableError from './errors/ServiceNotAvailableError';
@@ -64,6 +66,11 @@ export const start = async (): Promise<FastifyInstance> => {
     // put your options here
   });
 
+  await fastify.register(compress, {
+    encodings: ['br', 'gzip', 'deflate'],
+    brotliOptions: { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 } },
+  });
+
   await fastify.register(metricsPlugin, {
     endpoint: '/metrics',
   });
@@ -87,7 +94,7 @@ export const start = async (): Promise<FastifyInstance> => {
 
   await cache.set("utxoInfo", preCacheUtxoInfo, UTXO_INFO_LIFE_TIME)
 
-  const mainController = new MainController(dashcoreRPC, knex);
+  const mainController = new MainController(dashcoreRPC, cache, knex);
   const blocksController = new BlocksController(knex, dashcoreRPC);
   const transactionsController = new TransactionsController(knex);
   const addressesController = new AddressesController(knex, dashcoreRPC, cache);

@@ -28,7 +28,7 @@ export default class XpubController {
 
     const summary = await this.addressesDAO.getXpubSummary(resolved.addressIds);
 
-    response.send(XpubSummary.fromObject({
+    return response.send(XpubSummary.fromObject({
       ...summary,
       addressCount: resolved.addresses.length,
       usedAddressCount: resolved.addressIds.length,
@@ -48,7 +48,7 @@ export default class XpubController {
 
     const addresses = XpubAddress.fromObjects(resolved.addresses.slice(from, from + limit));
 
-    response.send(new PaginatedResultSet(addresses, page, limit, resolved.addresses.length));
+    return response.send(new PaginatedResultSet(addresses, page, limit, resolved.addresses.length));
   };
 
   getXpubUtxo = async (request: FastifyRequest<{ Body: XpubBody }>, response: FastifyReply): Promise<void> => {
@@ -58,7 +58,7 @@ export default class XpubController {
 
     const utxo = await this.addressesDAO.getXpubUtxo(resolved.addressIds, page, limit);
 
-    response.send(utxo);
+    return response.send(utxo);
   };
 
   getXpubTransactions = async (request: FastifyRequest<{ Body: XpubBody }>, response: FastifyReply): Promise<void> => {
@@ -68,6 +68,6 @@ export default class XpubController {
 
     const transactions = await this.transactionsDAO.getXpubTransactions(resolved.addressIds, limit, cursor);
 
-    response.send(transactions);
+    return response.send(transactions);
   };
 }

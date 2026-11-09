@@ -12,6 +12,6 @@ export default class SearchController {
   search = async (request: FastifyRequest<{ Querystring: { query: string } }>, reply: FastifyReply): Promise<void> => {
     const { query } = request.query;
     const result = await this.searchDAO.search(query);
-    reply.send(result);
+    return reply.send(result);
   };
 }

@@ -21,7 +21,7 @@ export default class BlocksController {
 
     const blocks = await this.blocksDAO.getBlocks(page, limit, order, superblock);
 
-    response.send(blocks);
+    return response.send(blocks);
   };
 
   getTxCountStats = async (
@@ -56,7 +56,7 @@ export default class BlocksController {
       isNaN(intervalInMs) ? Intervals[interval] : intervalInMs,
     );
 
-    response.send(series);
+    return response.send(series);
   }
 
   getBlockByHash = async (request: FastifyRequest<{ Params: { hash: string } }>, response: FastifyReply): Promise<void> => {
@@ -68,15 +68,15 @@ export default class BlocksController {
       return response.status(404).send({ error: 'Block not found' });
     }
 
-    response.send(block);
+    return response.send(block);
   };
 
   getBlockReward = async (request: FastifyRequest<{ Params: { height: number } }>, response: FastifyReply): Promise<void> => {
     const { height } = request.params;
 
-    const coinbaseTotal = await this.blocksDAO.getCoinbaseTotal(height);
+    const coinbase = await this.blocksDAO.getCoinbase(height);
 
-    if (coinbaseTotal == null) {
+    if (coinbase == null) {
       return response.status(404).send({ error: 'Block not found' });
     }
 
@@ -85,6 +85,6 @@ export default class BlocksController {
       this.dashcoreRPC.getBlockHash(height).then((hash) => this.dashcoreRPC.getMasternodePayments(hash)),
     ]);
 
-    response.send(BlockReward.fromRPC(stats, payments.find((p) => p.height === height), coinbaseTotal));
+    return response.send(BlockReward.fromRPC(stats, payments.find((p) => p.height === height), coinbase));
   };
 }

@@ -2,6 +2,8 @@
 
 Base URL: `http://<host>:<port>`
 
+Responses over 1 KB are compressed with brotli, gzip or deflate when the request sends a matching `Accept-Encoding` header; otherwise they are returned uncompressed.
+
 ---
 
 ## Common Structures
@@ -360,7 +362,8 @@ Returns a paginated list of blocks.
       "previousBlockHash": "000000000000efgh5678...",
       "nonce": 987654321,
       "confirmations": 42,
-      "superblock": false
+      "superblock": false,
+      "fees": 22650
     }
   ],
   "pagination": {
@@ -388,6 +391,7 @@ Returns a paginated list of blocks.
 | `nonce`             | number  | Mining nonce                                                 |
 | `confirmations`     | number  | Number of confirmations (`tip height - block height + 1`)    |
 | `superblock`        | boolean | Whether this block is a governance superblock                |
+| `fees`              | number  | Fees in duffs, excluding subsidy; `null` if unknown          |
 
 ---
 
@@ -457,7 +461,8 @@ Returns a single block by its hash.
   "previousBlockHash": "000000000000efgh5678...",
   "nonce": 987654321,
   "confirmations": 42,
-  "superblock": false
+  "superblock": false,
+  "fees": 22650
 }
 ```
 
@@ -503,7 +508,7 @@ Returns how a block's coinbase was paid out. Subsidy and fees come from Dash Cor
 | `miner`      | number | Paid to the miner: `subsidy + fees − masternode`                                         |
 | `masternode` | number | Paid to the masternode, including `platform`                                             |
 | `platform`   | number | Part of the masternode payment that goes to the Platform credit pool                     |
-| `treasury`   | number | Superblock payouts to proposals: coinbase total `− subsidy − fees`. `0` for other blocks |
+| `treasury`   | number | Superblock payouts: coinbase total `− subsidy − fees`, never negative. `0` otherwise     |
 
 **Response `404`**
 
@@ -1564,6 +1569,22 @@ Returns counts and amounts of confirmed AssetLock (deposit to Platform) and Asse
 
 ---
 
+### GET /supply
+
+Returns the total supply of the indexed network from Dash Core `gettxoutsetinfo`: the sum of all unspent outputs. Same snapshot as `utxoSummary` in `/addresses/rich-list`, cached for 30 minutes.
+
+**Response `200`**
+
+```json
+{ "totalSupply": "2360586620005817" }
+```
+
+| Field         | Type   | Description           |
+|---------------|--------|-----------------------|
+| `totalSupply` | string | Total supply in duffs |
+
+---
+
 ### GET /search
 
 Searches across blocks, transactions, masternodes, and addresses. Input type is detected automatically.
@@ -2409,6 +2430,37 @@ Returns a list of pending transactions.
 
 ---
 
+### GET /governance/proposals/stats
+
+Returns the number of active proposals at `timestamp_end` and at `timestamp_start`, from the live `gobject list`. A proposal is active at a time when it was created before it and its payment window (`startEpoch` to `endEpoch`) covers it. This is independent of funding or eligibility for the next superblock.
+
+Core prunes proposals shortly after their payment window ends, so `previousActive` does not include proposals that ended at a superblock between `timestamp_start` and now. The further back `timestamp_start` is, the less complete it gets.
+
+**Query Parameters**
+
+| Parameter         | Type   | Default        | Description                              |
+|-------------------|--------|----------------|------------------------------------------|
+| `timestamp_start` | string | now − 24 hours | ISO 8601 time for `previousActive`       |
+| `timestamp_end`   | string | now            | ISO 8601 time for `active`               |
+
+**Response `200`**
+
+```json
+{
+  "active": 4,
+  "previousActive": 3
+}
+```
+
+| Field            | Type   | Description                           |
+|------------------|--------|---------------------------------------|
+| `active`         | number | Active proposals at `timestamp_end`   |
+| `previousActive` | number | Active proposals at `timestamp_start` |
+
+**Response `400`** — `timestamp_start` is after `timestamp_end`
+
+---
+
 ### GET /governance/budget
 
 Returns treasury stats for the next superblock: the budget from Dash Core RPC plus aggregate figures computed across currently pending proposals.
@@ -2464,6 +2516,38 @@ Returns treasury stats for the next superblock: the budget from Dash Core RPC pl
 ```json
 { "error": "Cannot find the last superblock in the database. Please wait if the sync progress is not at 100%." }
 ```
+
+---
+
+### GET /chain/deployments
+
+Returns the network's soft fork deployments from Dash Core `getdeploymentinfo` at the current tip. Values are passed through as Core reports them: nothing is inferred, so `height` is `null` until Core provides an activation height. The list is network-specific (mainnet and testnet have different heights and pending deployments).
+
+**Response `200`**
+
+```json
+{
+  "hash": "000000eaac98687ef3e31c24ec8b3e8582beff8661fe1a7c7d3dbcb9bd83d5fe",
+  "height": 1587183,
+  "deployments": [
+    { "id": "v20", "type": "buried", "active": true, "height": 905100, "status": null, "since": null, "ehfHeight": null },
+    { "id": "v24", "type": "bip9", "active": true, "height": 1578000, "status": "active", "since": 1578000, "ehfHeight": 1565132 },
+    { "id": "evo_shares", "type": "bip9", "active": false, "height": null, "status": "defined", "since": 0, "ehfHeight": null }
+  ]
+}
+```
+
+| Field       | Type            | Description                                                                         |
+|-------------|-----------------|-------------------------------------------------------------------------------------|
+| `id`        | string          | Deployment name                                                                     |
+| `type`      | string          | `buried` (fixed activation height) or `bip9` (signalled)                            |
+| `active`    | boolean         | Whether the rules are enforced at the tip                                           |
+| `height`    | number \| null  | Activation height, when Core provides it                                            |
+| `status`    | string \| null  | BIP9 state: `defined`, `started`, `locked_in`, `active`, `failed`; buried: `null`  |
+| `since`     | number \| null  | Height the current BIP9 state started at                                            |
+| `ehfHeight` | number \| null  | Height of the EHF signal, for EHF-activated deployments                             |
+
+`hash` and `height` are the tip the deployment states were evaluated at.
 
 ---
 
