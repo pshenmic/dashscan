@@ -20,12 +20,6 @@ import {
   masternodeDistribution,
 } from "@/themes/dash/lib/masternode-metrics";
 
-const geographyStyle = {
-  fill: "color-mix(in srgb, var(--foreground) 20%, var(--card))",
-  stroke: "var(--card)",
-  strokeWidth: 0.75,
-  outline: "none",
-};
 const initialCenter: [number, number] = [0, 25];
 
 function getMasternodeId(node: ApiMasternode) {
@@ -152,10 +146,41 @@ export function HomeNodeMap<Node>({
         projectionConfig={{ scale: width / 5.8 }}
         className="h-full w-full"
         role="group"
-        aria-label="Interactive map: scroll or pinch to zoom; keyboard +, − and 0"
+        aria-label="Interactive map: arrow keys to pan; + and − to zoom; 0 to reset"
         tabIndex={0}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
+          if (
+            ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+              event.key,
+            )
+          ) {
+            event.preventDefault();
+            setActive(null);
+            setPosition((current) => {
+              const step = 15 / current.zoom;
+              const [longitude, latitude] = current.coordinates;
+              const horizontal =
+                event.key === "ArrowLeft"
+                  ? -step
+                  : event.key === "ArrowRight"
+                    ? step
+                    : 0;
+              const vertical =
+                event.key === "ArrowUp"
+                  ? step
+                  : event.key === "ArrowDown"
+                    ? -step
+                    : 0;
+              return {
+                ...current,
+                coordinates: [
+                  ((longitude + horizontal + 540) % 360) - 180,
+                  Math.max(-80, Math.min(80, latitude + vertical)),
+                ],
+              };
+            });
+          }
           if (["+", "=", "-", "0"].includes(event.key)) {
             event.preventDefault();
             if (event.key === "0") {
@@ -195,7 +220,7 @@ export function HomeNodeMap<Node>({
                   tabIndex={-1}
                   aria-hidden="true"
                   vectorEffect="non-scaling-stroke"
-                  style={geographyStyle}
+                  className="dash-node-map-geography"
                 />
               ))
             }
@@ -247,7 +272,7 @@ export function HomeNodeMap<Node>({
                           data-filter-match={
                             selectedHashes ? matching > 0 : undefined
                           }
-                          className={`flex size-11 items-center justify-center rounded-full border-[5px] border-brand/20 bg-brand bg-clip-padding text-xs font-extrabold tabular-nums text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-ring data-[filter-match=false]:opacity-40 ${active === key || matching > 0 ? "ring-2 ring-brand shadow-md shadow-brand/25" : "shadow-sm"}`}
+                          className={`flex size-11 items-center justify-center rounded-full border-[5px] border-brand/20 bg-action-solid bg-clip-padding text-xs font-extrabold tabular-nums text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-ring data-[filter-match=false]:opacity-40 ${active === key || matching > 0 ? "ring-2 ring-brand shadow-md shadow-brand/25" : "shadow-sm"}`}
                         >
                           {count > 999
                             ? `${Math.floor(count / 1000)}k+`

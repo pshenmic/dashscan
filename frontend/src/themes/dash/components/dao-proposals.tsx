@@ -31,7 +31,7 @@ function DaoVotes({
         </div>
       }
     >
-      <span className="flex gap-1 whitespace-nowrap text-[10px] tabular-nums">
+      <span className="flex gap-1 whitespace-nowrap text-xs tabular-nums">
         <span className="rounded-full border border-action-subtle bg-action-subtle px-2 py-1">
           <strong>{metricNumber(proposal.yesCount, 0)}</strong> Yes
         </span>
@@ -51,40 +51,35 @@ function ProposalName({
   rank?: number;
 }) {
   const name = proposal.name || proposal.hash || "Unnamed proposal";
+  const votingStatus =
+    proposal.enoughVotes == null
+      ? "Vote threshold status unavailable"
+      : proposal.enoughVotes
+        ? "Vote threshold reached; funding is not guaranteed"
+        : "Vote threshold not reached";
   return (
     <div className="flex w-0 min-w-full items-center gap-2">
       {rank != null ? (
         <span
-          className={`flex size-[22px] shrink-0 items-center justify-center rounded-lg text-[10px] ${rank === 1 ? "bg-brand text-primary-foreground" : rank === 2 ? "bg-brand/64 text-primary-foreground" : "bg-action-subtle text-brand"}`}
+          className={`flex size-[22px] shrink-0 items-center justify-center rounded-lg text-[10px] ${rank === 1 ? "bg-action-solid text-primary-foreground" : "bg-action-subtle text-accent"}`}
         >
           {rank}
         </span>
       ) : (
-        <DaoHint
-          label="Proposal voting status"
-          description={
-            proposal.enoughVotes == null
-              ? "Vote threshold status unavailable"
-              : proposal.enoughVotes
-                ? "Vote threshold reached; funding is not guaranteed"
-                : "Vote threshold not reached"
-          }
-        >
+        <DaoHint label={`${name}: ${votingStatus}`} description={votingStatus}>
           {proposal.enoughVotes ? (
             <img
               src="/icons/home/proposal-passing.svg"
-              alt="Vote threshold reached"
+              alt=""
               width={22}
               height={22}
             />
           ) : proposal.enoughVotes === false ? (
-            <span className="flex size-[22px] items-center justify-center rounded-lg bg-foreground/24">
-              <img
-                src="/icons/home/proposal-not-passing.svg"
-                alt="Vote threshold not reached"
-                width={9}
-                height={9}
-              />
+            <span
+              className="flex size-[22px] items-center justify-center rounded-lg bg-secondary text-muted-foreground"
+              aria-hidden="true"
+            >
+              −
             </span>
           ) : (
             "—"
@@ -130,11 +125,15 @@ export function DaoLeaderboard({
   return (
     <div className="relative order-2 min-w-0 xl:order-1 xl:h-[243px]">
       <div className="flex items-center justify-between gap-3 px-3 pb-5 xl:mx-[66px] xl:px-6 xl:pt-6">
-        <h3 className="dash-body">Proposals Leaderboard</h3>
-        <InfoPopover label="About the proposals leaderboard">
-          Active proposals ranked by net yes votes (yes minus no). Amounts are
-          requested payments per cycle, not confirmed payouts.
-        </InfoPopover>
+        <h3 className="dash-body">
+          <InfoPopover
+            label="About the proposals leaderboard"
+            trigger="Proposals Leaderboard"
+          >
+            Active proposals ranked by net yes votes (yes minus no). Amounts are
+            requested payments per cycle, not confirmed payouts.
+          </InfoPopover>
+        </h3>
       </div>
       {proposalState ? (
         <div className="p-6">{proposalState}</div>
@@ -173,8 +172,19 @@ export function DaoProposalsTable({
     <div className="flex min-h-[528px] min-w-0 flex-col gap-6 rounded-3xl dash-home-panel p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="dash-heading-section">Budget Proposals</h3>
-          <p className="dash-body-compact mt-2 text-foreground/48">
+          <h3 className="dash-heading-section">
+            <InfoPopover
+              label="About proposal statuses"
+              trigger="Budget Proposals"
+            >
+              Check marks indicate the vote threshold has been reached, not that
+              a payout has occurred. A dash means the threshold has not yet been
+              reached, not that the proposal was rejected. This list shows
+              active payment periods, not just proposals eligible for the next
+              superblock. Dates are shown in UTC.
+            </InfoPopover>
+          </h3>
+          <p className="dash-body-compact mt-2 text-muted-foreground">
             {loading
               ? "Loading…"
               : error
@@ -182,30 +192,28 @@ export function DaoProposalsTable({
                 : `${metricNumber(rows.length, 0)} active proposals`}
           </p>
         </div>
-        <InfoPopover label="About proposal statuses">
-          Check marks indicate the vote threshold has been reached, not that a
-          payout has occurred. Proposals must also fit the treasury budget.
-          Dates are shown in UTC.
-        </InfoPopover>
       </div>
       {proposalState || (
-        <div className="max-h-[400px] min-h-0 overflow-auto">
+        <section
+          className="max-h-[400px] min-h-0 overflow-auto rounded-xl focus-visible:outline-2 focus-visible:outline-ring"
+          aria-label="Budget proposals table"
+        >
           <HomeTable className="min-w-[600px]">
             <caption className="sr-only">
               Active DAO proposals ranked by net yes votes
             </caption>
-            <thead className="text-foreground/48">
+            <thead className="sticky top-0 z-10 bg-secondary text-muted-foreground">
               <tr>
-                {["Proposal", "Votes", "Payment", "Ends"].map((label) => (
+                {["Proposal", "Votes", "Requested", "Expires"].map((label) => (
                   <th
                     key={label}
                     scope="col"
-                    className={`border-b border-foreground/8 px-3 pb-3 pt-2 font-medium ${label === "Proposal" ? "pl-[42px]" : label === "Payment" || label === "Ends" ? "text-right" : ""}`}
+                    className={`border-b border-foreground/8 px-3 py-3 text-xs font-semibold ${label === "Proposal" ? "pl-[42px]" : label === "Requested" || label === "Expires" ? "text-right" : ""}`}
                   >
-                    {label === "Payment" || label === "Ends" ? (
+                    {label === "Requested" || label === "Expires" ? (
                       <DaoHint
                         description={
-                          label === "Payment"
+                          label === "Requested"
                             ? "Requested DASH payment per budget cycle, not a confirmed payout."
                             : "Proposal expiry in UTC, not the voting deadline."
                         }
@@ -241,7 +249,7 @@ export function DaoProposalsTable({
               ))}
             </tbody>
           </HomeTable>
-        </div>
+        </section>
       )}
     </div>
   );

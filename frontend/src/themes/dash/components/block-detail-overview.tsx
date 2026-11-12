@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Coins } from "lucide-react";
 import type { ReactNode } from "react";
 import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,6 @@ import { formatDateTime } from "@/lib/format";
 import type { Network } from "@/lib/store";
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
 import { CopyButton } from "./copy-button";
-import { MissingApiData } from "./missing-api-data";
 import { SkeletonBar } from "./skeleton";
 
 function HashValue({ value }: { value: string }) {
@@ -29,7 +29,7 @@ function SummaryMetric({
   children,
 }: {
   label: string;
-  name: "status" | "transactions" | "miner" | "reward";
+  name: "status" | "transactions" | "fees" | "reward";
   children: ReactNode;
 }) {
   return (
@@ -38,18 +38,22 @@ function SummaryMetric({
         aria-hidden="true"
         className="pointer-events-none absolute -right-6 -top-4 size-28 rotate-30 bg-brand"
         style={{
-          mask: `url('/icons/block-detail/${name}-decor.svg') center / contain no-repeat`,
+          mask: `url('/icons/block-detail/${name === "fees" ? "reward" : name}-decor.svg') center / contain no-repeat`,
         }}
       />
-      {name === "miner" || name === "reward" ? (
+      {name === "fees" || name === "reward" ? (
         <span className="relative flex size-12 shrink-0 items-center justify-center rounded-full border border-action-subtle bg-card">
-          <img
-            src={`/icons/block-detail/${name}.svg`}
-            alt=""
-            width={20}
-            height={20}
-            className="size-5 object-contain"
-          />
+          {name === "fees" ? (
+            <Coins aria-hidden="true" className="size-5 text-brand" />
+          ) : (
+            <img
+              src={`/icons/block-detail/${name}.svg`}
+              alt=""
+              width={20}
+              height={20}
+              className="size-5 object-contain"
+            />
+          )}
         </span>
       ) : (
         <img
@@ -109,15 +113,6 @@ export function BlockDetailOverview({
     },
     { label: "Confirmations", value: metricNumber(block.confirmations, 0) },
     { label: "Merkle Root", value: <HashValue value={block.merkleRoot} /> },
-    {
-      label: "Bits",
-      value: (
-        <MissingApiData
-          inline
-          description="Return the compact proof-of-work target (bits) in the block response."
-        />
-      ),
-    },
     { label: "Nonce", value: metricNumber(Number(block.nonce), 0) },
     { label: "Difficulty", value: metricNumber(block.difficulty, 8) },
     { label: "Version", value: metricNumber(block.version, 0) },
@@ -159,7 +154,7 @@ export function BlockDetailOverview({
           </div>
         </div>
         <div className="grid flex-1 gap-4 sm:grid-cols-2">
-          <SummaryMetric label="Status" name="status">
+          <SummaryMetric label="ChainLock" name="status">
             {status.isPending ? (
               <SkeletonBar className="w-28" />
             ) : status.isError ? (
@@ -182,49 +177,54 @@ export function BlockDetailOverview({
                 {chainLocked ? "ChainLocked" : "Not ChainLocked"}
               </Badge>
             ) : (
-              <MissingApiData
-                inline
-                description="Return the block ChainLock status. Confirmations alone do not establish a ChainLock."
-              />
+              <span>
+                <span aria-hidden="true">—</span>
+                <span className="sr-only">ChainLock status unavailable</span>
+              </span>
             )}
           </SummaryMetric>
           <SummaryMetric label="Transactions" name="transactions">
             {metricNumber(block.txCount, 0)}
           </SummaryMetric>
-          <SummaryMetric label="Mined by" name="miner">
-            <MissingApiData
-              inline
-              description="Return the identified mining pool for this block, or null when unknown. A payout address is not a pool name."
-            />
-          </SummaryMetric>
-          <SummaryMetric label="Block Subsidy" name="reward">
-            {reward.isPending ? (
-              <SkeletonBar className="w-28" />
-            ) : reward.isError ? (
-              <button
-                type="button"
-                onClick={() => void reward.refetch()}
-                className="text-sm text-accent underline"
-              >
-                Retry
-              </button>
-            ) : reward.data?.subsidy != null ? (
-              <span
-                className="break-words"
-                title={`${metricDuffs(reward.data.subsidy)} DASH`}
-              >
-                {metricDuffs(reward.data.subsidy, 6)}{" "}
-                <span className="text-xs font-medium text-muted-foreground">
-                  DASH
+          {(
+            [
+              { label: "Block fees", name: "fees", value: reward.data?.fees },
+              {
+                label: "Block Subsidy",
+                name: "reward",
+                value: reward.data?.subsidy,
+              },
+            ] as const
+          ).map(({ label, name, value }) => (
+            <SummaryMetric key={name} label={label} name={name}>
+              {reward.isPending ? (
+                <SkeletonBar className="w-28" />
+              ) : reward.isError ? (
+                <button
+                  type="button"
+                  onClick={() => void reward.refetch()}
+                  className="text-sm text-accent underline"
+                >
+                  Retry
+                </button>
+              ) : value != null ? (
+                <span
+                  className="break-words"
+                  title={`${metricDuffs(value)} DASH`}
+                >
+                  {metricDuffs(value, name === "fees" ? 8 : 6)}{" "}
+                  <span className="text-xs font-medium text-muted-foreground">
+                    DASH
+                  </span>
                 </span>
-              </span>
-            ) : (
-              <MissingApiData
-                inline
-                description="Return the block subsidy in duffs for this height, excluding transaction fees."
-              />
-            )}
-          </SummaryMetric>
+              ) : (
+                <span>
+                  <span aria-hidden="true">—</span>
+                  <span className="sr-only">{label} unavailable</span>
+                </span>
+              )}
+            </SummaryMetric>
+          ))}
         </div>
       </section>
     </div>
