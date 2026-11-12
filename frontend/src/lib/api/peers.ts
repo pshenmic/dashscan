@@ -134,6 +134,10 @@ export function decodeServices(services: number | null): {
 }
 
 async function getAllPeers(params: FetchAllPeersInput): Promise<ApiPeer[]> {
+  const snapshot = await getPeers({ ...params, order: "desc" });
+  if (snapshot.resultSet.length >= snapshot.pagination.total) {
+    return snapshot.resultSet;
+  }
   const peers = new Map<string, ApiPeer>();
   let page = 1;
   let loaded = 0;

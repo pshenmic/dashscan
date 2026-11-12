@@ -9,9 +9,7 @@ import {
 import { paginationSearchSchema } from "@/lib/pagination";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
-import RedesignBlocksListPage from "@/themes/neo/pages/blocks-list";
 
 const ClassicBlocksListPage = lazy(
   () => import("@/themes/dash/pages/blocks-list"),
@@ -77,10 +75,8 @@ export const Route = createFileRoute("/blocks/")({
 });
 
 function BlocksListRoute() {
-  const theme = useActiveTheme();
   const { page, limit, superblock, view, order, height, hash } =
     Route.useSearch();
-  if (theme === "neo") return <RedesignBlocksListPage />;
   return (
     <Suspense fallback={<LazyThemePageFallback />}>
       <ClassicBlocksListPage
