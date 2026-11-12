@@ -9,8 +9,11 @@ import { BlockAge } from "@/themes/dash/components/block-age";
 import { BlockColumnSearch } from "@/themes/dash/components/block-column-search";
 import { DataTable } from "@/themes/dash/components/data-table";
 import { IdentifierLink } from "@/themes/dash/components/identifier-link";
-import { PendingColumnHeader } from "@/themes/dash/components/pending-column-header";
-import { metricBytes, metricNumber } from "@/themes/dash/lib/home-metrics";
+import {
+  metricBytes,
+  metricDuffs,
+  metricNumber,
+} from "@/themes/dash/lib/home-metrics";
 
 const columns: ColumnDef<ApiBlock>[] = [
   {
@@ -67,63 +70,28 @@ const columns: ColumnDef<ApiBlock>[] = [
     ),
   },
   {
-    id: "miner",
-    header: () => (
-      <PendingColumnHeader
-        label="Mined by"
-        description="The block list does not include mining pool attribution. The attribution source and scope still need agreement."
-      />
-    ),
-    cell: () => <span className="text-muted-foreground">—</span>,
-  },
-  {
     accessorKey: "txCount",
-    header: () => (
-      <PendingColumnHeader
-        label="Txs"
-        description="Transaction counts are available. Server-side filtering and sorting by transaction count are not supported; scope is not yet agreed."
-      />
-    ),
+    header: "Txs",
     cell: ({ row }) => metricNumber(row.original.txCount, 0),
   },
   {
-    id: "fees",
-    header: () => (
-      <PendingColumnHeader
-        label="Fees (DASH)"
-        description="Fees are available for individual blocks, but not in the block list. Needs list or batch fee data in duffs, without a request for every row. Zero fees must remain distinct from unavailable data. See #123."
-      />
-    ),
-    cell: () => <span className="text-muted-foreground">—</span>,
+    accessorKey: "fees",
+    header: "Fees (DASH)",
+    cell: ({ row }) => metricDuffs(row.original.fees),
   },
   {
     accessorKey: "size",
-    header: () => (
-      <PendingColumnHeader
-        label="Size"
-        description="Block sizes are available. Server-side filtering and sorting by size are not supported; scope is not yet agreed."
-      />
-    ),
+    header: "Size",
     cell: ({ row }) => metricBytes(row.original.size),
   },
   {
     accessorKey: "difficulty",
-    header: () => (
-      <PendingColumnHeader
-        label="Difficulty"
-        description="Difficulty values are available. Server-side filtering and sorting by difficulty are not supported; scope is not yet agreed."
-      />
-    ),
-    cell: ({ row }) => metricNumber(row.original.difficulty, 2),
+    header: "Difficulty",
+    cell: ({ row }) => metricNumber(row.original.difficulty, 4),
   },
   {
     accessorKey: "timestamp",
-    header: () => (
-      <PendingColumnHeader
-        label="Timestamp"
-        description="Block timestamps are available. Server-side date filtering and timestamp sorting are not supported; scope is not yet agreed."
-      />
-    ),
+    header: "Timestamp",
     cell: ({ row }) => <BlockAge timestamp={row.original.timestamp} />,
   },
 ];

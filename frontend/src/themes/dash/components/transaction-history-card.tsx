@@ -1,10 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useClockValue } from "@/components/render-clock";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { transactionsStatsQueryOptions } from "@/lib/api/stats";
 import { formatDateTime } from "@/lib/format";
 import type { Network } from "@/lib/store";
@@ -14,6 +9,7 @@ import {
   transactionHistorySummary,
 } from "@/themes/dash/lib/transaction-metrics";
 import { AreaChart } from "./area-chart";
+import { InfoPopover } from "./info-popover";
 export function TransactionHistoryCard({ network }: { network: Network }) {
   const day = useClockValue((now) => Math.floor(now / 86_400_000) * 86_400_000);
   const range = transactionHistoryRange(day);
@@ -27,30 +23,15 @@ export function TransactionHistoryCard({ network }: { network: Network }) {
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-base font-medium leading-4 tracking-[-0.009em]">
-            Transactions history
-          </h3>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="About transaction history"
-                className="size-6 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                <img
-                  src="/icons/home/info.svg"
-                  alt=""
-                  width={24}
-                  height={24}
-                  className="size-6 dark:invert"
-                />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-72">
+            <InfoPopover
+              label="About transaction history"
+              trigger="Transactions history"
+            >
               Total transactions in the last 30 complete UTC days, compared with
               the previous 30. Each point is one day's count; the scale starts
               at zero. Counts reflect indexed blocks.
-            </TooltipContent>
-          </Tooltip>
+            </InfoPopover>
+          </h3>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <p className="text-[32px] font-extrabold leading-[1.1] tabular-nums">
@@ -59,14 +40,14 @@ export function TransactionHistoryCard({ network }: { network: Network }) {
           </p>
           {summary.change !== null && (
             <span
-              className={`rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${summary.change > 0 ? "bg-positive-brand/12 text-success" : summary.change < 0 ? "bg-destructive/12 text-destructive" : "bg-foreground/5 text-foreground/64"}`}
+              className={`rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${summary.change > 0 ? "bg-positive-brand/12 text-success" : summary.change < 0 ? "bg-destructive/12 text-destructive" : "bg-foreground/5 text-muted-foreground"}`}
             >
               {summary.change > 0 ? "↑" : summary.change < 0 ? "↓" : ""}
               {metricNumber(Math.abs(summary.change))}%
             </span>
           )}
         </div>
-        <p className="text-sm font-medium leading-4 tracking-[-0.009em] text-foreground/48">
+        <p className="text-sm font-medium leading-4 tracking-[-0.009em] text-muted-foreground">
           {summary.previousTotal !== null ? (
             <>
               Compared to{" "}
@@ -151,7 +132,7 @@ export function TransactionHistoryCard({ network }: { network: Network }) {
             />
             <div
               aria-hidden="true"
-              className="mt-6 flex justify-between gap-2 text-xs font-medium text-foreground/48"
+              className="mt-6 flex justify-between gap-2 text-xs font-medium text-muted-foreground"
             >
               {[0, 10, 19, 29].map((index) => (
                 <span key={summary.current[index].timestamp}>

@@ -6,11 +6,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export function CopyButton({ value }: { value: string }) {
-  return <CopyControl key={value} value={value} />;
+export function CopyButton({
+  value,
+  label = "Copy to clipboard",
+}: {
+  value: string;
+  label?: string;
+}) {
+  return <CopyControl key={value} value={value} label={label} />;
 }
 
-function CopyControl({ value }: { value: string }) {
+function CopyControl({ value, label }: { value: string; label: string }) {
   const [status, setStatus] = useState<"idle" | "pending" | "copied" | "error">(
     "idle",
   );
@@ -75,7 +81,7 @@ function CopyControl({ value }: { value: string }) {
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="Copy to clipboard"
+            aria-label={label}
             aria-disabled={status === "pending"}
             aria-busy={status === "pending"}
             onClick={handleClick}
