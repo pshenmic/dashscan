@@ -33,16 +33,19 @@ export function transactionTotals(transaction: ApiTransaction) {
   const output = Array.isArray(transaction.vOut)
     ? sumAmounts(transaction.vOut.map((item) => item.value))
     : null;
+  const monetary = type !== 6 && type !== 7;
+  const feeApplicable = !coinbase && monetary;
   const fee =
-    !coinbase &&
-    type >= 0 &&
-    type <= 4 &&
-    input !== null &&
-    output !== null &&
-    input >= output
-      ? input - output
-      : null;
-  return { input, output, fee, coinbase };
+    type === 9 && transaction.extraPayload && "fee" in transaction.extraPayload
+      ? transactionAmount(transaction.extraPayload.fee)
+      : feeApplicable &&
+          ((type >= 0 && type <= 4) || type === 8) &&
+          input !== null &&
+          output !== null &&
+          input >= output
+        ? input - output
+        : null;
+  return { input, output, fee, coinbase, monetary, feeApplicable };
 }
 
 export type TransactionTotals = ReturnType<typeof transactionTotals>;
