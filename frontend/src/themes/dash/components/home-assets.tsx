@@ -11,7 +11,10 @@ import type { ApiTransaction } from "@/lib/api/types";
 import { formatCompact } from "@/lib/format";
 import { homeBlocksQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
-import { assetTransferAmount } from "@/themes/dash/lib/asset-metrics";
+import {
+  assetTransferAmount,
+  creditsEquivalent,
+} from "@/themes/dash/lib/asset-metrics";
 import {
   useHistoryRange,
   useHomeChainHistory,
@@ -23,6 +26,40 @@ import { ChainHistoryChart } from "./chain-history-chart";
 import { HomeIcon } from "./home-icon";
 import { InfoPopover } from "./info-popover";
 import { MissingApiData } from "./missing-api-data";
+
+const compactCredits = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const exactCredits = new Intl.NumberFormat("en-US");
+
+function CreditsEquivalentBadge({
+  duffs,
+  loading,
+}: {
+  duffs: string | number | null | undefined;
+  loading: boolean;
+}) {
+  const credits = creditsEquivalent(duffs);
+  if (!loading && credits == null) return null;
+  return (
+    <span className="shrink-0 whitespace-nowrap rounded-lg bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">
+      {loading ? (
+        <output aria-label="Loading credits equivalent">… Credits</output>
+      ) : credits != null ? (
+        <InfoPopover
+          label="About the credits equivalent"
+          trigger={`${compactCredits.format(credits).replaceAll(",", "\u00a0")} Credits`}
+        >
+          {exactCredits.format(credits).replaceAll(",", "\u00a0")} credits
+          equivalent. Conversion: 1 DASH = 100 billion credits. This is the
+          displayed Core amount converted to credits, not a measured Platform
+          balance or the actual credits issued or burned after fees.
+        </InfoPopover>
+      ) : null}
+    </span>
+  );
+}
 
 function TransferRow({
   transaction,
@@ -41,7 +78,7 @@ function TransferRow({
   const amount = assetTransferAmount(deposit ? detail : transaction);
   return (
     <li className="grid min-h-[66px] min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl bg-card px-3 py-[18px] text-sm">
-      <span className="text-foreground/64">
+      <span className="text-muted-foreground">
         {transaction.timestamp ? (
           <BlockAge
             timestamp={transaction.timestamp}
@@ -55,7 +92,7 @@ function TransferRow({
         to="/transactions/$hash"
         params={{ hash: transaction.hash }}
         title={transaction.hash}
-        className={`rounded-full border px-2 py-1 text-xs hover:underline focus-visible:outline-2 focus-visible:outline-ring ${deposit ? "border-action-subtle bg-action-subtle text-brand" : "border-border bg-foreground/12"}`}
+        className={`rounded-full border px-2 py-1 text-xs hover:underline focus-visible:outline-2 focus-visible:outline-ring ${deposit ? "border-action-subtle bg-action-subtle text-accent" : "border-border bg-foreground/12"}`}
       >
         {deposit ? "Deposit" : "Withdrawal"}
       </Link>
@@ -107,7 +144,7 @@ function AssetMetric({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl dash-home-panel px-4 py-4 sm:px-6">
+    <div className="flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl bg-secondary/75 px-4 py-4 sm:px-6">
       <img
         src={`/icons/home/${icon}.svg`}
         alt=""
@@ -116,7 +153,7 @@ function AssetMetric({
         className="size-6"
       />
       <div className="flex min-w-0 flex-col gap-2">
-        <h3 className="text-sm font-medium leading-[1.1] text-foreground/50">
+        <h3 className="text-sm font-medium leading-[1.1] text-muted-foreground">
           {label}
         </h3>
         {children}
@@ -225,7 +262,7 @@ export function HomeAssets() {
             <span className="font-extrabold text-brand">AssetLock/Unlock</span>{" "}
             Stats
           </h2>
-          <p className="dash-body mt-3 text-foreground/50">
+          <p className="dash-body mt-3 text-muted-foreground">
             Track deposits to Dash Platform and withdrawals to Dash Core.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
@@ -234,7 +271,7 @@ export function HomeAssets() {
                 key={type}
                 to="/transactions"
                 search={{ transaction_type: type }}
-                className="dash-home-action dash-home-action-subtle flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                className="dash-home-action dash-home-action-subtle flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
               >
                 Explore {type === "ASSET_LOCK" ? "AssetLocks" : "AssetUnlocks"}
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
@@ -251,13 +288,20 @@ export function HomeAssets() {
           />
           <div className="flex items-center justify-between gap-3 px-6 pb-6 pt-6 sm:mx-[30px]">
             <h3 className="dash-heading-section">
-              <strong>Platform</strong> Transfers
+              <InfoPopover
+                label="About Platform transfers"
+                trigger={
+                  <>
+                    <strong>Platform</strong> Transfers
+                  </>
+                }
+              >
+                Latest indexed transactions in each direction. Deposits increase
+                the Core credit pool; withdrawals pay DASH back to Core. Amounts
+                exclude change and withdrawal fees. These are not 24-hour
+                totals.
+              </InfoPopover>
             </h3>
-            <InfoPopover label="About Platform transfers">
-              Latest indexed transactions in each direction. Deposits increase
-              the Core credit pool; withdrawals pay DASH back to Core. Amounts
-              exclude change and withdrawal fees. These are not 24-hour totals.
-            </InfoPopover>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="min-w-0">
@@ -319,9 +363,9 @@ export function HomeAssets() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,716fr)_minmax(0,580fr)]">
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
           <AssetMetric icon="credit-pool" label="Core credit pool balance">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <p
-                className="whitespace-nowrap text-xl font-extrabold leading-[1.2] text-brand sm:text-2xl"
+                className="whitespace-nowrap text-xl font-extrabold leading-[1.2] text-accent sm:text-2xl"
                 title={
                   balance == null
                     ? undefined
@@ -335,14 +379,24 @@ export function HomeAssets() {
                     : formatCompact(balance)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
+              <CreditsEquivalentBadge
+                duffs={
+                  balance == null ? null : Math.round(balance * 100_000_000)
+                }
+                loading={blocks.isPending}
+              />
             </div>
           </AssetMetric>
           <AssetMetric icon="asset-lock" label="Deposited amount in 24 Hours">
-            <div className="flex items-center gap-2">
-              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending ? "…" : metricDuffs(locked?.amount)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
+              <CreditsEquivalentBadge
+                duffs={locked?.amount}
+                loading={assetStats.isPending}
+              />
               {assetStats.isSuccess && locked?.amount == null && (
                 <MissingApiData
                   inline
@@ -353,11 +407,15 @@ export function HomeAssets() {
             </div>
           </AssetMetric>
           <AssetMetric icon="asset-unlock" label="Withdrawn amount in 24 Hours">
-            <div className="flex items-center gap-2">
-              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending ? "…" : metricDuffs(unlocked?.amount)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
+              <CreditsEquivalentBadge
+                duffs={unlocked?.amount}
+                loading={assetStats.isPending}
+              />
               {assetStats.isSuccess && unlocked?.amount == null && (
                 <MissingApiData
                   inline
@@ -372,7 +430,7 @@ export function HomeAssets() {
             label="AssetLocks/AssetUnlocks in 24 Hours"
           >
             <div className="flex items-center gap-2">
-              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-brand">
+              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending
                   ? "…"
                   : metricNumber(
@@ -397,7 +455,17 @@ export function HomeAssets() {
         <div className="flex min-h-[256px] min-w-0 flex-col gap-4 rounded-3xl dash-home-panel p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="dash-body">Core credit pool history</h3>
+              <h3 className="dash-body">
+                <InfoPopover
+                  label="About the credit pool"
+                  trigger="Core credit pool history"
+                >
+                  Core credit pool balance in DASH, as reported by indexed
+                  blocks. This is not a direct count of issued Platform credits.
+                  The chart shows the last indexed balance in each daily
+                  interval.
+                </InfoPopover>
+              </h3>
               <p className="mt-2 text-[32px] leading-tight">
                 <strong>
                   {blocks.isPending ? "…" : metricNumber(balance)}
@@ -405,11 +473,6 @@ export function HomeAssets() {
                 <span className="text-base">DASH</span>
               </p>
             </div>
-            <InfoPopover label="About the credit pool">
-              Core credit pool balance in DASH, as reported by indexed blocks.
-              This is not a direct count of issued Platform credits. The chart
-              shows the last indexed balance in each daily interval.
-            </InfoPopover>
           </div>
           {blocks.isError ? (
             <p role="alert" className="text-sm text-destructive">

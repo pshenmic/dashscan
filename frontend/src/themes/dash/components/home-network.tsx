@@ -94,13 +94,13 @@ function NetworkSection({ network }: { network: Network }) {
           >
             <span className="font-extrabold text-brand">Network</span> Stats
           </h2>
-          <p className="dash-body mt-3 text-foreground/50">
+          <p className="dash-body mt-3 text-muted-foreground">
             Explore peers observed by the Dash network crawler, their locations,
             client versions, and user agents.
           </p>
           <Link
             to="/peers"
-            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             Explore Network
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
@@ -188,12 +188,12 @@ function NetworkSection({ network }: { network: Network }) {
                 24H {peerChange > 0 ? "+" : ""}
                 {metricNumber(peerChange)}%
               </span>
-            ) : (
+            ) : snapshots.isSuccess ? (
               <MissingApiData
                 inline
                 description="The API has not yet collected reachable-peer snapshots covering a full 24 hours."
               />
-            )}
+            ) : null}
           </div>
           <div
             data-grid-map
@@ -243,6 +243,7 @@ function NetworkSection({ network }: { network: Network }) {
         <div className="grid gap-4 lg:grid-cols-3">
           <PeerDistributionCard
             title="Dash Core Versions"
+            loading={peers.isPending}
             facet="version"
             slices={data.distributions.version}
             status={status}
@@ -252,6 +253,7 @@ function NetworkSection({ network }: { network: Network }) {
           />
           <PeerDistributionCard
             title="Countries Pie Chart"
+            loading={peers.isPending}
             facet="country"
             slices={data.distributions.country}
             status={status}
@@ -261,6 +263,7 @@ function NetworkSection({ network }: { network: Network }) {
           />
           <PeerDistributionCard
             title="User Agent Pie Chart"
+            loading={peers.isPending}
             facet="client"
             slices={data.distributions.client}
             status={status}
@@ -269,10 +272,6 @@ function NetworkSection({ network }: { network: Network }) {
             onSelect={selectPeers}
           />
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Successfully contacted peers in the latest crawl. Versions refer to
-          Dash Core.
-        </p>
       </div>
       <HomeNetworkUpgrades network={network} />
     </section>
