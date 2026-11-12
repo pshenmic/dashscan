@@ -13,10 +13,7 @@ import { allMasternodesQueryOptions } from "@/lib/api/masternodes";
 import type { PageSize } from "@/lib/pagination";
 import { appStore, type Network } from "@/lib/store";
 import { InfoPopover } from "@/themes/dash/components/info-popover";
-import {
-  MasternodeQuorums,
-  MasternodesOverview,
-} from "@/themes/dash/components/masternodes-overview";
+import { MasternodesOverview } from "@/themes/dash/components/masternodes-overview";
 import {
   type MasternodeFilters,
   MasternodesTable,
@@ -279,10 +276,15 @@ function MasternodesList({
         <MasternodesOverview
           network={network}
           total={nodes?.length}
+          collateral={
+            distribution &&
+            distribution.regular + distribution.evo === distribution.total
+              ? distribution.regular * 1_000 + distribution.evo * 4_000
+              : undefined
+          }
           loading={query.isPending}
         />
       </div>
-      <MasternodeQuorums />
       <MasternodesTable
         nodes={filtered}
         allNodes={nodes ?? []}

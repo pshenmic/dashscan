@@ -14,16 +14,17 @@ import {
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { ChainHistoryChart } from "./chain-history-chart";
 import { InfoPopover } from "./info-popover";
-import { MissingApiData } from "./missing-api-data";
 import { SkeletonBar } from "./skeleton";
 
 export function MasternodesOverview({
   network,
   total,
+  collateral,
   loading,
 }: {
   network: Network;
   total: number | undefined;
+  collateral: number | undefined;
   loading: boolean;
 }) {
   const [days, setDays] = useState(30);
@@ -105,62 +106,29 @@ export function MasternodesOverview({
           )}
         </div>
       </section>
-      <div className="grid grid-cols-2 gap-4">
-        <section className="min-w-0 rounded-3xl bg-card px-5 py-4 sm:px-6">
-          <h2 className="mb-3 text-sm text-muted-foreground">
-            Masternode rewards
-          </h2>
-          <MissingApiData
-            inline
-            description="Provide masternode payouts for a defined period, separated into Core and Platform rewards. Annual yield requires the node type, collateral amount, and calculation period."
-          />
-        </section>
-        <section className="min-w-0 rounded-3xl bg-card px-5 py-4 sm:px-6">
-          <h2 className="mb-3 text-sm text-muted-foreground">
+      <section className="min-w-0 rounded-3xl bg-card px-5 py-4 sm:px-6">
+        <div className="mb-3 flex items-center gap-2">
+          <h2 className="text-sm text-muted-foreground">
             Masternode collateral
           </h2>
-          <MissingApiData
-            inline
-            description="Provide the total collateral in duffs for registered masternodes, including the covered node types and statuses. Collateral is not an unspendable protocol balance."
-          />
-        </section>
-      </div>
-    </div>
-  );
-}
-
-const quorums = [
-  { icon: "instantsend", label: "InstantSend quorums" },
-  { icon: "chainlocks", label: "ChainLocks quorums" },
-  { icon: "hardfork", label: "Hard fork signalling quorums" },
-  { icon: "platform", label: "Platform quorums" },
-];
-
-export function MasternodeQuorums() {
-  return (
-    <section
-      aria-label="Quorum statistics"
-      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-    >
-      {quorums.map((item) => (
-        <div
-          key={item.icon}
-          className="flex min-w-0 flex-col items-start gap-3 rounded-3xl bg-card px-6 py-4"
-        >
-          <img
-            src={`/icons/masternodes/${item.icon}.svg`}
-            alt=""
-            width={24}
-            height={24}
-            className="size-6"
-          />
-          <h2 className="text-sm text-muted-foreground">{item.label}</h2>
-          <MissingApiData
-            inline
-            description={`${item.label}: provide active quorum types and unique member counts for the selected network. Define whether counts describe one quorum or the union of active quorums. Do not sum overlapping memberships.`}
-          />
+          <InfoPopover label="About masternode collateral">
+            Calculated from registered nodes across all statuses: 1,000 DASH per
+            regular masternode and 4,000 DASH per Evonode. This is not a locked
+            balance. Spending collateral removes the node from the masternode
+            list.
+          </InfoPopover>
         </div>
-      ))}
-    </section>
+        <p className="text-2xl font-semibold tabular-nums">
+          {loading ? (
+            <SkeletonBar className="inline-block w-32" />
+          ) : (
+            metricNumber(collateral, 0)
+          )}{" "}
+          <span className="text-sm font-medium text-muted-foreground">
+            DASH
+          </span>
+        </p>
+      </section>
+    </div>
   );
 }
