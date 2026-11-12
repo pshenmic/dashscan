@@ -191,6 +191,7 @@ export function HomeNodeMap<Node>({
         }}
       >
         <ZoomableGroup
+          key={width}
           center={position.coordinates}
           zoom={position.zoom}
           minZoom={0.6}

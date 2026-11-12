@@ -27,7 +27,10 @@ interface FetchMasternodesInput extends PaginationParams {
   network: Network;
 }
 
-async function getMasternodes(params: FetchMasternodesInput) {
+async function getMasternodes(
+  params: FetchMasternodesInput,
+  signal?: AbortSignal,
+) {
   const url = new URL("/masternodes", getBaseUrl(params.network));
   if (params.page !== undefined)
     url.searchParams.set("page", String(params.page));
@@ -35,7 +38,7 @@ async function getMasternodes(params: FetchMasternodesInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -249,11 +252,15 @@ function toGeoPoints(masternodes: ApiMasternode[]): MasternodeGeoPoint[] {
 
 async function getAllMasternodes(
   params: FetchAllMasternodesInput,
+  signal?: AbortSignal,
 ): Promise<ApiMasternode[]> {
-  const response = await getMasternodes({
-    network: params.network,
-    order: "desc",
-  });
+  const response = await getMasternodes(
+    { network: params.network, order: "desc" },
+    signal,
+  );
+  if (response.resultSet.length !== response.pagination.total) {
+    throw new Error("The API returned an incomplete masternode list.");
+  }
   return response.resultSet;
 }
 
@@ -264,7 +271,8 @@ export const fetchAllMasternodes = createServerFn({ method: "POST" })
 function allMasternodesBaseQueryOptions(params: FetchAllMasternodesInput) {
   return {
     queryKey: ["masternodes-all", params.network] as const,
-    queryFn: () => getAllMasternodes(params),
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getAllMasternodes(params, signal),
     staleTime: 5 * 60 * 1000,
   };
 }
