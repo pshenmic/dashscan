@@ -29,6 +29,7 @@ export interface ApiBlock {
   confirmations: number;
   nonce: number;
   superblock?: boolean | null;
+  fees?: number | null;
 }
 
 export interface ApiBlockReward {

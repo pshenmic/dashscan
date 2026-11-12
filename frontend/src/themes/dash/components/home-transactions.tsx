@@ -4,7 +4,7 @@ import { useStore } from "@tanstack/react-store";
 import { useId } from "react";
 import { transactionsBreakdown24hQueryOptions } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
-import { homeChainQueryOptions } from "@/lib/home";
+import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { useHomeChainHistory } from "@/themes/dash/lib/home-history";
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
@@ -19,6 +19,8 @@ export function HomeTransactions() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
   const chain = useQuery(homeChainQueryOptions(network));
+  const blocks = useQuery(homeBlocksQueryOptions(network));
+  const latest = blocks.data?.resultSet[0];
   const feeHistory = useHomeChainHistory(network);
   const transactions = useQuery({
     ...transactionsQueryOptions({ network, page: 1, limit: 6, order: "desc" }),
@@ -134,10 +136,10 @@ export function HomeTransactions() {
           >
             <div className="min-w-0 flex-1 basis-40">
               <h3 className="text-sm font-medium leading-4 tracking-[-0.009em] text-muted-foreground">
-                Latest Core block fees
+                Latest block fees
               </h3>
               <p className="mt-2 text-2xl font-extrabold leading-[1.2] text-accent">
-                {metricDuffs(chain.data?.blockFees)}{" "}
+                {metricDuffs(latest?.fees)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
               <div className="mt-2 flex items-center gap-1 text-xs">
@@ -146,10 +148,16 @@ export function HomeTransactions() {
                 </span>
                 <span
                   className="text-muted-foreground"
-                  title="Fees from the Core tip at API request time. Its height is not returned; it may differ from the latest indexed block."
+                  title="Transaction fees in the latest indexed block, excluding subsidy and treasury payouts."
                 >
-                  Core tip
+                  {latest ? `#${metricNumber(latest.height, 0)}` : "—"}
                 </span>
+                {blocks.isSuccess && latest?.fees == null && (
+                  <MissingApiData
+                    inline
+                    description="The selected backend has not returned fees for this indexed block."
+                  />
+                )}
               </div>
             </div>
             <div className="flex min-h-16 min-w-0 flex-1 basis-48 items-center justify-center">
