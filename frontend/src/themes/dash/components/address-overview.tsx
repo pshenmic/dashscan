@@ -1,10 +1,9 @@
-import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { RelativeTime } from "@/components/relative-time";
 import type { ApiAddressDetail } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/format";
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
-import { MissingApiData } from "./missing-api-data";
+import { IdentifierLink } from "./identifier-link";
 
 export function AddressOverview({ detail }: { detail: ApiAddressDetail }) {
   return (
@@ -28,28 +27,16 @@ export function AddressOverview({ detail }: { detail: ApiAddressDetail }) {
         <AddressMetric label="Sent" name="sent" value={detail.sent} />
       </div>
       <dl className="flex flex-1 flex-col justify-center gap-4 text-sm">
-        <DetailRow label="First seen">
-          <AddressTime
+        <DetailRow label="First transaction">
+          <AddressTransaction
             timestamp={detail.firstSeenBlockTimestamp}
             hash={detail.firstSeenTx}
           />
         </DetailRow>
-        <DetailRow label="Last seen">
-          <AddressTime
+        <DetailRow label="Latest transaction">
+          <AddressTransaction
             timestamp={detail.lastSeenBlockTimestamp}
             hash={detail.lastSeenTx}
-          />
-        </DetailRow>
-        <DetailRow label="Total fees">
-          <MissingApiData
-            inline
-            description="Return total fees attributed to this address in duffs. Define how fees are allocated when a transaction spends inputs from multiple addresses."
-          />
-        </DetailRow>
-        <DetailRow label="Average fee">
-          <MissingApiData
-            inline
-            description="Return the average fee attributed to this address in duffs. Define the included transactions and use the same allocation rule as total fees."
           />
         </DetailRow>
       </dl>
@@ -118,41 +105,38 @@ function DetailRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+    <div className="group min-w-0 space-y-2">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="min-w-0">{children}</dd>
     </div>
   );
 }
 
-function AddressTime({
+function AddressTransaction({
   timestamp,
   hash,
 }: {
   timestamp: string | null;
   hash: string | null;
 }) {
-  if (!timestamp || !Number.isFinite(Date.parse(timestamp)))
-    return <span className="text-muted-foreground">—</span>;
-  const time = (
-    <time dateTime={timestamp}>{formatDateTime(new Date(timestamp))}</time>
-  );
+  const hasTimestamp = timestamp && Number.isFinite(Date.parse(timestamp));
   return (
-    <span className="flex flex-wrap items-center gap-2 text-xs">
+    <div className="min-w-0 space-y-2">
       {hash ? (
-        <Link
-          to="/transactions/$hash"
-          params={{ hash }}
-          className="hover:text-accent hover:underline"
-        >
-          {time}
-        </Link>
+        <IdentifierLink kind="transaction" value={hash} />
       ) : (
-        time
+        <span className="text-muted-foreground">—</span>
       )}
-      <span className="rounded-lg border border-border px-2 py-1 text-muted-foreground">
-        <RelativeTime timestamp={timestamp} />
-      </span>
-    </span>
+      {hasTimestamp && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <time dateTime={timestamp}>
+            {formatDateTime(new Date(timestamp))}
+          </time>
+          <span className="rounded-lg border border-border px-2 py-1">
+            <RelativeTime timestamp={timestamp} />
+          </span>
+        </div>
+      )}
+    </div>
   );
 }

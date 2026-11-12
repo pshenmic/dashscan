@@ -94,8 +94,12 @@ function AddressSkeleton() {
               <SkeletonBar key={field} className="h-24 w-full rounded-3xl" />
             ))}
           </div>
-          {["first", "last", "fees", "average"].map((field) => (
-            <SkeletonBar key={field} className="w-full" />
+          {["first", "last"].map((field) => (
+            <div key={field} className="space-y-2">
+              <SkeletonBar className="w-32" />
+              <SkeletonBar className="w-full" />
+              <SkeletonBar className="w-56" />
+            </div>
           ))}
         </div>
         <div className="space-y-6 rounded-3xl bg-card p-6">
