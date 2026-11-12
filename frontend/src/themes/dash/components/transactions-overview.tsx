@@ -187,15 +187,19 @@ export function TransactionsOverview({ network }: { network: Network }) {
             </div>
             <div className="w-full min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg font-extrabold">Transaction types</h2>
+                <h2 className="text-lg font-extrabold">
+                  <InfoPopover
+                    label="About transaction composition"
+                    trigger="Transaction types"
+                  >
+                    Confirmed transactions in the last 24 hours. CoinJoin and
+                    multisig are overlapping attributes, not additional chart
+                    slices.
+                  </InfoPopover>
+                </h2>
                 <span className="rounded-lg bg-card px-2 py-1 text-xs font-medium text-muted-foreground">
                   24H
                 </span>
-                <InfoPopover label="About transaction composition">
-                  Confirmed transactions in the last 24 hours. CoinJoin and
-                  multisig are overlapping attributes, not additional chart
-                  slices.
-                </InfoPopover>
               </div>
               <dl className="mt-5 space-y-3 text-sm">
                 {slices.map((slice) => (

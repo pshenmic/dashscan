@@ -10,9 +10,7 @@ import {
 import { paginationSearchSchema } from "@/lib/pagination";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
-import RedesignTransactionsListPage from "@/themes/neo/pages/transactions-list";
 
 const ClassicTransactionsListPage = lazy(
   () => import("@/themes/dash/pages/transactions-list"),
@@ -116,9 +114,7 @@ export const Route = createFileRoute("/transactions/")({
 });
 
 function TransactionsListRoute() {
-  const theme = useActiveTheme();
   const search = Route.useSearch();
-  if (theme === "neo") return <RedesignTransactionsListPage />;
   return (
     <Suspense fallback={<LazyThemePageFallback />}>
       <ClassicTransactionsListPage {...search} />

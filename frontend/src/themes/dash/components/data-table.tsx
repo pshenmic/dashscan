@@ -15,6 +15,7 @@ interface DataTableProps<T> {
   growColumn?: string;
   caption?: string;
   className?: string;
+  getRowProps?: (row: T) => { "data-new-block"?: boolean };
 }
 
 export function DataTable<T>({
@@ -30,6 +31,7 @@ export function DataTable<T>({
   growColumn,
   caption,
   className,
+  getRowProps,
 }: DataTableProps<T>) {
   const plain = variant === "plain";
   return (
@@ -91,6 +93,7 @@ export function DataTable<T>({
         ) : table.getRowModel().rows.length > 0 ? (
           table.getRowModel().rows.map((row) => (
             <tr
+              {...getRowProps?.(row.original)}
               key={row.id}
               className={
                 plain

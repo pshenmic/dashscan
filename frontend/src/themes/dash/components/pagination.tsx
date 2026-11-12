@@ -4,7 +4,9 @@ import { PageSizeSelect } from "@/themes/dash/components/page-size-select";
 
 interface PaginationProps {
   page: number;
-  pageCount: number;
+  pageCount?: number;
+  hasNextPage?: boolean;
+  disabled?: boolean;
   onPageChange: (page: number) => void;
   pageSize?: number;
   onPageSizeChange?: (size: PageSize) => void;
@@ -14,6 +16,8 @@ interface PaginationProps {
 export function Pagination({
   page,
   pageCount,
+  hasNextPage,
+  disabled = false,
   onPageChange,
   pageSize,
   onPageSizeChange,
@@ -22,7 +26,12 @@ export function Pagination({
   const pageIndex = page - 1;
 
   const pages: (number | string)[] = [];
-  if (pageCount <= 7) {
+  if (pageCount == null) {
+    if (page > 1) pages.push(0);
+    if (page > 2) pages.push("ellipsis-start");
+    if (page > 1) pages.push(pageIndex);
+    else pages.push(0);
+  } else if (pageCount <= 7) {
     for (let p = 0; p < pageCount; p++) pages.push(p);
   } else {
     pages.push(0);
@@ -51,7 +60,7 @@ export function Pagination({
           type="button"
           aria-label="Previous page"
           onClick={() => onPageChange(page - 1)}
-          disabled={page <= 1}
+          disabled={disabled || page <= 1}
           className={`${btnBase} hover:bg-accent/10 disabled:opacity-40`}
         >
           <ChevronLeft className="size-4" />
@@ -67,6 +76,7 @@ export function Pagination({
               type="button"
               aria-label={`Page ${p + 1}`}
               aria-current={p === pageIndex ? "page" : undefined}
+              disabled={disabled}
               onClick={() => onPageChange(p + 1)}
               className={`${btnBase} ${p === pageIndex ? "border-accent bg-accent text-accent-foreground" : "hover:bg-accent/10"}`}
             >
@@ -78,7 +88,9 @@ export function Pagination({
           type="button"
           aria-label="Next page"
           onClick={() => onPageChange(page + 1)}
-          disabled={page >= pageCount}
+          disabled={
+            disabled || (pageCount == null ? !hasNextPage : page >= pageCount)
+          }
           className={`${btnBase} hover:bg-accent/10 disabled:opacity-40`}
         >
           <ChevronRight className="size-4" />

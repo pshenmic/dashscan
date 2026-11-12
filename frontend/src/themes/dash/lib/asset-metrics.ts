@@ -1,5 +1,11 @@
 import type { ApiTransaction } from "@/lib/api/types";
 
+export function creditsEquivalent(duffs: string | number | null | undefined) {
+  if (duffs == null || !/^\d+$/.test(String(duffs))) return null;
+  if (typeof duffs === "number" && !Number.isSafeInteger(duffs)) return null;
+  return BigInt(duffs) * 1000n;
+}
+
 export function assetTransferAmount(transaction: ApiTransaction | undefined) {
   if (!transaction) return null;
   if (transaction.type === "ASSET_UNLOCK") {
