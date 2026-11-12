@@ -3,7 +3,10 @@ import { Link, useSearch } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import { appStore, type Network } from "@/lib/store";
-import { MasternodeActivity } from "@/themes/dash/components/masternode-activity";
+import {
+  MasternodeActivity,
+  MasternodeVotes,
+} from "@/themes/dash/components/masternode-activity";
 import { MasternodeOverview } from "@/themes/dash/components/masternode-overview";
 import { MasternodeTransactions } from "@/themes/dash/components/masternode-transactions";
 import { SkeletonBar } from "@/themes/dash/components/skeleton";
@@ -56,22 +59,21 @@ function MasternodeDetail({
         </div>
       )}
       {query.isPending ? (
-        <div aria-busy="true" className="grid gap-6 lg:grid-cols-2">
+        <div aria-busy="true" className="grid gap-4 xl:grid-cols-2">
           <output className="sr-only">Loading masternode…</output>
-          <div className="space-y-6 rounded-3xl bg-card p-6">
-            <SkeletonBar className="h-16 w-full" />
-            <SkeletonBar className="h-96 w-full" />
-          </div>
-          <div className="space-y-6">
-            <SkeletonBar className="h-72 w-full" />
-            <SkeletonBar className="h-72 w-full" />
-          </div>
+          <SkeletonBar className="h-48 w-full rounded-3xl" />
+          <SkeletonBar className="h-48 w-full rounded-3xl" />
+          <SkeletonBar className="h-64 w-full rounded-3xl" />
+          <SkeletonBar className="h-64 w-full rounded-3xl" />
         </div>
       ) : node ? (
         <>
-          <div className="grid items-start gap-6 lg:grid-cols-2">
+          <div className="grid items-start gap-4 xl:grid-cols-2">
             <MasternodeOverview node={node} />
-            <MasternodeActivity network={network} node={node} />
+            <div className="flex min-w-0 flex-col gap-4">
+              <MasternodeActivity network={network} node={node} />
+              <MasternodeVotes network={network} hash={node.proTxHash} />
+            </div>
           </div>
           <MasternodeTransactions
             network={network}

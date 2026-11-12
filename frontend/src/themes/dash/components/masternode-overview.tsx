@@ -9,7 +9,6 @@ import {
   MasternodeStatusBadge,
   MasternodeTypeBadge,
 } from "./masternode-badges";
-import { MissingApiData } from "./missing-api-data";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -93,10 +92,7 @@ export function MasternodeOverview({ node }: { node: ApiMasternode }) {
               {registered ? (
                 <time dateTime={registered}>{formatDateTime(registered)}</time>
               ) : (
-                <MissingApiData
-                  inline
-                  description="The ProRegTx block timestamp is needed. The indexer's creation date is not the registration date."
-                />
+                "—"
               )}
             </Field>
             <Field label="Service">
@@ -164,10 +160,7 @@ export function MasternodeOverview({ node }: { node: ApiMasternode }) {
                 <span className="shrink-0 tabular-nums">:{collateral[2]}</span>
               </div>
             ) : (
-              <MissingApiData
-                inline
-                description="The collateral transaction hash and output index are needed. ProTxHash identifies registration, not necessarily the collateral transaction."
-              />
+              "—"
             )}
           </Field>
           <Field label={ownerVotes ? "Owner, voting" : "Owner"}>

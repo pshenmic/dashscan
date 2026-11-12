@@ -7,7 +7,6 @@ import {
 } from "@tanstack/react-table";
 import { useId, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { masternodeVotesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiMasternode, ApiProposalVote } from "@/lib/api/types";
 import { formatDateTime, getMnTypeLabel } from "@/lib/format";
@@ -16,7 +15,6 @@ import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { BlockAge } from "./block-age";
 import { CopyButton } from "./copy-button";
 import { DataTable } from "./data-table";
-import { MissingApiData } from "./missing-api-data";
 import { Pagination } from "./pagination";
 
 const columns: ColumnDef<ApiProposalVote>[] = [
@@ -72,7 +70,13 @@ const columns: ColumnDef<ApiProposalVote>[] = [
   },
 ];
 
-function Votes({ network, hash }: { network: Network; hash: string }) {
+export function MasternodeVotes({
+  network,
+  hash,
+}: {
+  network: Network;
+  hash: string;
+}) {
   const query = useQuery({
     ...masternodeVotesQueryOptions({ network, hash }),
     retry: 1,
@@ -97,8 +101,13 @@ function Votes({ network, hash }: { network: Network; hash: string }) {
     manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
   });
+  if (query.data == null) return null;
   return (
-    <>
+    <section
+      aria-label="DAO votes"
+      className="min-w-0 rounded-3xl bg-card p-4 sm:p-6"
+    >
+      <h2 className="mb-4 text-xl font-extrabold">DAO votes</h2>
       {query.isError && (
         <p role="alert" className="mb-3 text-sm text-destructive">
           Could not load votes.{" "}
@@ -111,22 +120,26 @@ function Votes({ network, hash }: { network: Network; hash: string }) {
           </button>
         </p>
       )}
-      <div className="overflow-x-auto">
-        <DataTable
-          table={table}
-          variant="plain"
-          growColumn="proposal"
-          caption="DAO votes reported for this masternode"
-          isFetching={query.isFetching}
-          isEmpty={rows.length === 0}
-          skeletonRows={5}
-          skeletonWidths={["w-40", "w-12", "w-16", "w-16"]}
-          emptyMessage={
-            query.isError ? "Votes unavailable" : "No votes returned."
-          }
-          className="min-w-[440px]"
-        />
-      </div>
+      {sorted.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No DAO votes returned.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <DataTable
+            table={table}
+            variant="plain"
+            growColumn="proposal"
+            caption="DAO votes reported for this masternode"
+            isFetching={query.isFetching}
+            isEmpty={rows.length === 0}
+            skeletonRows={5}
+            skeletonWidths={["w-40", "w-12", "w-16", "w-16"]}
+            emptyMessage={
+              query.isError ? "Votes unavailable" : "No votes returned."
+            }
+            className="min-w-[440px]"
+          />
+        </div>
+      )}
       {pageCount > 1 && (
         <Pagination
           page={currentPage}
@@ -135,7 +148,7 @@ function Votes({ network, hash }: { network: Network; hash: string }) {
           align="end"
         />
       )}
-    </>
+    </section>
   );
 }
 
@@ -156,11 +169,8 @@ export function MasternodeActivity({
       ? node.lastPaidTime
       : null;
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <section
-        aria-labelledby={titleId}
-        className="rounded-3xl bg-card p-4 sm:p-6"
-      >
+    <div className="min-w-0 rounded-3xl bg-card p-4 sm:p-6">
+      <section aria-labelledby={titleId} className="pb-5">
         <h2 id={titleId} className="text-xl font-extrabold">
           Core payments
         </h2>
@@ -195,21 +205,12 @@ export function MasternodeActivity({
               )}
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-4 sm:col-span-2">
-            <dt className="text-sm text-muted-foreground">Earned rewards</dt>
-            <dd>
-              <MissingApiData
-                inline
-                description="Core reward totals attributed to this ProTxHash and a defined time range are needed. Related transaction totals are not earned rewards."
-              />
-            </dd>
-          </div>
         </dl>
       </section>
       {getMnTypeLabel(node.type) === "Evonode" && (
         <section
           aria-label="Platform activity"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-card p-4 sm:p-6"
+          className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-5"
         >
           <h2 className="text-xl font-extrabold">Platform</h2>
           <a
@@ -222,25 +223,6 @@ export function MasternodeActivity({
           </a>
         </section>
       )}
-      <section
-        aria-label="Masternode activity"
-        className="min-w-0 rounded-3xl bg-card p-4 sm:p-6"
-      >
-        <Tabs defaultValue="votes">
-          <TabsList className="mb-3">
-            <TabsTrigger value="payments">Payments</TabsTrigger>
-            <TabsTrigger value="votes">DAO votes</TabsTrigger>
-          </TabsList>
-          <TabsContent value="payments">
-            <div className="flex min-h-24 items-center justify-center">
-              <MissingApiData description="A paginated list of payments attributed to this ProTxHash is needed: block, transaction hash, timestamp and paid amount. Include payout-address changes and operator reward splits. Core masternodes receive payments; they do not mine blocks." />
-            </div>
-          </TabsContent>
-          <TabsContent value="votes">
-            <Votes network={network} hash={node.proTxHash} />
-          </TabsContent>
-        </Tabs>
-      </section>
     </div>
   );
 }
