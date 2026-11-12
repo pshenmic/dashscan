@@ -2,7 +2,7 @@ import { Globe2 } from "lucide-react";
 import { useMemo } from "react";
 import type { PeerGeoPoint } from "@/lib/api/peers";
 import { cn } from "@/lib/utils";
-import { countryFlagEmoji, countryName } from "../masternode-map/iso-codes";
+import { countryFlagEmoji, countryName } from "../geo/iso-codes";
 
 type CountryRow = {
   code: string;
@@ -91,7 +91,7 @@ export function CountryLegend({
                   <div className="flex items-center gap-2">
                     <div className="h-1 flex-1 overflow-hidden rounded-full bg-border/60">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-violet)] transition-all"
+                        className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-[var(--chart-3)] transition-all"
                         style={{ width: `${Math.max(2, row.pct)}%` }}
                       />
                     </div>

@@ -11,10 +11,10 @@ import { Link } from "@tanstack/react-router";
 import { Coins } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 import { DashIcon } from "@/components/dash-icon";
+import { Badge } from "@/components/explorer/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
 import { formatDuffs } from "@/lib/format";
-import { Badge } from "@/themes/neo/components/ui/badge";
 
 type InputNodeData = {
   index: number;

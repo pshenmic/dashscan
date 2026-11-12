@@ -7,12 +7,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { Cell, Pie, PieChart } from "recharts";
-import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { ApiTransactionsBreakdown } from "@/lib/api/types";
-import { formatCompact, formatNumber } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { EmptyState } from "@/themes/neo/components/empty-state";
+import { EmptyState } from "@/components/explorer/empty-state";
 import {
   Card,
   CardAction,
@@ -20,7 +15,12 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/themes/neo/components/ui/card";
+} from "@/components/explorer/ui/card";
+import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { ApiTransactionsBreakdown } from "@/lib/api/types";
+import { formatCompact, formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 const BREAKDOWN_COLORS = {
   normal: "var(--accent)",

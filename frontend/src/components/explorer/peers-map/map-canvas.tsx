@@ -27,7 +27,7 @@ import {
 import { MapGeography } from "@/components/map-geography";
 import type { PeerGeoPoint } from "@/lib/api/peers";
 import { cn } from "@/lib/utils";
-import { alpha2FromNumeric, formatLocation } from "../masternode-map/iso-codes";
+import { alpha2FromNumeric, formatLocation } from "../geo/iso-codes";
 import { AVAILABILITY_COLOR, peerBucket } from "./status";
 import {
   type ClusterFeature,
@@ -362,11 +362,7 @@ export function PeersMapCanvas({
         <defs>
           <radialGradient id={gradientId}>
             <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.95} />
-            <stop
-              offset="100%"
-              stopColor="var(--accent-violet)"
-              stopOpacity={0.9}
-            />
+            <stop offset="100%" stopColor="var(--chart-3)" stopOpacity={0.9} />
           </radialGradient>
           <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="4" result="b" />

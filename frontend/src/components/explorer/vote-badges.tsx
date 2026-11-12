@@ -1,6 +1,6 @@
 import { Minus, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Badge } from "@/components/explorer/ui/badge";
 import type { ApiVoteOutcome, ApiVoteSignal } from "@/lib/api/types";
-import { Badge } from "@/themes/neo/components/ui/badge";
 
 const SIGNAL_META: Record<
   ApiVoteSignal,

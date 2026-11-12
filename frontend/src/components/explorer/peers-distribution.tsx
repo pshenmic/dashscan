@@ -1,6 +1,16 @@
 import { CircleCheck, Waypoints } from "lucide-react";
 import { useMemo } from "react";
 import { Cell, Pie, PieChart } from "recharts";
+import { EmptyState } from "@/components/explorer/empty-state";
+import type { PeerStatusFilter } from "@/components/explorer/peers-filter-bar";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/explorer/ui/card";
 import {
   type ChartConfig,
   ChartContainer,
@@ -11,22 +21,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ApiPeerUserAgent } from "@/lib/api/peers";
 import { formatCompact, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { EmptyState } from "@/themes/neo/components/empty-state";
-import type { PeerStatusFilter } from "@/themes/neo/components/peers-filter-bar";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/themes/neo/components/ui/card";
 
 const USER_AGENT_COLORS = [
   "var(--accent)",
-  "var(--accent-teal)",
-  "var(--accent-violet)",
-  "var(--accent-lime)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-5)",
   "var(--chart-4)",
 ] as const;
 

@@ -13,6 +13,23 @@ import {
 import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
+import { CopyButton } from "@/components/explorer/copy-button";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/explorer/data-table";
+import { EmptyState, NotFoundState } from "@/components/explorer/empty-state";
+import { HashDisplay } from "@/components/explorer/hash-display";
+import { ShareButton } from "@/components/explorer/share-button";
+import { Badge } from "@/components/explorer/ui/badge";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/explorer/ui/card";
 import { Avatar } from "@/components/identicon";
 import { RelativeTime } from "@/components/relative-time";
 import {
@@ -51,27 +68,10 @@ import {
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { cn } from "@/lib/utils";
-import { CopyButton } from "@/themes/neo/components/copy-button";
-import {
-  DataTable,
-  type DataTableColumn,
-} from "@/themes/neo/components/data-table";
-import { EmptyState, NotFoundState } from "@/themes/neo/components/empty-state";
-import { HashDisplay } from "@/themes/neo/components/hash-display";
-import { ShareButton } from "@/themes/neo/components/share-button";
 import {
   InstantLockBadge,
   TxTypeBadge,
 } from "@/themes/neo/components/status-badge";
-import { Badge } from "@/themes/neo/components/ui/badge";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/themes/neo/components/ui/card";
 
 const INFINITE_PAGE_SIZE = 25;
 const PAGINATION_PAGE_SIZE = 25;

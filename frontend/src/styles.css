@@ -5,6 +5,7 @@
 
 @import "./themes/dash/styles.css";
 @import "./themes/neo/styles.css";
+@import "./components/explorer/styles.css";
 
 @font-face {
   font-family: "Manrope";

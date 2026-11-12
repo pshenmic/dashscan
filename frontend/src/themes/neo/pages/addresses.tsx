@@ -4,6 +4,13 @@ import { useStore } from "@tanstack/react-store";
 import { Activity, Info, Trophy, Users } from "lucide-react";
 import { useMemo } from "react";
 import { DashIcon } from "@/components/dash-icon";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/explorer/data-table";
+import { EmptyState } from "@/components/explorer/empty-state";
+import { HashDisplay } from "@/components/explorer/hash-display";
+import { Badge } from "@/components/explorer/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -29,13 +36,6 @@ import {
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
-import {
-  DataTable,
-  type DataTableColumn,
-} from "@/themes/neo/components/data-table";
-import { EmptyState } from "@/themes/neo/components/empty-state";
-import { HashDisplay } from "@/themes/neo/components/hash-display";
-import { Badge } from "@/themes/neo/components/ui/badge";
 
 const PAGE_SIZE = 25;
 

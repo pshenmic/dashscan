@@ -1,9 +1,12 @@
 import { Globe2 } from "lucide-react";
 import { useMemo } from "react";
+import {
+  countryFlagEmoji,
+  countryName,
+} from "@/components/explorer/geo/iso-codes";
 import type { MasternodeGeoPoint } from "@/lib/api/masternodes";
 import { getMnStatusBucket } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { countryFlagEmoji, countryName } from "./iso-codes";
 
 type CountryRow = {
   code: string;

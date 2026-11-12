@@ -21,6 +21,21 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/explorer/data-table";
+import { EmptyState } from "@/components/explorer/empty-state";
+import { HashDisplay } from "@/components/explorer/hash-display";
+import { Badge } from "@/components/explorer/ui/badge";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/explorer/ui/card";
 import { RelativeTime } from "@/components/relative-time";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,21 +54,6 @@ import type { ApiBlock } from "@/lib/api/types";
 import { formatCompact, formatDateTime, formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
-import {
-  DataTable,
-  type DataTableColumn,
-} from "@/themes/neo/components/data-table";
-import { EmptyState } from "@/themes/neo/components/empty-state";
-import { HashDisplay } from "@/themes/neo/components/hash-display";
-import { Badge } from "@/themes/neo/components/ui/badge";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/themes/neo/components/ui/card";
 
 const INFINITE_PAGE_SIZE = 25;
 const PAGINATION_PAGE_SIZE = 25;

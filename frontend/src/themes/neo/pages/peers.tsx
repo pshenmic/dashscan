@@ -2,6 +2,30 @@ import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { CircleCheck, Network, Server, ServerCrash } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/explorer/data-table";
+import {
+  countryFlagEmoji,
+  countryName,
+  formatLocation,
+} from "@/components/explorer/geo/iso-codes";
+import { PeersDistribution } from "@/components/explorer/peers-distribution";
+import {
+  EMPTY_PEER_FILTERS,
+  type PeerFilters,
+  PeersFilterBar,
+} from "@/components/explorer/peers-filter-bar";
+import { PeersMap } from "@/components/explorer/peers-map";
+import { Badge } from "@/components/explorer/ui/badge";
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/explorer/ui/card";
 import { RelativeTime } from "@/components/relative-time";
 import {
   type ApiPeer,
@@ -11,30 +35,6 @@ import {
 } from "@/lib/api/peers";
 import { formatCompact, formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
-import {
-  DataTable,
-  type DataTableColumn,
-} from "@/themes/neo/components/data-table";
-import {
-  countryFlagEmoji,
-  countryName,
-  formatLocation,
-} from "@/themes/neo/components/masternode-map/iso-codes";
-import { PeersDistribution } from "@/themes/neo/components/peers-distribution";
-import {
-  EMPTY_PEER_FILTERS,
-  type PeerFilters,
-  PeersFilterBar,
-} from "@/themes/neo/components/peers-filter-bar";
-import { PeersMap } from "@/themes/neo/components/peers-map";
-import { Badge } from "@/themes/neo/components/ui/badge";
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/themes/neo/components/ui/card";
 
 const PAGINATION_PAGE_SIZE = 10;
 

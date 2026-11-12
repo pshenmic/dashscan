@@ -21,6 +21,25 @@ import {
 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { DashIcon } from "@/components/dash-icon";
+import { CopyButton } from "@/components/explorer/copy-button";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/explorer/data-table";
+import { DetailRow } from "@/components/explorer/detail-row";
+import { EmptyState, NotFoundState } from "@/components/explorer/empty-state";
+import { HashDisplay } from "@/components/explorer/hash-display";
+import { ShareButton } from "@/components/explorer/share-button";
+import { Badge } from "@/components/explorer/ui/badge";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/explorer/ui/card";
+import { OutcomeBadge, SignalBadge } from "@/components/explorer/vote-badges";
 import { Avatar } from "@/components/identicon";
 import { RelativeTime } from "@/components/relative-time";
 import {
@@ -51,31 +70,12 @@ import {
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { cn } from "@/lib/utils";
-import { CopyButton } from "@/themes/neo/components/copy-button";
-import {
-  DataTable,
-  type DataTableColumn,
-} from "@/themes/neo/components/data-table";
-import { DetailRow } from "@/themes/neo/components/detail-row";
-import { EmptyState, NotFoundState } from "@/themes/neo/components/empty-state";
-import { HashDisplay } from "@/themes/neo/components/hash-display";
-import { ShareButton } from "@/themes/neo/components/share-button";
 import {
   InstantLockBadge,
   MnStatusBadge,
   MnTypeBadge,
   TxTypeBadge,
 } from "@/themes/neo/components/status-badge";
-import { Badge } from "@/themes/neo/components/ui/badge";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/themes/neo/components/ui/card";
-import { OutcomeBadge, SignalBadge } from "@/themes/neo/components/vote-badges";
 
 const VOTES_PAGE_SIZE = 10;
 const TX_PAGE_SIZE = 25;

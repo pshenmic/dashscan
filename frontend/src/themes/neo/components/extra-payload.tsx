@@ -2,6 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { Layers, Network, ShieldAlert, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
 import { DashIcon } from "@/components/dash-icon";
+import { CopyButton } from "@/components/explorer/copy-button";
+import { DetailRow } from "@/components/explorer/detail-row";
+import { HashDisplay } from "@/components/explorer/hash-display";
+import { Badge } from "@/components/explorer/ui/badge";
+import { Card, CardContent } from "@/components/explorer/ui/card";
 import type {
   ApiAssetLockTxPayload,
   ApiAssetUnlockTxPayload,
@@ -15,11 +20,6 @@ import type {
   ApiQcTxPayload,
 } from "@/lib/api/types";
 import { formatNumber, txTypeNum } from "@/lib/format";
-import { CopyButton } from "@/themes/neo/components/copy-button";
-import { DetailRow } from "@/themes/neo/components/detail-row";
-import { HashDisplay } from "@/themes/neo/components/hash-display";
-import { Badge } from "@/themes/neo/components/ui/badge";
-import { Card, CardContent } from "@/themes/neo/components/ui/card";
 
 const REVOCATION_REASONS: Record<number, string> = {
   0: "Not specified",

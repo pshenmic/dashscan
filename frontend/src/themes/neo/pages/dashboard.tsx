@@ -50,6 +50,17 @@ import {
   YAxis,
 } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
+import { EmptyState } from "@/components/explorer/empty-state";
+import { HashDisplay } from "@/components/explorer/hash-display";
+import { Badge } from "@/components/explorer/ui/badge";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/explorer/ui/card";
 import { Avatar } from "@/components/identicon";
 import { RelativeTime } from "@/components/relative-time";
 import { useNow } from "@/components/render-clock";
@@ -131,8 +142,6 @@ import {
 import { appStore, type Network } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { ConcentrationBanner } from "@/themes/neo/components/concentration-banner";
-import { EmptyState } from "@/themes/neo/components/empty-state";
-import { HashDisplay } from "@/themes/neo/components/hash-display";
 import { LiveTicker } from "@/themes/neo/components/live-ticker";
 import {
   InstantLockBadge,
@@ -141,15 +150,6 @@ import {
   TxTypeBadge,
 } from "@/themes/neo/components/status-badge";
 import { TxBreakdownCard } from "@/themes/neo/components/tx-breakdown-card";
-import { Badge } from "@/themes/neo/components/ui/badge";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/themes/neo/components/ui/card";
 
 const chartConfig: ChartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
@@ -162,7 +162,7 @@ const LazyMasternodeMap = lazy(() =>
 );
 
 const LazyPeersMap = lazy(() =>
-  import("@/themes/neo/components/peers-map").then((module) => ({
+  import("@/components/explorer/peers-map").then((module) => ({
     default: module.PeersMap,
   })),
 );

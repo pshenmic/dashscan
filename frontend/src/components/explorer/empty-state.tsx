@@ -10,11 +10,11 @@ import {
   Wallet,
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
+import { CopyButton } from "@/components/explorer/copy-button";
+import { Badge } from "@/components/explorer/ui/badge";
+import { Card, CardContent } from "@/components/explorer/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CopyButton } from "@/themes/neo/components/copy-button";
-import { Badge } from "@/themes/neo/components/ui/badge";
-import { Card, CardContent } from "@/themes/neo/components/ui/card";
 
 interface EmptyStateProps {
   title: string;

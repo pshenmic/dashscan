@@ -1,5 +1,6 @@
 import { ListOrdered, Loader2, MousePointerClick, Search } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useRef } from "react";
+import { EmptyState } from "@/components/explorer/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Pagination,
@@ -35,7 +36,6 @@ import {
 import { formatNumber } from "@/lib/format";
 import { PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
-import { EmptyState } from "@/themes/neo/components/empty-state";
 
 export interface DataTableColumn<T> {
   id: string;

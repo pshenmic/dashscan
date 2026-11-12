@@ -12,6 +12,19 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  countryFlagEmoji,
+  countryName,
+} from "@/components/explorer/geo/iso-codes";
+import type { PeerStatusFilter } from "@/components/explorer/peers-filter-bar";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/explorer/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -23,19 +36,6 @@ import {
   peersToGeoPoints,
 } from "@/lib/api/peers";
 import { appStore } from "@/lib/store";
-import {
-  countryFlagEmoji,
-  countryName,
-} from "@/themes/neo/components/masternode-map/iso-codes";
-import type { PeerStatusFilter } from "@/themes/neo/components/peers-filter-bar";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/themes/neo/components/ui/card";
 import { CountryLegend } from "./country-legend";
 import { PeersMapCanvas } from "./map-canvas";
 import { PeerDetail } from "./peer-detail";

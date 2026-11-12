@@ -1,11 +1,11 @@
 import { ArrowLeft, CircleCheck, Server, ServerCrash } from "lucide-react";
+import { CopyButton } from "@/components/explorer/copy-button";
+import { DetailRow } from "@/components/explorer/detail-row";
+import { Badge } from "@/components/explorer/ui/badge";
 import { RelativeTime } from "@/components/relative-time";
 import { type ApiPeer, decodeServices } from "@/lib/api/peers";
 import { formatDateTime, formatNumber } from "@/lib/format";
-import { CopyButton } from "@/themes/neo/components/copy-button";
-import { DetailRow } from "@/themes/neo/components/detail-row";
-import { Badge } from "@/themes/neo/components/ui/badge";
-import { countryFlagEmoji, formatLocation } from "../masternode-map/iso-codes";
+import { countryFlagEmoji, formatLocation } from "../geo/iso-codes";
 
 function TimeValue({ value }: { value: string }) {
   const date = new Date(value);

@@ -17,6 +17,17 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { DashIcon } from "@/components/dash-icon";
+import { CopyButton } from "@/components/explorer/copy-button";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/explorer/data-table";
+import { DetailRow } from "@/components/explorer/detail-row";
+import { NotFoundState } from "@/components/explorer/empty-state";
+import { HashDisplay } from "@/components/explorer/hash-display";
+import { ShareButton } from "@/components/explorer/share-button";
+import { Badge } from "@/components/explorer/ui/badge";
+import { Card, CardContent } from "@/components/explorer/ui/card";
 import { RelativeTime } from "@/components/relative-time";
 import { useNow } from "@/components/render-clock";
 import {
@@ -48,22 +59,11 @@ import {
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { CopyButton } from "@/themes/neo/components/copy-button";
-import {
-  DataTable,
-  type DataTableColumn,
-} from "@/themes/neo/components/data-table";
-import { DetailRow } from "@/themes/neo/components/detail-row";
-import { NotFoundState } from "@/themes/neo/components/empty-state";
-import { HashDisplay } from "@/themes/neo/components/hash-display";
-import { ShareButton } from "@/themes/neo/components/share-button";
 import {
   ConfirmationsBadge,
   InstantLockBadge,
   TxTypeBadge,
 } from "@/themes/neo/components/status-badge";
-import { Badge } from "@/themes/neo/components/ui/badge";
-import { Card, CardContent } from "@/themes/neo/components/ui/card";
 
 const FINALITY_CONFIRMS = 6;
 

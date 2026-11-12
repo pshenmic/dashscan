@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import type { PeerGeoPoint } from "@/lib/api/peers";
 import { cn } from "@/lib/utils";
-import { countryFlagEmoji, formatLocation } from "../masternode-map/iso-codes";
+import { countryFlagEmoji, formatLocation } from "../geo/iso-codes";
 import {
   AVAILABILITY_COLOR,
   AVAILABILITY_SORT_ORDER,

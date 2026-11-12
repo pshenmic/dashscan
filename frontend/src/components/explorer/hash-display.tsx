@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
+import { CopyButton } from "@/components/explorer/copy-button";
 import { cn } from "@/lib/utils";
-import { CopyButton } from "@/themes/neo/components/copy-button";
 
 interface HashDisplayProps {
   value: string;

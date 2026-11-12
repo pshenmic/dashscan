@@ -12,6 +12,11 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import {
+  countryFlagEmoji,
+  countryName,
+} from "@/components/explorer/geo/iso-codes";
+import { Badge } from "@/components/explorer/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -31,11 +36,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { type ApiPeerUserAgent, isValidIpv4 } from "@/lib/api/peers";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import {
-  countryFlagEmoji,
-  countryName,
-} from "@/themes/neo/components/masternode-map/iso-codes";
-import { Badge } from "@/themes/neo/components/ui/badge";
 
 export type PeerStatusFilter = "all" | "available" | "unavailable";
 

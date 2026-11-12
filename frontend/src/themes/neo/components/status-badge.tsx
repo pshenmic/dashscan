@@ -1,3 +1,4 @@
+import { Badge } from "@/components/explorer/ui/badge";
 import {
   formatNumber,
   getMnStatusLabel,
@@ -5,7 +6,6 @@ import {
   getTxTypeLabel,
   txTypeNum,
 } from "@/lib/format";
-import { Badge } from "@/themes/neo/components/ui/badge";
 
 type BadgeVariant =
   | "default"

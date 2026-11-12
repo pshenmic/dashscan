@@ -11,6 +11,13 @@ import {
   Trophy,
 } from "lucide-react";
 import { DashIcon } from "@/components/dash-icon";
+import { CopyButton } from "@/components/explorer/copy-button";
+import { DetailRow } from "@/components/explorer/detail-row";
+import { EmptyState, NotFoundState } from "@/components/explorer/empty-state";
+import { HashDisplay } from "@/components/explorer/hash-display";
+import { ShareButton } from "@/components/explorer/share-button";
+import { Badge } from "@/components/explorer/ui/badge";
+import { Card, CardContent } from "@/components/explorer/ui/card";
 import { RelativeTime } from "@/components/relative-time";
 import {
   Breadcrumb,
@@ -27,12 +34,7 @@ import type { ApiVIn, ApiVOut } from "@/lib/api/types";
 import { formatDateTime, formatDuffs, formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { CopyButton } from "@/themes/neo/components/copy-button";
-import { DetailRow } from "@/themes/neo/components/detail-row";
-import { EmptyState, NotFoundState } from "@/themes/neo/components/empty-state";
 import { ExtraPayloadSection } from "@/themes/neo/components/extra-payload";
-import { HashDisplay } from "@/themes/neo/components/hash-display";
-import { ShareButton } from "@/themes/neo/components/share-button";
 import {
   ChainLockBadge,
   ConfirmationsBadge,
@@ -40,8 +42,6 @@ import {
   TxTypeBadge,
 } from "@/themes/neo/components/status-badge";
 import { TransactionFlow } from "@/themes/neo/components/transaction-flow";
-import { Badge } from "@/themes/neo/components/ui/badge";
-import { Card, CardContent } from "@/themes/neo/components/ui/card";
 
 const RIBBON_PALETTE = [
   "#4c7eff",

@@ -25,11 +25,14 @@ import {
   ZoomableGroup,
   type ZoomPanCallbackProps,
 } from "react-simple-maps";
+import {
+  alpha2FromNumeric,
+  formatLocation,
+} from "@/components/explorer/geo/iso-codes";
 import { MapGeography } from "@/components/map-geography";
 import type { MasternodeGeoPoint } from "@/lib/api/masternodes";
 import { getMnStatusBucket } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { alpha2FromNumeric, formatLocation } from "./iso-codes";
 import { STATUS_COLOR } from "./status";
 import {
   type ClusterFeature,
