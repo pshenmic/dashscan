@@ -4,6 +4,40 @@ import type { Network } from "@/lib/store";
 import { apiFetch, getBaseUrl } from "./client";
 import type { ApiChainStats } from "./types";
 
+export interface ApiDeployment {
+  id: string;
+  type: string;
+  active: boolean;
+  height: number | null;
+  status: string | null;
+  since: number | null;
+  ehfHeight: number | null;
+}
+
+export function deploymentsQueryOptions({ network }: { network: Network }) {
+  return queryOptions({
+    queryKey: ["deployments", network],
+    queryFn: async ({
+      signal,
+    }): Promise<{
+      hash: string;
+      height: number;
+      deployments: ApiDeployment[];
+    } | null> => {
+      const response = await apiFetch(
+        new URL("/chain/deployments", getBaseUrl(network)),
+        { signal },
+      );
+      if (response.status === 404) return null;
+      if (!response.ok)
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      return response.json();
+    },
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+}
+
 export function supplyQueryOptions({ network }: { network: Network }) {
   return queryOptions({
     queryKey: ["supply", network],
