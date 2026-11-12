@@ -162,8 +162,7 @@ export default function BlocksListPage({
   };
 
   return (
-    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16">
-      <h1 className="sr-only">Blocks</h1>
+    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-12">
       <BlocksOverview network={network} />
       <section
         aria-labelledby={titleId}
