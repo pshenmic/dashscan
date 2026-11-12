@@ -62,18 +62,19 @@ function AddressMetric({
         </Tooltip>
       </h3>
       <p className="dash-metric break-words text-accent">{value}</p>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="dash-label-small text-muted-foreground">
-          {period ?? detail}
-        </span>
-        {missing && <MissingApiData inline description={missing} />}
-        {change != null && (
-          <span className="text-xs font-medium text-accent">
-            {change > 0 ? "+" : ""}
-            {metricNumber(change)}%
+      {!missing && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="dash-label-small text-muted-foreground">
+            {period ?? detail}
           </span>
-        )}
-      </div>
+          {change != null && (
+            <span className="text-xs font-medium text-accent">
+              {change > 0 ? "+" : ""}
+              {metricNumber(change)}%
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -492,8 +493,7 @@ export function HomeAddresses() {
             label="Network Supply"
             value={supply === null ? "—" : `≈ ${formatCompact(supply)} DASH`}
             detail="Sum of unspent outputs reported by Dash Core for the selected network. Cached for 30 minutes; not market-provider circulating supply."
-            period="Monthly change"
-            missing="The supply endpoint provides the current snapshot, not monthly supply history or change."
+            period="Core UTXO snapshot"
           />
           <AddressMetric
             label="Unique Addresses"

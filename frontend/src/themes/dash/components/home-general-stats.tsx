@@ -385,10 +385,6 @@ export function HomeGeneralStats() {
                   <span className="text-base font-medium"> {hashRateUnit}</span>
                 )}
               </p>
-              <MissingApiData
-                inline
-                description="Month-over-month hashrate change is not available yet."
-              />
             </div>
             <p className="text-sm font-medium leading-4 text-muted-foreground">
               Daily averages · 30 days
