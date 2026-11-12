@@ -251,6 +251,11 @@ export interface GeoIpInfo {
 
 export interface ApiMasternode {
   proTxHash: string;
+  outpoint?: string | null;
+  platformNodeId?: string | null;
+  platformP2PPort?: number | null;
+  platformHTTPPort?: number | null;
+  registrationTimestamp?: string | null;
   address: string;
   payee: string;
   status: string;
