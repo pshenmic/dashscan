@@ -29,16 +29,17 @@ export interface ApiBlock {
   confirmations: number;
   nonce: number;
   superblock?: boolean | null;
+  fees?: number | null;
 }
 
 export interface ApiBlockReward {
-  height: number;
-  subsidy: number;
-  fees: number;
-  miner: number;
-  masternode: number;
-  platform: number;
-  treasury: number;
+  height: number | null;
+  subsidy: number | null;
+  fees: number | null;
+  miner: number | null;
+  masternode: number | null;
+  platform: number | null;
+  treasury: number | null;
 }
 
 export interface ApiVIn {

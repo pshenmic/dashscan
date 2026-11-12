@@ -50,23 +50,23 @@ export function HomeHero() {
             <span className="font-extrabold text-brand">Dash</span> Blockchain
             Explorer
           </h1>
-          <p className="dash-body mt-6 max-w-xl text-foreground/50">
+          <p className="dash-body mt-6 max-w-xl text-muted-foreground">
             Explore blocks, transactions, masternodes and governance proposals
             on the Dash network.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               to="/dashboard"
-              className="dash-home-action flex min-h-12 items-center gap-4 rounded-full bg-action-primary py-2 pl-6 pr-2 text-base font-medium text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+              className="dash-home-action flex min-h-12 items-center gap-4 rounded-full bg-action-solid py-2 pl-6 pr-2 text-base font-medium text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
               View Dashboard
-              <span className="flex size-8 items-center justify-center rounded-full bg-primary-foreground text-brand">
+              <span className="flex size-8 items-center justify-center rounded-full bg-primary-foreground text-accent">
                 <HomeIcon name="explore" />
               </span>
             </Link>
             <Link
               to="/dao"
-              className="dash-home-action dash-home-action-subtle flex min-h-12 items-center rounded-full px-6 text-base font-medium text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+              className="dash-home-action dash-home-action-subtle flex min-h-12 items-center rounded-full px-6 text-base font-medium text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
               Governance
             </Link>
@@ -92,7 +92,7 @@ export function HomeHero() {
               {network === "mainnet" ? "Mainnet" : "Testnet"} · {status}
             </span>
             <span className="inline-flex items-center gap-2 rounded-full bg-card px-2 py-1 shadow-card">
-              <span className="text-foreground/48">
+              <span className="text-muted-foreground">
                 {network === "testnet"
                   ? "Mainnet Market Cap (USD):"
                   : "Market Cap (USD):"}
@@ -112,11 +112,11 @@ export function HomeHero() {
           </div>
           <div>
             <h2 className="dash-heading-page">
-              Explore <span className="text-foreground/48">the network</span>
+              Explore <span className="text-muted-foreground">the network</span>
             </h2>
             <p
               id={searchDescriptionId}
-              className="dash-body mt-3 text-foreground/48"
+              className="dash-body mt-3 text-muted-foreground"
             >
               Blocks, transactions, addresses and masternodes.
             </p>

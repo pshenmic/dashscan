@@ -4,9 +4,7 @@ import { blockQueryOptions } from "@/lib/api/blocks";
 import { paginationSearchSchema } from "@/lib/pagination";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import { useActiveTheme } from "@/themes/active";
 import { BlockDetailSkeleton } from "@/themes/dash/components/block-detail-skeleton";
-import RedesignBlockDetailPage from "@/themes/neo/pages/block-detail";
 
 const ClassicBlockDetailPage = lazy(
   () => import("@/themes/dash/pages/block-detail"),
@@ -40,11 +38,8 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
 });
 
 function BlockDetailRoute() {
-  const theme = useActiveTheme();
   const { hashOrHeight } = Route.useParams();
   const { page, limit } = Route.useSearch();
-  if (theme === "neo")
-    return <RedesignBlockDetailPage hashOrHeight={hashOrHeight} />;
   return (
     <Suspense fallback={<BlockDetailSkeleton />}>
       <ClassicBlockDetailPage
