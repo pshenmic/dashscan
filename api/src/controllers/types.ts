@@ -14,6 +14,10 @@ export interface PaginatedQuery {
   type?: string
   last_paid_before?: string
   has_penalty?: boolean
+  owner_address?: string
+  voting_address?: string
+  collateral_address?: string
+  pub_key_operator?: string
   country?: string
   available?: boolean
   user_agent?: string

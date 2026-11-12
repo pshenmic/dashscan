@@ -39,7 +39,10 @@ struct DashRpcError {
 pub struct MasternodeEntry {
     #[serde(rename = "proTxHash")]
     pub pro_tx_hash: String,
-    pub address: String,
+    #[serde(default)]
+    pub address: Option<String>,
+    #[serde(default)]
+    pub addresses: Option<MasternodeAddresses>,
     pub payee: String,
     pub status: String,
     #[serde(rename = "type")]
@@ -56,6 +59,22 @@ pub struct MasternodeEntry {
     /// Collateral outpoint (`txid-vout`); populated from the response map key.
     #[serde(default)]
     pub outpoint: String,
+    #[serde(rename = "platformNodeID", default)]
+    pub platform_node_id: Option<String>,
+    #[serde(rename = "platformP2PPort", default)]
+    pub platform_p2p_port: Option<i32>,
+    #[serde(rename = "platformHTTPPort", default)]
+    pub platform_http_port: Option<i32>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct MasternodeAddresses {
+    #[serde(default)]
+    pub core_p2p: Vec<String>,
+    #[serde(default)]
+    pub platform_p2p: Vec<String>,
+    #[serde(default)]
+    pub platform_https: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -79,6 +98,10 @@ pub struct CbTx {
 
     #[serde(rename = "creditPoolBalance")]
     pub credit_pool_balance: Option<f64>,
+
+    // v4
+    #[serde(rename = "merkleRootAssetUnlocks")]
+    pub merkle_root_asset_unlocks: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -309,6 +332,23 @@ impl DashRpcClient {
             let mut entry: MasternodeEntry = serde_json::from_value(val.clone())
                 .map_err(|e| RpcError { code: 0, message: format!("Failed to parse masternode entry: {e}") })?;
             entry.outpoint = outpoint.clone();
+            // Core v24 omits `address` unless -deprecatedrpc=service is set
+            if entry.address.is_none() {
+                entry.address = Some(
+                    entry.addresses.as_ref()
+                        .and_then(|a| a.core_p2p.first().cloned())
+                        .unwrap_or_else(|| "[::]:0".to_string()),
+                );
+            }
+            // Same deprecation moved Evo platform ports into `addresses`
+            if let Some(addresses) = entry.addresses.as_ref() {
+                if entry.platform_p2p_port.is_none() {
+                    entry.platform_p2p_port = addresses.platform_p2p.first().and_then(|a| parse_port(a));
+                }
+                if entry.platform_http_port.is_none() {
+                    entry.platform_http_port = addresses.platform_https.first().and_then(|a| parse_port(a));
+                }
+            }
             entries.push(entry);
         }
 
@@ -316,6 +356,24 @@ impl DashRpcClient {
     }
 
     /// `gobject list all proposals` — returns a map of `governance_hash → object`.
+    pub async fn get_protx_list(&self, height: i32) -> Result<Vec<Value>, RpcError> {
+        let result = self
+            .call(
+                "protx",
+                vec![Value::from("list"), Value::from("registered"), Value::from(true), Value::from(height)],
+            )
+            .await?;
+
+        result
+            .as_array()
+            .cloned()
+            .ok_or_else(|| RpcError { code: 0, message: "protx list: expected array".to_string() })
+    }
+
+    pub async fn get_txoutset_info(&self) -> Result<Value, RpcError> {
+        self.call("gettxoutsetinfo", vec![]).await
+    }
+
     pub async fn get_governance_objects(&self) -> Result<HashMap<String, Value>, RpcError> {
         let result = self
             .call(
@@ -366,6 +424,44 @@ impl DashRpcClient {
             .map_err(|e| RpcError { code: 0, message: format!("getrawtransaction parse error: {e}") })
     }
 
+    /// `getrawmempool` — txids currently in the mempool.
+    pub async fn get_raw_mempool(&self) -> Result<Vec<String>, RpcError> {
+        let result = self.call("getrawmempool", vec![]).await?;
+        serde_json::from_value(result)
+            .map_err(|e| RpcError { code: 0, message: format!("getrawmempool parse error: {e}") })
+    }
+
+    /// Fetch a transaction by txid as raw consensus bytes (verbosity=0).
+    pub async fn get_raw_transaction_bytes(&self, txid: &str) -> Result<Vec<u8>, RpcError> {
+        let result = self
+            .call("getrawtransaction", vec![Value::from(txid), Value::from(0)])
+            .await?;
+
+        let hex_str = result
+            .as_str()
+            .ok_or_else(|| RpcError { code: 0, message: "getrawtransaction: expected hex string".to_string() })?;
+
+        hex::decode(hex_str)
+            .map_err(|e| RpcError { code: 0, message: format!("getrawtransaction: hex decode failed: {e}") })
+    }
+
+    /// `getislocks` — `(txid, islock_hex)` for each txid that has a lock.
+    /// Core accepts at most 100 txids per call.
+    pub async fn get_islocks(&self, txids: &[String]) -> Result<Vec<(String, String)>, RpcError> {
+        let result = self
+            .call("getislocks", vec![Value::from(txids.to_vec())])
+            .await?;
+
+        let entries = result
+            .as_array()
+            .ok_or_else(|| RpcError { code: 0, message: "getislocks: expected array".to_string() })?;
+
+        Ok(entries
+            .iter()
+            .filter_map(|e| Some((e.get("txid")?.as_str()?.to_string(), e.get("hex")?.as_str()?.to_string())))
+            .collect())
+    }
+
     /// Test connectivity by calling getblockchaininfo
     pub async fn ping(&self) -> Result<(), RpcError> {
         let info = self.get_blockchain_info().await?;
@@ -390,4 +486,8 @@ impl DashRpcClient {
         serde_json::from_value(result)
             .map_err(|e| RpcError { code: 0, message: format!("mnsync status parse error: {e}") })
     }
+}
+
+fn parse_port(addr: &str) -> Option<i32> {
+    addr.rsplit_once(':').and_then(|(_, port)| port.parse().ok())
 }

@@ -23,7 +23,7 @@ export default class TransactionsController {
 
     const transactions = await this.transactionsDAO.getTransactions(page, limit, order, TransactionType[transactionType], coinjoin, multisig, blockHeight);
 
-    response.send(transactions);
+    return response.send(transactions);
   };
 
   getTransactionByHash = async (request: FastifyRequest<{ Params: { hash: string } }>, response: FastifyReply): Promise<void> => {
@@ -35,7 +35,7 @@ export default class TransactionsController {
       return response.status(404).send({error: 'Transaction not found'});
     }
 
-    response.send(transaction);
+    return response.send(transaction);
   };
 
   getTransactionsByBlockHeight = async (request: FastifyRequest<{ Querystring: PaginatedQuery; Params: { height?: number } }>, response: FastifyReply): Promise<void> => {
@@ -48,7 +48,7 @@ export default class TransactionsController {
 
     const transactions = await this.transactionsDAO.getTransactionsByBlockHeight(height, page, limit, order);
 
-    response.send(transactions);
+    return response.send(transactions);
   };
 
   getPendingTransactions = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
@@ -56,7 +56,7 @@ export default class TransactionsController {
     
     const transactions = await this.transactionsDAO.getPendingTransactions(page, limit, order);
 
-    response.send(transactions)
+    return response.send(transactions)
   }
 
   getTransactionCountSeries = async (
@@ -93,7 +93,7 @@ export default class TransactionsController {
       runningTotal,
     );
 
-    response.send(series);
+    return response.send(series);
   }
 
   getTransactionStats = async (
@@ -115,7 +115,25 @@ export default class TransactionsController {
       return response.status(500).send({ error: "No indexed transactions" });
     }
 
-    response.send(stats);
+    return response.send(stats);
+  }
+
+  getAssetLockStats = async (
+    request: FastifyRequest<{ Querystring: { timestamp_start: string; timestamp_end: string } }>,
+    response: FastifyReply
+  ): Promise<void> => {
+    const {
+      timestamp_start: start = new Date(new Date().getTime() - 86400000).toISOString(),
+      timestamp_end: end = new Date().toISOString(),
+    } = request.query;
+
+    if (new Date(start).getTime() > new Date(end).getTime()) {
+      return response.status(400).send({ error: 'start timestamp cannot be more than end timestamp' });
+    }
+
+    const stats = await this.transactionsDAO.getAssetLockStats(new Date(start), new Date(end));
+
+    return response.send(stats);
   }
 
   getAddressTransactions = async (request: FastifyRequest<{ Params: {address: string}, Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
@@ -130,7 +148,7 @@ export default class TransactionsController {
       transactionType != null ? TransactionType[transactionType] : undefined,
     );
 
-    response.send(transactions)
+    return response.send(transactions)
   }
 
   getMasternodeTransactions = async (request: FastifyRequest<{ Params: { proTxHash: string }, Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
@@ -139,6 +157,6 @@ export default class TransactionsController {
 
     const transactions = await this.transactionsDAO.getMasternodeTransactions(proTxHash, page, limit, order);
 
-    response.send(transactions);
+    return response.send(transactions);
   }
 }

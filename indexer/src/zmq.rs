@@ -1,9 +1,22 @@
+use std::time::Duration;
+
 use dashcore::blockdata::transaction::Transaction;
 use dashcore::consensus::encode::{deserialize, deserialize_partial};
 use dashcore::ephemerealdata::chain_lock::ChainLock;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
-use zeromq::{Socket, SocketRecv, SubSocket};
+use zeromq::{Socket, SocketRecv, SubSocket, ZmqMessage};
+
+/// A SUB socket never notices a dead publisher, so `recv()` would wait
+/// forever. Silence this long forces a reconnect.
+const ZMQ_IDLE_TIMEOUT: Duration = Duration::from_secs(600);
+
+async fn recv(socket: &mut SubSocket, topic: &str) -> Result<ZmqMessage, String> {
+    tokio::time::timeout(ZMQ_IDLE_TIMEOUT, socket.recv())
+        .await
+        .map_err(|_| format!("ZMQ {topic}: no message for {}s", ZMQ_IDLE_TIMEOUT.as_secs()))?
+        .map_err(|e| format!("ZMQ {topic} recv failed: {e}"))
+}
 
 /// Listens to Dash Core ZMQ `hashblock` notifications and sends block hashes
 /// to the provided channel.
@@ -14,7 +27,7 @@ pub async fn zmq_listener(zmq_url: String, tx: mpsc::Sender<String>) {
                 warn!("ZMQ subscriber exited cleanly, reconnecting...");
             }
             Err(e) => {
-                error!("ZMQ subscriber error: {e}, reconnecting in 5s...");
+                error!(url = %zmq_url, "ZMQ subscriber error: {e}, reconnecting in 5s...");
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             }
         }
@@ -39,10 +52,7 @@ async fn run_zmq_subscriber(
     info!(url = zmq_url, "ZMQ subscriber connected, listening for new blocks");
 
     loop {
-        let msg = socket
-            .recv()
-            .await
-            .map_err(|e| format!("ZMQ recv failed: {e}"))?;
+        let msg = recv(&mut socket, "hashblock").await?;
 
         // ZMQ hashblock message: frame[0] = "hashblock", frame[1] = 32-byte hash
         if msg.len() >= 2 {
@@ -76,7 +86,7 @@ pub async fn zmq_rawtx_listener(
                 warn!("ZMQ rawtx subscriber exited cleanly, reconnecting...");
             }
             Err(e) => {
-                error!("ZMQ rawtx subscriber error: {e}, reconnecting in 5s...");
+                error!(url = %zmq_url, "ZMQ rawtx subscriber error: {e}, reconnecting in 5s...");
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             }
         }
@@ -106,10 +116,7 @@ async fn run_zmq_rawtx_subscriber(
     let mut tx_cursor: Option<usize> = None;
 
     loop {
-        let msg = socket
-            .recv()
-            .await
-            .map_err(|e| format!("ZMQ rawtx recv failed: {e}"))?;
+        let msg = recv(&mut socket, "rawtx").await?;
 
         if msg.len() < 2 {
             continue;
@@ -122,7 +129,9 @@ async fn run_zmq_rawtx_subscriber(
         }
 
         if topic.as_slice() == b"rawtx" {
-            info!("ZMQ: new rawtx");
+            if let Ok((raw_tx, _)) = deserialize_partial::<Transaction>(&raw_bytes) {
+                info!(txid = %raw_tx.txid(), "ZMQ: new rawtx");
+            }
             if rawtx_tx.send(raw_bytes).await.is_err() {
                 return Err("rawtx channel closed".to_string());
             }
@@ -164,7 +173,7 @@ pub async fn zmq_rawchainlock_listener(zmq_url: String, tx: mpsc::Sender<i32>) {
                 warn!("ZMQ rawchainlock subscriber exited cleanly, reconnecting...");
             }
             Err(e) => {
-                error!("ZMQ rawchainlock subscriber error: {e}, reconnecting in 5s...");
+                error!(url = %zmq_url, "ZMQ rawchainlock subscriber error: {e}, reconnecting in 5s...");
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             }
         }
@@ -189,10 +198,7 @@ async fn run_zmq_rawchainlock_subscriber(
     info!(url = zmq_url, "ZMQ rawchainlocksig subscriber connected");
 
     loop {
-        let msg = socket
-            .recv()
-            .await
-            .map_err(|e| format!("ZMQ rawchainlocksig recv failed: {e}"))?;
+        let msg = recv(&mut socket, "rawchainlocksig").await?;
 
         // frame[0] = "rawchainlocksig", frame[1] = raw block + CLSIG (132 bytes) concatenated
         if msg.len() >= 2 {

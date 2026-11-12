@@ -4,6 +4,13 @@ import PaginatedResultSet from '../models/PaginatedResultSet';
 import GeoIPService, {GeoIpInfo} from "../services/GeoIPService";
 import MasternodeStats, {MasternodeStatsRow} from "../models/MasternodeStats";
 
+export interface MasternodeKeysFilter {
+  ownerAddresses?: string[];
+  votingAddresses?: string[];
+  collateralAddresses?: string[];
+  pubKeyOperators?: string[];
+}
+
 export default class MasternodesDAO {
   private knex: Knex;
   private geoIPService: GeoIPService;
@@ -22,6 +29,7 @@ export default class MasternodesDAO {
     lastPaidBefore?: number,
     hasPenalty?: boolean,
     country?: string,
+    keys: MasternodeKeysFilter = {},
   ): Promise<PaginatedResultSet<Masternode>> => {
     const effectivePage = page ?? 1;
     const effectiveLimit = limit ?? 10;
@@ -62,6 +70,10 @@ export default class MasternodesDAO {
         'voting_address',
         'collateral_address',
         'pub_key_operator',
+        'outpoint',
+        'platform_node_id',
+        'platform_p2p_port',
+        'platform_http_port',
         'created_at',
         'updated_at',
       )
@@ -72,6 +84,19 @@ export default class MasternodesDAO {
         if (lastPaidBefore != null) builder.where('last_paid_time', '>', lastPaidBefore);
         if (hasPenalty != null) builder.where('pos_penalty_score', hasPenalty ? '>' : '=', 0);
         if (proTxHashFilter != null) builder.whereIn('pro_tx_hash', proTxHashFilter);
+
+        const keyFilters = [
+          ['owner_address', keys.ownerAddresses],
+          ['voting_address', keys.votingAddresses],
+          ['collateral_address', keys.collateralAddresses],
+          ['pub_key_operator', keys.pubKeyOperators],
+        ].filter((filter): filter is [string, string[]] => filter[1] != null);
+
+        if (keyFilters.length > 0) {
+          builder.where((inner) => {
+            keyFilters.forEach(([column, values]) => inner.orWhereIn(column, values));
+          });
+        }
       })
       .orderBy('last_paid_block', order)
       .modify((builder) => {

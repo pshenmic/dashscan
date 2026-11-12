@@ -4,12 +4,16 @@ import BlocksDAO from '../dao/BlocksDAO';
 import {PaginatedQuery} from "./types";
 import {calculateInterval, iso8601duration} from "../utils";
 import Intervals from "../enums/Intervals";
+import {DashCoreRPC} from "../dashcoreRPC";
+import BlockReward from "../models/BlockReward";
 
 export default class BlocksController {
   private blocksDAO: BlocksDAO;
+  private dashcoreRPC: DashCoreRPC;
 
-  constructor(knex: Knex) {
+  constructor(knex: Knex, dashcoreRPC: DashCoreRPC) {
     this.blocksDAO = new BlocksDAO(knex);
+    this.dashcoreRPC = dashcoreRPC;
   }
 
   getBlocks = async (request: FastifyRequest<{ Querystring: PaginatedQuery }>, response: FastifyReply): Promise<void> => {
@@ -17,7 +21,7 @@ export default class BlocksController {
 
     const blocks = await this.blocksDAO.getBlocks(page, limit, order, superblock);
 
-    response.send(blocks);
+    return response.send(blocks);
   };
 
   getTxCountStats = async (
@@ -52,7 +56,7 @@ export default class BlocksController {
       isNaN(intervalInMs) ? Intervals[interval] : intervalInMs,
     );
 
-    response.send(series);
+    return response.send(series);
   }
 
   getBlockByHash = async (request: FastifyRequest<{ Params: { hash: string } }>, response: FastifyReply): Promise<void> => {
@@ -64,6 +68,23 @@ export default class BlocksController {
       return response.status(404).send({ error: 'Block not found' });
     }
 
-    response.send(block);
+    return response.send(block);
+  };
+
+  getBlockReward = async (request: FastifyRequest<{ Params: { height: number } }>, response: FastifyReply): Promise<void> => {
+    const { height } = request.params;
+
+    const coinbase = await this.blocksDAO.getCoinbase(height);
+
+    if (coinbase == null) {
+      return response.status(404).send({ error: 'Block not found' });
+    }
+
+    const [stats, payments] = await Promise.all([
+      this.dashcoreRPC.getBlockStats(height),
+      this.dashcoreRPC.getBlockHash(height).then((hash) => this.dashcoreRPC.getMasternodePayments(hash)),
+    ]);
+
+    return response.send(BlockReward.fromRPC(stats, payments.find((p) => p.height === height), coinbase));
   };
 }

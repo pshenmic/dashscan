@@ -37,6 +37,12 @@ const schemas = [
     },
   },
   {
+    $id: 'addressCsv',
+    type: ['string', 'null'],
+    maxLength: 3599,
+    pattern: '^[A-Za-z0-9]{33,35}(,[A-Za-z0-9]{33,35}){0,99}$',
+  },
+  {
     $id: 'addressList',
     type: 'object',
     properties: {
@@ -81,6 +87,9 @@ const schemas = [
           'MASTERNODE_HARD_FORK_SIGNAL',
           'ASSET_LOCK',
           'ASSET_UNLOCK',
+          'PROVIDER_DISSOLVE',
+          'PROVIDER_UPDATE_SHARE',
+          'PROVIDER_UPDATE_SHARED_REGISTRAR',
         ],
       },
       coinjoin: { type: ['boolean', 'null'] },
@@ -97,6 +106,14 @@ const schemas = [
         format: 'date-time',
       },
       has_penalty: { type: ['boolean', 'null'] },
+      owner_address: { $ref: 'addressCsv#' },
+      voting_address: { $ref: 'addressCsv#' },
+      collateral_address: { $ref: 'addressCsv#' },
+      pub_key_operator: {
+        type: ['string', 'null'],
+        maxLength: 9699,
+        pattern: '^[0-9a-fA-F]{96}(,[0-9a-fA-F]{96}){0,99}$',
+      },
       country: {
         type: ['string', 'null'],
         enum: [

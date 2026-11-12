@@ -86,7 +86,8 @@ impl Database {
                 "INSERT INTO masternodes \
                  (pro_tx_hash, address, payee, status, type, pos_penalty_score, \
                   consecutive_payments, last_paid_time, last_paid_block, \
-                  owner_address, voting_address, collateral_address, pub_key_operator) \
+                  owner_address, voting_address, collateral_address, pub_key_operator, \
+                  outpoint, platform_node_id, platform_p2p_port, platform_http_port) \
                  VALUES {} \
                  ON CONFLICT (pro_tx_hash) DO UPDATE SET \
                    address              = EXCLUDED.address, \
@@ -101,11 +102,15 @@ impl Database {
                    voting_address       = EXCLUDED.voting_address, \
                    collateral_address   = EXCLUDED.collateral_address, \
                    pub_key_operator     = EXCLUDED.pub_key_operator, \
+                   outpoint             = EXCLUDED.outpoint, \
+                   platform_node_id     = EXCLUDED.platform_node_id, \
+                   platform_p2p_port    = EXCLUDED.platform_p2p_port, \
+                   platform_http_port   = EXCLUDED.platform_http_port, \
                    updated_at           = NOW()",
-                build_placeholders(chunk.len(), 13)
+                build_placeholders(chunk.len(), 17)
             );
 
-            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 13);
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 17);
             for (i, m) in chunk.iter().enumerate() {
                 let abs = base + i;
                 params.push(&m.pro_tx_hash);
@@ -121,6 +126,10 @@ impl Database {
                 params.push(&m.votingaddress);
                 params.push(&m.collateraladdress);
                 params.push(&m.pubkeyoperator);
+                params.push(&m.outpoint);
+                params.push(&m.platform_node_id);
+                params.push(&m.platform_p2p_port);
+                params.push(&m.platform_http_port);
             }
 
             client.execute(query.as_str(), &params).await?;

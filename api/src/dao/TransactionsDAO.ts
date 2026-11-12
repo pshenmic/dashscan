@@ -1,6 +1,7 @@
 import {Knex} from 'knex';
 import Transaction from '../models/Transaction';
 import TransactionStats from '../models/TransactionStats';
+import AssetStats from '../models/AssetStats';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
 import {TransactionType} from "../enums/TransactionType";
@@ -339,8 +340,11 @@ export default class TransactionsDAO {
     const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
     const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
 
+    // UNION adds the trailing partial interval
     const ranges = this.knex
-      .from(this.knex.raw(`generate_series(${startSql}, ${endSql}, '${interval}'::interval) date_to`))
+      .from(this.knex.raw(
+        `(SELECT generate_series(${startSql}, ${endSql}, '${interval}'::interval) AS date_to UNION SELECT ${endSql}) series`
+      ))
       .select('date_to')
       .select(
         this.knex.raw(
@@ -355,8 +359,8 @@ export default class TransactionsDAO {
       .select('date_from')
       .select(this.knex.raw('COALESCE(SUM(blocks.tx_count), 0)::bigint AS count'))
       .leftJoin('blocks', function () {
-        this.on('blocks.timestamp', '>', 'ranges.date_from')
-          .andOn('blocks.timestamp', '<=', 'ranges.date_to');
+        this.on('blocks.timestamp', '>=', 'ranges.date_from')
+          .andOn('blocks.timestamp', '<', 'ranges.date_to');
       })
       .groupBy('date_from');
 
@@ -717,9 +721,44 @@ export default class TransactionsDAO {
     return new PaginatedResultSet(rows.map(Transaction.fromRow), page, limit, row?.total_count ?? -1);
   }
 
+  // locked amount is the AssetLock's OP_RETURN output, the rest is change
+  getAssetLockStats = async (start: Date, end: Date): Promise<AssetStats> => {
+    // OFFSET 0 keeps the planner on block_timestamp; MIN/MAX alone walk the height index
+    const [bounds] = await this.knex
+      .from(this.knex('blocks')
+        .where('timestamp', '>=', start.toISOString())
+        .andWhere('timestamp', '<', end.toISOString())
+        .select('height')
+        .offset(0)
+        .as('window'))
+      .select(this.knex.raw('MIN(height) AS lo'), this.knex.raw('MAX(height) AS hi')) as any[];
+
+    if (bounds?.lo == null) {
+      return AssetStats.fromRow({});
+    }
+
+    const [row] = await this.knex('transactions')
+      .join('blocks', 'blocks.height', 'transactions.block_height')
+      .leftJoin('tx_outputs', function () {
+        this.on('tx_outputs.tx_id', 'transactions.id')
+          .andOnVal('tx_outputs.script_type', 'nulldata');
+      })
+      .whereIn('transactions.type', [TransactionType.ASSET_LOCK, TransactionType.ASSET_UNLOCK])
+      .whereBetween('transactions.block_height', [bounds.lo, bounds.hi])
+      .where('blocks.timestamp', '>=', start.toISOString())
+      .andWhere('blocks.timestamp', '<', end.toISOString())
+      .select(
+        this.knex.raw('COUNT(*) FILTER (WHERE transactions.type = ?) AS asset_lock_count', [TransactionType.ASSET_LOCK]),
+        this.knex.raw('COALESCE(SUM(tx_outputs.value) FILTER (WHERE transactions.type = ?), 0)::text AS asset_lock_amount', [TransactionType.ASSET_LOCK]),
+        this.knex.raw('COUNT(*) FILTER (WHERE transactions.type = ?) AS asset_unlock_count', [TransactionType.ASSET_UNLOCK]),
+        this.knex.raw('COALESCE(SUM(transactions.amount) FILTER (WHERE transactions.type = ?), 0)::text AS asset_unlock_amount', [TransactionType.ASSET_UNLOCK]),
+      ) as any[];
+
+    return AssetStats.fromRow(row);
+  }
+
   // Whole hours come from chain_stats_hourly (V32); the partial hours at each
-  // edge are counted live, scoped to literal block heights. A sub-hour window
-  // runs fully live.
+  // edge are counted live. A sub-hour window runs fully live.
   getTransactionStats = async (start: Date, end: Date): Promise<TransactionStats | null> => {
     const msPerHour = 3600000;
     const hourLo = new Date(Math.ceil(start.getTime() / msPerHour) * msPerHour);
@@ -727,13 +766,12 @@ export default class TransactionsDAO {
     const useRollup = hourLo.getTime() < hourHi.getTime();
 
     // Bucket `h` covers [h, h+1h), so it lies entirely inside the window only
-    // for h in [hourLo, hourHi). The -1ms keeps the leading live slice from
-    // overlapping the first bucket it hands off to.
+    // for h in [hourLo, hourHi).
     const liveSlices: Array<{ from: Date; to: Date }> = [];
 
     if (useRollup) {
       if (start.getTime() < hourLo.getTime()) {
-        liveSlices.push({ from: start, to: new Date(hourLo.getTime() - 1) });
+        liveSlices.push({ from: start, to: hourLo });
       }
       if (hourHi.getTime() < end.getTime()) {
         liveSlices.push({ from: hourHi, to: end });
@@ -742,14 +780,18 @@ export default class TransactionsDAO {
       liveSlices.push({ from: start, to: end });
     }
 
-    const totals = { special: 0, coinjoin: 0, multisig: 0, normal: 0 };
+    const totals = { total: 0, special: 0, coinjoin: 0, multisig: 0, normal: 0, fees: 0, fee_tx_count: 0, coinjoin_amount: 0 };
 
     const add = (row: any) => {
       if (row == null) return;
+      totals.total += Number(row.total ?? 0);
       totals.special += Number(row.special ?? 0);
       totals.coinjoin += Number(row.coinjoin ?? 0);
       totals.multisig += Number(row.multisig ?? 0);
       totals.normal += Number(row.normal ?? 0);
+      totals.fees += Number(row.fees ?? 0);
+      totals.fee_tx_count += Number(row.fee_tx_count ?? 0);
+      totals.coinjoin_amount += Number(row.coinjoin_amount ?? 0);
     };
 
     if (useRollup) {
@@ -757,30 +799,40 @@ export default class TransactionsDAO {
         .where('hour', '>=', hourLo.toISOString())
         .andWhere('hour', '<', hourHi.toISOString())
         .select(
+          this.knex.raw('COALESCE(SUM(tx_count), 0)::bigint AS total'),
           this.knex.raw('COALESCE(SUM(special), 0)::bigint AS special'),
           this.knex.raw('COALESCE(SUM(coinjoin), 0)::bigint AS coinjoin'),
           this.knex.raw('COALESCE(SUM(multisig), 0)::bigint AS multisig'),
           this.knex.raw('COALESCE(SUM(normal), 0)::bigint AS normal'),
+          this.knex.raw('COALESCE(SUM(fees), 0)::bigint AS fees'),
+          this.knex.raw('COALESCE(SUM(fee_tx_count), 0)::bigint AS fee_tx_count'),
+          this.knex.raw('COALESCE(SUM(coinjoin_amount), 0)::bigint AS coinjoin_amount'),
         );
 
       add(row);
     }
 
+    // by timestamp, not height range: block times are not monotonic
     for (const { from, to } of liveSlices) {
-      const [heights] = await this.knex('blocks')
-        .whereBetween('timestamp', [from.toISOString(), to.toISOString()])
-        .select(
-          this.knex.raw('MIN(height) AS min_height'),
-          this.knex.raw('MAX(height) AS max_height'),
-        ) as any[];
-
-      if (heights?.min_height == null) {
-        continue; // no blocks inside this slice
-      }
-
       const [row] = await this.knex('transactions')
-        .whereBetween('block_height', [heights.min_height, heights.max_height])
+        .join('blocks', 'blocks.height', 'transactions.block_height')
+        .joinRaw(`CROSS JOIN LATERAL (SELECT CASE WHEN transactions.type = ? THEN
+            (SELECT get_byte(p, 9) + (get_byte(p, 10) << 8) + (get_byte(p, 11) << 16) + (get_byte(p, 12)::bigint << 24)
+             FROM special_transactions st, decode(st.payload->>'extraPayload', 'hex') p
+             WHERE st.tx_id = transactions.id)
+          ELSE
+            (SELECT SUM(amount) FROM tx_inputs
+             WHERE tx_id = transactions.id AND coinbase_data IS NULL
+             HAVING COUNT(*) > 0 AND COUNT(*) = COUNT(amount))
+            - (SELECT SUM(value) FROM tx_outputs WHERE tx_id = transactions.id)
+          END AS fee) fee`, [TransactionType.ASSET_UNLOCK])
+        .where('blocks.timestamp', '>=', from.toISOString())
+        .andWhere('blocks.timestamp', '<', to.toISOString())
         .select(
+          this.knex.raw('COUNT(*)::bigint AS total'),
+          this.knex.raw('COALESCE(SUM(fee.fee), 0)::bigint AS fees'),
+          this.knex.raw('COUNT(fee.fee)::bigint AS fee_tx_count'),
+          this.knex.raw('COALESCE(SUM(amount) FILTER (WHERE coinjoin), 0)::bigint AS coinjoin_amount'),
           this.knex.raw('COUNT(*) FILTER (WHERE type > 0)::bigint AS special'),
           this.knex.raw('COUNT(*) FILTER (WHERE coinjoin)::bigint AS coinjoin'),
           this.knex.raw('COUNT(*) FILTER (WHERE multisig)::bigint AS multisig'),

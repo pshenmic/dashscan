@@ -76,6 +76,13 @@ impl BlockProcessor {
         let db_tx = client.transaction().await?;
         let mut cache = UtxoCache::new(0);
         self.write_batch(&*db_tx, &[pending], &mut cache).await?;
+
+        self.db.link_pending_children(&*db_tx).await?;
+        let evicted = self.db.evict_conflicting_pending_transactions(&*db_tx).await?;
+        if evicted > 0 {
+            info!(evicted, "Evicted pending transactions conflicting with confirmed spends");
+        }
+
         db_tx.commit().await?;
         Ok(())
     }
@@ -593,6 +600,8 @@ impl BlockProcessor {
         // ── 7d. Global hourly rollup (V32) and per-filter transaction totals
         // (V33). Confirmed transactions only — this is the confirmed path, and a
         // mempool transaction reaches it exactly once, when it is mined.
+        let heights: Vec<i32> = pending.iter().map(|p| p.block.height as i32).collect();
+        let new_addresses = self.db.count_new_addresses(client, &heights).await?;
         let mut hourly: HashMap<NaiveDateTime, ChainStatsHour> = HashMap::new();
         let mut type_counts: HashMap<(i16, bool, bool), i64> = HashMap::new();
         for p in pending {
@@ -616,9 +625,14 @@ impl BlockProcessor {
                 special: 0,
                 coinjoin: 0,
                 multisig: 0,
+                fees: 0,
+                fee_tx_count: 0,
+                coinjoin_amount: 0,
+                new_addresses: 0,
             });
 
             bucket.block_count += 1;
+            bucket.new_addresses += new_addresses.get(&(p.block.height as i32)).copied().unwrap_or(0);
             bucket.size += p.block.size;
             bucket.difficulty_sum += p.block.difficulty;
 
@@ -633,12 +647,32 @@ impl BlockProcessor {
                 }
                 if coinjoin {
                     bucket.coinjoin += 1;
+                    bucket.coinjoin_amount += tx.get_transaction_amount();
                 }
                 if multisig {
                     bucket.multisig += 1;
                 }
                 if tx_type == 0 && !coinjoin && !multisig {
                     bucket.normal += 1;
+                }
+
+                let inputs: Vec<(&String, i32)> = tx
+                    .vin
+                    .iter()
+                    .filter_map(|vin| vin.txid.as_ref().zip(vin.vout))
+                    .collect();
+                let spent: Option<i64> = inputs
+                    .iter()
+                    .map(|&(h, v)| input_amounts.get(&(h.clone(), v)).copied())
+                    .sum();
+                // AssetUnlocks spend no inputs; their fee is in the payload.
+                if let Some(fee) = tx.asset_unlock_fee() {
+                    bucket.fees += fee;
+                    bucket.fee_tx_count += 1;
+                } else if let (false, Some(spent)) = (inputs.is_empty(), spent) {
+                    let created: i64 = tx.vout.iter().map(|vout| to_sat(vout.value)).sum();
+                    bucket.fees += spent - created;
+                    bucket.fee_tx_count += 1;
                 }
 
                 *type_counts.entry((tx_type, coinjoin, multisig)).or_insert(0) += 1;
@@ -750,6 +784,7 @@ impl BlockProcessor {
             utxo_inserts.push((tx_id, idx, addr_id, amount));
         }
         self.db.insert_utxo_batch(&*db_tx, &utxo_inserts).await?;
+        self.db.link_pending_children(&*db_tx).await?;
 
         // Inputs: DB join first, then RPC fallback
         let mut needed: HashMap<String, Vec<i32>> = HashMap::new();

@@ -62,6 +62,20 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/blocks/:height/reward',
+      method: 'get',
+      handler: blocksController.getBlockReward,
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            height: { type: 'integer', minimum: 0 },
+          },
+          required: ['height'],
+        },
+      },
+    },
+    {
       path: '/transactions',
       method: 'get',
       handler: transactionsController.getTransactions,
@@ -73,6 +87,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       path: '/transactions/stats',
       method: 'get',
       handler: transactionsController.getTransactionStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
+    },
+    {
+      path: '/transactions/assetlocks/stats',
+      method: 'get',
+      handler: transactionsController.getAssetLockStats,
       schema: {
         querystring: { $ref: 'timeInterval#' },
       },
@@ -260,6 +282,11 @@ export default function Routes({ fastify, mainController, blocksController, tran
       },
     },
     {
+      path: '/supply',
+      method: 'get',
+      handler: mainController.getTotalSupply,
+    },
+    {
       path: '/search',
       method: 'get',
       handler: searchController.search,
@@ -417,6 +444,14 @@ export default function Routes({ fastify, mainController, blocksController, tran
       }
     },
     {
+      path: '/addresses/chart',
+      method: 'get',
+      handler: addressesController.getAddressesSeries,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      }
+    },
+    {
       path: '/addresses/rich-list',
       method: 'get',
       handler: addressesController.getBalancesInfo,
@@ -433,14 +468,35 @@ export default function Routes({ fastify, mainController, blocksController, tran
       }
     },
     {
+      path: '/governance/proposals/stats',
+      method: 'get',
+      handler: governanceController.getProposalStats,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
+    },
+    {
       path: '/governance/budget',
       method: 'get',
       handler: governanceController.getBudgetInfo,
     },
     {
+      path: '/chain/deployments',
+      method: 'get',
+      handler: mainController.getDeployments,
+    },
+    {
       path: '/chain/stats',
       method: 'get',
       handler: mainController.getChainStats,
+    },
+    {
+      path: '/chain/stats/chart',
+      method: 'get',
+      handler: mainController.getChainStatsSeries,
+      schema: {
+        querystring: { $ref: 'timeInterval#' },
+      },
     },
     {
       path: '/peers',

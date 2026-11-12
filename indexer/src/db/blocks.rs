@@ -136,18 +136,37 @@ impl Database {
                      normal         = c.normal - s.normal, \
                      special        = c.special - s.special, \
                      coinjoin       = c.coinjoin - s.coinjoin, \
-                     multisig       = c.multisig - s.multisig \
+                     multisig       = c.multisig - s.multisig, \
+                     fees           = c.fees - s.fees, \
+                     fee_tx_count   = c.fee_tx_count - s.fee_tx_count, \
+                     coinjoin_amount = c.coinjoin_amount - s.coinjoin_amount, \
+                     new_addresses  = c.new_addresses - s.new_addresses \
                  FROM (SELECT date_trunc('hour', b.timestamp) AS hour, 1 AS block_count, \
                               b.size, b.difficulty AS difficulty_sum, \
                               COUNT(t.id) AS tx_count, \
                               COUNT(*) FILTER (WHERE t.type = 0 AND NOT t.coinjoin AND NOT t.multisig) AS normal, \
                               COUNT(*) FILTER (WHERE t.type > 0) AS special, \
                               COUNT(*) FILTER (WHERE t.coinjoin) AS coinjoin, \
-                              COUNT(*) FILTER (WHERE t.multisig) AS multisig \
+                              COUNT(*) FILTER (WHERE t.multisig) AS multisig, \
+                              COALESCE(SUM(f.fee), 0)::bigint AS fees, \
+                              COUNT(f.fee) AS fee_tx_count, \
+                              COALESCE(SUM(t.amount) FILTER (WHERE t.coinjoin), 0)::bigint AS coinjoin_amount, \
+                              (SELECT COUNT(*) FROM addresses WHERE first_seen_block = b.height) AS new_addresses \
                        FROM blocks b \
                        LEFT JOIN transactions t ON t.block_height = b.height \
+                       LEFT JOIN LATERAL (SELECT CASE WHEN t.type = 9 THEN \
+                                            (SELECT get_byte(p, 9) + (get_byte(p, 10) << 8) + (get_byte(p, 11) << 16) \
+                                                    + (get_byte(p, 12)::bigint << 24) \
+                                             FROM special_transactions st, decode(st.payload->>'extraPayload', 'hex') p \
+                                             WHERE st.tx_id = t.id) \
+                                          ELSE \
+                                            (SELECT SUM(amount) FROM tx_inputs \
+                                             WHERE tx_id = t.id AND coinbase_data IS NULL \
+                                             HAVING COUNT(*) > 0 AND COUNT(*) = COUNT(amount)) \
+                                            - (SELECT SUM(value) FROM tx_outputs WHERE tx_id = t.id) \
+                                          END AS fee) f ON true \
                        WHERE b.height = $1 \
-                       GROUP BY b.timestamp, b.size, b.difficulty) s \
+                       GROUP BY b.height, b.timestamp, b.size, b.difficulty) s \
                  WHERE c.hour = s.hour",
                 &[&h],
             )
@@ -257,6 +276,7 @@ impl Database {
         let cbtx_merkle_root_quorums = block.cb_tx.as_ref().and_then(|cb| cb.merkle_root_quorums.clone());
         let cbtx_best_cl_height_diff = block.cb_tx.as_ref().and_then(|cb| cb.best_cl_height_diff);
         let cbtx_best_cl_signature   = block.cb_tx.as_ref().and_then(|cb| cb.best_cl_signature.clone());
+        let cbtx_merkle_root_asset_unlocks = block.cb_tx.as_ref().and_then(|cb| cb.merkle_root_asset_unlocks.clone());
 
         client
             .execute(
@@ -266,9 +286,9 @@ impl Database {
                     merkle_root_mn_list, credit_pool_balance,
                     cbtx_version, cbtx_height, cbtx_merkle_root_quorums,
                     cbtx_best_cl_height_diff, cbtx_best_cl_signature,
-                    superblock, miner_id, miner_name_id
+                    superblock, miner_id, miner_name_id, cbtx_merkle_root_asset_unlocks
                  )
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
                  ON CONFLICT (hash) DO NOTHING",
                 &[
                     &block.hash,
@@ -292,6 +312,7 @@ impl Database {
                     &Some(is_superblock),
                     &miner_id,
                     &miner_name_id,
+                    &cbtx_merkle_root_asset_unlocks.as_deref(),
                 ],
             )
             .await?;

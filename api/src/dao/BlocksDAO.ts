@@ -4,6 +4,7 @@ import ChainStats from '../models/ChainStats';
 import PaginatedResultSet from '../models/PaginatedResultSet';
 import SeriesData from '../models/SeriesData';
 import {NETWORK, SUPERBLOCK_INTERVALS} from "../constants";
+import {Coinbase} from "../types/block";
 
 export default class BlocksDAO {
   private knex: Knex;
@@ -11,6 +12,20 @@ export default class BlocksDAO {
   constructor(knex: Knex) {
     this.knex = knex;
   }
+
+  // NULL when any spent input amount is unknown; AssetUnlock fees are in the payload
+  private blockFees = (height: string) => this.knex('transactions')
+    .select(this.knex.raw(`CASE WHEN BOOL_OR(inputs.unknown) THEN NULL
+      ELSE COALESCE(SUM(CASE WHEN transactions.type = 9 THEN asset_unlock.fee ELSE inputs.amount - outputs.value END), 0) END`))
+    .joinRaw(`LEFT JOIN LATERAL (SELECT SUM(amount) AS amount, BOOL_OR(amount IS NULL) AS unknown
+      FROM tx_inputs WHERE tx_inputs.tx_id = transactions.id AND tx_inputs.coinbase_data IS NULL) inputs ON true`)
+    .joinRaw(`LEFT JOIN LATERAL (SELECT SUM(value) AS value
+      FROM tx_outputs WHERE tx_outputs.tx_id = transactions.id) outputs ON true`)
+    .joinRaw(`LEFT JOIN LATERAL (SELECT get_byte(p, 9) + (get_byte(p, 10) << 8) + (get_byte(p, 11) << 16) + (get_byte(p, 12)::bigint << 24) AS fee
+      FROM special_transactions, decode(special_transactions.payload->>'extraPayload', 'hex') p
+      WHERE special_transactions.tx_id = transactions.id AND transactions.type = 9) asset_unlock ON true`)
+    .whereRaw('transactions.block_height = ??', [height])
+    .as('fees');
 
   getBlocks = async (page: number, limit: number, order: string, superblock?: boolean): Promise<PaginatedResultSet<Block>> => {
     const fromRank = (page - 1) * limit;
@@ -52,6 +67,7 @@ export default class BlocksDAO {
         'version', 'timestamp', 'tx_count','superblock',
         'size', 'nonce', 'previous_block_hash',
         'merkle_root', 'credit_pool_balance', 'total_count')
+      .select(this.blockFees('subquery.height'))
       .join(blockMaxHeightSubquery, this.knex.raw('true'))
 
     const [row] = rows;
@@ -129,6 +145,13 @@ export default class BlocksDAO {
       )
       .from('recent');
 
+    const [peak] = await this.knex('chain_stats_hourly')
+      .select(this.knex.raw(`date_trunc('day', hour) AS day`))
+      .select(this.knex.raw('floor(SUM(difficulty_sum) * 4294967296 / 86400)::numeric::text AS hash_rate'))
+      .groupByRaw('1')
+      .orderByRaw('SUM(difficulty_sum) DESC')
+      .limit(1) as any[];
+
     const stats = ChainStats.fromRow(row);
 
     const superblockInterval = SUPERBLOCK_INTERVALS[NETWORK];
@@ -136,7 +159,87 @@ export default class BlocksDAO {
 
     return ChainStats.fromObject({
       ...stats,
-      nextSuperblockHeight: nextSuperblockHeight
+      nextSuperblockHeight: nextSuperblockHeight,
+      peakHashRate: peak?.hash_rate,
+      peakHashRateTimestamp: peak?.day,
+    });
+  };
+
+  getChainStatsSeries = async (start: Date, end: Date, interval: string, intervalInMs: number): Promise<SeriesData[]> => {
+    const startSql = `'${new Date(start.getTime() + intervalInMs).toISOString()}'::timestamptz`;
+    const endSql = `'${new Date(end.getTime()).toISOString()}'::timestamptz`;
+
+    const ranges = this.knex
+      .from(this.knex.raw(
+        `(SELECT generate_series(${startSql}, ${endSql}, '${interval}'::interval) AS date_to UNION SELECT ${endSql}) series`
+      ))
+      .select('date_to')
+      .select(
+        this.knex.raw(
+          'LAG(date_to, 1, ?::timestamptz) OVER (ORDER BY date_to ASC) AS date_from',
+          [start.toISOString()]
+        )
+      );
+
+    const rows = await this.knex
+      .with('ranges', ranges)
+      .select('date_from')
+      .select(this.knex.raw('COUNT(chain_stats_hourly.hour) AS hours'))
+      .select(this.knex.raw('SUM(chain_stats_hourly.block_count) AS block_count'))
+      .select(this.knex.raw('SUM(chain_stats_hourly.tx_count) AS tx_count'))
+      .select(this.knex.raw('SUM(chain_stats_hourly.difficulty_sum) AS difficulty_sum'))
+      .select(this.knex.raw('SUM(chain_stats_hourly.fees) AS fees'))
+      .select(this.knex.raw('SUM(chain_stats_hourly.coinjoin_amount) AS coinjoin_amount'))
+      .select(this.knex('blocks')
+        .select('credit_pool_balance')
+        .whereRaw('blocks.timestamp >= ranges.date_from AND blocks.timestamp < ranges.date_to')
+        .orderBy('timestamp', 'desc')
+        .limit(1)
+        .as('credit_pool_balance'))
+      .from('ranges')
+      .leftJoin('chain_stats_hourly', function () {
+        this.on('chain_stats_hourly.hour', '>=', 'ranges.date_from')
+          .andOn('chain_stats_hourly.hour', '<', 'ranges.date_to');
+      })
+      .groupBy('date_from', 'date_to')
+      .orderBy('date_from', 'asc');
+
+    const snapshotRows = await this.knex
+      .with('ranges', ranges)
+      .distinctOn('date_from')
+      .select('date_from', 'network_snapshots.*')
+      .from('ranges')
+      .join('network_snapshots', function () {
+        this.on('network_snapshots.hour', '>=', 'ranges.date_from')
+          .andOn('network_snapshots.hour', '<', 'ranges.date_to');
+      })
+      .orderBy([{ column: 'date_from' }, { column: 'network_snapshots.hour', order: 'desc' }]);
+
+    const snapshots = new Map(snapshotRows.map((row: any) => [new Date(row.date_from).getTime(), row]));
+
+    return rows.map((row: any) => {
+      const snapshot: any = snapshots.get(new Date(row.date_from).getTime());
+      const seconds = Number(row.hours) * 3600;
+      const difficultySum = Number(row.difficulty_sum ?? 0);
+
+      return new SeriesData(new Date(row.date_from), {
+        hashRate: seconds > 0
+          ? ((BigInt(Math.floor(difficultySum * 1e8)) * (1n << 32n)) / (BigInt(seconds) * 100000000n)).toString()
+          : null,
+        difficulty: Number(row.block_count) > 0 ? difficultySum / Number(row.block_count) : null,
+        transactionsPerSecond: seconds > 0 ? Number((Number(row.tx_count) / seconds).toFixed(2)) : null,
+        creditPoolBalance: row.credit_pool_balance,
+        fees: Number(row.fees ?? 0),
+        feesPerBlock: Number(row.block_count) > 0 ? Math.round(Number(row.fees ?? 0) / Number(row.block_count)) : null,
+        coinjoinAmount: Number(row.coinjoin_amount ?? 0),
+        masternodes: snapshot?.masternodes ?? null,
+        masternodesEnabled: snapshot?.masternodes_enabled ?? null,
+        evonodes: snapshot?.evonodes ?? null,
+        evonodesEnabled: snapshot?.evonodes_enabled ?? null,
+        peers: snapshot?.peers ?? null,
+        utxoCount: snapshot?.utxo_count != null ? Number(snapshot.utxo_count) : null,
+        utxoAmount: snapshot?.utxo_amount != null ? Number(snapshot.utxo_amount) : null,
+      });
     });
   };
 
@@ -145,6 +248,7 @@ export default class BlocksDAO {
       .select('blocks.height', 'blocks.hash', 'blocks.difficulty', 'blocks.superblock',
         'blocks.version', 'blocks.timestamp', 'blocks.tx_count', 'blocks.size', 'blocks.nonce',
         'blocks.previous_block_hash', 'blocks.merkle_root', 'blocks.credit_pool_balance')
+      .select(this.blockFees('blocks.height'))
       .select(this.knex.raw('(SELECT MAX(height) FROM blocks) - blocks.height + 1 AS confirmations'))
       .where('blocks.hash', hash)
       .limit(1)
@@ -156,5 +260,20 @@ export default class BlocksDAO {
     }
 
     return Block.fromRow(row)
+  };
+
+  getCoinbase = async (height: number): Promise<Coinbase | null> => {
+    const [row] = await this.knex('tx_outputs')
+      .join('transactions', 'transactions.id', 'tx_outputs.tx_id')
+      .join('blocks', 'blocks.height', 'transactions.block_height')
+      .whereExists(this.knex('tx_inputs')
+        .whereRaw('tx_inputs.tx_id = transactions.id')
+        .whereNotNull('tx_inputs.coinbase_data'))
+      .where('transactions.block_height', height)
+      .groupBy('blocks.superblock')
+      .select('blocks.superblock')
+      .select(this.knex.raw('SUM(tx_outputs.value) AS total')) as any[];
+
+    return row != null ? { total: Number(row.total), superblock: row.superblock } : null;
   };
 }

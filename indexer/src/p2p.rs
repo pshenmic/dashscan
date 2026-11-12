@@ -412,7 +412,7 @@ impl P2PClient {
             .as_secs();
         let addr_recv = address::Address::new(&self.address, constants::ServiceFlags::NONE);
         let addr_from = address::Address::new(&my_address, constants::ServiceFlags::NONE);
-        let nonce: u64 = rand::thread_rng().r#gen();
+        let nonce: u64 = rand::rng().random();
         let user_agent = String::from("/dashscan:0.1/");
         let start_height: i32 = 0;
         let mn_auth_challenge: [u8; 32] = rand::random();

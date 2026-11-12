@@ -12,6 +12,14 @@ import {QcTx} from "dash-core-sdk/src/types/ExtraPayload/QcTx";
 import {MnHfTx} from "dash-core-sdk/src/types/ExtraPayload/MnHfTx";
 import {AssetLockTx} from "dash-core-sdk/src/types/ExtraPayload/AssetLockTx";
 import {AssetUnlockTx} from "dash-core-sdk/src/types/ExtraPayload/AssetUnlockTx";
+import {ProDisTx} from "dash-core-sdk/src/types/ExtraPayload/ProDisTx";
+import {ProUpShareTx} from "dash-core-sdk/src/types/ExtraPayload/ProUpShareTx";
+import {ProUpSharedRegTx} from "dash-core-sdk/src/types/ExtraPayload/ProUpSharedRegTx";
+
+// same shape as RawExtraPayload.toJSON() from dash-core-sdk
+interface RawExtraPayload {
+  raw: string;
+}
 
 interface TransactionRow {
   hash: string;
@@ -56,7 +64,11 @@ interface TransactionObject {
     | QcTx
     | MnHfTx
     | AssetLockTx
-    | AssetUnlockTx;
+    | AssetUnlockTx
+    | ProDisTx
+    | ProUpShareTx
+    | ProUpSharedRegTx
+    | RawExtraPayload;
 }
 
 export default class Transaction {
@@ -83,7 +95,11 @@ export default class Transaction {
     | QcTx
     | MnHfTx
     | AssetLockTx
-    | AssetUnlockTx | null;
+    | AssetUnlockTx
+    | ProDisTx
+    | ProUpShareTx
+    | ProUpSharedRegTx
+    | RawExtraPayload | null;
 
   constructor(
     hash?: string,
@@ -109,7 +125,11 @@ export default class Transaction {
       | QcTx
       | MnHfTx
       | AssetLockTx
-      | AssetUnlockTx,
+      | AssetUnlockTx
+      | ProDisTx
+      | ProUpShareTx
+      | ProUpSharedRegTx
+      | RawExtraPayload,
   ) {
     this.hash = hash ?? null;
     this.type = type ?? null;
@@ -184,10 +204,25 @@ export default class Transaction {
         case TransactionType.ASSET_UNLOCK:
           extraPayloadHandler = AssetUnlockTx.fromHex
           break
+        case TransactionType.PROVIDER_DISSOLVE:
+          extraPayloadHandler = ProDisTx.fromHex
+          break
+        case TransactionType.PROVIDER_UPDATE_SHARE:
+          extraPayloadHandler = ProUpShareTx.fromHex
+          break
+        case TransactionType.PROVIDER_UPDATE_SHARED_REGISTRAR:
+          extraPayloadHandler = ProUpSharedRegTx.fromHex
+          break
       }
 
       if (extraPayloadHandler != null) {
-        normalExtraPayload = extraPayloadHandler(extraPayload)
+        try {
+          normalExtraPayload = extraPayloadHandler(extraPayload)
+        } catch (e) {
+          // e.g. a payload version introduced by a later hard fork, keep the raw bytes instead of failing the request
+          console.error(`Could not parse extra payload of transaction ${hash} (type ${type})`, e);
+          normalExtraPayload = {raw: extraPayload}
+        }
       }
     }
 

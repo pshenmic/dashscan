@@ -2,7 +2,9 @@ import knex, { Knex } from 'knex';
 import Redis from 'ioredis';
 import Intervals from './enums/Intervals'
 import {Network, Script, utils as sdkUtils} from 'dash-core-sdk';
-import {NETWORK, PUBKEY_PUSH_OPCODES} from './constants';
+import {NETWORK, PUBKEY_PUSH_OPCODES, UTXO_INFO_LIFE_TIME} from './constants';
+import {DashCoreRPC, UtxoInfoRPC} from "./dashcoreRPC";
+import {Cache} from "./cache";
 
 export const getKnex = (): Knex => {
   return knex({
@@ -112,4 +114,15 @@ export const calculateInterval = (start, end) => {
 
     return currentValue
   })
+}
+
+export const getUtxoInfo = async (dashcoreRPC: DashCoreRPC, cache: Cache): Promise<UtxoInfoRPC> => {
+  let utxoInfo = await cache.get<UtxoInfoRPC>('utxoInfo');
+
+  if (utxoInfo==null) {
+    utxoInfo = await dashcoreRPC.getUtxoInfo();
+    await cache.set('utxoInfo', utxoInfo, UTXO_INFO_LIFE_TIME)
+  }
+
+  return utxoInfo
 }

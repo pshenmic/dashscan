@@ -21,6 +21,10 @@ export default class MasternodesController {
       last_paid_before: lastPaidBefore,
       has_penalty: hasPenalty,
       country,
+      owner_address: ownerAddress,
+      voting_address: votingAddress,
+      collateral_address: collateralAddress,
+      pub_key_operator: pubKeyOperator,
     } = request.query;
 
     const lastPaidBeforeUnix = lastPaidBefore != null
@@ -29,14 +33,20 @@ export default class MasternodesController {
 
     const masternodes = await this.masternodesDAO.getMasternodes(
       page, limit, order, status, type, lastPaidBeforeUnix, hasPenalty, country,
+      {
+        ownerAddresses: ownerAddress?.split(','),
+        votingAddresses: votingAddress?.split(','),
+        collateralAddresses: collateralAddress?.split(','),
+        pubKeyOperators: pubKeyOperator?.toLowerCase().split(','),
+      },
     );
 
-    response.send(masternodes);
+    return response.send(masternodes);
   };
 
   getMasternodeStats = async (request: FastifyRequest, response: FastifyReply): Promise<void> => {
     const stats = await this.masternodesDAO.getMasternodeStats();
 
-    response.send(stats);
+    return response.send(stats);
   };
 }

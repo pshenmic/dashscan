@@ -47,6 +47,104 @@ impl Database {
         Ok(rows.first().map(|r| r.get(0)))
     }
 
+    /// Delete pending transactions that spend an output already spent by a
+    /// different confirmed transaction, together with their pending
+    /// descendants. Such transactions can never be mined. Outputs that only
+    /// the evicted transactions spent go back to the UTXO set.
+    /// Returns the number of evicted transactions.
+    pub async fn evict_conflicting_pending_transactions(
+        &self,
+        client: &impl GenericClient,
+    ) -> Result<usize, PoolError> {
+        let evicted: Vec<i32> = client
+            .query(
+                "WITH RECURSIVE evicted(id) AS ( \
+                     SELECT i.tx_id \
+                     FROM transactions t \
+                     JOIN tx_inputs i ON i.tx_id = t.id \
+                     JOIN tx_outputs o ON o.tx_id = i.prev_tx_id AND o.vout_index = i.prev_vout_index \
+                     JOIN transactions s ON s.id = o.spent_by_tx_id \
+                     WHERE t.block_height IS NULL \
+                       AND s.block_height IS NOT NULL \
+                       AND s.id <> i.tx_id \
+                     UNION \
+                     SELECT i.tx_id \
+                     FROM evicted e \
+                     JOIN tx_inputs i ON i.prev_tx_id = e.id \
+                     JOIN transactions c ON c.id = i.tx_id AND c.block_height IS NULL \
+                 ) \
+                 SELECT id FROM evicted",
+                &[],
+            )
+            .await?
+            .iter()
+            .map(|r| r.get(0))
+            .collect();
+
+        if evicted.is_empty() {
+            return Ok(0);
+        }
+
+        client
+            .execute(
+                "WITH freed AS ( \
+                     UPDATE tx_outputs \
+                     SET spent_by_tx_id = NULL, spent_by_vin_index = NULL \
+                     WHERE spent_by_tx_id = ANY($1) AND NOT tx_id = ANY($1) \
+                     RETURNING tx_id, vout_index, address_id, value \
+                 ) \
+                 INSERT INTO utxo (tx_id, vout_index, address_id, amount) \
+                 SELECT tx_id, vout_index, address_id, value FROM freed \
+                 ON CONFLICT DO NOTHING",
+                &[&evicted],
+            )
+            .await?;
+
+        // Nullable FKs; without this the DELETE below fails at commit.
+        client
+            .execute(
+                "UPDATE addresses SET \
+                     first_seen_tx_id = CASE WHEN first_seen_tx_id = ANY($1) THEN NULL ELSE first_seen_tx_id END, \
+                     last_seen_tx_id = CASE WHEN last_seen_tx_id = ANY($1) THEN NULL ELSE last_seen_tx_id END \
+                 WHERE id IN (SELECT address_id FROM tx_outputs WHERE tx_id = ANY($1) \
+                              UNION SELECT address_id FROM tx_inputs WHERE tx_id = ANY($1)) \
+                   AND (first_seen_tx_id = ANY($1) OR last_seen_tx_id = ANY($1))",
+                &[&evicted],
+            )
+            .await?;
+
+        // utxo rows go with tx_outputs via ON DELETE CASCADE.
+        client
+            .execute("DELETE FROM tx_outputs WHERE tx_id = ANY($1)", &[&evicted])
+            .await?;
+
+        client
+            .execute("DELETE FROM tx_inputs WHERE tx_id = ANY($1)", &[&evicted])
+            .await?;
+
+        client
+            .execute("DELETE FROM transactions WHERE id = ANY($1)", &[&evicted])
+            .await?;
+
+        Ok(evicted.len())
+    }
+
+    /// For each of `hashes` already indexed, whether its instant lock is stored.
+    pub async fn get_instant_lock_state(
+        &self,
+        hashes: &[String],
+    ) -> Result<HashMap<String, bool>, PoolError> {
+        let client = self.pool.get().await?;
+        let rows = client
+            .query(
+                "SELECT TRIM(hash), instant_lock IS NOT NULL \
+                 FROM transactions WHERE hash = ANY($1::bpchar[])",
+                &[&hashes],
+            )
+            .await?;
+        Ok(rows.iter().map(|r| (r.get(0), r.get(1))).collect())
+    }
+
     /// Batch INSERT transactions from one or more blocks in a single call.
     /// Each tuple carries its own `(block_height, chain_locked)` so the caller
     /// can flatten multiple blocks' transactions into one insert.
