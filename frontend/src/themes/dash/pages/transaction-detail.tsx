@@ -118,7 +118,7 @@ export default function TransactionDetailPage({ hash }: { hash: string }) {
         <div className="flex flex-wrap items-center gap-4 text-xs">
           <span className="inline-flex min-h-8 items-center gap-2 rounded-full bg-secondary px-3 py-1">
             <span className="text-muted-foreground">Fee:</span>
-            {totals.coinbase ? (
+            {!totals.feeApplicable ? (
               "Not applicable"
             ) : totals.fee !== null ? (
               <TransactionAmount value={totals.fee} />
@@ -227,14 +227,20 @@ export default function TransactionDetailPage({ hash }: { hash: string }) {
                 ? "—"
                 : metricNumber(transaction.confirmations, 0)}
             </DetailRow>
-            <DetailRow label="Total input">
-              <TransactionAmount value={totals.input} />
-            </DetailRow>
-            <DetailRow label="Total output">
-              <TransactionAmount value={totals.output} />
-            </DetailRow>
+            {totals.monetary && (
+              <>
+                {transaction.vIn?.length > 0 && !totals.coinbase && (
+                  <DetailRow label="Total input">
+                    <TransactionAmount value={totals.input} />
+                  </DetailRow>
+                )}
+                <DetailRow label="Total output">
+                  <TransactionAmount value={totals.output} />
+                </DetailRow>
+              </>
+            )}
             <DetailRow label="Fee">
-              {totals.coinbase ? (
+              {!totals.feeApplicable ? (
                 "Not applicable"
               ) : (
                 <TransactionAmount value={totals.fee} />
@@ -258,10 +264,12 @@ export default function TransactionDetailPage({ hash }: { hash: string }) {
           payload={transaction.extraPayload}
         />
       )}
-      <TransactionInputsOutputs
-        transaction={transaction}
-        coinbase={totals.coinbase}
-      />
+      {totals.monetary && (
+        <TransactionInputsOutputs
+          transaction={transaction}
+          coinbase={totals.coinbase}
+        />
+      )}
     </main>
   );
 }

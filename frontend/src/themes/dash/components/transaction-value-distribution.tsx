@@ -33,6 +33,19 @@ export function TransactionValueDistribution({
   transaction: ApiTransaction;
   totals: TransactionTotals;
 }) {
+  if (!totals.monetary) {
+    return (
+      <section
+        aria-label="Value distribution"
+        className="flex min-w-0 flex-col items-center justify-center gap-3 rounded-3xl bg-card p-6 text-center"
+      >
+        <h2 className="text-xl font-extrabold">Protocol transaction</h2>
+        <p className="text-sm text-muted-foreground">
+          No monetary inputs or outputs.
+        </p>
+      </section>
+    );
+  }
   const grouped = new Map<
     string,
     { label: string; address: string | null; value: number }
@@ -116,7 +129,11 @@ export function TransactionValueDistribution({
           )}
           <div className="pointer-events-none absolute inset-8 flex flex-col items-center justify-center gap-1 text-center">
             <span className="text-xs text-muted-foreground">
-              {totals.fee === null ? "Outputs" : "Total input"}
+              {totals.fee === null
+                ? "Outputs"
+                : totals.input === null
+                  ? "Total"
+                  : "Total input"}
             </span>
             <span
               className="max-w-full break-words text-sm font-extrabold tabular-nums"
@@ -176,22 +193,34 @@ export function TransactionValueDistribution({
           )}
         </div>
       </div>
-      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <dl
+        className={`grid grid-cols-1 gap-3 ${totals.input === null ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}
+      >
         {[
           { label: "Total input", value: totals.input },
           { label: "Total output", value: totals.output },
           { label: "Fee", value: totals.fee },
-        ].map(({ label, value }) => (
-          <div
-            key={label}
-            className="min-w-0 rounded-3xl bg-secondary px-4 py-4"
-          >
-            <dt className="text-sm text-muted-foreground">{label}</dt>
-            <dd className="mt-2 break-words text-base font-extrabold text-brand">
-              <TransactionAmount value={value} />
-            </dd>
-          </div>
-        ))}
+        ]
+          .filter(
+            ({ label }) => label !== "Total input" || totals.input !== null,
+          )
+          .map(({ label, value }) => (
+            <div
+              key={label}
+              className="min-w-0 rounded-3xl bg-secondary px-4 py-4"
+            >
+              <dt className="text-sm text-muted-foreground">{label}</dt>
+              <dd className="mt-2 break-words text-base font-extrabold text-brand">
+                {label === "Fee" && !totals.feeApplicable ? (
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Not applicable
+                  </span>
+                ) : (
+                  <TransactionAmount value={value} />
+                )}
+              </dd>
+            </div>
+          ))}
       </dl>
     </section>
   );
