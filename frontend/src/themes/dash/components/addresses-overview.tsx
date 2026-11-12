@@ -18,7 +18,6 @@ import { useHistoryRange } from "@/themes/dash/lib/home-history";
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
 import { AreaChart } from "./area-chart";
 import { BalanceDistribution } from "./balance-distribution";
-import { MissingApiData } from "./missing-api-data";
 import { SkeletonBar } from "./skeleton";
 
 function MetricHint({
@@ -64,7 +63,17 @@ export function AddressesOverview({ network }: { network: Network }) {
   const rich = useQuery(
     richListQueryOptions({ network, page: 1, limit: 11, order: "desc" }),
   );
-  const distribution = addressDistribution(rich.data?.resultSet);
+  const balances = rich.data?.resultSet;
+  const ranked = balances?.filter(
+    (entry) => entry.address && entry.address !== "others",
+  );
+  const completeDistribution =
+    ranked?.length === 10 &&
+    new Set(ranked.map((entry) => entry.address)).size === 10 &&
+    balances?.filter((entry) => entry.address === "others").length === 1;
+  const distribution = completeDistribution
+    ? addressDistribution(balances)
+    : null;
   const utxo = rich.data?.utxoSummary;
   const activeCount = activity.data?.pagination.total;
   const entries = [...(history.data ?? [])].sort(
@@ -120,7 +129,7 @@ export function AddressesOverview({ network }: { network: Network }) {
       loading: history.isPending,
       badge: null,
       unit: null,
-      detail: `Addresses recorded by the indexer, not wallets or users. ${last ? `Through ${formatDateTime(last.intervalEnd)}.` : "Snapshot unavailable."}`,
+      detail: `Addresses reported by the indexer history, not wallets or users. ${last ? `Reporting window ends ${formatDateTime(last.intervalEnd)}. Completeness is not reported by the API.` : "History unavailable."}`,
     },
     {
       label: "Active addresses",
@@ -183,7 +192,9 @@ export function AddressesOverview({ network }: { network: Network }) {
                 Retry distribution
               </button>
             ) : (
-              <MissingApiData description="A complete top-10 address balance distribution and the remaining UTXO balance are required." />
+              <output className="w-full text-center text-sm text-muted-foreground">
+                No distribution data
+              </output>
             )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -203,7 +214,7 @@ export function AddressesOverview({ network }: { network: Network }) {
                       {value}
                     </strong>
                   )}
-                  {unit && (
+                  {unit && value !== "—" && !loading && (
                     <span className="text-sm font-medium text-muted-foreground">
                       {unit}
                     </span>
@@ -287,7 +298,7 @@ export function AddressesOverview({ network }: { network: Network }) {
           <div className="flex min-h-48 flex-1 items-center justify-center">
             {history.isPending ? (
               <SkeletonBar className="h-40 w-full" />
-            ) : history.isError ? (
+            ) : history.isError && !validSeries ? (
               <button
                 type="button"
                 className="text-sm text-destructive underline"
@@ -296,7 +307,9 @@ export function AddressesOverview({ network }: { network: Network }) {
                 Retry history
               </button>
             ) : !validSeries ? (
-              <MissingApiData description="The API must return one non-negative count for each requested 24-hour interval, with matching timestamps." />
+              <output className="text-sm text-muted-foreground">
+                No history data for this period
+              </output>
             ) : (
               <AreaChart
                 data={points}
@@ -327,22 +340,46 @@ export function AddressesOverview({ network }: { network: Network }) {
               />
             )}
           </div>
-          <dl className="grid grid-cols-2 gap-4 border-t border-border pt-4">
-            <div>
-              <dt className="text-sm text-muted-foreground">
-                New addresses · {days}D
-              </dt>
-              <dd className="mt-2 text-xl font-extrabold tabular-nums text-brand">
-                {metricNumber(newCount, 0)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Average per 24H</dt>
-              <dd className="mt-2 text-xl font-extrabold tabular-nums text-brand">
-                {metricNumber(newCount == null ? null : newCount / days, 0)}
-              </dd>
-            </div>
-          </dl>
+          {history.isError && validSeries && (
+            <p role="alert" className="text-sm text-destructive">
+              Could not refresh history.{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={() => void history.refetch()}
+              >
+                Retry
+              </button>
+            </p>
+          )}
+          {(history.isPending || validSeries) && (
+            <dl className="grid grid-cols-2 gap-4 border-t border-border pt-4">
+              <div>
+                <dt className="text-sm text-muted-foreground">
+                  New addresses · {days}D
+                </dt>
+                <dd className="mt-2 text-xl font-extrabold tabular-nums text-brand">
+                  {history.isPending ? (
+                    <SkeletonBar className="w-24" />
+                  ) : (
+                    metricNumber(newCount, 0)
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm text-muted-foreground">
+                  Average per 24H
+                </dt>
+                <dd className="mt-2 text-xl font-extrabold tabular-nums text-brand">
+                  {history.isPending ? (
+                    <SkeletonBar className="w-24" />
+                  ) : (
+                    metricNumber(newCount == null ? null : newCount / days, 0)
+                  )}
+                </dd>
+              </div>
+            </dl>
+          )}
         </div>
       </div>
     </section>
