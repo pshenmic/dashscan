@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { LoaderCircle, RefreshCw, X } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 import { useCallback, useId, useMemo } from "react";
 import {
   blockLookupQueryOptions,
@@ -22,6 +22,8 @@ import { BlocksOverview } from "@/themes/dash/components/blocks-overview";
 import { BlocksTable } from "@/themes/dash/components/blocks-table";
 import { LoadMore } from "@/themes/dash/components/load-more";
 import { Pagination } from "@/themes/dash/components/pagination";
+import { SkeletonBar } from "@/themes/dash/components/skeleton";
+import { metricNumber } from "@/themes/dash/lib/home-metrics";
 
 export default function BlocksListPage({
   page,
@@ -167,13 +169,19 @@ export default function BlocksListPage({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <h2
             id={titleId}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+            className="flex items-center gap-2 text-xl font-extrabold"
           >
             {superblock ? "Superblocks" : "Blocks"}
-            <LoaderCircle
-              aria-hidden="true"
-              className={`size-3.5 motion-safe:animate-spin ${query.isFetching ? "" : "invisible"}`}
-            />
+            {query.isPending && blocks.length === 0 ? (
+              <SkeletonBar className="w-12" />
+            ) : (
+              <span
+                className="tabular-nums text-muted-foreground"
+                title="Loaded blocks"
+              >
+                {metricNumber(blocks.length, 0)}
+              </span>
+            )}
             <output className="sr-only">
               {query.isFetching ? "Updating blocks…" : ""}
             </output>
@@ -320,6 +328,7 @@ export default function BlocksListPage({
             })
           }
           busy={query.isFetching}
+          skeletonRows={lookup !== undefined ? 1 : isInfinite ? 25 : limit}
           emptyMessage={
             query.isPending
               ? "Loading blocks…"

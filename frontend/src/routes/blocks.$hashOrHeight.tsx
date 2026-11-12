@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { blockQueryOptions } from "@/lib/api/blocks";
+import { paginationSearchSchema } from "@/lib/pagination";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
+import { BlockDetailSkeleton } from "@/themes/dash/components/block-detail-skeleton";
 
 const ClassicBlockDetailPage = lazy(
   () => import("@/themes/dash/pages/block-detail"),
 );
 
 export const Route = createFileRoute("/blocks/$hashOrHeight")({
+  validateSearch: paginationSearchSchema,
   component: BlockDetailRoute,
   head: ({ params }) => ({
     meta: [
@@ -37,9 +39,15 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
 
 function BlockDetailRoute() {
   const { hashOrHeight } = Route.useParams();
+  const { page, limit } = Route.useSearch();
   return (
-    <Suspense fallback={<LazyThemePageFallback />}>
-      <ClassicBlockDetailPage hashOrHeight={hashOrHeight} />
+    <Suspense fallback={<BlockDetailSkeleton />}>
+      <ClassicBlockDetailPage
+        key={hashOrHeight}
+        hashOrHeight={hashOrHeight}
+        page={page}
+        limit={limit}
+      />
     </Suspense>
   );
 }

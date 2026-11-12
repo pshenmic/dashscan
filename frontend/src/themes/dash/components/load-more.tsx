@@ -4,10 +4,12 @@ export function LoadMore({
   loading,
   failed,
   onLoad,
+  errorMessage = "Could not load more blocks.",
 }: {
   loading: boolean;
   failed: boolean;
   onLoad: () => void;
+  errorMessage?: string;
 }) {
   const sentinel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -35,7 +37,7 @@ export function LoadMore({
     <div ref={sentinel} className="mt-4 flex flex-col items-center gap-2">
       {failed && (
         <p role="alert" className="text-sm text-destructive">
-          Could not load more blocks.
+          {errorMessage}
         </p>
       )}
       <button

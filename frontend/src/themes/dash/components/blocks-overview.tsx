@@ -20,6 +20,7 @@ import {
 import { AreaChart } from "./area-chart";
 import { BlocksTimeline } from "./blocks-timeline";
 import { ChartDateRange, type ChartPeriod } from "./chart-date-range";
+import { SkeletonBar } from "./skeleton";
 
 function Metric({
   name,
@@ -195,8 +196,8 @@ export function BlocksOverview({ network }: { network: Network }) {
             ] as const
           ).map(([name, label, field]) => (
             <Metric key={name} name={name} label={label}>
-              {reward.isPending ? (
-                "…"
+              {chain.isPending || reward.isLoading ? (
+                <SkeletonBar className="h-7 w-28" />
               ) : reward.isError ? (
                 <button
                   type="button"
@@ -257,9 +258,11 @@ export function BlocksOverview({ network }: { network: Network }) {
                   Block Transactions
                 </h2>
                 <p className="flex flex-wrap items-center gap-2 text-[32px] font-extrabold leading-none">
-                  {history.isPending
-                    ? "…"
-                    : metricNumber(summary.currentTotal, 0)}{" "}
+                  {history.isPending ? (
+                    <SkeletonBar className="h-8 w-32" />
+                  ) : (
+                    metricNumber(summary.currentTotal, 0)
+                  )}{" "}
                   <span className="text-base font-medium text-muted-foreground">
                     Txs
                   </span>
@@ -279,9 +282,18 @@ export function BlocksOverview({ network }: { network: Network }) {
           </div>
           <div className="min-h-36 sm:min-h-[228px]">
             {history.isPending ? (
-              <p className="py-16 text-center text-sm text-muted-foreground">
-                Loading history…
-              </p>
+              <section
+                aria-busy="true"
+                aria-label="Loading transaction history"
+                className="space-y-3"
+              >
+                <SkeletonBar className="h-28 w-full sm:h-48" />
+                <div className="flex justify-between gap-6">
+                  <SkeletonBar className="w-16" />
+                  <SkeletonBar className="w-16" />
+                  <SkeletonBar className="w-16" />
+                </div>
+              </section>
             ) : history.isError ? (
               <button
                 type="button"

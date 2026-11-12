@@ -102,12 +102,14 @@ export function BlocksTable({
   emptyMessage,
   order,
   onOrderChange,
+  skeletonRows = 10,
 }: {
   blocks: ApiBlock[];
   busy: boolean;
   emptyMessage: string;
   order: "asc" | "desc";
   onOrderChange: (order: "asc" | "desc") => void;
+  skeletonRows?: number;
 }) {
   const table = useReactTable({
     data: blocks,
@@ -133,6 +135,17 @@ export function BlocksTable({
         growColumn="hash"
         isFetching={busy}
         isEmpty={blocks.length === 0}
+        skeletonRows={skeletonRows}
+        skeletonWidths={[
+          "w-24",
+          "w-52",
+          "w-20",
+          "w-10",
+          "w-24",
+          "w-16",
+          "w-24",
+          "w-24",
+        ]}
         emptyMessage={emptyMessage}
         caption={
           order === "desc"
