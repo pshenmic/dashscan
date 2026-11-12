@@ -10,7 +10,11 @@ import { BlockColumnSearch } from "@/themes/dash/components/block-column-search"
 import { DataTable } from "@/themes/dash/components/data-table";
 import { IdentifierLink } from "@/themes/dash/components/identifier-link";
 import { PendingColumnHeader } from "@/themes/dash/components/pending-column-header";
-import { metricBytes, metricNumber } from "@/themes/dash/lib/home-metrics";
+import {
+  metricBytes,
+  metricDuffs,
+  metricNumber,
+} from "@/themes/dash/lib/home-metrics";
 
 const columns: ColumnDef<ApiBlock>[] = [
   {
@@ -87,14 +91,9 @@ const columns: ColumnDef<ApiBlock>[] = [
     cell: ({ row }) => metricNumber(row.original.txCount, 0),
   },
   {
-    id: "fees",
-    header: () => (
-      <PendingColumnHeader
-        label="Fees (DASH)"
-        description="Fees are available for individual blocks, but not in the block list. Needs list or batch fee data in duffs, without a request for every row. Zero fees must remain distinct from unavailable data. See #123."
-      />
-    ),
-    cell: () => <span className="text-muted-foreground">—</span>,
+    accessorKey: "fees",
+    header: "Fees (DASH)",
+    cell: ({ row }) => metricDuffs(row.original.fees),
   },
   {
     accessorKey: "size",
