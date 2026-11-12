@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { type ReactNode, useId } from "react";
-import { marketCapQueryOptions } from "@/lib/api/marketcap";
+import { supplyQueryOptions } from "@/lib/api/chain";
 import {
   priceHistoricalQueryOptions,
   priceQueryOptions,
@@ -18,10 +18,10 @@ import {
   useHomeChainHistory,
 } from "@/themes/dash/lib/home-history";
 import {
-  estimatedSupply,
   historyChange,
   metricNumber,
   sortedHistory,
+  supplyInDash,
 } from "@/themes/dash/lib/home-metrics";
 import { AreaChart } from "./area-chart";
 import { ChainHistoryChart } from "./chain-history-chart";
@@ -108,9 +108,7 @@ export function HomeGeneralStats() {
   const history = useQuery(
     priceHistoricalQueryOptions({ network, currency: "usd" }),
   );
-  const marketCap = useQuery(
-    marketCapQueryOptions({ network, currency: "usd" }),
-  );
+  const networkSupply = useQuery(supplyQueryOptions({ network }));
   const stats = chain.data;
   const [hashRateValue, hashRateUnit] = formatHashRate(stats?.hashRate).split(
     " ",
@@ -119,7 +117,7 @@ export function HomeGeneralStats() {
     stats?.peakHashRate,
   ).split(" ");
   const priceHistory = sortedHistory(history.data);
-  const supply = estimatedSupply(marketCap.data?.usd, price.data?.usd);
+  const supply = supplyInDash(networkSupply.data?.totalSupply);
   const firstPrice = priceHistory[0];
   const lastPrice = priceHistory.at(-1);
   const difficulty = stats?.difficulty;
@@ -210,7 +208,7 @@ export function HomeGeneralStats() {
           </div>
         </StatCard>
         <StatCard
-          label="Estimated Supply"
+          label="Network Supply"
           value={
             supply === null ? (
               "—"
@@ -227,11 +225,13 @@ export function HomeGeneralStats() {
           detail={
             <span
               className="inline-flex rounded-lg bg-secondary px-2 py-1"
-              title="Estimated from market capitalization divided by the USD price."
+              title="Sum of unspent outputs reported by Dash Core for the selected network. Cached by the API for 30 minutes; not market-provider circulating supply."
             >
               {supply === null
-                ? "Estimate unavailable"
-                : `≈ ${metricNumber(supply, 0)} DASH`}
+                ? networkSupply.isPending
+                  ? "Loading…"
+                  : "Supply unavailable"
+                : `${metricNumber(supply, 0)} DASH`}
             </span>
           }
         />

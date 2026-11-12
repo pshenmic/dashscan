@@ -13,8 +13,7 @@ import {
   addressesQueryOptions,
   richListQueryOptions,
 } from "@/lib/api/addresses";
-import { marketCapQueryOptions } from "@/lib/api/marketcap";
-import { priceQueryOptions } from "@/lib/api/price";
+import { supplyQueryOptions } from "@/lib/api/chain";
 import { addressHistoryQueryOptions } from "@/lib/api/stats";
 import { formatCompact } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -25,7 +24,7 @@ import {
   useHistoryRange,
   useHomeChainHistory,
 } from "@/themes/dash/lib/home-history";
-import { estimatedSupply, metricNumber } from "@/themes/dash/lib/home-metrics";
+import { metricNumber, supplyInDash } from "@/themes/dash/lib/home-metrics";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
@@ -320,10 +319,7 @@ export function HomeAddresses() {
     ...addressesQueryOptions({ network, page: 1, limit: 1 }),
     refetchInterval: 60_000,
   });
-  const price = useQuery(priceQueryOptions({ network, currency: "usd" }));
-  const marketCap = useQuery(
-    marketCapQueryOptions({ network, currency: "usd" }),
-  );
+  const networkSupply = useQuery(supplyQueryOptions({ network }));
   const activeAddresses = (active.data?.resultSet ?? []).flatMap((entry) =>
     entry.address ? [entry.address] : [],
   );
@@ -362,7 +358,7 @@ export function HomeAddresses() {
     utxo.height >= 0
       ? `Core UTXO snapshot at block #${metricNumber(utxo.height, 0)}`
       : "Core UTXO snapshot";
-  const supply = estimatedSupply(marketCap.data?.usd, price.data?.usd);
+  const supply = supplyInDash(networkSupply.data?.totalSupply);
   const count = unique.data?.pagination.total;
   const addressRange = useHistoryRange(31);
   const addressHistory = useQuery(
@@ -490,11 +486,11 @@ export function HomeAddresses() {
       <div className="flex min-w-0 flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <AddressMetric
-            label="Circulating Supply"
+            label="Network Supply"
             value={supply === null ? "—" : `≈ ${formatCompact(supply)} DASH`}
-            detail="Mainnet DASH supply estimated from market capitalization and price, not the selected network’s UTXO balance."
+            detail="Sum of unspent outputs reported by Dash Core for the selected network. Cached for 30 minutes; not market-provider circulating supply."
             period="Monthly change"
-            missing="Monthly supply history and change are not exposed. This is a market-data estimate, not the UTXO total."
+            missing="The supply endpoint provides the current snapshot, not monthly supply history or change."
           />
           <AddressMetric
             label="Unique Addresses"
