@@ -126,6 +126,7 @@ function TransferRow({
         </button>
       ) : !loading && amount == null ? (
         <MissingApiData
+          label="Unavailable"
           inline
           description="The transaction response does not contain a valid transfer amount. AssetLock totals cannot be used because they include change."
         />
@@ -399,6 +400,7 @@ export function HomeAssets() {
               />
               {assetStats.isSuccess && locked?.amount == null && (
                 <MissingApiData
+                  label="Unavailable"
                   inline
                   className="whitespace-nowrap"
                   description="The selected network has not returned the 24-hour AssetLock amount."
@@ -418,6 +420,7 @@ export function HomeAssets() {
               />
               {assetStats.isSuccess && unlocked?.amount == null && (
                 <MissingApiData
+                  label="Unavailable"
                   inline
                   className="whitespace-nowrap"
                   description="The selected network has not returned the 24-hour AssetUnlock amount."
@@ -444,6 +447,7 @@ export function HomeAssets() {
               {assetStats.isSuccess &&
                 (locked?.count == null || unlocked?.count == null) && (
                   <MissingApiData
+                    label="Unavailable"
                     inline
                     className="whitespace-nowrap"
                     description="The API does not expose a 24-hour breakdown for AssetLock and AssetUnlock transaction counts. This is a count, not a DASH or credit amount."

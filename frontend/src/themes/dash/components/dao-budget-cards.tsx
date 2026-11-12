@@ -198,6 +198,7 @@ function DaoTimingCards({
       </div>
       {showMissingDeadline && timing.votingDeadline == null && (
         <MissingApiData
+          label="Unavailable"
           compact
           description="This backend does not provide the voting deadline."
         />
@@ -297,6 +298,7 @@ export function DaoBudgetCards({
             </p>
           ) : !budget.isPending && !allocation ? (
             <MissingApiData
+              label="Unavailable"
               compact
               description="The backend does not provide a valid combined votes-and-funding allocation for this cycle."
             />
@@ -329,6 +331,7 @@ export function DaoBudgetCards({
               !budget.isError &&
               currentBudget?.requiredVotes == null && (
                 <MissingApiData
+                  label="Unavailable"
                   compact
                   description="The API does not expose the required vote threshold."
                 />

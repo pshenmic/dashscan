@@ -301,6 +301,7 @@ export function HomeGeneralStats() {
             {chain.isSuccess && stats?.peakHashRate == null && (
               <div className="absolute inset-x-0 top-8 flex justify-center bg-card">
                 <MissingApiData
+                  label="Unavailable"
                   compact
                   description="The highest daily average hashrate for the selected network is not available."
                 />
@@ -359,6 +360,7 @@ export function HomeGeneralStats() {
                 </span>
               ) : (
                 <MissingApiData
+                  label="Unavailable"
                   inline
                   description="Transaction totals for both consecutive 24-hour periods are required to compare average TPS."
                 />

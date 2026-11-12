@@ -6,7 +6,6 @@ import {
   chainMetricSeries,
 } from "@/themes/dash/lib/home-history";
 import { AreaChart } from "./area-chart";
-import { MissingApiData } from "./missing-api-data";
 
 export function ChainHistoryChart({
   data,
@@ -59,10 +58,9 @@ export function ChainHistoryChart({
                 Retry history
               </button>
             ) : (
-              <MissingApiData
-                inline
-                description={`${label}: not enough historical coverage yet. Missing snapshots are not zero values.`}
-              />
+              <span className="text-xs text-muted-foreground">
+                Not enough history
+              </span>
             )}
           </div>
         </div>

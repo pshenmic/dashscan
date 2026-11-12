@@ -203,6 +203,7 @@ export function HomeBlocks() {
                   </Tooltip>
                 ) : (
                   <MissingApiData
+                    label="Unavailable"
                     inline
                     description="The selected network has not returned a subsidy for this superblock."
                   />

@@ -460,7 +460,10 @@ export function HomeAddresses() {
             ) : active.isPending ? (
               <p className="text-muted-foreground">Loading active addresses…</p>
             ) : active.data === null ? (
-              <MissingApiData description="The active addresses endpoint is not available on this backend." />
+              <MissingApiData
+                label="Unavailable"
+                description="The active addresses endpoint is not available on this backend."
+              />
             ) : !activeRows.length ? (
               <p className="text-muted-foreground">
                 No active addresses in this period.
@@ -523,7 +526,10 @@ export function HomeAddresses() {
           ) : distribution ? (
             <BalanceDistribution key={network} distribution={distribution} />
           ) : !rich.isError ? (
-            <MissingApiData description="The API has not provided a complete balance distribution." />
+            <MissingApiData
+              label="Unavailable"
+              description="The API has not provided a complete balance distribution."
+            />
           ) : null}
           <div className="flex min-h-0 flex-1 flex-col gap-6">
             <div>

@@ -65,8 +65,8 @@ export function HomeNetworkUpgrades({ network }: { network: Network }) {
               "…"
             ) : upgrades == null && !chain.isError ? (
               <MissingApiData
+                label="Unavailable"
                 inline
-                label="API"
                 description="Deployment count is unavailable until the deployment API is connected."
               />
             ) : (
@@ -99,7 +99,10 @@ export function HomeNetworkUpgrades({ network }: { network: Network }) {
           </button>
         </p>
       ) : upgrades == null ? (
-        <MissingApiData description="This backend does not expose Dash Core deployments yet." />
+        <MissingApiData
+          label="Unavailable"
+          description="This backend does not expose Dash Core deployments yet."
+        />
       ) : upgrades.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No deployments reported.
