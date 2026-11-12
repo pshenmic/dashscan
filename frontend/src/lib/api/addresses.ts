@@ -18,7 +18,10 @@ interface FetchAddressesInput extends PaginationParams {
   network: Network;
 }
 
-async function getAddresses(params: FetchAddressesInput) {
+export async function getAddresses(
+  params: FetchAddressesInput,
+  signal?: AbortSignal,
+) {
   const url = new URL("/addresses", getBaseUrl(params.network));
   if (params.page !== undefined)
     url.searchParams.set("page", String(params.page));
@@ -26,7 +29,7 @@ async function getAddresses(params: FetchAddressesInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -62,22 +65,30 @@ export function addressesInfoQueryOptions(params: {
   return queryOptions({
     queryKey: ["addresses-info", params.network, params.addresses],
     enabled: params.addresses.length > 0,
-    queryFn: async () => {
-      const url = new URL("/addresses/info", getBaseUrl(params.network));
-      url.searchParams.set("addresses", params.addresses.join(","));
-      const response = await apiFetch(url);
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-      return response.json() as Promise<
-        {
-          address: string | null;
-          balance: string | null;
-          txCount: number | null;
-        }[]
-      >;
-    },
+    queryFn: ({ signal }) => getAddressesInfo(params, signal),
   });
+}
+
+export async function getAddressesInfo(
+  params: {
+    network: Network;
+    addresses: string[];
+  },
+  signal?: AbortSignal,
+) {
+  const url = new URL("/addresses/info", getBaseUrl(params.network));
+  url.searchParams.set("addresses", params.addresses.join(","));
+  const response = await apiFetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<
+    {
+      address: string | null;
+      balance: string | null;
+      txCount: number | null;
+    }[]
+  >;
 }
 
 export class AddressNotFoundError extends Error {
@@ -312,7 +323,10 @@ interface FetchRichListInput extends PaginationParams {
   network: Network;
 }
 
-async function getRichList(params: FetchRichListInput) {
+export async function getRichList(
+  params: FetchRichListInput,
+  signal?: AbortSignal,
+) {
   const url = new URL("/addresses/rich-list", getBaseUrl(params.network));
   if (params.page !== undefined)
     url.searchParams.set("page", String(params.page));
@@ -320,7 +334,7 @@ async function getRichList(params: FetchRichListInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -337,7 +351,10 @@ interface FetchAddressesActivityInput extends PaginationParams {
   timestampEnd?: string;
 }
 
-async function getAddressesActivity(params: FetchAddressesActivityInput) {
+export async function getAddressesActivity(
+  params: FetchAddressesActivityInput,
+  signal?: AbortSignal,
+) {
   const url = new URL("/addresses/activity", getBaseUrl(params.network));
   if (params.page !== undefined)
     url.searchParams.set("page", String(params.page));
@@ -349,7 +366,7 @@ async function getAddressesActivity(params: FetchAddressesActivityInput) {
   if (params.timestampEnd !== undefined)
     url.searchParams.set("timestamp_end", params.timestampEnd);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);

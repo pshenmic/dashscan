@@ -15,6 +15,7 @@ type AreaChartProps<T> = {
   compactHeight?: number;
   minimumMax?: number;
   zeroBaseline?: boolean;
+  interpolation?: "smooth" | "linear";
   tooltipPlacement?: "corner" | "point";
   fillFadeStart?: number;
   getValueText?: (item: T) => string;
@@ -33,6 +34,7 @@ export function AreaChart<T>({
   compactHeight = 62,
   minimumMax = 1,
   zeroBaseline = false,
+  interpolation = "smooth",
   tooltipPlacement = "corner",
   fillFadeStart = 0,
   getValueText,
@@ -95,7 +97,15 @@ export function AreaChart<T>({
       return { x, y, entry };
     });
 
-    const linePath = buildSmoothPath(points);
+    const linePath =
+      interpolation === "linear"
+        ? points
+            .map(
+              (point, index) =>
+                `${index === 0 ? "M" : "L"}${point.x},${point.y}`,
+            )
+            .join(" ")
+        : buildSmoothPath(points);
     const areaPath = `${linePath} L${points[points.length - 1].x},${paddingTop + chartHeight} L${points[0].x},${paddingTop + chartHeight} Z`;
     const labelInterval = Math.max(1, Math.floor(data.length / 8));
 
@@ -113,6 +123,7 @@ export function AreaChart<T>({
     getValue,
     minimumMax,
     zeroBaseline,
+    interpolation,
     compact,
     chartWidth,
     chartHeight,
