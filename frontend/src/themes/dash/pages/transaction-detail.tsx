@@ -1,306 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import {
-  ArrowLeftRight,
-  CheckCircle2,
-  ChevronUp,
-  Clock,
-  Lock,
-  ShieldCheck,
-} from "lucide-react";
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import type { ReactNode } from "react";
 import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { transactionQueryOptions } from "@/lib/api/transactions";
-import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
-import {
-  DUFFS_PER_DASH,
-  formatDateTime,
-  formatDuffs,
-  formatNumber,
-  getTxTypeLabel,
-} from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { appStore } from "@/lib/store";
-import { AddressLink } from "@/themes/dash/components/address-link";
 import { CopyButton } from "@/themes/dash/components/copy-button";
 import { ExtraPayloadCard } from "@/themes/dash/components/extra-payload";
-import { HashCell } from "@/themes/dash/components/hash-cell";
+import { MissingApiData } from "@/themes/dash/components/missing-api-data";
 import { PageStatus } from "@/themes/dash/components/page-status";
-
-type IconType = ComponentType<SVGProps<SVGSVGElement>>;
-
-function sumInputs(vIn: ApiVIn[] | null | undefined): number | null {
-  if (!vIn || vIn.length === 0) return null;
-  let total = 0;
-  let hasAmount = false;
-  for (const input of vIn) {
-    if (input.amount == null) continue;
-    const num = Number(input.amount);
-    if (!Number.isFinite(num)) continue;
-    total += num;
-    hasAmount = true;
-  }
-  return hasAmount ? total : null;
-}
-
-function sumOutputs(vOut: ApiVOut[] | null | undefined): number | null {
-  if (!vOut || vOut.length === 0) return null;
-  let total = 0;
-  for (const out of vOut) {
-    if (out.value != null) total += Number(out.value);
-  }
-  return total;
-}
-
-function deriveStatus(tx: ApiTransaction): {
-  label: string;
-  tone: "success" | "warning";
-  icon: IconType;
-} {
-  if (tx.chainLocked) {
-    return { label: "Chain Locked", tone: "success", icon: Lock };
-  }
-  if (tx.confirmations && tx.confirmations > 0) {
-    return { label: "Confirmed", tone: "success", icon: CheckCircle2 };
-  }
-  return { label: "Pending", tone: "warning", icon: Clock };
-}
-
-function formatDashAmount(value: number | null): string {
-  if (value == null) return "—";
-  return (value / DUFFS_PER_DASH).toFixed(8);
-}
-
-interface ClassicTransactionDetailPageProps {
-  hash: string;
-}
-
-export default function ClassicTransactionDetailPage({
-  hash,
-}: ClassicTransactionDetailPageProps) {
-  const network = useStore(appStore, (state) => state.network);
-
-  const { data: tx, isFetching } = useQuery(
-    transactionQueryOptions({ network, hash }),
-  );
-
-  if (isFetching && !tx) {
-    return <PageStatus message="Loading transaction..." />;
-  }
-  if (!tx) {
-    return <PageStatus message="Transaction not found." />;
-  }
-
-  const status = deriveStatus(tx);
-  const StatusIcon = status.icon;
-  const typeLabel = getTxTypeLabel(tx.type);
-
-  const totalInput = sumInputs(tx.vIn);
-  const totalOutput = sumOutputs(tx.vOut);
-  const fee =
-    tx.type === "COINBASE" || totalInput == null || totalOutput == null
-      ? null
-      : Math.max(0, totalInput - totalOutput);
-
-  const isCoinbase = tx.type === "COINBASE";
-  const isQuorum = tx.type === "QUORUM_COMMITMENT";
-
-  const hasInputs = !!tx.vIn && tx.vIn.length > 0 && !isCoinbase;
-  const hasOutputs = !!tx.vOut && tx.vOut.length > 0;
-
-  const INPUTS_ON_LEFT = new Set([
-    "PROVIDER_REGISTRATION",
-    "COINBASE",
-    "QUORUM_COMMITMENT",
-    "ASSET_LOCK",
-    "ASSET_UNLOCK",
-  ]);
-  const inputsOnLeft = INPUTS_ON_LEFT.has(tx.type ?? "");
-
-  const inputsSection = hasInputs ? (
-    <IoSection title="Inputs" count={tx.vIn?.length ?? 0}>
-      <IoTable
-        rows={(tx.vIn ?? []).map((input, idx) => ({
-          key: `${input.prevTxHash ?? "coinbase"}-${input.vOutIndex ?? idx}`,
-          address: input.address,
-          amount: input.amount != null ? Number(input.amount) : null,
-        }))}
-      />
-    </IoSection>
-  ) : isCoinbase ? (
-    <IoSection title="Inputs" count={1}>
-      <CoinbaseRow />
-    </IoSection>
-  ) : null;
-
-  const outputsSection = hasOutputs ? (
-    <IoSection title="Outputs" count={tx.vOut?.length ?? 0}>
-      <IoTable
-        rows={(tx.vOut ?? []).map((out) => ({
-          key: String(out.number),
-          address: out.address,
-          amount: out.value,
-        }))}
-      />
-    </IoSection>
-  ) : null;
-
-  return (
-    <main className="mx-auto max-w-[1440px] px-6 py-10">
-      <h1 className="mb-8 text-4xl tracking-tight animate-fade-in-up">
-        Transaction <span className="text-muted-foreground">Info</span>
-      </h1>
-
-      <div
-        className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0 animate-fade-in-up"
-        style={{ animationDelay: "100ms" }}
-      >
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <IconTile
-              icon={StatusIcon}
-              label="Status"
-              tone={status.tone}
-              value={
-                <Badge
-                  className={
-                    status.tone === "success"
-                      ? "bg-accent/12 font-bold text-accent"
-                      : "bg-amber-500/12 font-bold text-amber-500"
-                  }
-                >
-                  {status.label}
-                </Badge>
-              }
-            />
-            <IconTile
-              icon={ShieldCheck}
-              label="Confirmations"
-              value={
-                <p className="text-3xl font-extrabold">
-                  {formatNumber(tx.confirmations ?? 0)}
-                </p>
-              }
-            />
-          </div>
-
-          <Card className="flex flex-row items-center gap-6 rounded-2xl border-0 px-5 py-4 sm:px-6 sm:py-[22px]">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-full border border-accent/12 text-accent">
-              <ArrowLeftRight className="size-7" />
-            </div>
-            <div className="flex flex-1 items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">Transaction Type</p>
-              <span className="font-bold">{typeLabel}</span>
-            </div>
-          </Card>
-
-          <Card className="border-0 px-6 py-4">
-            <div className="flex flex-col">
-              <DetailRow label="TxID">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <HashCell hash={tx.hash} />
-                  <CopyButton value={tx.hash} />
-                </div>
-              </DetailRow>
-              <DetailRow label="Block">
-                {tx.blockHeight != null ? (
-                  <BlockPill
-                    height={tx.blockHeight}
-                    hash={tx.blockHash ?? undefined}
-                  />
-                ) : (
-                  <span className="text-muted-foreground">Mempool</span>
-                )}
-              </DetailRow>
-              <DetailRow label="Timestamp">
-                {tx.timestamp ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span>{formatDateTime(new Date(tx.timestamp))}</span>
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-border text-xs font-medium"
-                    >
-                      {<RelativeTime timestamp={tx.timestamp} />}
-                    </Badge>
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </DetailRow>
-              {isCoinbase ? (
-                <DetailRow label="Block Reward">
-                  <AmountValue value={totalOutput} />
-                </DetailRow>
-              ) : isQuorum ? null : (
-                <>
-                  <DetailRow label="Total Input">
-                    <AmountValue value={totalInput} />
-                  </DetailRow>
-                  <DetailRow label="Total Output">
-                    <AmountValue value={totalOutput} />
-                  </DetailRow>
-                  <DetailRow label="Fee">
-                    <AmountValue value={fee} muted />
-                  </DetailRow>
-                </>
-              )}
-              {tx.size != null ? (
-                <DetailRow label="Size">
-                  <span>
-                    <span className="font-bold">{tx.size}</span> bytes
-                  </span>
-                </DetailRow>
-              ) : null}
-            </div>
-          </Card>
-
-          {inputsOnLeft ? inputsSection : null}
-        </div>
-
-        <div className="flex flex-col gap-6">
-          {tx.extraPayload ? (
-            <ExtraPayloadCard txType={tx.type} payload={tx.extraPayload} />
-          ) : null}
-
-          {inputsOnLeft ? null : inputsSection}
-          {outputsSection}
-        </div>
-      </div>
-    </main>
-  );
-}
-
-function IconTile({
-  icon: Icon,
-  label,
-  value,
-  tone = "default",
-}: {
-  icon: IconType;
-  label: string;
-  value: ReactNode;
-  tone?: "default" | "success" | "warning";
-}) {
-  const ringClass =
-    tone === "warning"
-      ? "border-amber-500/20 text-amber-500"
-      : "border-accent/12 text-accent";
-  return (
-    <Card className="flex flex-row items-center gap-4 rounded-2xl border-0 px-5 py-4 sm:px-6 sm:py-[22px]">
-      <div
-        className={`flex size-14 shrink-0 items-center justify-center rounded-full border ${ringClass}`}
-      >
-        <Icon className="size-7" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <div className="mt-1">{value}</div>
-      </div>
-    </Card>
-  );
-}
+import { TransactionDetailSkeleton } from "@/themes/dash/components/transaction-detail-skeleton";
+import { TransactionInputsOutputs } from "@/themes/dash/components/transaction-inputs-outputs";
+import { TransactionTypeBadge } from "@/themes/dash/components/transaction-type-badge";
+import {
+  TransactionAmount,
+  TransactionValueDistribution,
+} from "@/themes/dash/components/transaction-value-distribution";
+import { metricNumber } from "@/themes/dash/lib/home-metrics";
+import { transactionTotals } from "@/themes/dash/lib/transaction-detail";
 
 function DetailRow({
   label,
@@ -310,115 +29,247 @@ function DetailRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-6 py-3">
-      <span className="min-w-24 shrink-0 text-xs text-muted-foreground">
-        {label}
-      </span>
-      <div className="flex min-w-0 items-center text-xs">{children}</div>
+    <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-4 py-3 text-sm sm:grid-cols-[7rem_minmax(0,1fr)]">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words font-medium">{children}</dd>
     </div>
   );
 }
 
-function BlockPill({ height, hash }: { height: number; hash?: string }) {
+function BlockLink({ height }: { height: number }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <Link
-        to="/blocks/$hashOrHeight"
-        params={{ hashOrHeight: String(height) }}
-        className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 transition-colors hover:bg-accent/10"
-      >
-        <span className="font-mono font-bold text-foreground">
-          {formatNumber(height)}
-        </span>
-      </Link>
-      <CopyButton value={hash ?? String(height)} />
-    </div>
+    <Link
+      to="/blocks/$hashOrHeight"
+      params={{ hashOrHeight: String(height) }}
+      search={{ page: 1, limit: 10 }}
+      className="inline-flex items-center gap-2 rounded-full bg-action-subtle px-3 py-1 text-accent hover:underline"
+    >
+      #{metricNumber(height, 0)}
+    </Link>
   );
 }
 
-function AmountValue({
-  value,
-  muted = false,
-}: {
-  value: number | null;
-  muted?: boolean;
-}) {
-  const amount = formatDashAmount(value);
-  return (
-    <span className={muted ? "text-muted-foreground" : undefined}>
-      <span className="font-bold">{amount}</span>{" "}
-      <span className="text-muted-foreground">DASH</span>
-    </span>
-  );
-}
-
-function IoSection({
-  title,
-  count,
-  children,
-}: {
-  title: string;
-  count: number;
-  children: ReactNode;
-}) {
-  return (
-    <Card className="border-0 px-6 py-5">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm text-muted-foreground">
-          {title} <span className="text-foreground">({count})</span>
-        </h2>
-        <ChevronUp className="size-4 text-muted-foreground" />
-      </div>
-      {children}
-    </Card>
-  );
-}
-
-function DashAmountBadge({ value }: { value: number }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-accent/12 px-2.5 py-1 text-xs text-accent">
-      <span className="font-bold">{formatDuffs(value)}</span>
-      <img src="/images/dash-logo.svg" alt="" className="size-3.5" />
-    </span>
-  );
-}
-
-interface IoRow {
-  key: string;
-  address: string | null;
-  amount: number | null;
-}
-
-function IoTable({ rows }: { rows: IoRow[] }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-2 px-3 text-[11px] text-muted-foreground">
-        <span>Address</span>
-        <span className="text-right">Amount</span>
-      </div>
-      {rows.map((row) => (
-        <div
-          key={row.key}
-          className="group flex items-center justify-between gap-3 rounded-xl bg-secondary/60 px-3 py-2.5 transition-colors hover:bg-accent/10"
+export default function TransactionDetailPage({ hash }: { hash: string }) {
+  const network = useStore(appStore, (state) => state.network);
+  const validHash = /^[a-fA-F0-9]{64}$/.test(hash);
+  const query = useQuery({
+    ...transactionQueryOptions({ network, hash }),
+    enabled: validHash,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+  if (!validHash) return <PageStatus message="Invalid transaction hash." />;
+  if (query.isPending) return <TransactionDetailSkeleton />;
+  const transaction = query.data;
+  if (!transaction)
+    return (
+      <main className="mx-auto max-w-[1440px] px-4 py-16 text-center">
+        <p role="alert">Could not load this transaction.</p>
+        <button
+          type="button"
+          onClick={() => void query.refetch()}
+          className="mt-3 text-accent underline"
         >
-          <div className="min-w-0 text-xs">
-            <AddressLink address={row.address} />
-          </div>
-          {row.amount != null ? (
-            <DashAmountBadge value={row.amount} />
-          ) : (
-            <span className="text-xs text-muted-foreground">—</span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function CoinbaseRow() {
+          Retry
+        </button>
+      </main>
+    );
+  const totals = transactionTotals(transaction);
+  const hasBlock =
+    Number.isSafeInteger(transaction.blockHeight) &&
+    transaction.blockHeight >= 0 &&
+    Boolean(transaction.blockHash);
+  const instantLocked =
+    transaction.instantLock === true ||
+    (typeof transaction.instantLock === "string" &&
+      transaction.instantLock.length > 0);
+  const timestamp =
+    transaction.timestamp && Number.isFinite(Date.parse(transaction.timestamp))
+      ? transaction.timestamp
+      : null;
+  const confirmationLabel =
+    transaction.confirmations > 0 ? "Confirmed" : "Unconfirmed";
   return (
-    <div className="rounded-xl bg-secondary/60 px-3 py-2.5 text-xs text-muted-foreground">
-      Coinbase (newly generated coins)
-    </div>
+    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-12">
+      <header className="space-y-4 rounded-3xl bg-card p-4 sm:p-6">
+        <h1 className="text-xl font-medium text-muted-foreground">
+          Transaction
+        </h1>
+        <div className="group flex min-w-0 items-center gap-3">
+          <img
+            src="/icons/transaction-detail/hash.svg"
+            alt=""
+            width={31}
+            height={31}
+            className="size-8 shrink-0 dark:hidden"
+          />
+          <img
+            src="/icons/transaction-detail/hash-dark.svg"
+            alt=""
+            width={31}
+            height={31}
+            className="hidden size-8 shrink-0 dark:block"
+          />
+          <span className="min-w-0 break-all font-mono text-base leading-relaxed sm:text-2xl">
+            {transaction.hash}
+          </span>
+          <CopyButton value={transaction.hash} />
+        </div>
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          <span className="inline-flex min-h-8 items-center gap-2 rounded-full bg-secondary px-3 py-1">
+            <span className="text-muted-foreground">Fee:</span>
+            {!totals.feeApplicable ? (
+              "Not applicable"
+            ) : totals.fee !== null ? (
+              <TransactionAmount value={totals.fee} />
+            ) : (
+              <MissingApiData
+                inline
+                description="Return the transaction fee in duffs, or all input values needed to calculate it. Special transactions require their protocol-specific fee calculation."
+              />
+            )}
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="text-muted-foreground">Block:</span>
+            {hasBlock ? (
+              <BlockLink height={transaction.blockHeight} />
+            ) : (
+              "Unconfirmed"
+            )}
+          </span>
+        </div>
+      </header>
+      {query.isError && (
+        <output className="block text-sm text-muted-foreground">
+          Transaction updates are unavailable. Showing the last loaded data.
+        </output>
+      )}
+      <div className="grid items-stretch gap-6 lg:grid-cols-2">
+        <section
+          aria-label="Transaction details"
+          className="min-w-0 rounded-3xl bg-card px-4 py-4 sm:px-6"
+        >
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1.3fr]">
+            <div className="min-w-0 space-y-3 rounded-3xl bg-secondary p-4">
+              <dt className="text-sm text-muted-foreground">Status</dt>
+              <dd>
+                <Badge
+                  variant="outline"
+                  className="max-w-full border-brand bg-action-subtle text-accent"
+                >
+                  {transaction.chainLocked === true
+                    ? "ChainLocked"
+                    : confirmationLabel}
+                </Badge>
+              </dd>
+            </div>
+            <div className="min-w-0 space-y-3 rounded-3xl bg-secondary p-4">
+              <dt className="text-sm text-muted-foreground">InstantSend</dt>
+              <dd>
+                <Badge
+                  variant="outline"
+                  className={
+                    instantLocked
+                      ? "border-brand bg-action-subtle text-accent"
+                      : "border-border text-muted-foreground"
+                  }
+                >
+                  {instantLocked
+                    ? "Locked"
+                    : transaction.instantLock === false
+                      ? "Not locked"
+                      : "—"}
+                </Badge>
+              </dd>
+            </div>
+            <div className="min-w-0 space-y-3 rounded-3xl bg-secondary p-4">
+              <dt className="text-sm text-muted-foreground">
+                Transaction type
+              </dt>
+              <dd>
+                <TransactionTypeBadge type={transaction.type} />
+              </dd>
+            </div>
+          </dl>
+          <dl className="mt-6 divide-y divide-border/50">
+            <DetailRow label="TxID">
+              <div className="group flex items-center gap-1">
+                <span
+                  className="min-w-0 flex-1 truncate font-mono text-xs"
+                  title={transaction.hash}
+                >
+                  {transaction.hash}
+                </span>
+                <CopyButton value={transaction.hash} />
+              </div>
+            </DetailRow>
+            <DetailRow label="Block">
+              {hasBlock ? (
+                <BlockLink height={transaction.blockHeight} />
+              ) : (
+                "Unconfirmed"
+              )}
+            </DetailRow>
+            <DetailRow label="Timestamp">
+              {timestamp ? (
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <time dateTime={timestamp}>{formatDateTime(timestamp)}</time>
+                  <span className="rounded-lg border border-border px-2 py-1 text-muted-foreground">
+                    <RelativeTime timestamp={timestamp} />
+                  </span>
+                </div>
+              ) : (
+                "—"
+              )}
+            </DetailRow>
+            <DetailRow label="Confirmations">
+              {transaction.confirmations == null
+                ? "—"
+                : metricNumber(transaction.confirmations, 0)}
+            </DetailRow>
+            {totals.monetary && (
+              <>
+                {transaction.vIn?.length > 0 && !totals.coinbase && (
+                  <DetailRow label="Total input">
+                    <TransactionAmount value={totals.input} />
+                  </DetailRow>
+                )}
+                <DetailRow label="Total output">
+                  <TransactionAmount value={totals.output} />
+                </DetailRow>
+              </>
+            )}
+            <DetailRow label="Fee">
+              {!totals.feeApplicable ? (
+                "Not applicable"
+              ) : (
+                <TransactionAmount value={totals.fee} />
+              )}
+            </DetailRow>
+            <DetailRow label="Size">
+              {transaction.size == null
+                ? "—"
+                : `${metricNumber(transaction.size, 0)} bytes`}
+            </DetailRow>
+          </dl>
+        </section>
+        <TransactionValueDistribution
+          transaction={transaction}
+          totals={totals}
+        />
+      </div>
+      {transaction.extraPayload && (
+        <ExtraPayloadCard
+          txType={transaction.type}
+          payload={transaction.extraPayload}
+        />
+      )}
+      {totals.monetary && (
+        <TransactionInputsOutputs
+          transaction={transaction}
+          coinbase={totals.coinbase}
+        />
+      )}
+    </main>
   );
 }
