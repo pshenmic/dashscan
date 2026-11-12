@@ -20,7 +20,6 @@ import {
 import { AreaChart } from "./area-chart";
 import { BlocksTimeline } from "./blocks-timeline";
 import { ChartDateRange, type ChartPeriod } from "./chart-date-range";
-import { MissingApiData } from "./missing-api-data";
 
 function Metric({
   name,
@@ -206,7 +205,9 @@ export function BlocksOverview({ network }: { network: Network }) {
                 >
                   Retry block reward
                 </button>
-              ) : reward.data != null ? (
+              ) : reward.data != null &&
+                reward.data.height === latest &&
+                reward.data[field] != null ? (
                 <span
                   className={
                     field === "subsidy" ? "whitespace-nowrap" : undefined
@@ -225,10 +226,9 @@ export function BlocksOverview({ network }: { network: Network }) {
                   </span>
                 </span>
               ) : (
-                <MissingApiData
-                  inline
-                  description={`${label} for the latest indexed block is not available from this API.`}
-                />
+                <span className="text-muted-foreground" title="Not available">
+                  —
+                </span>
               )}
             </Metric>
           ))}
@@ -322,7 +322,16 @@ export function BlocksOverview({ network }: { network: Network }) {
                 formatYLabel={(value) => metricNumber(value, 0)}
               />
             ) : (
-              <MissingApiData description="Complete transaction history for the selected period is not available." />
+              <div className="py-16 text-center text-sm text-muted-foreground">
+                <p>No history for this period.</p>
+                <button
+                  type="button"
+                  className="mt-2 text-accent underline"
+                  onClick={() => void history.refetch()}
+                >
+                  Retry
+                </button>
+              </div>
             )}
           </div>
         </div>
