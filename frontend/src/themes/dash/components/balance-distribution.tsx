@@ -1,4 +1,5 @@
-import { type PointerEvent, useState } from "react";
+import { useState } from "react";
+import { Tooltip as ChartTooltip, Pie, PieChart } from "recharts";
 import {
   Tooltip,
   TooltipContent,
@@ -14,14 +15,7 @@ export function BalanceDistribution({
   distribution: NonNullable<ReturnType<typeof addressDistribution>>;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
-  const selectSegment = (event: PointerEvent<HTMLDivElement>) => {
-    const target = event.target;
-    const index =
-      target instanceof Element
-        ? target.getAttribute("data-balance-segment")
-        : null;
-    setSelected(index === null ? null : Number(index));
-  };
+  const [hovered, setHovered] = useState<number | null>(null);
   const labels = ["Top 1", "Top 2–5", "Top 6–10", "Other"];
   const colors = [
     "var(--brand)",
@@ -39,51 +33,67 @@ export function BalanceDistribution({
   const segments = distribution.shares.map((value, index) => ({
     name: labels[index],
     value,
+    fill: colors[index],
+    fillOpacity:
+      (hovered ?? selected) != null && (hovered ?? selected) !== index
+        ? 0.75
+        : 1,
+    amount: distribution.amounts?.[index],
   }));
+  const multipleSegments =
+    segments.filter((segment) => segment.value > 0).length > 1;
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row lg:flex-col xl:flex-row">
       <div
-        className="shrink-0"
+        className="size-40 shrink-0"
         aria-hidden="true"
-        onPointerMove={selectSegment}
-        onPointerDown={selectSegment}
-        onMouseLeave={() => setSelected(null)}
+        onMouseLeave={() => setHovered(null)}
       >
-        <svg width="160" height="160" viewBox="0 0 160 160" aria-hidden="true">
-          {[3, 2, 1, 0].map((index) => {
-            if (segments[index].value === 0) return null;
-            const cumulative = segments
-              .slice(0, index + 1)
-              .reduce((total, segment) => total + segment.value, 0);
-            return (
-              <circle
-                key={labels[index]}
-                data-balance-segment={index}
-                cx="80"
-                cy="80"
-                r="64"
-                pathLength="100"
-                fill="none"
-                stroke={colors[index]}
-                strokeWidth="32"
-                strokeLinecap="round"
-                strokeDasharray={index === 3 ? undefined : `${cumulative} 100`}
-                transform="translate(160 0) scale(-1 1) rotate(-90 80 80)"
-                className="motion-safe:transition-[filter] motion-safe:duration-150"
-                style={{
-                  filter: selected === index ? "brightness(0.9)" : undefined,
-                }}
-              />
-            );
-          })}
-        </svg>
+        <PieChart width={160} height={160} accessibilityLayer={false}>
+          <Pie
+            data={segments}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            innerRadius={54}
+            outerRadius={79}
+            startAngle={90}
+            endAngle={-270}
+            cornerRadius={multipleSegments ? 4 : 0}
+            paddingAngle={multipleSegments ? 2 : 0}
+            stroke="none"
+            isAnimationActive={false}
+            rootTabIndex={-1}
+            onMouseEnter={(_, index) => setHovered(index)}
+            onMouseLeave={() => setHovered(null)}
+          />
+          <ChartTooltip
+            allowEscapeViewBox={{ x: true, y: true }}
+            content={({ active, payload }) => {
+              const segment = payload?.[0]?.payload as
+                | (typeof segments)[number]
+                | undefined;
+              return active && segment ? (
+                <div className="max-w-64 rounded-xl border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                  <p>
+                    {segment.name} · {metricNumber(segment.value)}%
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {transactionAmount(segment.amount)}
+                  </p>
+                </div>
+              ) : null;
+            }}
+          />
+        </PieChart>
       </div>
       <div className="min-w-0 w-full flex-1 space-y-3">
-        <h3 className="dash-body-compact text-foreground/50">
+        <h3 className="dash-body-compact text-muted-foreground">
           Top 10 addresses
         </h3>
         <p className="text-2xl leading-8">
-          <strong className="text-brand">
+          <strong className="text-accent">
             {metricNumber(distribution.topTen)}%
           </strong>{" "}
           of unspent balance
@@ -110,7 +120,7 @@ export function BalanceDistribution({
                   }}
                   className={`min-w-0 rounded-lg bg-secondary p-2 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring ${selected === index ? "ring-1 ring-brand" : ""}`}
                 >
-                  <span className="flex items-center gap-1 whitespace-nowrap text-xs text-foreground/50">
+                  <span className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
                     <span
                       className="size-1.5 shrink-0 rounded-full"
                       style={{ background: colors[index] }}
@@ -122,7 +132,7 @@ export function BalanceDistribution({
                   </span>
                 </button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="max-w-64 rounded-xl border border-border bg-popover px-3 py-2 text-popover-foreground shadow-md">
                 <p>
                   {segment.name} · {metricNumber(segment.value)}%
                 </p>
