@@ -1,0 +1,59 @@
+.diagram {
+  background-image:
+    linear-gradient(var(--secondary) 1px, transparent 1px),
+    linear-gradient(90deg, var(--secondary) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.column {
+  position: relative;
+  display: grid;
+  gap: 16px;
+}
+
+.entry {
+  position: relative;
+  background-image: linear-gradient(var(--secondary), var(--secondary));
+}
+
+@media (min-width: 1024px) {
+  .entry {
+    height: 72px;
+    flex-wrap: nowrap;
+  }
+
+  .inputs .entry::after,
+  .outputs .entry::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 48px;
+    border-top: 1px solid var(--brand);
+    pointer-events: none;
+  }
+
+  .inputs .entry::after {
+    left: 100%;
+  }
+
+  .outputs .entry::after {
+    right: 100%;
+  }
+
+  .column::before {
+    content: "";
+    position: absolute;
+    top: 36px;
+    bottom: 36px;
+    border-left: 1px solid var(--brand);
+    pointer-events: none;
+  }
+
+  .inputs::before {
+    right: -48px;
+  }
+
+  .outputs::before {
+    left: -48px;
+  }
+}
