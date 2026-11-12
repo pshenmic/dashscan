@@ -177,6 +177,7 @@ Two caveats:
 | `redis` | `local-redis` | |
 | `dashd` | `local-dashcore` | Dash Core node; mainnet needs ~40GB disk |
 | `frontend` | `local-frontend` | Publishes `FRONTEND_PORT` |
+| `haproxy-metrics` | `metrics` | Publishes haproxy's Prometheus exporter on `HAPROXY_METRICS_PORT` |
 
 Infrastructure is opt-in via profiles, so the same file serves both a
 self-contained dev box and a production host that uses managed Postgres/Redis
@@ -212,9 +213,17 @@ required and fail fast if missing; `.env.example` documents every value.
 | `CORE_RPC_*`, `CORE_ZMQ_URL`, `CORE_P2P_*` | Dash Core connection |
 | `CORE_CHAIN` | `local-dashcore` only — `main`/`test`/`regtest`; must agree with `NETWORK` |
 | `POSTGRES_USER` / `_PASSWORD` / `_DB` | `local-db` only; must agree with `DATABASE_URL` |
+| `POSTGRES_SHARED_BUFFERS` | `local-db` only; ~25% of RAM (default `1GB`) |
+| `POSTGRES_EFFECTIVE_CACHE_SIZE` | `local-db` only; ~70% of RAM (default `3GB`) |
+| `POSTGRES_MAX_WAL_SIZE` | `local-db` only (default `8GB`) |
+| `POSTGRES_CHECKPOINT_TIMEOUT` | `local-db` only (default `15min`) |
+| `POSTGRES_WAL_COMPRESSION` | `local-db` only (default `on`) |
+| `POSTGRES_RANDOM_PAGE_COST` | `local-db` only; `1.1` for SSD, `4` for HDD (default `1.1`) |
+| `POSTGRES_SHM_SIZE` | `local-db` only; container `/dev/shm` size (default `1g`) |
 | `API_PORT` | Host port published by haproxy (default `3005`) |
 | `API_REPLICAS` | Number of api containers (default `4`) |
 | `FRONTEND_PORT` | Host port for the frontend (default `3000`) |
+| `HAPROXY_METRICS_PORT` | `metrics` only — host port for `/metrics` (default `8405`) |
 | `DASHSCAN_API_URL` | **Build-time.** See below |
 
 `DASHSCAN_API_URL` is inlined into the frontend bundle at build time, so it must
@@ -261,6 +270,14 @@ The stats UI is on port 8404, unpublished. To view it:
 
 ```bash
 docker compose exec haproxy wget -qO- http://127.0.0.1:8404/
+```
+
+haproxy also serves its built-in Prometheus exporter on port 8405, likewise
+unpublished. Enable the `metrics` profile to publish it on
+`${BIND_ADDR}:${HAPROXY_METRICS_PORT}/metrics` for an external Prometheus:
+
+```bash
+COMPOSE_PROFILES=local-db,local-redis,local-dashcore,local-frontend,metrics
 ```
 
 ### Migrations
