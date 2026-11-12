@@ -1,6 +1,7 @@
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useNow } from "@/components/render-clock";
+import { proposalStatsQueryOptions } from "@/lib/api/governance";
 import { priceQueryOptions } from "@/lib/api/price";
 import type {
   ApiBlock,
@@ -217,6 +218,7 @@ export function DaoBudgetCards({
   proposalsPending: boolean;
 }) {
   const chain = useQuery(homeChainQueryOptions(network));
+  const proposalStats = useQuery(proposalStatsQueryOptions({ network }));
   const blocks = useQuery(homeBlocksQueryOptions(network));
   const price = useQuery(priceQueryOptions({ network, currency: "usd" }));
   const latest = [...(blocks.data?.resultSet ?? [])].sort(
@@ -339,19 +341,32 @@ export function DaoBudgetCards({
           description="Proposals with an active payment period. Not all are eligible for the next superblock."
           value={
             <>
-              {proposalsPending ? "…" : metricNumber(proposalCount, 0)}{" "}
+              {proposalsPending && proposalStats.isPending
+                ? "…"
+                : metricNumber(
+                    proposalStats.data?.active ?? proposalCount,
+                    0,
+                  )}{" "}
               <span className="font-medium">Proposals</span>
             </>
           }
         >
           <div className="flex min-h-6 items-center gap-1">
             <span className="rounded-lg bg-foreground/4 px-2 py-1 text-xs text-muted-foreground">
-              24H
+              24H ago
             </span>
-            <MissingApiData
-              inline
-              description="The API does not provide the change in active proposals over the last 24 hours."
-            />
+            {proposalStats.data != null ? (
+              <DaoHint description="Estimated previous active proposal count. Dash Core prunes expired proposals, so this historical count may be incomplete. It is not a count of funded proposals.">
+                ≈ {metricNumber(proposalStats.data.previousActive, 0)}
+              </DaoHint>
+            ) : proposalStats.isPending ? (
+              "…"
+            ) : (
+              <MissingApiData
+                inline
+                description="The selected backend has not returned the previous active proposal count."
+              />
+            )}
           </div>
         </DaoMetric>
         <DaoMetric
