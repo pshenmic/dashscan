@@ -12,7 +12,7 @@ import {
   blocksInfiniteQueryOptions,
   blocksQueryOptions,
 } from "@/lib/api/blocks";
-import { getPageCount, type PageSize } from "@/lib/pagination";
+import type { PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import {
   type TableViewMode,
@@ -133,9 +133,7 @@ export default function BlocksListPage({
       : isInfinite
         ? infiniteQuery
         : pagedQuery;
-  const pageCount = getPageCount(
-    pagedQuery.data ? { ...pagedQuery.data.pagination, limit } : undefined,
-  );
+  const hasNextPage = pagedQuery.data?.resultSet.length === limit;
   const loadMore = useCallback(() => {
     if (
       infiniteQuery.hasNextPage &&
@@ -331,48 +329,54 @@ export default function BlocksListPage({
           }
         />
         {lookup === undefined &&
-          (isInfinite
-            ? infiniteQuery.hasNextPage && (
-                <LoadMore
-                  loading={infiniteQuery.isFetching}
-                  failed={infiniteQuery.isError}
-                  onLoad={loadMore}
-                />
-              )
-            : pageCount > 0 && (
-                <div className="mt-4 overflow-x-auto">
-                  <Pagination
-                    align="end"
-                    page={page}
-                    pageCount={pageCount}
-                    onPageChange={(next) =>
-                      void navigate({
-                        search: {
-                          page: next,
-                          limit,
-                          superblock,
-                          order,
-                          view: mode,
-                        },
-                        resetScroll: false,
-                      })
-                    }
-                    pageSize={limit}
-                    onPageSizeChange={(size) =>
-                      void navigate({
-                        search: {
-                          page: 1,
-                          limit: size,
-                          superblock,
-                          order,
-                          view: mode,
-                        },
-                        resetScroll: false,
-                      })
-                    }
-                  />
-                </div>
-              ))}
+          (isInfinite ? (
+            infiniteQuery.hasNextPage && (
+              <LoadMore
+                loading={infiniteQuery.isFetching}
+                failed={infiniteQuery.isError}
+                onLoad={loadMore}
+              />
+            )
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <Pagination
+                align="end"
+                page={page}
+                hasNextPage={hasNextPage}
+                disabled={
+                  pagedQuery.isFetching ||
+                  pagedQuery.isPlaceholderData ||
+                  pagedQuery.isError ||
+                  !pagedQuery.data
+                }
+                onPageChange={(next) =>
+                  void navigate({
+                    search: {
+                      page: next,
+                      limit,
+                      superblock,
+                      order,
+                      view: mode,
+                    },
+                    resetScroll: false,
+                  })
+                }
+                pageSize={limit}
+                onPageSizeChange={(size) =>
+                  void navigate({
+                    search: {
+                      page: 1,
+                      limit: size,
+                      superblock,
+                      order,
+                      view: mode,
+                    },
+                    resetScroll: false,
+                  })
+                }
+              />
+            </div>
+          ))}
       </section>
     </main>
   );
