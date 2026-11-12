@@ -8,9 +8,7 @@ import {
 } from "@/lib/api/addresses";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
-import RedesignAddressesPage from "@/themes/neo/pages/addresses";
 
 const DashAddressesPage = lazy(() => import("@/themes/dash/pages/addresses"));
 
@@ -60,8 +58,6 @@ export const Route = createFileRoute("/addresses")({
 });
 
 function AddressesRoute() {
-  const theme = useActiveTheme();
-  if (theme === "neo") return <RedesignAddressesPage />;
   return (
     <Suspense fallback={<LazyThemePageFallback />}>
       <DashAddressesPage />

@@ -13,8 +13,7 @@ import {
   addressesQueryOptions,
   richListQueryOptions,
 } from "@/lib/api/addresses";
-import { marketCapQueryOptions } from "@/lib/api/marketcap";
-import { priceQueryOptions } from "@/lib/api/price";
+import { supplyQueryOptions } from "@/lib/api/chain";
 import { addressHistoryQueryOptions } from "@/lib/api/stats";
 import { formatCompact } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -25,7 +24,7 @@ import {
   useHistoryRange,
   useHomeChainHistory,
 } from "@/themes/dash/lib/home-history";
-import { estimatedSupply, metricNumber } from "@/themes/dash/lib/home-metrics";
+import { metricNumber, supplyInDash } from "@/themes/dash/lib/home-metrics";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { BalanceDistribution } from "./balance-distribution";
 import { HomeIcon } from "./home-icon";
@@ -50,7 +49,7 @@ function AddressMetric({
 }) {
   return (
     <div className="flex min-h-[120px] min-w-0 flex-col justify-center gap-2 rounded-3xl dash-home-panel px-6 py-4">
-      <h3 className="dash-body-compact text-foreground/50">
+      <h3 className="dash-body-compact text-muted-foreground">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -63,19 +62,20 @@ function AddressMetric({
           <TooltipContent>{detail}</TooltipContent>
         </Tooltip>
       </h3>
-      <p className="dash-metric break-words text-brand">{value}</p>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="dash-label-small text-muted-foreground">
-          {period ?? detail}
-        </span>
-        {missing && <MissingApiData inline description={missing} />}
-        {change != null && (
-          <span className="text-xs font-medium text-accent">
-            {change > 0 ? "+" : ""}
-            {metricNumber(change)}%
+      <p className="dash-metric break-words text-accent">{value}</p>
+      {!missing && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="dash-label-small text-muted-foreground">
+            {period ?? detail}
           </span>
-        )}
-      </div>
+          {change != null && (
+            <span className="text-xs font-medium text-accent">
+              {change > 0 ? "+" : ""}
+              {metricNumber(change)}%
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -95,7 +95,7 @@ function AddressTable({
             ? "Addresses ranked by balance"
             : "Most active addresses in the last 24 hours"}
         </caption>
-        <thead className="sticky top-0 z-10 bg-[color-mix(in_srgb,var(--foreground)_3%,var(--card))] text-foreground/48">
+        <thead className="sticky top-0 z-10 bg-[color-mix(in_srgb,var(--foreground)_3%,var(--card))] text-muted-foreground">
           <tr>
             <th
               scope="col"
@@ -132,7 +132,7 @@ function AddressTable({
                   prefix={
                     ranked && (
                       <span
-                        className={`flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] ${index === 0 ? "bg-brand text-primary-foreground" : index === 1 ? "bg-brand/64 text-primary-foreground" : index === 2 ? "bg-action-subtle text-brand" : "bg-foreground/4 text-foreground"}`}
+                        className={`flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] ${index === 0 ? "bg-action-solid text-primary-foreground" : index === 1 ? "bg-action-subtle text-accent" : index === 2 ? "bg-action-subtle text-accent" : "bg-foreground/4 text-foreground"}`}
                       >
                         {index + 1}
                       </span>
@@ -140,7 +140,7 @@ function AddressTable({
                   }
                 />
               </td>
-              <td className="whitespace-nowrap px-3 py-[18px] text-right text-brand">
+              <td className="whitespace-nowrap px-3 py-[18px] text-right text-accent">
                 {transactionAmount(row.balance)}
               </td>
               {!ranked && (
@@ -193,10 +193,7 @@ export function HomeAddresses() {
     ...addressesQueryOptions({ network, page: 1, limit: 1 }),
     refetchInterval: 60_000,
   });
-  const price = useQuery(priceQueryOptions({ network, currency: "usd" }));
-  const marketCap = useQuery(
-    marketCapQueryOptions({ network, currency: "usd" }),
-  );
+  const networkSupply = useQuery(supplyQueryOptions({ network }));
   const activeAddresses = (active.data?.resultSet ?? []).flatMap((entry) =>
     entry.address ? [entry.address] : [],
   );
@@ -235,7 +232,7 @@ export function HomeAddresses() {
     utxo.height >= 0
       ? `Core UTXO snapshot at block #${metricNumber(utxo.height, 0)}`
       : "Core UTXO snapshot";
-  const supply = estimatedSupply(marketCap.data?.usd, price.data?.usd);
+  const supply = supplyInDash(networkSupply.data?.totalSupply);
   const count = unique.data?.pagination.total;
   const addressRange = useHistoryRange(31);
   const addressHistory = useQuery(
@@ -268,13 +265,13 @@ export function HomeAddresses() {
           >
             <span className="font-extrabold text-brand">Addresses</span> Stats
           </h2>
-          <p className="dash-body mt-3 text-foreground/50">
+          <p className="dash-body mt-3 text-muted-foreground">
             Look up balances, incoming and outgoing transactions, and the
             complete history of any Dash address.
           </p>
           <Link
             to="/addresses"
-            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             Explore Addresses
             <span className="flex size-8 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
@@ -299,7 +296,7 @@ export function HomeAddresses() {
               period="24H snapshot change"
               change={unspentChange}
               missing={
-                unspentChange == null
+                snapshots.isSuccess && unspentChange == null
                   ? "The API has not yet provided snapshots covering a full 24 hours for the UTXO balance comparison."
                   : undefined
               }
@@ -324,7 +321,7 @@ export function HomeAddresses() {
           <div className="flex min-h-[392px] min-w-0 flex-1 flex-col gap-6 rounded-3xl dash-home-panel p-6">
             <div>
               <h3 className="dash-heading-section">Active Addresses List</h3>
-              <p className="dash-body-compact mt-2 text-foreground/48">
+              <p className="dash-body-compact mt-2 text-muted-foreground">
                 {active.data && active.data.pagination.total >= 0
                   ? `${metricNumber(active.data.pagination.total, 0)} addresses · last 24 hours`
                   : "Last 24 hours"}
@@ -337,7 +334,10 @@ export function HomeAddresses() {
             ) : active.isPending ? (
               <p className="text-muted-foreground">Loading active addresses…</p>
             ) : active.data === null ? (
-              <MissingApiData description="The active addresses endpoint is not available on this backend." />
+              <MissingApiData
+                label="Unavailable"
+                description="The active addresses endpoint is not available on this backend."
+              />
             ) : !activeRows.length ? (
               <p className="text-muted-foreground">
                 No active addresses in this period.
@@ -363,11 +363,10 @@ export function HomeAddresses() {
       <div className="flex min-w-0 flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <AddressMetric
-            label="Circulating Supply"
+            label="Network Supply"
             value={supply === null ? "—" : `≈ ${formatCompact(supply)} DASH`}
-            detail="Mainnet DASH supply estimated from market capitalization and price, not the selected network’s UTXO balance."
-            period="Monthly change"
-            missing="Monthly supply history and change are not exposed. This is a market-data estimate, not the UTXO total."
+            detail="Sum of unspent outputs reported by Dash Core for the selected network. Cached for 30 minutes; not market-provider circulating supply."
+            period="Core UTXO snapshot"
           />
           <AddressMetric
             label="Unique Addresses"
@@ -386,7 +385,7 @@ export function HomeAddresses() {
             period="30D change"
             change={addressChange}
             missing={
-              addressChange == null
+              addressHistory.isSuccess && addressChange == null
                 ? "Complete address history for a 30-day comparison is not available."
                 : undefined
             }
@@ -400,12 +399,15 @@ export function HomeAddresses() {
           ) : distribution ? (
             <BalanceDistribution key={network} distribution={distribution} />
           ) : !rich.isError ? (
-            <MissingApiData description="The API has not provided a complete balance distribution." />
+            <MissingApiData
+              label="Unavailable"
+              description="The API has not provided a complete balance distribution."
+            />
           ) : null}
           <div className="flex min-h-0 flex-1 flex-col gap-6">
             <div>
               <h3 className="dash-heading-section">Addresses Rich List</h3>
-              <p className="dash-body-compact mt-2 text-foreground/48">
+              <p className="dash-body-compact mt-2 text-muted-foreground">
                 Largest indexed balances · updates every minute
               </p>
             </div>
