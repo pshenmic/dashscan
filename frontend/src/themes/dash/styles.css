@@ -241,7 +241,12 @@
 }
 
 :root[data-theme="dash"] .dash-header {
+  box-shadow: 0 4px 16px rgb(12 28 51 / 8%);
   transition: transform 140ms ease-out;
+}
+
+:root[data-theme="dash"].dark .dash-header {
+  box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
 }
 
 :root[data-theme="dash"] .dash-header[data-hidden="true"]:not(:has(:focus-visible)) {

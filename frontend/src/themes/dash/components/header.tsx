@@ -232,7 +232,7 @@ export default function Header() {
         if (!event.currentTarget.contains(event.relatedTarget))
           setFocused(false);
       }}
-      className="dash-header @container/header sticky top-0 z-40 mx-auto flex min-h-16 w-full max-w-[1440px] items-center justify-between gap-4 rounded-b-3xl border-b border-border bg-card px-4 py-3 sm:min-h-[72px] sm:px-8"
+      className="dash-header @container/header sticky top-0 z-40 mx-auto flex min-h-16 w-full max-w-[1440px] items-center justify-between gap-4 rounded-b-3xl border-x border-b border-border bg-card px-4 py-3 sm:min-h-[72px] sm:px-8"
     >
       <div className="flex min-w-0 items-center gap-8 min-[1400px]:gap-[95px]">
         <Link
