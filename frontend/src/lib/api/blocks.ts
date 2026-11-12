@@ -2,14 +2,44 @@ import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
 import { apiFetch, getBaseUrl } from "./client";
-import type { ApiBlock, PaginatedResponse, PaginationParams } from "./types";
+import { getSearch } from "./search";
+import type {
+  ApiBlock,
+  ApiBlockReward,
+  PaginatedResponse,
+  PaginationParams,
+} from "./types";
+
+export function blockRewardQueryOptions(params: {
+  network: Network;
+  height: number | null | undefined;
+}) {
+  return queryOptions({
+    queryKey: ["blockReward", params.network, params.height],
+    enabled: params.height != null,
+    queryFn: async ({ signal }): Promise<ApiBlockReward | null> => {
+      if (params.height == null) return null;
+      const url = new URL(
+        `/blocks/${params.height}/reward`,
+        getBaseUrl(params.network),
+      );
+      const response = await apiFetch(url, { signal });
+      if (response.status === 404) return null;
+      if (!response.ok)
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      return response.json();
+    },
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+}
 
 interface FetchBlocksInput extends PaginationParams {
   network: Network;
   superblock?: boolean | null;
 }
 
-async function getBlocks(params: FetchBlocksInput) {
+async function getBlocks(params: FetchBlocksInput, signal?: AbortSignal) {
   const url = new URL("/blocks", getBaseUrl(params.network));
   if (params.page !== undefined)
     url.searchParams.set("page", String(params.page));
@@ -19,7 +49,7 @@ async function getBlocks(params: FetchBlocksInput) {
   if (params.superblock != null)
     url.searchParams.set("superblock", String(params.superblock));
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -40,7 +70,7 @@ export function blocksQueryOptions(params: FetchBlocksInput) {
       params.order,
       params.superblock ?? null,
     ],
-    queryFn: () => getBlocks(params),
+    queryFn: ({ signal }) => getBlocks(params, signal),
   });
 }
 
@@ -57,18 +87,21 @@ export function blocksInfiniteQueryOptions(params: InfiniteBlocksInput) {
   const superblock = params.superblock ?? null;
   return infiniteQueryOptions({
     queryKey: ["blocks-infinite", params.network, limit, order, superblock],
-    queryFn: ({ pageParam }) =>
-      getBlocks({
-        network: params.network,
-        page: pageParam,
-        limit,
-        order,
-        superblock,
-      }),
+    queryFn: ({ pageParam, signal }) =>
+      getBlocks(
+        {
+          network: params.network,
+          page: pageParam,
+          limit,
+          order,
+          superblock,
+        },
+        signal,
+      ),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
-      const { page, limit: pageLimit, total } = lastPage.pagination;
-      return page * pageLimit < total ? page + 1 : undefined;
+      const { page, limit: pageLimit } = lastPage.pagination;
+      return lastPage.resultSet.length === pageLimit ? page + 1 : undefined;
     },
   });
 }
@@ -78,9 +111,25 @@ interface FetchBlockInput {
   hash: string;
 }
 
-async function getBlock(params: FetchBlockInput) {
-  const url = new URL(`/block/${params.hash}`, getBaseUrl(params.network));
-  const response = await apiFetch(url);
+export class BlockNotFoundError extends Error {
+  constructor() {
+    super("Block not found");
+  }
+}
+
+async function getBlock(params: FetchBlockInput, signal?: AbortSignal) {
+  let hash = params.hash;
+  if (/^\d{1,16}$/.test(hash)) {
+    const result = await getSearch(
+      { network: params.network, query: hash },
+      signal,
+    );
+    if (!result.block) throw new BlockNotFoundError();
+    hash = result.block.hash;
+  }
+  const url = new URL(`/block/${hash}`, getBaseUrl(params.network));
+  const response = await apiFetch(url, { signal });
+  if (response.status === 404) throw new BlockNotFoundError();
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -94,6 +143,26 @@ export const fetchBlock = createServerFn({ method: "POST" })
 export function blockQueryOptions(params: FetchBlockInput) {
   return queryOptions({
     queryKey: ["block", params.network, params.hash],
-    queryFn: () => getBlock(params),
+    queryFn: ({ signal }) => getBlock(params, signal),
+  });
+}
+
+export function blockLookupQueryOptions(params: {
+  network: Network;
+  value: string;
+}) {
+  return queryOptions({
+    queryKey: ["block-lookup", params.network, params.value],
+    queryFn: async ({ signal }) => {
+      try {
+        return await getBlock(
+          { network: params.network, hash: params.value },
+          signal,
+        );
+      } catch (error) {
+        if (error instanceof BlockNotFoundError) return null;
+        throw error;
+      }
+    },
   });
 }

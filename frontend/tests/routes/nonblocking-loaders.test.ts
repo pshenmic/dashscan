@@ -5,7 +5,7 @@ import { Route as blockDetailRoute } from "@/routes/blocks.$hashOrHeight";
 import { Route as blocksRoute } from "@/routes/blocks.index";
 import { Route as proposalDetailRoute } from "@/routes/dao.$hash";
 import { Route as daoRoute } from "@/routes/dao.index";
-import { Route as dashboardRoute } from "@/routes/index";
+import { Route as dashboardRoute } from "@/routes/dashboard";
 import { Route as masternodeDetailRoute } from "@/routes/masternodes.$hash";
 import { Route as masternodesRoute } from "@/routes/masternodes.index";
 import { Route as ogRoute } from "@/routes/og.$kind.$id";
@@ -40,8 +40,11 @@ describe("route data loading", () => {
       prefetchQuery: vi.fn().mockResolvedValue(undefined),
     };
 
+    const loader = blockDetailRoute.options.loader;
+    if (typeof loader !== "function") throw new Error("Expected a route loader");
+
     await expect(
-      blockDetailRoute.options.loader?.({
+      loader({
         context: { queryClient },
         params: { hashOrHeight: "slow-block" },
       } as never),
@@ -59,10 +62,14 @@ describe("route data loading", () => {
       prefetchQuery: vi.fn().mockResolvedValue(undefined),
     };
 
-    await dashboardRoute.options.loader?.({
+    const loader = dashboardRoute.options.loader;
+    if (typeof loader !== "function") throw new Error("Expected a route loader");
+
+    await loader({
       context: { queryClient },
     } as never);
 
     expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(9);
   });
+
 });

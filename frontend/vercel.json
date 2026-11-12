@@ -1,4 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "NETWORK=mainnet DASHSCAN_API_URL=https://dashscan.pshenmic.dev npm run build",
   "fluid": true
 }

@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { buildSmoothPath } from "@/themes/dash/lib/chart-utils";
 
@@ -9,7 +10,7 @@ type MasternodesChartProps = {
 
 function formatDateLabel(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatDateTime(d, { month: "short", day: "numeric" });
 }
 
 export function MasternodesChart({ data, className }: MasternodesChartProps) {
@@ -74,12 +75,12 @@ export function MasternodesChart({ data, className }: MasternodesChartProps) {
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop
               offset="0%"
-              stopColor="oklch(from var(--accent) l c h)"
+              stopColor="oklch(from var(--chart-1) l c h)"
               stopOpacity="0.35"
             />
             <stop
               offset="100%"
-              stopColor="oklch(from var(--accent) l c h)"
+              stopColor="oklch(from var(--chart-1) l c h)"
               stopOpacity="0.05"
             />
           </linearGradient>
@@ -115,7 +116,7 @@ export function MasternodesChart({ data, className }: MasternodesChartProps) {
         <path
           d={linePath}
           fill="none"
-          stroke="oklch(from var(--accent) l c h)"
+          stroke="oklch(from var(--chart-1) l c h)"
           strokeWidth="1.5"
         />
 
@@ -128,12 +129,12 @@ export function MasternodesChart({ data, className }: MasternodesChartProps) {
             r={hoveredIndex === i ? 4 : 2}
             fill={
               hoveredIndex === i
-                ? "oklch(from var(--accent) l c h)"
+                ? "oklch(from var(--chart-1) l c h)"
                 : "transparent"
             }
             stroke={
               hoveredIndex === i
-                ? "oklch(from var(--accent) l c h)"
+                ? "oklch(from var(--chart-1) l c h)"
                 : "transparent"
             }
             strokeWidth="1.5"
@@ -184,7 +185,7 @@ export function MasternodesChart({ data, className }: MasternodesChartProps) {
           }}
         >
           <div className="font-semibold text-[#21314d]">
-            {points[hoveredIndex].count.toLocaleString()} Nodes
+            {formatNumber(points[hoveredIndex].count)} Nodes
           </div>
           <div className="mt-0.5 text-[#7f8da8]">
             {formatDateLabel(points[hoveredIndex].date)}

@@ -1,8 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-
-import { Avatar } from "dash-ui-kit/react";
 import {
   ArrowLeftRight,
   Box,
@@ -12,6 +10,8 @@ import {
   MoveUp,
 } from "lucide-react";
 import { useState } from "react";
+import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +40,7 @@ import { volumeHistoricalQueryOptions } from "@/lib/api/volume";
 import {
   formatCompactUsd,
   formatDash,
-  formatRelativeTime,
+  formatNumber,
   sumVOut,
 } from "@/lib/format";
 import { appStore } from "@/lib/store";
@@ -146,8 +146,8 @@ export default function ClassicDashboardPage() {
   return (
     <main className="mx-auto max-w-[1440px] px-6 py-10">
       <div className="mb-8">
-        <p className="text-sm text-muted-foreground">Welcome to #1</p>
-        <h1 className="text-4xl font-extrabold tracking-tight">
+        <p className="dash-body-compact text-muted-foreground">Welcome to #1</p>
+        <h1 className="dash-heading-page sm:dash-heading-hero">
           <span className="text-accent">Dash</span> Blockchain Explorer
         </h1>
       </div>
@@ -268,7 +268,11 @@ export default function ClassicDashboardPage() {
                     {formatDash(sumVOut(tx.vOut))}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {tx.timestamp ? formatRelativeTime(tx.timestamp) : ""}
+                    {tx.timestamp ? (
+                      <RelativeTime timestamp={tx.timestamp} />
+                    ) : (
+                      ""
+                    )}
                   </p>
                 </div>
               </Link>
@@ -316,7 +320,7 @@ export default function ClassicDashboardPage() {
                 <div className="text-right">
                   <p className="text-sm font-bold">{block.txCount} TXS</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatRelativeTime(block.timestamp)}
+                    {<RelativeTime timestamp={block.timestamp} />}
                   </p>
                 </div>
               </Link>
@@ -420,7 +424,7 @@ export default function ClassicDashboardPage() {
                 {mnData?.pagination.total != null &&
                 mnData.pagination.total > 0 ? (
                   <>
-                    {mnData.pagination.total.toLocaleString()}{" "}
+                    {formatNumber(mnData.pagination.total)}{" "}
                     <span className="text-base font-medium">Nodes</span>
                   </>
                 ) : (

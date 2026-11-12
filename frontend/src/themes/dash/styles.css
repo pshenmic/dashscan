@@ -1,71 +1,375 @@
 :root[data-theme="dash"] {
-  background: rgba(248, 248, 248, 1);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.178 0.032 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.178 0.032 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.178 0.032 260);
-  --primary: oklch(0.178 0.032 260);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.178 0.032 260);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.178 0.032 260 / 48%);
-  --accent: oklch(0.588 0.185 264);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.913 0.004 260);
-  --input: rgb(12 28 51 / 0.24);
-  --ring: oklch(0.871 0.006 286.286);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  background: var(--background);
+  --background: #f8f8f8;
+  --foreground: #0c1c33;
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --brand: #4c7eff;
+  --action-primary: var(--brand);
+  --action-solid: #2457d6;
+  --action-subtle: rgb(76 126 255 / 12%);
+  --primary: var(--action-solid);
+  --primary-foreground: #ffffff;
+  --secondary: rgb(12 28 51 / 4%);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--secondary);
+  --muted-foreground: rgb(12 28 51 / 64%);
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --positive-brand: #95bf40;
+  --success: #4f6e19;
+  --success-foreground: #ffffff;
+  --border: rgb(12 28 51 / 12%);
+  --input: rgb(12 28 51 / 48%);
+  --ring: var(--primary);
+  --chart-1: var(--brand);
+  --chart-2: var(--positive-brand);
+  --chart-3: rgb(76 126 255 / 24%);
+  --chart-4: rgb(76 126 255 / 32%);
+  --chart-5: rgb(76 126 255 / 64%);
+  --card-shadow: 0 0 48px rgb(12 28 51 / 8%);
   --radius: 0.5rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.21 0.006 285.885);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.871 0.006 286.286);
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--secondary);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 :root[data-theme="dash"].dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.141 0.005 285.823);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.141 0.005 285.823);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.274 0.006 286.033);
-  --input: oklch(0.274 0.006 286.033);
-  --ring: oklch(0.442 0.017 285.786);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.274 0.006 286.033);
-  --sidebar-ring: oklch(0.442 0.017 285.786);
+  --background: #161921;
+  --foreground: #ffffff;
+  --card: #262b34;
+  --popover: #2e323a;
+  --secondary: rgb(255 255 255 / 4%);
+  --muted-foreground: rgb(255 255 255 / 64%);
+  --accent: #8cabff;
+  --accent-foreground: #0c1c33;
+  --destructive: #ff7272;
+  --destructive-foreground: #0c1c33;
+  --success: var(--positive-brand);
+  --success-foreground: #0c1c33;
+  --border: rgb(255 255 255 / 12%);
+  --input: rgb(255 255 255 / 48%);
+  --ring: var(--accent);
+}
+
+:root[data-theme="dash"] [data-slot="tooltip-content"] {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgb(12 28 51 / 8%);
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-positive-brand: var(--positive-brand);
+  --color-action-primary: var(--action-primary);
+  --color-action-solid: var(--action-solid);
+  --color-action-subtle: var(--action-subtle);
+}
+
+@utility dash-heading-hero {
+  @apply font-sans text-5xl leading-[3.75rem] font-medium tracking-normal;
+}
+
+@utility dash-heading-page {
+  @apply font-sans text-[2rem] leading-[2.625rem] font-medium tracking-normal;
+}
+
+@utility dash-heading-section {
+  @apply font-sans text-2xl leading-8 font-medium tracking-normal;
+}
+
+@utility dash-body {
+  @apply font-sans text-base leading-6 font-medium tracking-normal;
+}
+
+@utility dash-body-compact {
+  @apply font-sans text-sm leading-5 font-medium tracking-normal;
+}
+
+@utility dash-label-small {
+  @apply font-sans text-xs leading-[1.125rem] font-medium tracking-normal;
+}
+
+@utility dash-metric {
+  @apply font-sans text-2xl leading-8 font-extrabold tracking-normal;
+}
+
+@utility dash-data-mono {
+  @apply font-mono text-xs leading-[1.125rem] font-normal tracking-normal;
+}
+
+:root[data-theme="dash"] .dash-home-node-map > svg:focus {
+  outline: none;
+}
+
+:root[data-theme="dash"] .dash-home-node-map:has(> svg:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+
+:root[data-theme="dash"] .dash-network-pie :focus {
+  outline: none;
+}
+
+:root[data-theme="dash"] .dash-home-grid-surface {
+  mask-image:
+    linear-gradient(to right, transparent, black clamp(24px, 5vw, 72px), black calc(100% - clamp(24px, 5vw, 72px)), transparent),
+    linear-gradient(to bottom, black calc(100% - 160px), transparent);
+  mask-composite: intersect;
+}
+
+:root[data-theme="dash"] .dash-home-grid-fill {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--foreground) 5%, transparent) 0.8px, transparent 0.8px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 5%, transparent) 0.8px, transparent 0.8px);
+  background-size: 51.399px 51.3703px;
+  background-position: 0.156px 0.927px;
+}
+
+:root[data-theme="dash"] .dash-grid-signal {
+  opacity: 0;
+}
+
+:root[data-theme="dash"] [data-grid-band] {
+  contain: paint;
+  mask-image: linear-gradient(to right, transparent, black clamp(24px, 5vw, 72px), black calc(100% - clamp(24px, 5vw, 72px)), transparent);
+}
+
+:root[data-theme="dash"] [data-grid-band]:last-child {
+  mask-image:
+    linear-gradient(to right, transparent, black clamp(24px, 5vw, 72px), black calc(100% - clamp(24px, 5vw, 72px)), transparent),
+    linear-gradient(to bottom, black calc(100% - 160px), transparent);
+  mask-composite: intersect;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme="dash"] [data-home-motion="true"] ~ .dash-home-hero .dash-status-dot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--positive-brand);
+    pointer-events: none;
+    animation: dash-status-pulse 3s ease-out infinite;
+  }
+}
+
+@keyframes dash-status-pulse {
+  0% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  60%, 100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+@utility dash-home-panel {
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+:root[data-theme="dash"] .dash-node-map-geography {
+  fill: color-mix(in srgb, var(--foreground) 20%, var(--card));
+  stroke: var(--card);
+  stroke-width: 0.75;
+  outline: none;
+}
+
+@media (forced-colors: active) {
+  :root[data-theme="dash"],
+  :root[data-theme="dash"].dark {
+    --brand: LinkText;
+    --accent: LinkText;
+    --action-solid: Highlight;
+    --action-primary: Highlight;
+    --primary-foreground: HighlightText;
+    --card: Canvas;
+    --foreground: CanvasText;
+    --muted-foreground: CanvasText;
+    --border: CanvasText;
+    --ring: Highlight;
+    --chart-1: CanvasText;
+  }
+
+  :root[data-theme="dash"] .dash-home-panel,
+  :root[data-theme="dash"] .dash-home-action {
+    border: 1px solid ButtonText;
+  }
+
+  :root[data-theme="dash"] .dash-home-action,
+  :root[data-theme="dash"] .dash-home-action span {
+    forced-color-adjust: none;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  :root[data-theme="dash"] .dash-home-action::before {
+    display: none;
+  }
+
+  :root[data-theme="dash"] [data-home-icon],
+  :root[data-theme="dash"] .dash-home-action [data-home-icon] {
+    forced-color-adjust: none;
+    background: ButtonText;
+  }
+
+  :root[data-theme="dash"] .dash-home-grid-surface,
+  :root[data-theme="dash"] [data-grid-band] {
+    display: none;
+  }
+
+  :root[data-theme="dash"] .dash-node-map-geography {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+}
+
+:root[data-theme="dash"] {
+  scroll-padding-top: 88px;
+}
+
+:root[data-theme="dash"] .dash-header {
+  box-shadow: 0 4px 16px rgb(12 28 51 / 8%);
+  transition: transform 140ms ease-out;
+}
+
+:root[data-theme="dash"].dark .dash-header {
+  box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
+}
+
+:root[data-theme="dash"] .dash-header[data-hidden="true"]:not(:has(:focus-visible)) {
+  transform: translateY(-100%);
+}
+
+:root[data-theme="dash"] .dash-header:has(:focus-visible) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="dash"] .dash-header {
+    transition: none;
+  }
+}
+
+:root[data-theme="dash"] .dash-home-action {
+  transition: background-color 160ms ease-out, color 160ms ease-out;
+}
+
+:root[data-theme="dash"] .dash-home-action-subtle {
+  position: relative;
+  isolation: isolate;
+  background-color: color-mix(in srgb, var(--brand) 12%, var(--background));
+}
+
+:root[data-theme="dash"] .dash-home-action-subtle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--brand) 16%, var(--background)), color-mix(in srgb, var(--brand) 24%, var(--background)));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease-out;
+}
+
+:root[data-theme="dash"] .dash-home-action-subtle:focus-visible::before {
+  opacity: 1;
+}
+
+:root[data-theme="dash"] .dash-home-action-subtle:active {
+  background-color: color-mix(in srgb, var(--brand) 28%, var(--background));
+}
+
+:root[data-theme="dash"] .dash-home-action-subtle:active::before {
+  opacity: 0;
+}
+
+:root[data-theme="dash"] .dash-home-table tbody tr {
+  transition: background-color 160ms ease-out;
+}
+
+:root[data-theme="dash"] .dash-home-table tbody tr:focus-within {
+  background-color: var(--action-subtle);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-theme="dash"] .dash-copy-control[data-status="idle"] .dash-copy-button {
+    opacity: 0;
+  }
+
+  :root[data-theme="dash"] :has(> .dash-copy-control):is(:hover, :focus-within) > .dash-copy-control .dash-copy-button,
+  :root[data-theme="dash"] tr:is(:hover, :focus-within) .dash-copy-control .dash-copy-button {
+    opacity: 1;
+  }
+
+  :root[data-theme="dash"] .dash-home-action-subtle:hover:not(:active)::before {
+    opacity: 1;
+  }
+
+  :root[data-theme="dash"] .dash-home-table tbody tr:has(a, button):hover {
+    background-color: var(--action-subtle);
+  }
+}
+
+:root[data-theme="dash"] .dash-home-table [data-new-block="true"] {
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+:root[data-theme="dash"] .dash-timeline-block[data-new-block="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--primary-foreground);
+  border-radius: inherit;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme="dash"] [data-home-motion="true"] ~ * .dash-timeline-block {
+    transition: background-color 160ms ease-out;
+  }
+
+  :root[data-theme="dash"] [data-home-motion="true"] ~ * .dash-timeline-block[data-new-block="true"]::after {
+    animation: dash-timeline-arrival 2400ms ease-out both;
+  }
+
+  :root[data-theme="dash"] [data-home-motion="true"] ~ * .dash-home-table [data-new-block="true"] {
+    animation: dash-block-arrival 2400ms ease-out;
+  }
+}
+
+@keyframes dash-timeline-arrival {
+  from { opacity: 0.7; }
+  to { opacity: 0; }
+}
+
+@keyframes dash-block-arrival {
+  from { box-shadow: inset 3px 0 var(--accent); }
+  to { box-shadow: inset 3px 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="dash"] .dash-home-action,
+  :root[data-theme="dash"] .dash-home-action-subtle::before {
+    transition: none;
+  }
+
+  :root[data-theme="dash"] .dash-home-table [data-new-block="true"] {
+    animation: none;
+    box-shadow: inset 3px 0 var(--accent);
+  }
 }

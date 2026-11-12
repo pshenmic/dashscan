@@ -9,6 +9,8 @@ import {
 } from "@tanstack/react-table";
 import { Calendar, ChevronDown, ChevronUp, Minus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RelativeTime } from "@/components/relative-time";
+import { useNow } from "@/components/render-clock";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -25,7 +27,7 @@ import {
 } from "@/lib/api/governance";
 import { masternodesQueryOptions } from "@/lib/api/masternodes";
 import type { ApiGovernanceObject } from "@/lib/api/types";
-import { formatDuration, formatRelativeTime } from "@/lib/format";
+import { formatDateTime, formatDuration, formatNumber } from "@/lib/format";
 import {
   getMsUntilSuperblock,
   getRequiredVotes,
@@ -47,9 +49,11 @@ const columns: ColumnDef<ApiGovernanceObject>[] = [
     header: "Creation Time",
     cell: ({ getValue }) => (
       <span className="text-muted-foreground">
-        {getValue<string | null>()
-          ? formatRelativeTime(getValue<string>())
-          : "—"}
+        {getValue<string | null>() ? (
+          <RelativeTime timestamp={getValue<string>()} />
+        ) : (
+          "—"
+        )}
       </span>
     ),
   },
@@ -122,7 +126,7 @@ const columns: ColumnDef<ApiGovernanceObject>[] = [
         return <span className="text-muted-foreground">—</span>;
       return (
         <Badge className="h-6 gap-1 border-0 bg-accent/12 font-medium text-accent">
-          {amount.toLocaleString()}
+          {formatNumber(amount)}
           <img src="/icons/dash.svg" alt="" className="size-3.5" />
         </Badge>
       );
@@ -133,6 +137,7 @@ const columns: ColumnDef<ApiGovernanceObject>[] = [
 const skeletonWidths = ["w-20", "w-40", "w-36", "w-36", "w-20"];
 
 export default function ClassicDaoPage() {
+  const now = useNow();
   const storeNetwork = useStore(appStore, (state) => state.network);
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
@@ -192,7 +197,12 @@ export default function ClassicDaoPage() {
     network,
     blockTimeMs,
   );
-  const votingDeadline = getVotingDeadline(currentHeight, network, blockTimeMs);
+  const votingDeadline = getVotingDeadline(
+    currentHeight,
+    network,
+    blockTimeMs,
+    now,
+  );
 
   const chartData = useMemo(() => {
     const triggers = (allProposals ?? []).filter(
@@ -204,7 +214,7 @@ export default function ClassicDaoPage() {
     for (const t of triggers) {
       if (!t.creationTime) continue;
       const d = new Date(t.creationTime);
-      const key = `${d.toLocaleString("en", { month: "short" })} ${d.getFullYear()}`;
+      const key = formatDateTime(d, { month: "short", year: "numeric" });
       months.set(key, (months.get(key) ?? 0) + 1);
     }
 
@@ -244,7 +254,7 @@ export default function ClassicDaoPage() {
               bgImage="/images/dao/available-budget.png"
               value={
                 <span className="inline-flex items-center gap-2">
-                  {availableBudget.toLocaleString()}
+                  {formatNumber(availableBudget)}
                   <img src="/icons/dash.svg" alt="" className="size-5" />
                 </span>
               }
@@ -263,7 +273,7 @@ export default function ClassicDaoPage() {
               bgImage="/images/dao/remaining-budget.png"
               value={
                 <span className="inline-flex items-center gap-2">
-                  {Math.round(remainingBudget).toLocaleString()}
+                  {formatNumber(Math.round(remainingBudget))}
                   <img src="/icons/dash.svg" alt="" className="size-5" />
                 </span>
               }
@@ -294,7 +304,7 @@ export default function ClassicDaoPage() {
                 Voting Deadline:
               </span>
               <span className="flex items-center gap-2 font-medium text-[#10213f]">
-                {votingDeadline.toLocaleString("en-US", {
+                {formatDateTime(votingDeadline, {
                   year: "numeric",
                   month: "short",
                   day: "numeric",
@@ -338,10 +348,10 @@ export default function ClassicDaoPage() {
                 </p>
                 <CardTitle className="mt-1 flex flex-wrap items-baseline gap-2 tracking-[-0.03em]">
                   <span className="text-[32px] font-extrabold text-[#21314d]">
-                    {Math.round(fundedAmount).toLocaleString()}
+                    {formatNumber(Math.round(fundedAmount))}
                   </span>
                   <span className="text-[24px] font-medium text-muted-foreground">
-                    / {availableBudget.toLocaleString()} DASH
+                    / {formatNumber(availableBudget)} DASH
                   </span>
                 </CardTitle>
               </div>

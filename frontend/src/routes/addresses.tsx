@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 import { z } from "zod";
 import { getAddressActivityWindowBounds } from "@/lib/address-activity-window";
 import {
@@ -7,12 +8,20 @@ import {
 } from "@/lib/api/addresses";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import RedesignAddressesPage from "@/themes/neo/pages/addresses";
+import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
+
+const DashAddressesPage = lazy(() => import("@/themes/dash/pages/addresses"));
 
 const addressesSearchSchema = z.object({
   tab: z.enum(["active", "rich"]).optional().catch(undefined),
   window: z.enum(["24h", "3d", "7d", "30d"]).optional().catch(undefined),
   page: z.number().int().min(1).optional().catch(undefined),
+  limit: z
+    .union([z.literal(10), z.literal(25), z.literal(50), z.literal(100)])
+    .optional()
+    .catch(undefined),
+  order: z.enum(["asc", "desc"]).optional().catch(undefined),
+  view: z.enum(["pagination", "infinite"]).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/addresses")({
@@ -49,5 +58,9 @@ export const Route = createFileRoute("/addresses")({
 });
 
 function AddressesRoute() {
-  return <RedesignAddressesPage />;
+  return (
+    <Suspense fallback={<LazyThemePageFallback />}>
+      <DashAddressesPage />
+    </Suspense>
+  );
 }
