@@ -254,7 +254,10 @@ export default function SearchBar({
               className={`dash-home-action flex shrink-0 items-center justify-center bg-foreground/8 text-foreground hover:bg-foreground/12 focus-visible:outline-2 focus-visible:outline-ring ${compact ? "size-8 rounded-lg" : "size-12 rounded-[18px]"}`}
             >
               {pending ? (
-                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                <Loader2
+                  aria-hidden="true"
+                  className="size-4 motion-safe:animate-spin"
+                />
               ) : (
                 <HomeIcon name="search" />
               )}

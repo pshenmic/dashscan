@@ -3,7 +3,7 @@ import { allPeersQueryOptions } from "@/lib/api/peers";
 import { paginationSearchSchema } from "@/lib/pagination";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import RedesignPeersListPage from "@/themes/neo/pages/peers";
+import PeersListPage from "@/themes/dash/pages/peers";
 
 export const Route = createFileRoute("/peers/")({
   validateSearch: paginationSearchSchema,
@@ -21,5 +21,5 @@ export const Route = createFileRoute("/peers/")({
 });
 
 function PeersListRoute() {
-  return <RedesignPeersListPage />;
+  return <PeersListPage />;
 }

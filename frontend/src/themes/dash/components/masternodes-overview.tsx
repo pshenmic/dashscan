@@ -50,12 +50,16 @@ export function MasternodesOverview({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-medium">Masternode growth</h2>
-              <InfoPopover label="About masternode history">
-                Regular masternodes and Evonodes across all statuses. History
-                uses network snapshots, not indexer registration dates. Missing
-                snapshots are not zero.
-              </InfoPopover>
+              <h2 className="text-base font-medium">
+                <InfoPopover
+                  label="About masternode history"
+                  trigger="Masternode growth"
+                >
+                  Regular masternodes and Evonodes across all statuses. History
+                  uses network snapshots, not indexer registration dates.
+                  Missing snapshots are not zero.
+                </InfoPopover>
+              </h2>
             </div>
             <p className="mt-2 text-[32px] font-extrabold tabular-nums">
               {loading ? (
@@ -109,14 +113,16 @@ export function MasternodesOverview({
       <section className="min-w-0 rounded-3xl bg-card px-5 py-4 sm:px-6">
         <div className="mb-3 flex items-center gap-2">
           <h2 className="text-sm text-muted-foreground">
-            Masternode collateral
+            <InfoPopover
+              label="About masternode collateral"
+              trigger="Masternode collateral"
+            >
+              Calculated from registered nodes across all statuses: 1,000 DASH
+              per regular masternode and 4,000 DASH per Evonode. This is not a
+              locked balance. Spending collateral removes the node from the
+              masternode list.
+            </InfoPopover>
           </h2>
-          <InfoPopover label="About masternode collateral">
-            Calculated from registered nodes across all statuses: 1,000 DASH per
-            regular masternode and 4,000 DASH per Evonode. This is not a locked
-            balance. Spending collateral removes the node from the masternode
-            list.
-          </InfoPopover>
         </div>
         <p className="text-2xl font-semibold tabular-nums">
           {loading ? (

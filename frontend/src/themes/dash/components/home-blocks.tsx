@@ -7,43 +7,39 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { blockRewardQueryOptions } from "@/lib/api/blocks";
 import { formatDateTime } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { useNewBlocks } from "@/themes/dash/hooks/use-new-blocks";
-import { metricBytes, metricNumber } from "@/themes/dash/lib/home-metrics";
-import { BlockAge } from "./block-age";
+import {
+  metricBytes,
+  metricDuffs,
+  metricNumber,
+} from "@/themes/dash/lib/home-metrics";
+import { BlocksTimeline } from "./blocks-timeline";
 import { HomeIcon } from "./home-icon";
-import { HomeTable } from "./home-table";
-import { IdentifierLink } from "./identifier-link";
+import { LatestBlocksTable } from "./latest-blocks-table";
 import { MissingApiData } from "./missing-api-data";
 
 export function HomeBlocks() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
   const chain = useQuery(homeChainQueryOptions(network));
+  const superblockHeight = chain.data?.latestSuperblockHeight;
+  const reward = useQuery(
+    blockRewardQueryOptions({ network, height: superblockHeight }),
+  );
+  const subsidy =
+    reward.data?.height === superblockHeight
+      ? metricDuffs(reward.data?.subsidy)
+      : "—";
   const blocksQuery = useQuery(homeBlocksQueryOptions(network));
   const newHashes = useNewBlocks(blocksQuery.data?.resultSet, network);
   const blocks = [...(blocksQuery.data?.resultSet ?? [])].sort(
     (first, second) => second.height - first.height,
   );
   const latest = blocks[0];
-  const timeline = blocks.slice(0, 3).reverse();
-  const upcoming = latest
-    ? ["Next block", "Following block"].map((label, index) => ({
-        height: latest.height + index + 1,
-        label,
-      }))
-    : [];
-  const blockTime = chain.data?.blockTime;
-  const averageSeconds =
-    blockTime != null && Number.isFinite(blockTime) && blockTime > 0
-      ? Math.round(blockTime / 1000)
-      : null;
-  const averageInterval =
-    averageSeconds == null
-      ? "—"
-      : `${metricNumber(Math.floor(averageSeconds / 60), 0)}m ${String(averageSeconds % 60).padStart(2, "0")}s`;
   const averageSize = blocks.length
     ? blocks.reduce((total, block) => total + block.size, 0) / blocks.length
     : null;
@@ -124,13 +120,13 @@ export function HomeBlocks() {
           >
             <span className="font-extrabold text-brand">Blocks</span> Stats
           </h2>
-          <p className="dash-body mt-3 text-foreground/50">
+          <p className="dash-body mt-3 text-muted-foreground">
             Dash targets an average block interval of about 2.6 minutes —
             explore each block to see more statistics.
           </p>
           <Link
             to="/blocks"
-            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             Explore Blocks
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
@@ -160,115 +156,53 @@ export function HomeBlocks() {
             )}
             <span className="text-muted-foreground">
               <span className="inline-flex flex-wrap items-center gap-2 rounded-full bg-card px-2 py-1 shadow-[0_0_24px_rgb(12_28_51/8%)]">
-                Block Reward:
-                <MissingApiData
-                  inline
-                  description="The API exposes the current Core-tip subsidy, but not the subsidy, fees and treasury payouts tied to this displayed superblock."
-                />
+                Block Subsidy:
+                {superblockHeight == null ? (
+                  <span>—</span>
+                ) : reward.isPending ? (
+                  <output aria-label="Loading block subsidy">…</output>
+                ) : reward.isError ? (
+                  <button
+                    type="button"
+                    className="text-destructive underline"
+                    aria-label="Retry block subsidy"
+                    onClick={() => void reward.refetch()}
+                  >
+                    Retry
+                  </button>
+                ) : subsidy !== "—" ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="rounded text-accent focus-visible:outline-2 focus-visible:outline-ring"
+                      >
+                        {subsidy} DASH
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Subsidy for block #{metricNumber(superblockHeight, 0)},
+                      excluding transaction fees and treasury payouts.
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <MissingApiData
+                    label="Unavailable"
+                    inline
+                    description="The selected network has not returned a subsidy for this superblock."
+                  />
+                )}
               </span>
             </span>
           </div>
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-[2rem] font-medium leading-[1.1]">
-                Timeline
-              </h3>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="dash-label-small rounded-sm text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring"
-                  >
-                    Avg interval · {averageInterval}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-64">
-                  Average interval over the latest 20 indexed blocks. This is
-                  historical data, not a countdown to the next block.
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <p className="mt-2 text-base font-medium leading-[1.1] text-foreground/48">
-              Recently mined blocks and upcoming block heights.
-            </p>
-          </div>
-          {blocksQuery.isPending ? (
-            <p className="dash-body-compact text-muted-foreground">
-              Loading blocks…
-            </p>
-          ) : blocksQuery.isError && !blocks.length ? (
-            <p role="alert" className="dash-body-compact text-destructive">
-              Blocks are unavailable.{" "}
-              <button
-                type="button"
-                className="underline"
-                onClick={() => void blocksQuery.refetch()}
-              >
-                Try again
-              </button>
-            </p>
-          ) : !blocks.length ? (
-            <p className="dash-body-compact text-muted-foreground">
-              No blocks found.
-            </p>
-          ) : (
-            <ol
-              aria-label="Recent blocks and upcoming heights"
-              className="-mx-4 -my-6 flex gap-6 overflow-x-auto px-4 py-6 sm:-mx-6 sm:px-6"
-            >
-              {timeline.map((block) => (
-                <li
-                  key={block.hash}
-                  className="min-w-[128px] flex-1 rounded-xl"
-                >
-                  <Link
-                    to="/blocks/$hashOrHeight"
-                    params={{ hashOrHeight: block.hash }}
-                    data-new-block={newHashes.includes(block.hash) || undefined}
-                    className="dash-timeline-block relative flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-brand p-3 text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                  >
-                    <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
-                      <span
-                        aria-hidden="true"
-                        className="h-[11px] w-[10px] shrink-0 bg-current [mask:url('/icons/home/timeline-block.svg')_center/contain_no-repeat]"
-                      />
-                      #{metricNumber(block.height, 0)}
-                    </span>
-                    <span className="flex items-center justify-between gap-2 text-xs">
-                      <span className="text-sm">
-                        <strong>{metricNumber(block.txCount, 0)}</strong> Txs
-                      </span>
-                      <span className="text-primary-foreground/48">
-                        {metricBytes(block.size)}
-                      </span>
-                    </span>
-                  </Link>
-                  <div className="relative mt-2 pt-3 text-center text-[10px] text-foreground/48 before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-brand after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)]">
-                    <BlockAge timestamp={block.timestamp} />
-                  </div>
-                </li>
-              ))}
-              {upcoming.map((block) => (
-                <li key={block.height} className="group min-w-[128px] flex-1">
-                  <div className="flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-card p-3 text-brand shadow-[0_0_24px_rgb(12_28_51/8%)]">
-                    <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
-                      <span
-                        aria-hidden="true"
-                        className="h-[11px] w-[10px] shrink-0 bg-current [mask:url('/icons/home/timeline-block.svg')_center/contain_no-repeat]"
-                      />
-                      #{metricNumber(block.height, 0)}
-                    </span>
-                    <span className="whitespace-nowrap text-xs font-extrabold leading-[1.3]">
-                      {block.label}
-                    </span>
-                  </div>
-                  <div className="relative mt-2 min-h-[26px] pt-3 text-center text-[10px] text-foreground/48 before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-dashed before:border-brand/24 after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)] group-last:before:right-0">
-                    <span className="sr-only">Not yet mined</span>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
+          <BlocksTimeline
+            blocks={blocks}
+            blockTime={chain.data?.blockTime}
+            newHashes={newHashes}
+            loading={blocksQuery.isPending}
+            error={blocksQuery.isError}
+            onRetry={() => void blocksQuery.refetch()}
+          />
         </div>
       </div>
       <div className="grid gap-4 lg:grid-cols-[208px_minmax(0,1fr)]">
@@ -290,7 +224,7 @@ export function HomeBlocks() {
                 />
               </span>
               <div className="space-y-2">
-                <h3 className="text-sm font-medium leading-[1.1] text-foreground/50">
+                <h3 className="text-sm font-medium leading-[1.1] text-muted-foreground">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
@@ -305,7 +239,7 @@ export function HomeBlocks() {
                     </TooltipContent>
                   </Tooltip>
                 </h3>
-                <p className="break-words text-2xl font-extrabold leading-[1.2] text-brand">
+                <p className="break-words text-2xl font-extrabold leading-[1.2] text-accent">
                   {item.value}
                   {item.unit && (
                     <span className="font-medium"> {item.unit}</span>
@@ -320,7 +254,7 @@ export function HomeBlocks() {
                       <span className="rounded-lg bg-secondary px-2 py-1 font-medium text-muted-foreground">
                         {item.detailLabel}
                       </span>
-                      <span className="font-extrabold text-brand/64">
+                      <span className="font-extrabold text-accent">
                         {item.detail}
                       </span>
                     </button>
@@ -335,7 +269,7 @@ export function HomeBlocks() {
         </div>
         <div className="min-w-0 rounded-3xl dash-home-panel p-4 sm:p-6">
           <h3 className="text-2xl font-medium leading-[1.1]">Block List</h3>
-          <p className="mb-6 mt-2 text-sm font-medium leading-[1.1] text-foreground/48">
+          <p className="mb-6 mt-2 text-sm font-medium leading-[1.1] text-muted-foreground">
             Latest indexed blocks · updates every 30 seconds
           </p>
           {blocksQuery.isError && blocks.length > 0 && (
@@ -350,84 +284,12 @@ export function HomeBlocks() {
               </button>
             </p>
           )}
-          <div className="overflow-x-auto">
-            <HomeTable className="min-w-[700px] font-medium">
-              <caption className="sr-only">
-                Recently mined blocks, newest first
-              </caption>
-              <thead className="text-foreground/48">
-                <tr>
-                  {[
-                    "Height",
-                    "Block Hash",
-                    "Size",
-                    "Transactions",
-                    "Block age",
-                  ].map((label) => (
-                    <th
-                      key={label}
-                      scope="col"
-                      className="border-b border-foreground/8 px-3 pb-3 pt-2 font-medium [&:nth-child(n+3)]:text-right"
-                    >
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {blocks.slice(0, 6).map((block) => (
-                  <tr
-                    key={block.hash}
-                    data-new-block={newHashes.includes(block.hash) || undefined}
-                    className="border-b border-foreground/8 last:border-0"
-                  >
-                    <td className="px-3 py-[18px]">
-                      <Link
-                        to="/blocks/$hashOrHeight"
-                        params={{ hashOrHeight: block.hash }}
-                        className="flex items-center gap-3 whitespace-nowrap text-brand hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-                      >
-                        <img
-                          src="/icons/home/block.svg"
-                          alt=""
-                          width={24}
-                          height={24}
-                          className="size-6 shrink-0"
-                        />
-                        #{metricNumber(block.height, 0)}
-                      </Link>
-                    </td>
-                    <td data-grow className="px-3 py-[18px]">
-                      <IdentifierLink kind="block" value={block.hash} />
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums">
-                      {metricBytes(block.size)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums text-brand">
-                      <strong>{metricNumber(block.txCount, 0)}</strong>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-[18px] text-right tabular-nums">
-                      <BlockAge timestamp={block.timestamp} />
-                    </td>
-                  </tr>
-                ))}
-                {!blocks.length && (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="p-8 text-center text-muted-foreground"
-                    >
-                      {blocksQuery.isPending
-                        ? "Loading blocks…"
-                        : blocksQuery.isError
-                          ? "Block data unavailable"
-                          : "No blocks found."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </HomeTable>
-          </div>
+          <LatestBlocksTable
+            blocks={blocks}
+            busy={blocksQuery.isFetching}
+            error={blocksQuery.isError}
+            highlightedHashes={newHashes}
+          />
         </div>
       </div>
     </section>

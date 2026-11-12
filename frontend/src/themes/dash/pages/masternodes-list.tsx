@@ -196,12 +196,16 @@ function MasternodesList({
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-medium">Masternodes Map</h2>
-                <InfoPopover label="About masternode locations">
-                  Locations are estimated from IP addresses. Nodes without
-                  coordinates remain in the table. Map and table use the same
-                  filters.
-                </InfoPopover>
+                <h2 className="text-base font-medium">
+                  <InfoPopover
+                    label="About masternode locations"
+                    trigger="Masternodes Map"
+                  >
+                    Locations are estimated from IP addresses. Nodes without
+                    coordinates remain in the table. Map and table use the same
+                    filters.
+                  </InfoPopover>
+                </h2>
               </div>
               <Select
                 value={country}

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { proposalQueryOptions } from "@/lib/api/governance";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import RedesignProposalDetailPage from "@/themes/neo/pages/proposal-detail";
+import ProposalDetailPage from "@/themes/dash/pages/proposal-detail";
 
 export const Route = createFileRoute("/dao/$hash")({
   component: ProposalDetailRoute,
@@ -20,5 +20,5 @@ export const Route = createFileRoute("/dao/$hash")({
 
 function ProposalDetailRoute() {
   const { hash } = Route.useParams();
-  return <RedesignProposalDetailPage hash={hash} />;
+  return <ProposalDetailPage hash={hash} />;
 }

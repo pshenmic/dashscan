@@ -15,6 +15,12 @@ export function metricNumber(
     : "—";
 }
 
+export function supplyInDash(duffs: string | null | undefined) {
+  if (duffs == null || !/^\d+$/.test(duffs)) return null;
+  const amount = Number(duffs);
+  return Number.isSafeInteger(amount) ? amount / 100_000_000 : null;
+}
+
 export function difficultyAxisLabel(value: number) {
   return value > 0 && value < 0.01
     ? value.toExponential(1)
