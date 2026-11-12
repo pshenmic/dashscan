@@ -29,7 +29,6 @@ import { HomeMapSurface } from "./home-map-surface";
 import { HomeMasternodeMap } from "./home-masternode-map";
 import { HomeMasternodesTable } from "./home-masternodes-table";
 import { InfoPopover } from "./info-popover";
-import { MissingApiData } from "./missing-api-data";
 
 export function HomeMasternodes() {
   const network = useStore(appStore, (state) => state.network);
@@ -336,16 +335,16 @@ function MasternodesSection({ network }: { network: Network }) {
                     {growth > 0 ? "+" : ""}
                     {metricNumber(growth)}%
                   </span>
-                ) : history.isSuccess ? (
-                  <MissingApiData
-                    inline
-                    className="rounded-full whitespace-nowrap"
-                    description="The API has not yet provided two comparable masternode snapshots 30 days apart."
-                  />
                 ) : null}
               </div>
               <p className="text-sm font-medium leading-4 text-muted-foreground">
-                Compared to the last <strong>30 days</strong>
+                {growth != null ? (
+                  <>
+                    Compared to the last <strong>30 days</strong>
+                  </>
+                ) : (
+                  "Daily snapshots · 30 days"
+                )}
               </p>
             </div>
           </div>
@@ -418,11 +417,6 @@ function MasternodesSection({ network }: { network: Network }) {
                     {item.change > 0 ? "+" : ""}
                     {metricNumber(item.change)}% · 365D
                   </span>
-                ) : history.isSuccess && yearAgo.isSuccess ? (
-                  <MissingApiData
-                    inline
-                    description="The selected network does not have comparable masternode snapshots 365 days apart."
-                  />
                 ) : null}
               </div>
             </div>

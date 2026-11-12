@@ -198,6 +198,7 @@ function DaoTimingCards({
       </div>
       {showMissingDeadline && timing.votingDeadline == null && (
         <MissingApiData
+          label="Unavailable"
           compact
           description="This backend does not provide the voting deadline."
         />
@@ -297,6 +298,7 @@ export function DaoBudgetCards({
             </p>
           ) : !budget.isPending && !allocation ? (
             <MissingApiData
+              label="Unavailable"
               compact
               description="The backend does not provide a valid combined votes-and-funding allocation for this cycle."
             />
@@ -329,6 +331,7 @@ export function DaoBudgetCards({
               !budget.isError &&
               currentBudget?.requiredVotes == null && (
                 <MissingApiData
+                  label="Unavailable"
                   compact
                   description="The API does not expose the required vote threshold."
                 />
@@ -351,23 +354,12 @@ export function DaoBudgetCards({
             </>
           }
         >
-          <div className="flex min-h-6 items-center gap-1">
-            <span className="rounded-lg bg-foreground/4 px-2 py-1 text-xs text-muted-foreground">
-              24H ago
-            </span>
-            {proposalStats.data != null ? (
-              <DaoHint description="Estimated previous active proposal count. Dash Core prunes expired proposals, so this historical count may be incomplete. It is not a count of funded proposals.">
-                ≈ {metricNumber(proposalStats.data.previousActive, 0)}
-              </DaoHint>
-            ) : proposalStats.isPending ? (
-              "…"
-            ) : (
-              <MissingApiData
-                inline
-                description="The selected backend has not returned the previous active proposal count."
-              />
-            )}
-          </div>
+          {currentBudget?.enoughVotesAndFundsCount != null && (
+            <DaoHint description="Proposals that currently meet the vote threshold and fit the next cycle’s budget. This is projected funding, not confirmed payouts.">
+              Projected funding ·{" "}
+              {metricNumber(currentBudget.enoughVotesAndFundsCount, 0)}
+            </DaoHint>
+          )}
         </DaoMetric>
         <DaoMetric
           icon="remaining-budget"

@@ -27,7 +27,6 @@ import { HomeIcon } from "./home-icon";
 import { HomeMapSurface } from "./home-map-surface";
 import { HomeNodeMap } from "./home-masternode-map";
 import { HomeNetworkUpgrades } from "./home-network-upgrades";
-import { MissingApiData } from "./missing-api-data";
 import { PeerDistributionCard } from "./peer-distribution-card";
 
 export function HomeNetwork() {
@@ -188,11 +187,6 @@ function NetworkSection({ network }: { network: Network }) {
                 24H {peerChange > 0 ? "+" : ""}
                 {metricNumber(peerChange)}%
               </span>
-            ) : snapshots.isSuccess ? (
-              <MissingApiData
-                inline
-                description="The API has not yet collected reachable-peer snapshots covering a full 24 hours."
-              />
             ) : null}
           </div>
           <div

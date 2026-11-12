@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { useId } from "react";
 import { transactionsBreakdown24hQueryOptions } from "@/lib/api/stats";
+import { transactionsQueryOptions } from "@/lib/api/transactions";
 import { appStore } from "@/lib/store";
 import {
   percentageChange,
@@ -10,14 +11,25 @@ import {
   useHomeChainHistory,
 } from "@/themes/dash/lib/home-history";
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
+import { BlockAge } from "./block-age";
 import { ChainHistoryChart } from "./chain-history-chart";
 import { HomeIcon } from "./home-icon";
+import { IdentifierLink } from "./identifier-link";
 import { InfoPopover } from "./info-popover";
-import { MissingApiData } from "./missing-api-data";
 
 export function HomeCoinJoin() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
+  const transactions = useQuery({
+    ...transactionsQueryOptions({
+      network,
+      coinjoin: true,
+      page: 1,
+      limit: 4,
+      order: "desc",
+    }),
+    refetchInterval: 30_000,
+  });
   const range = useHistoryRange(7);
   const volume = useQuery(
     transactionsBreakdown24hQueryOptions({ network, ...range }),
@@ -73,38 +85,52 @@ export function HomeCoinJoin() {
       </div>
       <div className="dash-home-panel flex min-w-0 flex-col gap-6 self-stretch rounded-3xl p-6 xl:order-1 xl:min-h-[316px]">
         <div>
-          <h3 className="dash-heading-section">Active Sessions</h3>
-          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-            <MissingApiData
-              inline
-              description="The API does not expose live CoinJoin sessions, their duration, or participant counts. Indexed transactions are not active mixing sessions."
-            />
-            <span>Sessions Found</span>
-          </div>
+          <h3 className="dash-heading-section">Recent CoinJoin</h3>
         </div>
-        <section
-          className="flex flex-col gap-3"
-          aria-label="Session layout placeholders"
-        >
-          {["first", "second", "third", "fourth"].map((slot) => (
-            <div
-              key={slot}
-              className="flex min-h-12 items-center justify-between gap-3 rounded-xl bg-secondary/75 px-3 py-2 text-sm"
+        {transactions.isPending ? (
+          <output className="text-sm text-muted-foreground">
+            Loading transactions…
+          </output>
+        ) : transactions.isError ? (
+          <p role="alert" className="text-sm text-destructive">
+            Could not load CoinJoin transactions.{" "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => void transactions.refetch()}
             >
-              <MissingApiData
-                inline
-                description="Live CoinJoin session duration is not available from the API. This row is a layout placeholder, not an observed session."
-              />
-              <span className="flex items-center gap-2 text-accent">
-                <MissingApiData
-                  inline
-                  description="The API does not report address counts for live CoinJoin sessions. Addresses do not necessarily represent distinct participants."
-                />
-                Addresses
-              </span>
-            </div>
-          ))}
-        </section>
+              Try again
+            </button>
+          </p>
+        ) : transactions.data.resultSet.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No CoinJoin transactions found.
+          </p>
+        ) : (
+          <ul
+            className="flex flex-col gap-3"
+            aria-label="Recent CoinJoin transactions"
+          >
+            {transactions.data.resultSet.map((transaction) => (
+              <li
+                key={transaction.hash}
+                className="grid min-h-12 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl bg-secondary/75 px-3 py-2 text-sm"
+              >
+                <IdentifierLink kind="transaction" value={transaction.hash} />
+                <span className="whitespace-nowrap text-xs text-muted-foreground">
+                  {transaction.timestamp ? (
+                    <BlockAge
+                      timestamp={transaction.timestamp}
+                      blockHeight={transaction.blockHeight}
+                    />
+                  ) : (
+                    "Pending"
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="mt-auto flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-3">
           <h4 className="text-sm font-medium leading-4 text-muted-foreground">
             Transactions · 24H
@@ -127,10 +153,7 @@ export function HomeCoinJoin() {
               {metricNumber(count, 0)}
             </p>
           ) : (
-            <MissingApiData
-              compact
-              description="This backend does not provide the 24-hour CoinJoin transaction count."
-            />
+            <span className="text-sm text-muted-foreground">Unavailable</span>
           )}
         </div>
       </div>
@@ -186,17 +209,14 @@ export function HomeCoinJoin() {
                 >
                   —
                 </span>
-              ) : (
-                <MissingApiData
-                  inline
-                  className="rounded-full whitespace-nowrap"
-                  description="The selected network has not returned volume for both consecutive weeks."
-                />
-              )}
+              ) : null}
             </div>
-            <p className="text-sm font-medium leading-4 text-muted-foreground">
-              Compared to last <strong className="font-extrabold">week</strong>
-            </p>
+            {change != null && (
+              <p className="text-sm font-medium leading-4 text-muted-foreground">
+                Compared to last{" "}
+                <strong className="font-extrabold">week</strong>
+              </p>
+            )}
           </div>
         </div>
         <div className="flex min-h-[164px] flex-1 flex-col justify-center">

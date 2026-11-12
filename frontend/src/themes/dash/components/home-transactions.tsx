@@ -122,6 +122,7 @@ export function HomeTransactions() {
                   </span>
                 ) : breakdown.isSuccess ? (
                   <MissingApiData
+                    label="Unavailable"
                     inline
                     description="The selected network has not returned the 24-hour transaction total."
                   />
@@ -154,6 +155,7 @@ export function HomeTransactions() {
                 </span>
                 {blocks.isSuccess && latest?.fees == null && (
                   <MissingApiData
+                    label="Unavailable"
                     inline
                     description="The selected backend has not returned fees for this indexed block."
                   />
@@ -186,6 +188,7 @@ export function HomeTransactions() {
               </p>
               {breakdown.isSuccess && breakdown.data?.averageFee == null ? (
                 <MissingApiData
+                  label="Unavailable"
                   inline
                   description="The selected network has not returned an average transaction fee."
                 />
@@ -253,6 +256,7 @@ export function HomeTransactions() {
                 </span>
                 {breakdown.isSuccess && breakdown.data?.fees == null && (
                   <MissingApiData
+                    label="Unavailable"
                     description="The selected network has not returned total transaction fees for the last 24 hours."
                     inline
                   />
