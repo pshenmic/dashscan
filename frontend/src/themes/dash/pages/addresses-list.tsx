@@ -69,7 +69,7 @@ function ActivityBar({ value, max }: { value: number; max: number }) {
   );
 }
 
-export default function RedesignAddressesPage() {
+export default function AddressesPage() {
   const network = useStore(appStore, (state) => state.network);
   const navigate = useNavigate({ from: "/addresses" });
   const search = useSearch({ from: "/addresses" });

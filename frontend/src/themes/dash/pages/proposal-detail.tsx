@@ -245,13 +245,11 @@ function SecondarySignalRow({
   );
 }
 
-interface RedesignProposalDetailPageProps {
+interface ProposalDetailPageProps {
   hash: string;
 }
 
-export default function RedesignProposalDetailPage({
-  hash,
-}: RedesignProposalDetailPageProps) {
+export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
   const storeNetwork = useStore(appStore, (state) => state.network);
   const [range, setRange] = useState<ChartRange>("all");
   const [mode, setMode] = useState<ChartMode>("cumulative");

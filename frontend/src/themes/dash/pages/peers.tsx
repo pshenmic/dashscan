@@ -121,7 +121,7 @@ const columns: DataTableColumn<ApiPeer>[] = [
   },
 ];
 
-export default function RedesignPeersListPage() {
+export default function PeersListPage() {
   const network = useStore(appStore, (state) => state.network);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
