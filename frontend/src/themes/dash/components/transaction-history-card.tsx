@@ -10,7 +10,13 @@ import {
 } from "@/themes/dash/lib/transaction-metrics";
 import { AreaChart } from "./area-chart";
 import { InfoPopover } from "./info-popover";
-export function TransactionHistoryCard({ network }: { network: Network }) {
+export function TransactionHistoryCard({
+  network,
+  surface = "outlined",
+}: {
+  network: Network;
+  surface?: "outlined" | "subtle";
+}) {
   const day = useClockValue((now) => Math.floor(now / 86_400_000) * 86_400_000);
   const range = transactionHistoryRange(day);
   const history = useQuery(
@@ -19,7 +25,9 @@ export function TransactionHistoryCard({ network }: { network: Network }) {
   const summary = transactionHistorySummary(history.data, range.timestampEnd);
 
   return (
-    <div className="flex flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
+    <div
+      className={`flex flex-1 flex-col gap-8 rounded-3xl p-6 ${surface === "subtle" ? "bg-secondary" : "dash-home-panel"}`}
+    >
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-base font-medium leading-4 tracking-[-0.009em]">
