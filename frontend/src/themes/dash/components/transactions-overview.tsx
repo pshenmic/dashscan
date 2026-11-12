@@ -71,7 +71,7 @@ export function TransactionsOverview({ network }: { network: Network }) {
             confirmation status.
           </p>
         </div>
-        <div className="relative grid min-w-0 gap-4 sm:grid-cols-2 xl:block xl:h-[243px]">
+        <div className="relative grid min-w-0 gap-4 sm:grid-cols-2 xl:block xl:h-[188px]">
           <div
             className={`${surface} relative z-10 xl:absolute xl:left-0 xl:top-0`}
           >
@@ -134,23 +134,6 @@ export function TransactionsOverview({ network }: { network: Network }) {
                 height={64}
               />
             </div>
-          </div>
-          <div
-            className={`${surface} relative z-10 sm:col-span-2 sm:mx-auto sm:w-fit xl:absolute xl:bottom-0 xl:right-[25%]`}
-          >
-            <h2 className="text-xs text-foreground/50">Average fee · 24H</h2>
-            <p className="mt-2 text-xl font-extrabold text-brand">
-              {breakdown.data?.averageFee != null ? (
-                <>
-                  {metricDuffs(breakdown.data.averageFee)}{" "}
-                  <span className="font-medium">DASH</span>
-                </>
-              ) : (
-                pending(
-                  "Return the average known fee per transaction, excluding coinbase, in duffs.",
-                )
-              )}
-            </p>
           </div>
         </div>
       </div>
@@ -261,41 +244,53 @@ export function TransactionsOverview({ network }: { network: Network }) {
               </div>
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-[1.2fr_1.2fr_1fr]">
-            <div className="min-w-0 rounded-3xl bg-secondary p-5">
-              <h2 className="text-sm text-foreground/50">Transaction Fees</h2>
-              <p className="mt-2 text-xl font-extrabold text-brand">
-                {breakdown.data?.fees != null ? (
-                  <>
-                    {metricDuffs(breakdown.data.fees)}{" "}
-                    <span className="font-medium">DASH</span>
-                  </>
-                ) : (
-                  pending(
-                    "Return total transaction fees for the last 24 hours in duffs.",
-                  )
-                )}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">24H</p>
-            </div>
-            <div className="min-w-0 rounded-3xl bg-secondary p-5">
-              <h2 className="text-sm text-foreground/50">Total Indexed Txs</h2>
-              <div className="mt-3">
-                {pending(
-                  "Return an exact indexed transaction count. The list pagination total is an estimate.",
-                )}
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                label: "Transaction Fees",
+                value: metricDuffs(breakdown.data?.fees),
+                unit: "DASH",
+                description:
+                  "Total known transaction fees in the last 24 hours, excluding coinbase.",
+              },
+              {
+                label: "Average Fee",
+                value: metricDuffs(breakdown.data?.averageFee),
+                unit: "DASH",
+                description:
+                  "Average across transactions with a known fee in the last 24 hours, excluding coinbase.",
+              },
+              {
+                label: "Average TPS",
+                value: metricNumber(total == null ? null : total / 86_400),
+                unit: "Tx/s",
+                description:
+                  "Confirmed transactions in the last 24 hours divided by 86,400 seconds.",
+              },
+            ].map((metric) => (
+              <div
+                key={metric.label}
+                className="min-w-0 rounded-3xl bg-secondary p-5"
+              >
+                <h2
+                  className="text-sm text-foreground/50"
+                  title={metric.description}
+                >
+                  {metric.label}
+                </h2>
+                <div className="mt-2 flex min-h-12 flex-wrap items-baseline gap-x-1 text-xl font-extrabold text-brand tabular-nums">
+                  {breakdown.isPending ? (
+                    <SkeletonBar className="w-24" />
+                  ) : (
+                    <>
+                      <span className="break-all">{metric.value}</span>
+                      <span className="font-medium">{metric.unit}</span>
+                    </>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">24H</p>
               </div>
-            </div>
-            <div className="min-w-0 rounded-3xl bg-secondary p-5">
-              <h2 className="text-sm text-foreground/50">
-                InstantSend latency
-              </h2>
-              <div className="mt-3">
-                {pending(
-                  "Return measured time from transaction observation to InstantSend lock, with the measurement period. A lock flag does not provide latency.",
-                )}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
         <TransactionHistoryCard network={network} surface="subtle" />
