@@ -3,7 +3,7 @@ import { addressQueryOptions } from "@/lib/api/addresses";
 import { blockQueryOptions } from "@/lib/api/blocks";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import { transactionQueryOptions } from "@/lib/api/transactions";
-import { txTypeNum } from "@/lib/format";
+import { getTxTypeLabel } from "@/lib/format";
 import { buildOgSvg, type OgPayload } from "@/lib/og";
 import { defaultNetwork } from "@/lib/store";
 
@@ -45,7 +45,7 @@ export const Route = createFileRoute("/og/$kind/$id")({
         return {
           kind,
           hash: tx.hash,
-          type: txTypeLabel(tx.type),
+          type: getTxTypeLabel(tx.type),
         } satisfies OgPayload;
       }
       if (kind === "address") {
@@ -83,22 +83,6 @@ export const Route = createFileRoute("/og/$kind/$id")({
     return null;
   },
 });
-
-function txTypeLabel(type: number | string | null | undefined): string {
-  const n = txTypeNum(type);
-  switch (n) {
-    case 0:
-      return "Standard";
-    case 5:
-      return "Coinbase";
-    case 6:
-      return "Quorum";
-    case 8:
-      return "ProRegTx";
-    default:
-      return n != null ? `Type ${n}` : "Standard";
-  }
-}
 
 function OgRoute() {
   const payload = Route.useLoaderData();

@@ -1,6 +1,7 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
+import type { TransactionTypeFilter } from "@/lib/transaction-types";
 import { apiFetch, getBaseUrl } from "./client";
 import type {
   ApiTransaction,
@@ -8,20 +9,10 @@ import type {
   PaginationParams,
 } from "./types";
 
-export const TRANSACTION_TYPE_VALUES = [
-  "CLASSIC",
-  "PROVIDER_REGISTRATION",
-  "PROVIDER_UPDATE_SERVICE",
-  "PROVIDER_UPDATE_REGISTRAR",
-  "PROVIDER_UPDATE_REVOCATION",
-  "COINBASE",
-  "QUORUM_COMMITMENT",
-  "MASTERNODE_HARD_FORK_SIGNAL",
-  "ASSET_LOCK",
-  "ASSET_UNLOCK",
-] as const;
-
-export type TransactionTypeFilter = (typeof TRANSACTION_TYPE_VALUES)[number];
+export {
+  TRANSACTION_TYPE_VALUES,
+  type TransactionTypeFilter,
+} from "@/lib/transaction-types";
 
 interface TransactionsFilterParams {
   transactionType?: TransactionTypeFilter;

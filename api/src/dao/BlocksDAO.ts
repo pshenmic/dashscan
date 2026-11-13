@@ -132,7 +132,9 @@ export default class BlocksDAO {
     const stats = ChainStats.fromRow(row);
 
     const superblockInterval = SUPERBLOCK_INTERVALS[NETWORK];
-    const nextSuperblockHeight = row.latest_superblock_height + superblockInterval;
+    const nextSuperblockHeight = stats.latestSuperblockHeight != null
+      ? stats.latestSuperblockHeight + superblockInterval
+      : undefined;
 
     return ChainStats.fromObject({
       ...stats,
