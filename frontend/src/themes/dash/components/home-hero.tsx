@@ -83,11 +83,7 @@ export function HomeHero() {
             >
               <span
                 aria-hidden="true"
-                className={
-                  dataAvailable
-                    ? "dash-status-dot relative size-2 shrink-0 rounded-full bg-positive-brand"
-                    : "size-2 rounded-full bg-current"
-                }
+                className="size-2 shrink-0 rounded-full bg-current"
               />
               {network === "mainnet" ? "Mainnet" : "Testnet"} · {status}
             </span>
