@@ -1,6 +1,13 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import {
+  ArrowLeftRight,
+  Coins,
+  LockKeyhole,
+  LockKeyholeOpen,
+  type LucideIcon,
+} from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { assetStatsQueryOptions } from "@/lib/api/stats";
 import {
@@ -22,6 +29,7 @@ import {
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { BlockAge } from "./block-age";
+import { CardDecoration } from "./card-decoration";
 import { ChainHistoryChart } from "./chain-history-chart";
 import { HomeIcon } from "./home-icon";
 import { InfoPopover } from "./info-popover";
@@ -137,15 +145,18 @@ function TransferRow({
 
 function AssetMetric({
   icon,
+  decoration,
   label,
   children,
 }: {
   icon: string;
+  decoration: LucideIcon;
   label: string;
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl bg-surface-subtle px-4 py-4 inset-ring inset-ring-border sm:px-6">
+    <div className="relative isolate flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl bg-surface-subtle px-4 py-4 inset-ring inset-ring-border sm:px-6">
+      <CardDecoration icon={decoration} />
       <img
         src={`/icons/home/${icon}.svg`}
         alt=""
@@ -363,7 +374,11 @@ export function HomeAssets() {
       )}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,716fr)_minmax(0,580fr)]">
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
-          <AssetMetric icon="credit-pool" label="Core credit pool balance">
+          <AssetMetric
+            icon="credit-pool"
+            decoration={Coins}
+            label="Core credit pool balance"
+          >
             <div className="flex flex-wrap items-center gap-2">
               <p
                 className="whitespace-nowrap text-xl font-extrabold leading-[1.2] text-accent sm:text-2xl"
@@ -388,7 +403,11 @@ export function HomeAssets() {
               />
             </div>
           </AssetMetric>
-          <AssetMetric icon="asset-lock" label="Deposited amount in 24 Hours">
+          <AssetMetric
+            icon="asset-lock"
+            decoration={LockKeyhole}
+            label="Deposited amount in 24 Hours"
+          >
             <div className="flex flex-wrap items-center gap-2">
               <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending ? "…" : metricDuffs(locked?.amount)}{" "}
@@ -408,7 +427,11 @@ export function HomeAssets() {
               )}
             </div>
           </AssetMetric>
-          <AssetMetric icon="asset-unlock" label="Withdrawn amount in 24 Hours">
+          <AssetMetric
+            icon="asset-unlock"
+            decoration={LockKeyholeOpen}
+            label="Withdrawn amount in 24 Hours"
+          >
             <div className="flex flex-wrap items-center gap-2">
               <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending ? "…" : metricDuffs(unlocked?.amount)}{" "}
@@ -430,6 +453,7 @@ export function HomeAssets() {
           </AssetMetric>
           <AssetMetric
             icon="asset-activity"
+            decoration={ArrowLeftRight}
             label="AssetLocks/AssetUnlocks in 24 Hours"
           >
             <div className="flex items-center gap-2">

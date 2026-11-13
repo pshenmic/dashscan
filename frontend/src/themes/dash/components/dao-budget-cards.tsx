@@ -1,4 +1,5 @@
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
+import { Coins, Layers, type LucideIcon, Vote } from "lucide-react";
 import type { ReactNode } from "react";
 import { Pie, PieChart } from "recharts";
 import { useNow } from "@/components/render-clock";
@@ -18,6 +19,7 @@ import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import type { Network } from "@/lib/store";
 import { budgetAllocation, daoTiming } from "@/themes/dash/lib/dao-metrics";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
+import { CardDecoration } from "./card-decoration";
 import { DaoHint } from "./dao-hint";
 import { InfoPopover } from "./info-popover";
 import { MissingApiData } from "./missing-api-data";
@@ -100,15 +102,18 @@ function DaoMetric({
   icon,
   description,
   children,
+  decoration,
 }: {
   label: string;
   value: ReactNode;
   icon: string;
   description: string;
   children?: ReactNode;
+  decoration: LucideIcon;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col justify-center gap-3 rounded-3xl dash-home-panel px-6 py-4">
+    <div className="relative isolate flex min-w-0 flex-1 flex-col justify-center gap-3 rounded-3xl dash-home-panel px-6 py-4">
+      <CardDecoration icon={decoration} />
       <img
         src={`/icons/home/${icon}.svg`}
         alt=""
@@ -152,7 +157,7 @@ function DaoTimingCards({
         : `≈ ${formatDuration(timestamp - now)}`;
   return (
     <>
-      <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
+      <div className="relative isolate flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
         <div className="min-w-[170px] flex-1 space-y-2">
           <h3 className="dash-body-compact text-muted-foreground">
             <DaoHint description="Estimated cutoff for the next funding cycle, supplied by the API. This is not the proposal expiry date. Timing may change as blocks are mined.">
@@ -183,7 +188,7 @@ function DaoTimingCards({
           label="Estimated voting window elapsed, not voter turnout. Calculated from the API deadline and estimated cycle start; timing is not a protocol guarantee."
         />
       </div>
-      <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
+      <div className="relative isolate flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
         <div className="min-w-[170px] flex-1 space-y-2">
           <h3 className="dash-body-compact text-muted-foreground">
             <DaoHint description="Next treasury payout block. The countdown is an estimate, not a scheduled block time.">
@@ -251,7 +256,7 @@ export function DaoBudgetCards({
     <>
       {" "}
       <div className="grid min-w-0 gap-4 lg:grid-cols-3 min-[1440px]:flex min-[1440px]:flex-col">
-        <div className="flex min-h-[232px] flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
+        <div className="relative isolate flex min-h-[232px] flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
           <div className="flex items-center justify-between gap-3">
             <h3 className="dash-body">
               <InfoPopover
@@ -325,6 +330,7 @@ export function DaoBudgetCards({
       <div className="grid min-w-0 gap-4 sm:grid-cols-3 min-[1440px]:flex min-[1440px]:flex-col">
         <DaoMetric
           icon="minimum-votes"
+          decoration={Vote}
           label="Vote Threshold"
           description="Required weighted Net Yes (Yes − No). Passing the threshold does not guarantee payment."
           value={
@@ -351,6 +357,7 @@ export function DaoBudgetCards({
         </DaoMetric>
         <DaoMetric
           icon="proposals"
+          decoration={Layers}
           label="Active Proposals"
           description="Proposals with an active payment period. Not all are eligible for the next superblock."
           value={
@@ -374,6 +381,7 @@ export function DaoBudgetCards({
         </DaoMetric>
         <DaoMetric
           icon="remaining-budget"
+          decoration={Coins}
           label="Unallocated"
           description="Budget remaining after projected funding, not a treasury account balance."
           value={
