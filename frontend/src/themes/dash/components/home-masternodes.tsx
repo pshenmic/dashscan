@@ -312,7 +312,7 @@ function MasternodesSection({ network }: { network: Network }) {
         ref={growthRef}
         className="relative flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-2 xl:w-[calc(100%+var(--list-offset)+40px)]"
       >
-        <div className="flex min-h-[260px] min-w-0 flex-1 flex-col gap-8 rounded-3xl bg-secondary/75 p-6">
+        <div className="flex min-h-[260px] min-w-0 flex-1 flex-col gap-8 rounded-3xl bg-surface-subtle p-6 inset-ring inset-ring-border">
           <div className="relative min-w-0">
             <div className="flex min-w-0 flex-col gap-2">
               <h3 className="text-base font-medium leading-4">

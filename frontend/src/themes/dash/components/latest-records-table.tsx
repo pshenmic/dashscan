@@ -50,7 +50,7 @@ export function LatestRecordsTable<Record extends { hash: string }>({
             highlightedHashes?.includes(record.hash) || undefined,
         })}
         className={cn(
-          "min-w-[700px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_td]:h-12 [&_td]:tabular-nums",
+          "min-w-[700px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-surface-subtle [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_td]:h-12 [&_td]:tabular-nums",
           className,
         )}
       />

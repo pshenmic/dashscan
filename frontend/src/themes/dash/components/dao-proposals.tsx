@@ -202,7 +202,7 @@ export function DaoProposalsTable({
             <caption className="sr-only">
               Active DAO proposals ranked by net yes votes
             </caption>
-            <thead className="sticky top-0 z-10 bg-secondary text-muted-foreground">
+            <thead className="sticky top-0 z-10 bg-surface-subtle text-muted-foreground">
               <tr>
                 {["Proposal", "Votes", "Requested", "Expires"].map((label) => (
                   <th

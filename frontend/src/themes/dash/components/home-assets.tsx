@@ -77,7 +77,7 @@ function TransferRow({
   const deposit = transaction.type === "ASSET_LOCK";
   const amount = assetTransferAmount(deposit ? detail : transaction);
   return (
-    <li className="grid min-h-[66px] min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl bg-card px-3 py-[18px] text-sm">
+    <li className="grid min-h-[66px] min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl bg-card px-3 py-[18px] text-sm ring-1 ring-border">
       <span className="text-muted-foreground">
         {transaction.timestamp ? (
           <BlockAge
@@ -145,7 +145,7 @@ function AssetMetric({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl bg-secondary/75 px-4 py-4 sm:px-6">
+    <div className="flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl bg-surface-subtle px-4 py-4 inset-ring inset-ring-border sm:px-6">
       <img
         src={`/icons/home/${icon}.svg`}
         alt=""
@@ -314,7 +314,7 @@ export function HomeAssets() {
               ) || (
                 <ul
                   aria-label="Latest AssetUnlock withdrawals"
-                  className="space-y-2 rounded-xl shadow-card"
+                  className="space-y-2 rounded-xl"
                 >
                   {withdrawals.map((transaction) => (
                     <TransferRow
@@ -334,7 +334,7 @@ export function HomeAssets() {
               ) || (
                 <ul
                   aria-label="Latest AssetLock deposits"
-                  className="space-y-2 rounded-xl shadow-card"
+                  className="space-y-2 rounded-xl"
                 >
                   {deposits.map((transaction, index) => (
                     <TransferRow

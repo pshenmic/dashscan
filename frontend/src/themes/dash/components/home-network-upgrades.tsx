@@ -120,7 +120,7 @@ export function HomeNetworkUpgrades({ network }: { network: Network }) {
           >
             {upgrades.map((upgrade) => (
               <li key={upgrade.id} className="shrink-0">
-                <div className="flex flex-col justify-center gap-2 rounded-3xl bg-secondary/75 px-6 py-4">
+                <div className="flex flex-col justify-center gap-2 rounded-3xl bg-surface-subtle px-6 py-4 inset-ring inset-ring-border">
                   <p className="text-sm leading-[1.1] text-muted-foreground">
                     Type: {upgrade.type}
                   </p>

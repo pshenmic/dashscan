@@ -114,7 +114,7 @@ export function HomeCoinJoin() {
             {transactions.data.resultSet.map((transaction) => (
               <li
                 key={transaction.hash}
-                className="grid min-h-12 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl bg-secondary/75 px-3 py-2 text-sm"
+                className="grid min-h-12 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl bg-surface-subtle px-3 py-2 text-sm"
               >
                 <IdentifierLink kind="transaction" value={transaction.hash} />
                 <span className="whitespace-nowrap text-xs text-muted-foreground">

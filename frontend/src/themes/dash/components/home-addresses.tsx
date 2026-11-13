@@ -95,7 +95,7 @@ function AddressTable({
             ? "Addresses ranked by balance"
             : "Most active addresses in the last 24 hours"}
         </caption>
-        <thead className="sticky top-0 z-10 bg-[color-mix(in_srgb,var(--foreground)_3%,var(--card))] text-muted-foreground">
+        <thead className="sticky top-0 z-10 bg-surface-subtle text-muted-foreground">
           <tr>
             <th
               scope="col"
@@ -265,7 +265,7 @@ function BalanceDistribution({
                   onKeyDown={(event) => {
                     if (event.key === "Escape") setSelected(null);
                   }}
-                  className={`min-w-0 rounded-lg bg-secondary p-2 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring ${selected === index ? "ring-1 ring-brand" : ""}`}
+                  className={`min-w-0 rounded-lg bg-surface-subtle p-2 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring ${selected === index ? "ring-1 ring-brand" : ""}`}
                 >
                   <span className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
                     <span

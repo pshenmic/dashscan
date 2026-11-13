@@ -13,6 +13,7 @@
   --primary: var(--action-solid);
   --primary-foreground: #ffffff;
   --secondary: rgb(12 28 51 / 4%);
+  --surface-subtle: color-mix(in srgb, var(--foreground) 6%, var(--card));
   --secondary-foreground: var(--foreground);
   --muted: var(--secondary);
   --muted-foreground: rgb(12 28 51 / 64%);
@@ -74,6 +75,7 @@
   --color-action-primary: var(--action-primary);
   --color-action-solid: var(--action-solid);
   --color-action-subtle: var(--action-subtle);
+  --color-surface-subtle: var(--surface-subtle);
 }
 
 @utility dash-heading-hero {
@@ -196,6 +198,7 @@
     --action-primary: Highlight;
     --primary-foreground: HighlightText;
     --card: Canvas;
+    --surface-subtle: Canvas;
     --foreground: CanvasText;
     --muted-foreground: CanvasText;
     --border: CanvasText;
