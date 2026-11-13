@@ -99,7 +99,7 @@ function AddressTable({
           <tr>
             <th
               scope="col"
-              className={`border-b border-foreground/8 pb-3 pt-2 pr-3 font-medium ${ranked ? "pl-10" : "pl-3"}`}
+              className="border-b border-foreground/8 pb-3 pt-2 pr-3 pl-10 font-medium"
             >
               Address
             </th>
@@ -130,13 +130,11 @@ function AddressTable({
                   kind="address"
                   value={row.address}
                   prefix={
-                    ranked && (
-                      <span
-                        className={`flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] ${index === 0 ? "bg-action-solid text-primary-foreground" : index === 1 ? "bg-action-subtle text-accent" : index === 2 ? "bg-action-subtle text-accent" : "bg-foreground/4 text-foreground"}`}
-                      >
-                        {index + 1}
-                      </span>
-                    )
+                    <span
+                      className={`flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] ${index === 0 ? "bg-action-solid text-primary-foreground" : index === 1 ? "bg-action-subtle text-accent" : index === 2 ? "bg-action-subtle text-accent" : "bg-foreground/4 text-foreground"}`}
+                    >
+                      {index + 1}
+                    </span>
                   }
                 />
               </td>
@@ -456,12 +454,12 @@ export function HomeAddresses() {
             />
           </div>
           <div className="flex min-h-[392px] min-w-0 flex-1 flex-col gap-6 rounded-3xl dash-home-panel p-6">
-            <div>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
               <h3 className="dash-heading-section">Active Addresses List</h3>
-              <p className="dash-body-compact mt-2 text-muted-foreground">
+              <p className="dash-body-compact whitespace-nowrap text-muted-foreground">
                 {active.data && active.data.pagination.total >= 0
-                  ? `${metricNumber(active.data.pagination.total, 0)} addresses · last 24 hours`
-                  : "Last 24 hours"}
+                  ? `${metricNumber(active.data.pagination.total, 0)} · 24H`
+                  : "24H"}
               </p>
             </div>
             {active.isError ? (
@@ -542,10 +540,10 @@ export function HomeAddresses() {
             />
           ) : null}
           <div className="flex min-h-0 flex-1 flex-col gap-6">
-            <div>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
               <h3 className="dash-heading-section">Addresses Rich List</h3>
-              <p className="dash-body-compact mt-2 text-muted-foreground">
-                Largest indexed balances · updates every minute
+              <p className="dash-body-compact whitespace-nowrap text-muted-foreground">
+                Top balances · 1m refresh
               </p>
             </div>
             {rich.isError && (

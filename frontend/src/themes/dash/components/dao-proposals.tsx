@@ -170,28 +170,26 @@ export function DaoProposalsTable({
 }: ProposalProps & { loading: boolean; error: boolean }) {
   return (
     <div className="flex min-h-[528px] min-w-0 flex-col gap-6 rounded-3xl dash-home-panel p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="dash-heading-section">
-            <InfoPopover
-              label="About proposal statuses"
-              trigger="Budget Proposals"
-            >
-              Check marks indicate the vote threshold has been reached, not that
-              a payout has occurred. A dash means the threshold has not yet been
-              reached, not that the proposal was rejected. This list shows
-              active payment periods, not just proposals eligible for the next
-              superblock. Dates are shown in UTC.
-            </InfoPopover>
-          </h3>
-          <p className="dash-body-compact mt-2 text-muted-foreground">
-            {loading
-              ? "Loading…"
-              : error
-                ? "Data unavailable"
-                : `${metricNumber(rows.length, 0)} active proposals`}
-          </p>
-        </div>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+        <h3 className="dash-heading-section">
+          <InfoPopover
+            label="About proposal statuses"
+            trigger="Budget Proposals"
+          >
+            Check marks indicate the vote threshold has been reached, not that a
+            payout has occurred. A dash means the threshold has not yet been
+            reached, not that the proposal was rejected. This list shows active
+            payment periods, not just proposals eligible for the next
+            superblock. Dates are shown in UTC.
+          </InfoPopover>
+        </h3>
+        <p className="dash-body-compact whitespace-nowrap text-muted-foreground">
+          {loading
+            ? "Loading…"
+            : error
+              ? "Data unavailable"
+              : `${metricNumber(rows.length, 0)} active proposals`}
+        </p>
       </div>
       {proposalState || (
         <section
