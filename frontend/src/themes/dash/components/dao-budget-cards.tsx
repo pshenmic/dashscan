@@ -1,5 +1,6 @@
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { Pie, PieChart } from "recharts";
 import { useNow } from "@/components/render-clock";
 import { proposalStatsQueryOptions } from "@/lib/api/governance";
 import { priceQueryOptions } from "@/lib/api/price";
@@ -37,49 +38,59 @@ function DaoRing({
       ? Math.min(100, Math.max(0, value))
       : null;
   const size = large ? 120 : 100;
-  const strokeWidth = large ? 24 : 16;
+  const segments =
+    progress == null
+      ? [{ name: "Unavailable", value: 100, fill: "var(--action-subtle)" }]
+      : [
+          { name: "Completed", value: progress, fill: "var(--brand)" },
+          {
+            name: "Remaining",
+            value: 100 - progress,
+            fill: "var(--action-subtle)",
+          },
+        ];
+  const split = progress != null && progress > 0 && progress < 100;
   return (
-    <DaoHint
-      label={`${label}: ${progress == null ? "unavailable" : `${estimated ? "approximately " : ""}${metricNumber(progress, 0)}%`}`}
-      description={label}
+    <div
+      className="relative shrink-0 rounded-full bg-card [&_button]:rounded-full"
+      style={{ width: size, height: size }}
     >
-      <span className="relative block shrink-0">
-        <svg
-          width={size}
-          height={size}
-          viewBox={`0 0 ${size} ${size}`}
-          aria-hidden="true"
-        >
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={(size - strokeWidth) / 2}
-            fill="none"
-            stroke="var(--action-subtle)"
-            strokeWidth={strokeWidth}
+      <div aria-hidden="true" className="pointer-events-none">
+        <PieChart width={size} height={size} accessibilityLayer={false}>
+          <Pie
+            data={segments}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            innerRadius={Math.round(size * 0.3375)}
+            outerRadius={size / 2 - 1}
+            startAngle={90}
+            endAngle={-270}
+            cornerRadius={split ? 4 : 0}
+            paddingAngle={split ? 2 : 0}
+            stroke="none"
+            isAnimationActive={false}
+            rootTabIndex={-1}
           />
-          {progress != null && progress > 0 && (
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={(size - strokeWidth) / 2}
-              fill="none"
-              stroke="var(--brand)"
-              strokeWidth={strokeWidth}
-              strokeLinecap="round"
-              pathLength="100"
-              strokeDasharray={progress === 100 ? undefined : `${progress} 100`}
-              transform={`translate(${size} 0) scale(-1 1) rotate(-90 ${size / 2} ${size / 2})`}
-            />
-          )}
-        </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-sm font-extrabold tabular-nums text-accent">
-          {progress == null
-            ? "—"
-            : `${estimated ? "≈ " : ""}${metricNumber(progress, 0)}%`}
-        </span>
-      </span>
-    </DaoHint>
+        </PieChart>
+      </div>
+      <div className="absolute inset-0">
+        <DaoHint
+          label={`${label}: ${progress == null ? "unavailable" : `${estimated ? "approximately " : ""}${metricNumber(progress, 0)}%`}`}
+          description={label}
+        >
+          <span
+            className="flex items-center justify-center text-sm font-extrabold tabular-nums text-accent"
+            style={{ width: size, height: size }}
+          >
+            {progress == null
+              ? "—"
+              : `${estimated ? "≈ " : ""}${metricNumber(progress, 0)}%`}
+          </span>
+        </DaoHint>
+      </div>
+    </div>
   );
 }
 
