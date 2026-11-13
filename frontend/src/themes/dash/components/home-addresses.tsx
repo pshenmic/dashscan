@@ -27,6 +27,7 @@ import {
 } from "@/themes/dash/lib/home-history";
 import { metricNumber, supplyInDash } from "@/themes/dash/lib/home-metrics";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
+import { FormattedAmount } from "./formatted-amount";
 import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
@@ -105,9 +106,9 @@ function AddressTable({
             </th>
             <th
               scope="col"
-              className="border-b border-foreground/8 px-3 pb-3 pt-2 text-right font-medium"
+              className="whitespace-nowrap border-b border-foreground/8 px-3 pb-3 pt-2 text-right font-medium"
             >
-              Balance
+              Balance (DASH)
             </th>
             {!ranked && (
               <th
@@ -138,8 +139,10 @@ function AddressTable({
                   }
                 />
               </td>
-              <td className="whitespace-nowrap px-3 py-[18px] text-right text-accent">
-                {transactionAmount(row.balance)}
+              <td className="whitespace-nowrap px-3 py-[18px] text-right font-medium tabular-nums text-foreground">
+                <FormattedAmount
+                  value={transactionAmount(row.balance).replace(/ DASH$/, "")}
+                />
               </td>
               {!ranked && (
                 <td className="px-3 py-[18px] text-right tabular-nums">

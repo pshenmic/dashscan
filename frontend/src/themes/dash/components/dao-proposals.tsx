@@ -1,11 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { ApiGovernanceObject } from "@/lib/api/types";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { DaoHint } from "./dao-hint";
+import { FormattedAmount } from "./formatted-amount";
 import { HomeTable } from "./home-table";
 import { InfoPopover } from "./info-popover";
+
+function formatProposalAmount(amount: number | null) {
+  return amount != null && Number.isFinite(amount) && amount >= 0
+    ? formatNumber(amount, { maximumFractionDigits: 8 })
+    : "—";
+}
 
 function DaoVotes({
   proposal,
@@ -148,7 +155,10 @@ export function DaoLeaderboard({
                 <ProposalName proposal={proposal} rank={index + 1} />
                 <DaoVotes proposal={proposal} threshold={threshold} />
                 <p className="whitespace-nowrap text-sm sm:text-right">
-                  <strong>{metricNumber(proposal.paymentAmount)}</strong> DASH
+                  <FormattedAmount
+                    value={formatProposalAmount(proposal.paymentAmount)}
+                    unit="DASH"
+                  />
                 </p>
                 <p className="whitespace-nowrap text-right text-sm text-muted-foreground">
                   {proposalDate(proposal.endEpoch)}
@@ -206,7 +216,7 @@ export function DaoProposalsTable({
                   <th
                     key={label}
                     scope="col"
-                    className={`border-b border-foreground/8 px-3 py-3 text-xs font-semibold ${label === "Proposal" ? "pl-[42px]" : label === "Requested" || label === "Expires" ? "text-right" : ""}`}
+                    className={`whitespace-nowrap border-b border-foreground/8 px-3 py-3 text-xs font-semibold ${label === "Proposal" ? "pl-[42px]" : label === "Requested" || label === "Expires" ? "text-right" : ""}`}
                   >
                     {label === "Requested" || label === "Expires" ? (
                       <DaoHint
@@ -216,7 +226,7 @@ export function DaoProposalsTable({
                             : "Proposal expiry in UTC, not the voting deadline."
                         }
                       >
-                        {label}
+                        {label === "Requested" ? "Requested (DASH)" : label}
                       </DaoHint>
                     ) : (
                       label
@@ -238,7 +248,9 @@ export function DaoProposalsTable({
                     <DaoVotes proposal={proposal} threshold={threshold} />
                   </td>
                   <td className="px-3 py-[18px] text-right">
-                    <strong>{metricNumber(proposal.paymentAmount)}</strong> DASH
+                    <FormattedAmount
+                      value={formatProposalAmount(proposal.paymentAmount)}
+                    />
                   </td>
                   <td className="px-3 py-[18px] text-right">
                     {proposalDate(proposal.endEpoch)}

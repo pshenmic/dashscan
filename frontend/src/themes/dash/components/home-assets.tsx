@@ -31,6 +31,7 @@ import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { BlockAge } from "./block-age";
 import { CardDecoration } from "./card-decoration";
 import { ChainHistoryChart } from "./chain-history-chart";
+import { FormattedAmount } from "./formatted-amount";
 import { HomeIcon } from "./home-icon";
 import { InfoPopover } from "./info-popover";
 import { MissingApiData } from "./missing-api-data";
@@ -105,7 +106,7 @@ function TransferRow({
         {deposit ? "Deposit" : "Withdrawal"}
       </Link>
       <span
-        className="min-w-0 truncate text-right font-extrabold tabular-nums"
+        className="min-w-0 truncate text-right font-medium tabular-nums"
         title={
           amount == null
             ? undefined
@@ -119,8 +120,10 @@ function TransferRow({
         ) : (
           <>
             {deposit ? "+" : "−"}{" "}
-            {transactionAmount(amount).replace(/ DASH$/, "")}{" "}
-            <span className="font-medium">DASH</span>
+            <FormattedAmount
+              value={transactionAmount(amount).replace(/ DASH$/, "")}
+              unit="DASH"
+            />
           </>
         )}
       </span>
