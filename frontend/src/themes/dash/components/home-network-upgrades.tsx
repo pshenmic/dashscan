@@ -37,8 +37,7 @@ export function HomeNetworkUpgrades({ network }: { network: Network }) {
     chain.data == null
       ? undefined
       : [...chain.data.deployments].sort(
-          (first, second) =>
-            (first.height ?? Infinity) - (second.height ?? Infinity),
+          (first, second) => (second.height ?? -1) - (first.height ?? -1),
         );
 
   return (
@@ -153,7 +152,7 @@ export function HomeNetworkUpgrades({ network }: { network: Network }) {
                           params={{
                             hashOrHeight: String(upgrade.height),
                           }}
-                          className="rounded text-accent hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                          className="rounded-md px-1 py-0.5 text-accent transition-colors duration-150 hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
                         >
                           #{metricNumber(upgrade.height, 0)}
                         </Link>
