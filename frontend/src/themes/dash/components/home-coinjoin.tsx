@@ -58,7 +58,7 @@ export function HomeCoinJoin() {
   return (
     <section
       aria-labelledby={titleId}
-      className="grid items-center gap-8 py-4 sm:py-8 xl:grid-cols-[minmax(0,293fr)_minmax(0,436fr)_minmax(0,455fr)] xl:gap-16"
+      className="grid items-center gap-8 xl:grid-cols-[minmax(0,293fr)_minmax(0,436fr)_minmax(0,455fr)] xl:gap-16"
     >
       <div className="min-w-0 xl:order-3">
         <p className="text-xl font-medium text-muted-foreground">Dash Chain</p>

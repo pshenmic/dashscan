@@ -389,7 +389,7 @@ export function HomeAddresses() {
   return (
     <section
       aria-labelledby={titleId}
-      className="grid gap-8 py-4 sm:py-8 lg:grid-cols-2 lg:gap-4"
+      className="grid gap-8 lg:grid-cols-2 lg:gap-4"
     >
       <div className="flex min-w-0 flex-col gap-10 lg:gap-16">
         <div className="flex min-h-[221px] flex-col justify-center lg:max-w-[554px]">

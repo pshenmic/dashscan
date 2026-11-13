@@ -108,7 +108,7 @@ function MasternodesSection({ network }: { network: Network }) {
   return (
     <section
       aria-labelledby={titleId}
-      className="relative isolate grid items-start gap-8 py-4 sm:py-8 xl:grid-cols-[minmax(0,442px)_minmax(0,1fr)] xl:gap-x-16 xl:[--list-offset:128px] 2xl:[--list-offset:160px]"
+      className="relative isolate grid items-start gap-8 xl:grid-cols-[minmax(0,442px)_minmax(0,1fr)] xl:gap-x-16 xl:[--list-offset:128px] 2xl:[--list-offset:160px]"
     >
       <div className="min-w-0 xl:col-start-1 xl:row-start-1">
         <p className="text-xl font-medium text-muted-foreground">Dash Chain</p>

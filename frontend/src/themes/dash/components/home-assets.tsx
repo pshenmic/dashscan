@@ -249,7 +249,7 @@ export function HomeAssets() {
   return (
     <section
       aria-labelledby={titleId}
-      className="flex flex-col gap-10 py-4 sm:py-8 lg:gap-16"
+      className="flex flex-col gap-10 lg:gap-16"
     >
       <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,608fr)_minmax(0,672fr)]">
         <div className="min-w-0">

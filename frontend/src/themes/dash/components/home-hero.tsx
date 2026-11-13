@@ -39,7 +39,7 @@ export function HomeHero() {
   return (
     <section
       aria-labelledby={titleId}
-      className="dash-home-hero relative isolate pb-12 pt-16 lg:pb-8 lg:pt-[134px]"
+      className="dash-home-hero relative isolate py-12 lg:pb-16 lg:pt-20"
     >
       <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:gap-32">
         <div>
@@ -72,7 +72,7 @@ export function HomeHero() {
             </Link>
           </div>
         </div>
-        <div className="flex min-w-0 flex-col gap-8 xl:pr-24">
+        <div className="flex min-w-0 flex-col gap-6 lg:self-center xl:pr-24">
           <div className="dash-label-small flex flex-wrap items-center gap-2">
             <span
               className={
