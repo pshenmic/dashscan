@@ -80,7 +80,7 @@ export function HomeMasternodesTable({
       emptyMessage={
         error ? "Masternodes unavailable." : "No masternodes found."
       }
-      className="min-w-[600px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_th[data-column=address]]:pl-12 [&_[data-column=type]]:text-right [&_[data-column=status]]:text-right [&_td]:h-12 [&_td]:tabular-nums"
+      className="min-w-[600px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-surface-subtle [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_th[data-column=address]]:pl-12 [&_[data-column=type]]:text-right [&_[data-column=status]]:text-right [&_td]:h-12 [&_td]:tabular-nums"
     />
   );
 }

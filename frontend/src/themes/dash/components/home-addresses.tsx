@@ -27,6 +27,7 @@ import {
 } from "@/themes/dash/lib/home-history";
 import { metricNumber, supplyInDash } from "@/themes/dash/lib/home-metrics";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
+import { FormattedAmount } from "./formatted-amount";
 import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
@@ -95,19 +96,19 @@ function AddressTable({
             ? "Addresses ranked by balance"
             : "Most active addresses in the last 24 hours"}
         </caption>
-        <thead className="sticky top-0 z-10 bg-[color-mix(in_srgb,var(--foreground)_3%,var(--card))] text-muted-foreground">
+        <thead className="sticky top-0 z-10 bg-surface-subtle text-muted-foreground">
           <tr>
             <th
               scope="col"
-              className={`border-b border-foreground/8 pb-3 pt-2 pr-3 font-medium ${ranked ? "pl-10" : "pl-3"}`}
+              className="border-b border-foreground/8 pb-3 pt-2 pr-3 pl-10 font-medium"
             >
               Address
             </th>
             <th
               scope="col"
-              className="border-b border-foreground/8 px-3 pb-3 pt-2 text-right font-medium"
+              className="whitespace-nowrap border-b border-foreground/8 px-3 pb-3 pt-2 text-right font-medium"
             >
-              Balance
+              Balance (DASH)
             </th>
             {!ranked && (
               <th
@@ -130,18 +131,18 @@ function AddressTable({
                   kind="address"
                   value={row.address}
                   prefix={
-                    ranked && (
-                      <span
-                        className={`flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] ${index === 0 ? "bg-action-solid text-primary-foreground" : index === 1 ? "bg-action-subtle text-accent" : index === 2 ? "bg-action-subtle text-accent" : "bg-foreground/4 text-foreground"}`}
-                      >
-                        {index + 1}
-                      </span>
-                    )
+                    <span
+                      className={`flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] ${index === 0 ? "bg-action-solid text-primary-foreground" : index === 1 ? "bg-action-subtle text-accent" : index === 2 ? "bg-action-subtle text-accent" : "bg-foreground/4 text-foreground"}`}
+                    >
+                      {index + 1}
+                    </span>
                   }
                 />
               </td>
-              <td className="whitespace-nowrap px-3 py-[18px] text-right text-accent">
-                {transactionAmount(row.balance)}
+              <td className="whitespace-nowrap px-3 py-[18px] text-right font-medium tabular-nums text-foreground">
+                <FormattedAmount
+                  value={transactionAmount(row.balance).replace(/ DASH$/, "")}
+                />
               </td>
               {!ranked && (
                 <td className="px-3 py-[18px] text-right tabular-nums">
@@ -265,7 +266,7 @@ function BalanceDistribution({
                   onKeyDown={(event) => {
                     if (event.key === "Escape") setSelected(null);
                   }}
-                  className={`min-w-0 rounded-lg bg-secondary p-2 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring ${selected === index ? "ring-1 ring-brand" : ""}`}
+                  className={`min-w-0 rounded-lg bg-surface-subtle p-2 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring ${selected === index ? "ring-1 ring-brand" : ""}`}
                 >
                   <span className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
                     <span
@@ -389,7 +390,7 @@ export function HomeAddresses() {
   return (
     <section
       aria-labelledby={titleId}
-      className="grid gap-8 py-4 sm:py-8 lg:grid-cols-2 lg:gap-4"
+      className="grid gap-8 lg:grid-cols-2 lg:gap-4"
     >
       <div className="flex min-w-0 flex-col gap-10 lg:gap-16">
         <div className="flex min-h-[221px] flex-col justify-center lg:max-w-[554px]">
@@ -456,12 +457,12 @@ export function HomeAddresses() {
             />
           </div>
           <div className="flex min-h-[392px] min-w-0 flex-1 flex-col gap-6 rounded-3xl dash-home-panel p-6">
-            <div>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
               <h3 className="dash-heading-section">Active Addresses List</h3>
-              <p className="dash-body-compact mt-2 text-muted-foreground">
+              <p className="dash-body-compact whitespace-nowrap text-muted-foreground">
                 {active.data && active.data.pagination.total >= 0
-                  ? `${metricNumber(active.data.pagination.total, 0)} addresses · last 24 hours`
-                  : "Last 24 hours"}
+                  ? `${metricNumber(active.data.pagination.total, 0)} · 24H`
+                  : "24H"}
               </p>
             </div>
             {active.isError ? (
@@ -542,10 +543,10 @@ export function HomeAddresses() {
             />
           ) : null}
           <div className="flex min-h-0 flex-1 flex-col gap-6">
-            <div>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
               <h3 className="dash-heading-section">Addresses Rich List</h3>
-              <p className="dash-body-compact mt-2 text-muted-foreground">
-                Largest indexed balances · updates every minute
+              <p className="dash-body-compact whitespace-nowrap text-muted-foreground">
+                Top balances · 1m refresh
               </p>
             </div>
             {rich.isError && (

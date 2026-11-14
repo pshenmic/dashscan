@@ -1,11 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { ApiGovernanceObject } from "@/lib/api/types";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { DaoHint } from "./dao-hint";
+import { FormattedAmount } from "./formatted-amount";
 import { HomeTable } from "./home-table";
 import { InfoPopover } from "./info-popover";
+
+function formatProposalAmount(amount: number | null) {
+  return amount != null && Number.isFinite(amount) && amount >= 0
+    ? formatNumber(amount, { maximumFractionDigits: 8 })
+    : "—";
+}
 
 function DaoVotes({
   proposal,
@@ -148,7 +155,10 @@ export function DaoLeaderboard({
                 <ProposalName proposal={proposal} rank={index + 1} />
                 <DaoVotes proposal={proposal} threshold={threshold} />
                 <p className="whitespace-nowrap text-sm sm:text-right">
-                  <strong>{metricNumber(proposal.paymentAmount)}</strong> DASH
+                  <FormattedAmount
+                    value={formatProposalAmount(proposal.paymentAmount)}
+                    unit="DASH"
+                  />
                 </p>
                 <p className="whitespace-nowrap text-right text-sm text-muted-foreground">
                   {proposalDate(proposal.endEpoch)}
@@ -170,28 +180,26 @@ export function DaoProposalsTable({
 }: ProposalProps & { loading: boolean; error: boolean }) {
   return (
     <div className="flex min-h-[528px] min-w-0 flex-col gap-6 rounded-3xl dash-home-panel p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="dash-heading-section">
-            <InfoPopover
-              label="About proposal statuses"
-              trigger="Budget Proposals"
-            >
-              Check marks indicate the vote threshold has been reached, not that
-              a payout has occurred. A dash means the threshold has not yet been
-              reached, not that the proposal was rejected. This list shows
-              active payment periods, not just proposals eligible for the next
-              superblock. Dates are shown in UTC.
-            </InfoPopover>
-          </h3>
-          <p className="dash-body-compact mt-2 text-muted-foreground">
-            {loading
-              ? "Loading…"
-              : error
-                ? "Data unavailable"
-                : `${metricNumber(rows.length, 0)} active proposals`}
-          </p>
-        </div>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+        <h3 className="dash-heading-section">
+          <InfoPopover
+            label="About proposal statuses"
+            trigger="Budget Proposals"
+          >
+            Check marks indicate the vote threshold has been reached, not that a
+            payout has occurred. A dash means the threshold has not yet been
+            reached, not that the proposal was rejected. This list shows active
+            payment periods, not just proposals eligible for the next
+            superblock. Dates are shown in UTC.
+          </InfoPopover>
+        </h3>
+        <p className="dash-body-compact whitespace-nowrap text-muted-foreground">
+          {loading
+            ? "Loading…"
+            : error
+              ? "Data unavailable"
+              : `${metricNumber(rows.length, 0)} active proposals`}
+        </p>
       </div>
       {proposalState || (
         <section
@@ -202,13 +210,13 @@ export function DaoProposalsTable({
             <caption className="sr-only">
               Active DAO proposals ranked by net yes votes
             </caption>
-            <thead className="sticky top-0 z-10 bg-secondary text-muted-foreground">
+            <thead className="sticky top-0 z-10 bg-surface-subtle text-muted-foreground">
               <tr>
                 {["Proposal", "Votes", "Requested", "Expires"].map((label) => (
                   <th
                     key={label}
                     scope="col"
-                    className={`border-b border-foreground/8 px-3 py-3 text-xs font-semibold ${label === "Proposal" ? "pl-[42px]" : label === "Requested" || label === "Expires" ? "text-right" : ""}`}
+                    className={`whitespace-nowrap border-b border-foreground/8 px-3 py-3 text-xs font-semibold ${label === "Proposal" ? "pl-[42px]" : label === "Requested" || label === "Expires" ? "text-right" : ""}`}
                   >
                     {label === "Requested" || label === "Expires" ? (
                       <DaoHint
@@ -218,7 +226,7 @@ export function DaoProposalsTable({
                             : "Proposal expiry in UTC, not the voting deadline."
                         }
                       >
-                        {label}
+                        {label === "Requested" ? "Requested (DASH)" : label}
                       </DaoHint>
                     ) : (
                       label
@@ -240,7 +248,9 @@ export function DaoProposalsTable({
                     <DaoVotes proposal={proposal} threshold={threshold} />
                   </td>
                   <td className="px-3 py-[18px] text-right">
-                    <strong>{metricNumber(proposal.paymentAmount)}</strong> DASH
+                    <FormattedAmount
+                      value={formatProposalAmount(proposal.paymentAmount)}
+                    />
                   </td>
                   <td className="px-3 py-[18px] text-right">
                     {proposalDate(proposal.endEpoch)}
