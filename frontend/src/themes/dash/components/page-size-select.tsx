@@ -5,18 +5,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+import {
+  PAGE_SIZE_OPTIONS,
+  type PageSize,
+  paginationSearchSchema,
+} from "@/lib/pagination";
 
 interface PageSizeSelectProps {
   value: number;
-  onChange: (size: number) => void;
+  onChange: (size: PageSize) => void;
 }
 
 export function PageSizeSelect({ value, onChange }: PageSizeSelectProps) {
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
       <span>Show</span>
-      <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+      <Select
+        value={String(value)}
+        onValueChange={(value) =>
+          onChange(paginationSearchSchema.parse({ limit: Number(value) }).limit)
+        }
+      >
         <SelectTrigger size="sm">
           <SelectValue />
         </SelectTrigger>

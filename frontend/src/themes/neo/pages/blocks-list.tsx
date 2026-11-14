@@ -84,11 +84,10 @@ export default function RedesignBlocksListPage() {
   const superblockFilter = routeSearch.superblock ?? null;
   const setSuperblockFilter = (value: boolean | null) => {
     navigate({
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic search param merge
-      search: ((prev: any) => ({
+      search: (prev) => ({
         ...prev,
         superblock: value ?? undefined,
-      })) as any,
+      }),
     });
   };
   const [search, setSearch] = useState("");

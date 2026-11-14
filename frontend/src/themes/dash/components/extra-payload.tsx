@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { txTypeNum } from "@/lib/format";
 import { ChevronUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
@@ -15,7 +14,7 @@ import type {
   ApiProUpServTxPayload,
   ApiQcTxPayload,
 } from "@/lib/api/types";
-import { DUFFS_PER_DASH } from "@/lib/format";
+import { DUFFS_PER_DASH, txTypeNum } from "@/lib/format";
 import { CopyButton } from "@/themes/dash/components/copy-button";
 import { HashCell } from "@/themes/dash/components/hash-cell";
 

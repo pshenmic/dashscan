@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { Avatar } from "dash-ui-kit/react";
 import {
   Activity,
   ArrowDown,
@@ -51,6 +50,7 @@ import {
   YAxis,
 } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
+import { Avatar } from "@/components/identicon";
 import { Button } from "@/components/ui/button";
 import {
   type ChartConfig,
@@ -1312,7 +1312,7 @@ function ChartValuePill({
   color,
 }: {
   active?: boolean;
-  payload?: Array<{ value: number; payload: { timestamp: number } }>;
+  payload?: ReadonlyArray<{ value: number; payload: { timestamp: number } }>;
   yFormat: (v: number | string) => string;
   color: string;
 }) {
@@ -1421,7 +1421,7 @@ function ChartArea({
             <ChartValuePill
               active={props.active}
               payload={
-                props.payload as Array<{
+                props.payload as ReadonlyArray<{
                   value: number;
                   payload: { timestamp: number };
                 }>
@@ -1565,7 +1565,7 @@ function ChartBar({
             <ChartValuePill
               active={props.active}
               payload={
-                props.payload as Array<{
+                props.payload as ReadonlyArray<{
                   value: number;
                   payload: { timestamp: number };
                 }>

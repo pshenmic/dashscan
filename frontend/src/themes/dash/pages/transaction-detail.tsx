@@ -14,7 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
-import { DUFFS_PER_DASH, formatDuffs, formatRelativeTime, txTypeNum } from "@/lib/format";
+import {
+  DUFFS_PER_DASH,
+  formatDuffs,
+  formatRelativeTime,
+  txTypeNum,
+} from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { AddressLink } from "@/themes/dash/components/address-link";
 import { CopyButton } from "@/themes/dash/components/copy-button";
@@ -120,7 +125,13 @@ export default function ClassicTransactionDetailPage({
   const hasInputs = !!tx.vIn && tx.vIn.length > 0 && !isCoinbase;
   const hasOutputs = !!tx.vOut && tx.vOut.length > 0;
 
-  const INPUTS_ON_LEFT = new Set(["PROVIDER_REGISTRATION", "COINBASE", "QUORUM_COMMITMENT", "ASSET_LOCK", "ASSET_UNLOCK"]);
+  const INPUTS_ON_LEFT = new Set([
+    "PROVIDER_REGISTRATION",
+    "COINBASE",
+    "QUORUM_COMMITMENT",
+    "ASSET_LOCK",
+    "ASSET_UNLOCK",
+  ]);
   const inputsOnLeft = INPUTS_ON_LEFT.has(tx.type ?? "");
 
   const inputsSection = hasInputs ? (

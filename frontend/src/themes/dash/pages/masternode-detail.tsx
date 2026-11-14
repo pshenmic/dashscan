@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import { Avatar } from "dash-ui-kit/react";
 import { Bookmark, Check, ChevronDown, Clipboard } from "lucide-react";
 import { useState } from "react";
+import { Avatar } from "@/components/identicon";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";

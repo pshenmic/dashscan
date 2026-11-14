@@ -19,7 +19,7 @@ export function useActiveTheme(): ThemeName {
 }
 
 export function setTheme(theme: ThemeName): void {
-  themeStore.setState({ theme });
+  themeStore.setState(() => ({ theme }));
 
   if (typeof document === "undefined") return;
 
@@ -33,6 +33,6 @@ export function hydrateThemeFromDocument(): void {
 
   const attr = document.documentElement.getAttribute("data-theme");
   if (isThemeName(attr) && attr !== themeStore.state.theme) {
-    themeStore.setState({ theme: attr });
+    themeStore.setState(() => ({ theme: attr }));
   }
 }

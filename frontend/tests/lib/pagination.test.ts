@@ -29,22 +29,30 @@ describe("getPageCount", () => {
 
 describe("paginationSearchSchema", () => {
   it("parses a valid page number", () => {
-    expect(paginationSearchSchema.parse({ page: 3 })).toEqual({ page: 3 });
+    expect(paginationSearchSchema.parse({ page: 3 })).toEqual({ page: 3, limit: 10 });
   });
 
   it("falls back to 1 for page=0", () => {
-    expect(paginationSearchSchema.parse({ page: 0 })).toEqual({ page: 1 });
+    expect(paginationSearchSchema.parse({ page: 0 })).toEqual({ page: 1, limit: 10 });
   });
 
   it("falls back to 1 for negative page", () => {
-    expect(paginationSearchSchema.parse({ page: -5 })).toEqual({ page: 1 });
+    expect(paginationSearchSchema.parse({ page: -5 })).toEqual({ page: 1, limit: 10 });
   });
 
   it("falls back to 1 for non-number page", () => {
-    expect(paginationSearchSchema.parse({ page: "abc" })).toEqual({ page: 1 });
+    expect(paginationSearchSchema.parse({ page: "abc" })).toEqual({ page: 1, limit: 10 });
   });
 
   it("falls back to 1 when page is missing", () => {
-    expect(paginationSearchSchema.parse({})).toEqual({ page: 1 });
+    expect(paginationSearchSchema.parse({})).toEqual({ page: 1, limit: 10 });
+  });
+
+  it.each([10, 25, 50, 100])("accepts page size %i", (limit) => {
+    expect(paginationSearchSchema.parse({ page: 2, limit })).toEqual({ page: 2, limit });
+  });
+
+  it.each([0, -1, 20, 1.5, "25", null])("defaults invalid page size %s", (limit) => {
+    expect(paginationSearchSchema.parse({ limit })).toEqual({ page: 1, limit: 10 });
   });
 });

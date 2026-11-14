@@ -3,7 +3,6 @@ import {
   apiFetch,
   ApiTimeoutError,
   getBaseUrl,
-  SERVER_API_TIMEOUT_MS,
 } from "@/lib/api/client";
 
 afterEach(() => {

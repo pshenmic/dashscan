@@ -43,7 +43,7 @@ import {
   getTxTypeLabel,
   sumVOut,
 } from "@/lib/format";
-import { getPageCount } from "@/lib/pagination";
+import { getPageCount, type PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { CopyButton } from "@/themes/dash/components/copy-button";
 import { DataTable } from "@/themes/dash/components/data-table";
@@ -157,7 +157,7 @@ const skeletonWidths = ["w-16", "w-44", "w-20", "w-20", "w-24", "w-12", "w-20"];
 
 interface ClassicTransactionsListPageProps {
   page: number;
-  limit: number;
+  limit: PageSize;
 }
 
 export default function ClassicTransactionsListPage({
