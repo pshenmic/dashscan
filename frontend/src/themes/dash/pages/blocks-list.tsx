@@ -3,7 +3,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useHydrated, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { LoaderCircle, RefreshCw, X } from "lucide-react";
 import { useCallback, useId, useMemo } from "react";
@@ -41,6 +41,7 @@ export default function BlocksListPage({
   hash?: string;
 }) {
   const network = useStore(appStore, (state) => state.network);
+  const hydrated = useHydrated();
   const queryClient = useQueryClient();
   const navigate = useNavigate({ from: "/blocks/" });
   const titleId = useId();
@@ -133,6 +134,7 @@ export default function BlocksListPage({
       : isInfinite
         ? infiniteQuery
         : pagedQuery;
+  const isFetching = hydrated && query.isFetching;
   const hasNextPage = pagedQuery.data?.resultSet.length === limit;
   const loadMore = useCallback(() => {
     if (
@@ -172,10 +174,10 @@ export default function BlocksListPage({
             {superblock ? "Superblocks" : "Blocks"}
             <LoaderCircle
               aria-hidden="true"
-              className={`size-3.5 motion-safe:animate-spin ${query.isFetching ? "" : "invisible"}`}
+              className={`size-3.5 motion-safe:animate-spin ${isFetching ? "" : "invisible"}`}
             />
             <output className="sr-only">
-              {query.isFetching ? "Updating blocks…" : ""}
+              {isFetching ? "Updating blocks…" : ""}
             </output>
           </h2>
           <div className="order-3 flex min-w-0 basis-full flex-wrap items-center gap-2 empty:hidden sm:order-none sm:flex-1 sm:basis-auto sm:justify-end sm:empty:flex">
@@ -253,7 +255,7 @@ export default function BlocksListPage({
           {isInfinite && lookup === undefined && (
             <button
               type="button"
-              disabled={infiniteQuery.isFetching}
+              disabled={isFetching}
               onClick={() =>
                 void queryClient.resetQueries({
                   queryKey: infiniteOptions.queryKey,
@@ -319,7 +321,7 @@ export default function BlocksListPage({
               resetScroll: false,
             })
           }
-          busy={query.isFetching}
+          busy={isFetching}
           emptyMessage={
             query.isPending
               ? "Loading blocks…"
@@ -332,7 +334,7 @@ export default function BlocksListPage({
           (isInfinite ? (
             infiniteQuery.hasNextPage && (
               <LoadMore
-                loading={infiniteQuery.isFetching}
+                loading={isFetching}
                 failed={infiniteQuery.isError}
                 onLoad={loadMore}
               />
@@ -344,7 +346,7 @@ export default function BlocksListPage({
                 page={page}
                 hasNextPage={hasNextPage}
                 disabled={
-                  pagedQuery.isFetching ||
+                  isFetching ||
                   pagedQuery.isPlaceholderData ||
                   pagedQuery.isError ||
                   !pagedQuery.data
