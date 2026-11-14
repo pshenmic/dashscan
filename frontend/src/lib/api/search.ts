@@ -9,11 +9,14 @@ interface FetchSearchInput {
   query: string;
 }
 
-async function getSearch(params: FetchSearchInput) {
+export async function getSearch(
+  params: FetchSearchInput,
+  signal?: AbortSignal,
+) {
   const url = new URL("/search", getBaseUrl(params.network));
   url.searchParams.set("query", params.query);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -27,7 +30,7 @@ export const fetchSearch = createServerFn({ method: "POST" })
 export function searchQueryOptions(params: FetchSearchInput) {
   return queryOptions({
     queryKey: ["search", params.network, params.query],
-    queryFn: () => getSearch(params),
+    queryFn: ({ signal }) => getSearch(params, signal),
     enabled: params.query.length > 0,
   });
 }

@@ -1,377 +1,385 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useHydrated, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import { LoaderCircle, RefreshCw, X } from "lucide-react";
+import { useCallback, useId, useMemo } from "react";
 import {
-  type ColumnDef,
-  getCoreRowModel,
-  getFilteredRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { Box, Calendar, MoveDown, MoveUp } from "lucide-react";
-import { useMemo, useState } from "react";
-import { RelativeTime } from "@/components/relative-time";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { blocksQueryOptions } from "@/lib/api/blocks";
-import { transactionsQueryOptions } from "@/lib/api/transactions";
-import type { ApiBlock } from "@/lib/api/types";
-import { formatCompact, formatNumber } from "@/lib/format";
-import { getPageCount, type PageSize } from "@/lib/pagination";
+  blockLookupQueryOptions,
+  blocksInfiniteQueryOptions,
+  blocksQueryOptions,
+} from "@/lib/api/blocks";
+import type { PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
-import { BlockTransactionsChart } from "@/themes/dash/components/block-transactions-chart";
-import { CopyButton } from "@/themes/dash/components/copy-button";
-import { DataTable } from "@/themes/dash/components/data-table";
-import { HashCell } from "@/themes/dash/components/hash-cell";
+import {
+  type TableViewMode,
+  useTableViewMode,
+} from "@/lib/use-table-view-mode";
+import { BlocksOverview } from "@/themes/dash/components/blocks-overview";
+import { BlocksTable } from "@/themes/dash/components/blocks-table";
+import { LoadMore } from "@/themes/dash/components/load-more";
 import { Pagination } from "@/themes/dash/components/pagination";
-import { SearchInput } from "@/themes/dash/components/search-input";
-import { StatCard } from "@/themes/dash/components/stat-card";
 
-const columns: ColumnDef<ApiBlock>[] = [
-  {
-    accessorKey: "height",
-    header: "Height",
-    cell: ({ row }) => (
-      <Link
-        to="/blocks/$hashOrHeight"
-        params={{ hashOrHeight: row.original.hash }}
-        className="flex items-center gap-2"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex size-7 items-center justify-center rounded-full border border-accent/12 text-accent">
-          <Box className="size-3.5" />
-        </div>
-        <span className="font-mono font-medium">#{row.original.height}</span>
-      </Link>
-    ),
-  },
-  {
-    accessorKey: "hash",
-    header: "Block Hash",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-1.5">
-        <Link
-          to="/blocks/$hashOrHeight"
-          params={{ hashOrHeight: row.original.hash }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <HashCell hash={row.original.hash} />
-        </Link>
-        <CopyButton value={row.original.hash} />
-      </div>
-    ),
-  },
-  {
-    id: "minedBy",
-    header: "Mined by",
-    cell: () => <span className="text-muted-foreground">—</span>,
-  },
-  {
-    accessorKey: "txCount",
-    header: "Txs",
-    cell: ({ getValue }) => (
-      <span className="text-muted-foreground">{getValue<number>()}</span>
-    ),
-  },
-  {
-    id: "fees",
-    header: "Fees",
-    cell: () => <span className="text-muted-foreground">0</span>,
-  },
-  {
-    accessorKey: "size",
-    header: "Size",
-    cell: ({ getValue }) => (
-      <span className="text-muted-foreground">
-        {Math.round(getValue<number>() / 1024)} Kb
-      </span>
-    ),
-  },
-  {
-    accessorKey: "difficulty",
-    header: "Difficulty",
-    cell: ({ row, table }) => {
-      const difficulty = row.original.difficulty;
-      const nextRow = table.getRowModel().rows[row.index + 1];
-      const prevDifficulty = nextRow?.original.difficulty;
-      const isUp = prevDifficulty == null || difficulty >= prevDifficulty;
-      return (
-        <Badge
-          className={`h-6 font-medium ${isUp ? "bg-[#4C7EFF1F] text-accent" : "bg-muted text-muted-foreground"}`}
-        >
-          {difficulty.toFixed(4)}{" "}
-          {isUp ? (
-            <MoveUp className="inline size-3" />
-          ) : (
-            <MoveDown className="inline size-3" />
-          )}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: "timestamp",
-    header: "Time",
-    cell: ({ getValue }) => (
-      <span className="text-muted-foreground">
-        {<RelativeTime timestamp={getValue<string>()} />}
-      </span>
-    ),
-  },
-];
-
-const skeletonWidths = [
-  "w-20",
-  "w-44",
-  "w-28",
-  "w-14",
-  "w-14",
-  "w-16",
-  "w-20",
-  "w-16",
-];
-
-interface ClassicBlocksListPageProps {
-  page: number;
-  limit: PageSize;
-}
-
-export default function ClassicBlocksListPage({
+export default function BlocksListPage({
   page,
   limit,
-}: ClassicBlocksListPageProps) {
+  superblock,
+  view,
+  order,
+  height,
+  hash,
+}: {
+  page: number;
+  limit: PageSize;
+  superblock?: boolean;
+  view?: TableViewMode;
+  order: "asc" | "desc";
+  height?: string;
+  hash?: string;
+}) {
   const network = useStore(appStore, (state) => state.network);
+  const hydrated = useHydrated();
+  const queryClient = useQueryClient();
   const navigate = useNavigate({ from: "/blocks/" });
-  const [globalFilter, setGlobalFilter] = useState("");
-
-  const { data, isFetching } = useQuery(
-    blocksQueryOptions({ network, page, limit, order: "desc" }),
+  const titleId = useId();
+  const [storedMode, setStoredMode] = useTableViewMode(
+    "dash-blocks",
+    "pagination",
   );
-
-  const { data: chartBlocksData } = useQuery(
-    blocksQueryOptions({ network, page: 1, limit: 40, order: "desc" }),
-  );
-
-  const { data: txData } = useQuery(
-    transactionsQueryOptions({ network, page: 1, limit: 1, order: "desc" }),
-  );
-
-  const blocks = data?.resultSet ?? [];
-  const pageCount = getPageCount(data?.pagination);
-  const chartBlocks = chartBlocksData?.resultSet ?? [];
-
-  const stats = useMemo(() => {
-    const latestHeight = blocks.length > 0 ? blocks[0].height : null;
-    const totalBlocks = data?.pagination?.total ?? null;
-    const totalTxs = txData?.pagination?.total ?? null;
-
-    let avgBlockTime: number | null = null;
-    if (blocks.length >= 2) {
-      const times = blocks.map((b) => new Date(b.timestamp).getTime());
-      const diffs: number[] = [];
-      for (let i = 0; i < times.length - 1; i++) {
-        diffs.push(Math.abs(times[i] - times[i + 1]));
-      }
-      avgBlockTime = Math.round(
-        diffs.reduce((s, d) => s + d, 0) / diffs.length / 60000,
-      );
-    }
-
-    let txChange: number | null = null;
-    if (chartBlocks.length >= 2) {
-      const sorted = [...chartBlocks].sort((a, b) => a.height - b.height);
-      const half = Math.floor(sorted.length / 2);
-      const firstHalfTxs = sorted
-        .slice(0, half)
-        .reduce((s, b) => s + b.txCount, 0);
-      const secondHalfTxs = sorted
-        .slice(half)
-        .reduce((s, b) => s + b.txCount, 0);
-      if (firstHalfTxs > 0) {
-        txChange = ((secondHalfTxs - firstHalfTxs) / firstHalfTxs) * 100;
-      }
-    }
-
-    return {
-      latestHeight,
-      totalBlocks,
-      totalTxs,
-      avgBlockTime,
-      txChange,
-    };
-  }, [blocks, data?.pagination, txData?.pagination, chartBlocks]);
-
-  const table = useReactTable({
-    data: blocks,
-    columns,
-    state: { globalFilter },
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: "includesString",
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    manualPagination: true,
-    pageCount,
+  const mode = view ?? (page > 1 ? "pagination" : storedMode);
+  const isInfinite = mode === "infinite";
+  const lookup = hash ?? height;
+  const filteredQuery = useQuery({
+    ...blockLookupQueryOptions({ network, value: lookup ?? "" }),
+    enabled: lookup !== undefined,
   });
+  const infiniteOptions = blocksInfiniteQueryOptions({
+    network,
+    limit: 25,
+    order,
+    superblock,
+  });
+  const pagedQuery = useQuery({
+    ...blocksQueryOptions({ network, page, limit, order, superblock }),
+    enabled: !isInfinite && lookup === undefined,
+    placeholderData: (previous, previousQuery) => {
+      if (
+        previous &&
+        previousQuery?.queryKey[1] === network &&
+        previousQuery.queryKey.at(-1) === (superblock ?? null)
+      )
+        return previous;
+      const cached = queryClient.getQueryData(infiniteOptions.queryKey)
+        ?.pages[0];
+      return cached
+        ? { ...cached, resultSet: cached.resultSet.slice(0, limit) }
+        : undefined;
+    },
+    refetchInterval:
+      lookup === undefined && !isInfinite && order === "desc" && page === 1
+        ? 30_000
+        : false,
+  });
+  const infiniteQuery = useInfiniteQuery({
+    ...infiniteOptions,
+    enabled: isInfinite && lookup === undefined,
+    placeholderData: (previous, previousQuery) => {
+      if (
+        previous &&
+        previousQuery?.queryKey[1] === network &&
+        previousQuery.queryKey.at(-1) === (superblock ?? null)
+      )
+        return previous;
+      return pagedQuery.data
+        ? { pages: [pagedQuery.data], pageParams: [1] }
+        : undefined;
+    },
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const blocks = useMemo(() => {
+    if (lookup !== undefined) {
+      const block = filteredQuery.data;
+      return block &&
+        (height === undefined || block.height === Number(height)) &&
+        (superblock === undefined || Boolean(block.superblock) === superblock)
+        ? [block]
+        : [];
+    }
+    if (!isInfinite) return pagedQuery.data?.resultSet ?? [];
+    const seen = new Set<string>();
+    return (
+      infiniteQuery.data?.pages.flatMap((batch) => batch.resultSet) ?? []
+    ).filter((block) => {
+      if (seen.has(block.hash)) return false;
+      seen.add(block.hash);
+      return true;
+    });
+  }, [
+    lookup,
+    filteredQuery.data,
+    height,
+    superblock,
+    isInfinite,
+    pagedQuery.data,
+    infiniteQuery.data,
+  ]);
+  const query =
+    lookup !== undefined
+      ? filteredQuery
+      : isInfinite
+        ? infiniteQuery
+        : pagedQuery;
+  const isFetching = hydrated && query.isFetching;
+  const hasNextPage = pagedQuery.data?.resultSet.length === limit;
+  const loadMore = useCallback(() => {
+    if (
+      infiniteQuery.hasNextPage &&
+      !infiniteQuery.isFetching &&
+      !infiniteQuery.isPlaceholderData
+    ) {
+      void infiniteQuery.fetchNextPage();
+    }
+  }, [
+    infiniteQuery.hasNextPage,
+    infiniteQuery.isFetching,
+    infiniteQuery.isPlaceholderData,
+    infiniteQuery.fetchNextPage,
+  ]);
+
+  const changeMode = (next: TableViewMode) => {
+    setStoredMode(next);
+    void navigate({
+      search: { page: 1, limit, superblock, order, view: next, height, hash },
+      resetScroll: false,
+    });
+  };
 
   return (
-    <main className="mx-auto max-w-[1440px] px-6 py-10">
-      <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
-        <div className="grid gap-4 grid-cols-3 grid-rows-2 auto-rows-fr [&>*]:min-w-0">
-          <StatCard
-            icon={<img src="/icons/chart-pie.svg" alt="" className="size-5" />}
-            label="Latest Block"
-            value={
-              stats.latestHeight != null
-                ? formatNumber(stats.latestHeight)
-                : "—"
-            }
-            bgImage="/images/blocks/latest.png"
-          />
-
-          <StatCard
-            icon={<img src="/icons/superblock.svg" alt="" className="size-5" />}
-            label="Latest Superblock"
-            value="—"
-            bgImage="/images/blocks/superblock.png"
-            adornment={
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#edf3ff] px-2.5 py-1 text-[12px] font-semibold text-accent">
-                7,336
-                <img src="/icons/dash.svg" alt="" className="size-3.5" />
-              </span>
-            }
-          />
-
-          <StatCard
-            icon={<img src="/icons/sandglass.svg" alt="" className="size-5" />}
-            label="Block Time"
-            value={
-              stats.avgBlockTime != null ? `${stats.avgBlockTime} Min` : "—"
-            }
-            bgImage="/images/blocks/time.png"
-          />
-
-          <StatCard
-            icon={<img src="/icons/block.svg" alt="" className="size-5" />}
-            label="Blocks"
-            value={
-              stats.totalBlocks != null ? formatCompact(stats.totalBlocks) : "—"
-            }
-            bgImage="/images/blocks/total.png"
-          />
-
-          <StatCard
-            icon={
-              <img src="/icons/block-reward.svg" alt="" className="size-5" />
-            }
-            label="Block Reward"
-            value="—"
-            bgImage="/images/blocks/reward.png"
-          />
-
-          <StatCard
-            icon={<img src="/icons/fees.svg" alt="" className="size-5" />}
-            label="Block Fees"
-            value="—"
-            bgImage="/images/blocks/fees.png"
-          />
-        </div>
-
-        <Card className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
-          <CardHeader className="relative px-5 pb-2 sm:px-6 ">
-            <div className="flex items-start gap-4">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
-                <Box className="size-5" strokeWidth={1.75} />
-              </div>
-              <div>
-                <p className="text-[15px] font-medium text-muted-foreground">
-                  Block Transactions
-                </p>
-                <CardTitle className="mt-1 flex flex-wrap items-center gap-2 text-[34px] font-medium tracking-[-0.03em]">
-                  <span className="font-extrabold text-[#21314d]">
-                    {stats.totalTxs != null
-                      ? formatCompact(stats.totalTxs)
-                      : "—"}
-                  </span>
-                  <span className="text-muted-foreground">TXs</span>
-                  {stats.txChange != null && (
-                    <Badge className="h-5 rounded-full border-0 bg-accent/10 px-1.5 text-[10px] font-bold text-accent">
-                      {stats.txChange >= 0 ? (
-                        <MoveUp className="size-2.5" />
-                      ) : (
-                        <MoveDown className="size-2.5" />
-                      )}
-                      {Math.abs(stats.txChange).toFixed(1)}%
-                    </Badge>
-                  )}
-                </CardTitle>
-              </div>
-            </div>
-            <CardAction>
-              <Badge className="h-7 gap-1.5 whitespace-nowrap rounded-full border-0 bg-[#EAF0FF] px-2.5 text-[11px] font-medium text-accent">
-                <Calendar className="size-3 shrink-0" />1 Month
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="relative flex flex-1 items-end px-3 pb-3 sm:px-4 sm:pb-4">
-            <BlockTransactionsChart
-              className="rounded-[20px]"
-              data={chartBlocks.map((b) => ({
-                height: b.height,
-                txCount: b.txCount,
-              }))}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card
-        className="border-0 shadow-none animate-fade-in-up"
-        style={{ animationDelay: "150ms" }}
+    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-12">
+      <BlocksOverview network={network} />
+      <section
+        aria-labelledby={titleId}
+        className="min-w-0 rounded-3xl bg-card p-4 sm:p-6"
       >
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Blocks
-          </CardTitle>
-          <CardAction>
-            <SearchInput
-              value={globalFilter}
-              onChange={setGlobalFilter}
-              placeholder="Search by Block Hash..."
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+          <h2
+            id={titleId}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+          >
+            {superblock ? "Superblocks" : "Blocks"}
+            <LoaderCircle
+              aria-hidden="true"
+              className={`size-3.5 motion-safe:animate-spin ${isFetching ? "" : "invisible"}`}
             />
-          </CardAction>
-        </CardHeader>
-        <CardContent className="overflow-x-auto px-3">
-          <DataTable
-            table={table}
-            isFetching={isFetching}
-            isEmpty={blocks.length === 0}
-            skeletonWidths={skeletonWidths}
-            skeletonRows={limit}
-            emptyMessage="No blocks found."
-            borderless
-            onRowClick={(block) =>
-              navigate({
-                to: "/blocks/$hashOrHeight",
-                params: { hashOrHeight: block.hash },
-              })
-            }
-          />
-        </CardContent>
-        <Pagination
-          page={page}
-          pageCount={pageCount}
-          onPageChange={(p) => navigate({ search: { page: p, limit } })}
-          pageSize={limit}
-          onPageSizeChange={(size) =>
-            navigate({ search: { page: 1, limit: size } })
+            <output className="sr-only">
+              {isFetching ? "Updating blocks…" : ""}
+            </output>
+          </h2>
+          <div className="order-3 flex min-w-0 basis-full flex-wrap items-center gap-2 empty:hidden sm:order-none sm:flex-1 sm:basis-auto sm:justify-end sm:empty:flex">
+            {order === "asc" && (
+              <button
+                type="button"
+                aria-label="Reset height sorting"
+                onClick={() =>
+                  void navigate({
+                    search: (previous) => ({
+                      ...previous,
+                      page: 1,
+                      order: "desc",
+                    }),
+                    resetScroll: false,
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-action-subtle px-3 py-1 text-xs text-accent focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                Sort: Height · Ascending
+                <X className="size-3 shrink-0" aria-hidden="true" />
+              </button>
+            )}
+            {(["height", "hash"] as const).map((kind) => {
+              const value = kind === "height" ? height : hash;
+              return (
+                value !== undefined && (
+                  <button
+                    key={kind}
+                    type="button"
+                    aria-label={`Clear ${kind} filter`}
+                    title={value}
+                    onClick={() =>
+                      void navigate({
+                        search: (previous) => ({
+                          ...previous,
+                          page: 1,
+                          [kind]: undefined,
+                        }),
+                        resetScroll: false,
+                      })
+                    }
+                    className="inline-flex max-w-full sm:max-w-64 items-center gap-2 rounded-lg bg-action-subtle px-3 py-1 text-xs text-accent focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    <span className="truncate">
+                      {kind === "height" ? "Height" : "Block Hash"}: {value}
+                    </span>
+                    <X className="size-3 shrink-0" aria-hidden="true" />
+                  </button>
+                )
+              );
+            })}
+            {(lookup !== undefined || order === "asc") && (
+              <button
+                type="button"
+                aria-label="Clear all filters and sorting"
+                onClick={() =>
+                  void navigate({
+                    search: (previous) => ({
+                      ...previous,
+                      page: 1,
+                      height: undefined,
+                      hash: undefined,
+                      order: "desc",
+                    }),
+                    resetScroll: false,
+                  })
+                }
+                className="rounded-lg px-2 py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {isInfinite && lookup === undefined && (
+            <button
+              type="button"
+              disabled={isFetching}
+              onClick={() =>
+                void queryClient.resetQueries({
+                  queryKey: infiniteOptions.queryKey,
+                  exact: true,
+                })
+              }
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs text-accent hover:bg-action-subtle disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              <RefreshCw className="size-3.5" aria-hidden="true" />
+              Refresh blocks
+            </button>
+          )}
+          <fieldset
+            aria-label="Loading mode"
+            className="ml-auto inline-flex shrink-0 rounded-xl bg-secondary p-1"
+          >
+            {(["pagination", "infinite"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={mode === value}
+                onClick={() => changeMode(value)}
+                className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground aria-pressed:bg-card aria-pressed:text-accent focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                {value === "pagination" ? "Pages" : "Scroll"}
+              </button>
+            ))}
+          </fieldset>
+        </div>
+        {query.isError &&
+          !(
+            lookup === undefined &&
+            isInfinite &&
+            infiniteQuery.isFetchNextPageError
+          ) && (
+            <p role="alert" className="mb-3 text-sm text-destructive">
+              {blocks.length
+                ? "Could not refresh blocks. Showing previous data."
+                : "Could not load blocks."}{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={() => void query.refetch()}
+              >
+                Try again
+              </button>
+            </p>
+          )}
+        <BlocksTable
+          blocks={blocks}
+          order={order}
+          onOrderChange={(next) =>
+            void navigate({
+              search: {
+                page: 1,
+                limit,
+                superblock,
+                view: mode,
+                order: next,
+                height,
+                hash,
+              },
+              resetScroll: false,
+            })
+          }
+          busy={isFetching}
+          emptyMessage={
+            query.isPending
+              ? "Loading blocks…"
+              : query.isError
+                ? "Blocks unavailable"
+                : "No blocks found."
           }
         />
-      </Card>
+        {lookup === undefined &&
+          (isInfinite ? (
+            infiniteQuery.hasNextPage && (
+              <LoadMore
+                loading={isFetching}
+                failed={infiniteQuery.isError}
+                onLoad={loadMore}
+              />
+            )
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <Pagination
+                align="end"
+                page={page}
+                hasNextPage={hasNextPage}
+                disabled={
+                  isFetching ||
+                  pagedQuery.isPlaceholderData ||
+                  pagedQuery.isError ||
+                  !pagedQuery.data
+                }
+                onPageChange={(next) =>
+                  void navigate({
+                    search: {
+                      page: next,
+                      limit,
+                      superblock,
+                      order,
+                      view: mode,
+                    },
+                    resetScroll: false,
+                  })
+                }
+                pageSize={limit}
+                onPageSizeChange={(size) =>
+                  void navigate({
+                    search: {
+                      page: 1,
+                      limit: size,
+                      superblock,
+                      order,
+                      view: mode,
+                    },
+                    resetScroll: false,
+                  })
+                }
+              />
+            </div>
+          ))}
+      </section>
     </main>
   );
 }
