@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { buildSmoothPath } from "@/themes/dash/lib/chart-utils";
 
@@ -13,6 +13,7 @@ type AreaChartProps<T> = {
   className?: string;
   compact?: boolean;
   compactHeight?: number;
+  height?: number;
   minimumMax?: number;
   zeroBaseline?: boolean;
   tooltipPlacement?: "corner" | "point";
@@ -31,6 +32,7 @@ export function AreaChart<T>({
   className,
   compact = false,
   compactHeight = 62,
+  height: fullHeight = 260,
   minimumMax = 1,
   zeroBaseline = false,
   tooltipPlacement = "corner",
@@ -39,16 +41,30 @@ export function AreaChart<T>({
   formatYLabel = String,
 }: AreaChartProps<T>) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(700);
   const gradientId = useId();
   const instructionsId = useId();
-  const width = compact ? 245 : 700;
-  const height = compact ? compactHeight : 260;
-  const paddingLeft = compact ? 0.5 : 40;
+  const width = compact ? 245 : containerWidth;
+  const height = compact ? compactHeight : fullHeight;
   const paddingRight = compact ? 0.5 : 20;
   const paddingTop = compact ? 4 : 24;
   const paddingBottom = compact ? 4 : 32;
-  const chartWidth = width - paddingLeft - paddingRight;
   const chartHeight = height - paddingTop - paddingBottom;
+
+  const hasData = data.length > 0;
+  useEffect(() => {
+    const container = containerRef.current;
+    if (compact || !hasData || !container) return;
+    const updateWidth = () => {
+      const nextWidth = Math.round(container.getBoundingClientRect().width);
+      if (nextWidth > 0) setContainerWidth(nextWidth);
+    };
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [compact, hasData]);
 
   const geometry = useMemo(() => {
     if (data.length === 0) return null;
@@ -81,6 +97,13 @@ export function AreaChart<T>({
     const yTicks = compact
       ? [0, 1, 2, 3].map((index) => axisMin + (axisRange * index) / 3)
       : [0, step, step * 2, niceMax];
+    const paddingLeft = compact
+      ? 0.5
+      : Math.max(
+          48,
+          ...yTicks.map((tick) => formatYLabel(tick).length * 7 + 16),
+        );
+    const chartWidth = Math.max(1, width - paddingLeft - paddingRight);
 
     const points = data.map((entry, i) => {
       const x =
@@ -97,7 +120,17 @@ export function AreaChart<T>({
 
     const linePath = buildSmoothPath(points);
     const areaPath = `${linePath} L${points[points.length - 1].x},${paddingTop + chartHeight} L${points[0].x},${paddingTop + chartHeight} Z`;
-    const labelInterval = Math.max(1, Math.floor(data.length / 8));
+    const labelCount = Math.min(
+      data.length,
+      Math.max(2, Math.floor(chartWidth / 80) + 1),
+    );
+    const labelIndexes = new Set(
+      Array.from({ length: labelCount }, (_, index) =>
+        labelCount === 1
+          ? 0
+          : Math.round((index * (data.length - 1)) / (labelCount - 1)),
+      ),
+    );
 
     return {
       axisMin,
@@ -106,7 +139,9 @@ export function AreaChart<T>({
       points,
       linePath,
       areaPath,
-      labelInterval,
+      labelIndexes,
+      paddingLeft,
+      chartWidth,
     };
   }, [
     data,
@@ -114,10 +149,11 @@ export function AreaChart<T>({
     minimumMax,
     zeroBaseline,
     compact,
-    chartWidth,
+    width,
     chartHeight,
-    paddingLeft,
+    paddingRight,
     paddingTop,
+    formatYLabel,
   ]);
 
   if (!geometry) return null;
@@ -129,7 +165,9 @@ export function AreaChart<T>({
     points,
     linePath,
     areaPath,
-    labelInterval,
+    labelIndexes,
+    paddingLeft,
+    chartWidth,
   } = geometry;
   const selectedIndex = Math.min(
     hoveredIndex ?? points.length - 1,
@@ -140,6 +178,7 @@ export function AreaChart<T>({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "relative w-full rounded-[20px] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring",
         className,
@@ -152,7 +191,7 @@ export function AreaChart<T>({
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"
-        style={compact ? { height } : undefined}
+        style={{ height }}
         preserveAspectRatio={compact ? "none" : "xMidYMid meet"}
         role="img"
         aria-label={ariaLabel}
@@ -247,13 +286,15 @@ export function AreaChart<T>({
 
         {!compact &&
           points.map((p, i) => {
-            if (i % labelInterval !== 0 && i !== data.length - 1) return null;
+            if (!labelIndexes.has(i)) return null;
             return (
               <text
                 key={`label-${getKey(p.entry)}`}
                 x={p.x}
                 y={height - 6}
-                textAnchor="middle"
+                textAnchor={
+                  i === 0 ? "start" : i === data.length - 1 ? "end" : "middle"
+                }
                 className="fill-muted-foreground"
                 fontSize="11"
               >
