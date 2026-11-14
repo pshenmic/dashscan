@@ -220,6 +220,28 @@
   scroll-padding-top: 88px;
 }
 
+:root[data-theme="dash"] [data-dash-calendar] .rdp-caption_label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+:root[data-theme="dash"] [data-dash-calendar] .rdp-day_button {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+:root[data-theme="dash"] [data-dash-calendar] .rdp-chevron {
+  width: 16px;
+  height: 16px;
+}
+
+@media (pointer: coarse) {
+  :root[data-theme="dash"] [data-dash-calendar] {
+    --dash-calendar-cell: 36px;
+    --dash-calendar-button: 34px;
+  }
+}
+
 :root[data-theme="dash"] .dash-header {
   box-shadow: 0 4px 16px rgb(12 28 51 / 8%);
   transition: transform 140ms ease-out;
