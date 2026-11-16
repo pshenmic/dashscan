@@ -1,5 +1,4 @@
 import { useStore } from "@tanstack/react-store";
-import { Circle, ExternalLink } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,14 +32,6 @@ export default function NetworkSelector({
           className="flex h-10 items-center gap-2 rounded-xl border border-input bg-transparent pl-4 pr-3 text-sm font-medium tracking-wide text-foreground transition hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
           aria-label={`Select network, current: ${network === "mainnet" ? "Mainnet" : "Testnet"}`}
         >
-          <Circle
-            aria-hidden="true"
-            className={
-              network === "mainnet"
-                ? "size-1.5 fill-positive-brand text-positive-brand"
-                : "size-1.5 fill-amber-500 text-amber-500"
-            }
-          />
           {network === "mainnet" ? "Mainnet" : "Testnet"}
           <HomeIcon name="chevron-down" />
         </button>
@@ -53,21 +44,7 @@ export default function NetworkSelector({
               aria-current={network === net.value ? "true" : undefined}
               className={network === net.value ? "font-medium" : ""}
             >
-              <Circle
-                aria-hidden="true"
-                className={
-                  net.value === "mainnet"
-                    ? "size-2.5 fill-positive-brand text-positive-brand"
-                    : "size-2.5 fill-amber-500 text-amber-500"
-                }
-              />
               {net.label}
-              {net.value !== network && (
-                <ExternalLink
-                  aria-hidden="true"
-                  className="ml-auto size-3 text-muted-foreground"
-                />
-              )}
             </a>
           </DropdownMenuItem>
         ))}

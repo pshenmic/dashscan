@@ -44,10 +44,7 @@ export function HomeTransactions() {
   const softShadow = "shadow-[0_0_24px_rgb(12_28_51/8%)]";
 
   return (
-    <section
-      aria-labelledby={titleId}
-      className="space-y-10 py-4 sm:py-8 lg:space-y-16"
-    >
+    <section aria-labelledby={titleId} className="space-y-10 lg:space-y-16">
       {breakdown.isError && (
         <p role="alert" className="text-sm text-destructive">
           Could not load transaction statistics.{" "}

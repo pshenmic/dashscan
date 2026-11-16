@@ -93,37 +93,39 @@ export function BlocksTimeline({
           className="-mx-4 -my-6 flex gap-6 overflow-x-auto px-4 py-6 sm:-mx-6 sm:px-6"
         >
           {timeline.map((block) => (
-            <li key={block.hash} className="min-w-[128px] flex-1 rounded-xl">
+            <li key={block.hash} className="min-w-max flex-1 rounded-xl">
               <Link
                 to="/blocks/$hashOrHeight"
                 params={{ hashOrHeight: block.hash }}
                 data-new-block={newHashes.includes(block.hash) || undefined}
-                className="dash-timeline-block relative flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-action-solid p-3 text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="dash-timeline-block relative flex h-[74px] min-w-40 flex-col justify-between gap-3 rounded-xl bg-action-solid p-3 tabular-nums text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
                   <span
                     aria-hidden="true"
                     className="h-[11px] w-[10px] shrink-0 bg-current [mask:url('/icons/home/timeline-block.svg')_center/contain_no-repeat]"
                   />
-                  #{metricNumber(block.height, 0)}
+                  <span data-timeline-height>
+                    #{metricNumber(block.height, 0)}
+                  </span>
                 </span>
-                <span className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-sm">
+                <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs">
+                  <span className="shrink-0 text-sm">
                     <strong>{metricNumber(block.txCount, 0)}</strong> Txs
                   </span>
-                  <span className="text-primary-foreground">
+                  <span className="shrink-0 text-primary-foreground">
                     {metricBytes(block.size)}
                   </span>
                 </span>
               </Link>
-              <div className="relative mt-2 pt-3 text-center text-[10px] text-muted-foreground before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-brand after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)]">
+              <div className="dash-timeline-track relative mt-2 pt-3 text-center text-[10px] text-muted-foreground after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand/70">
                 <BlockAge timestamp={block.timestamp} />
               </div>
             </li>
           ))}
           {upcoming.map((block) => (
-            <li key={block.height} className="group min-w-[128px] flex-1">
-              <div className="flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-card p-3 text-accent shadow-[0_0_24px_rgb(12_28_51/8%)]">
+            <li key={block.height} className="min-w-max flex-1">
+              <div className="flex h-[74px] min-w-40 flex-col justify-between gap-3 rounded-xl bg-card p-3 tabular-nums text-accent shadow-[0_2px_10px_rgb(12_28_51/8%)]">
                 <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
                   <span
                     aria-hidden="true"
@@ -135,7 +137,10 @@ export function BlocksTimeline({
                   {block.label}
                 </span>
               </div>
-              <div className="relative mt-2 min-h-[26px] pt-3 text-center text-[10px] text-muted-foreground before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-dashed before:border-brand/24 after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)] group-last:before:right-0">
+              <div
+                data-upcoming
+                className="dash-timeline-track relative mt-2 min-h-[26px] pt-3 text-center text-[10px] text-muted-foreground after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand/70"
+              >
                 <span className="sr-only">Not yet mined</span>
               </div>
             </li>
