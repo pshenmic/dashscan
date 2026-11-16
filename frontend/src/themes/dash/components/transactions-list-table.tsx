@@ -27,7 +27,6 @@ import {
   transactionsQueryOptions,
 } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
-import { getPageCount } from "@/lib/pagination";
 import type { Network } from "@/lib/store";
 import { TRANSACTION_TYPES } from "@/lib/transaction-types";
 import {
@@ -339,7 +338,7 @@ export function TransactionsListTable({
     getRowId: (row) => row.hash,
   });
   const query = searching ? lookup : isInfinite ? infinite : paged;
-  const pageCount = getPageCount(paged.data?.pagination);
+  const hasNextPage = paged.data?.resultSet.length === search.limit;
   const loadMore = useCallback(() => {
     if (
       infinite.hasNextPage &&
@@ -574,10 +573,16 @@ export function TransactionsListTable({
           errorMessage="Could not load more transactions."
         />
       )}
-      {!searching && !isInfinite && pageCount > 0 && (
+      {!searching && !isInfinite && (
         <Pagination
           page={search.page}
-          pageCount={pageCount}
+          hasNextPage={hasNextPage}
+          disabled={
+            query.isFetching ||
+            paged.isPlaceholderData ||
+            paged.isError ||
+            !paged.data
+          }
           pageSize={search.limit}
           align="end"
           onPageChange={(page) => update({ page, view: "pagination" })}
