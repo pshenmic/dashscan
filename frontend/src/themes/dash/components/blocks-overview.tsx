@@ -1,14 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  ChartLine,
-  Coins,
-  Database,
-  Gauge,
-  type LucideIcon,
-  ReceiptText,
-} from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import { ChartLine, Coins, Database, Gauge, ReceiptText } from "lucide-react";
+import { useId, useState } from "react";
 import { useClockValue } from "@/components/render-clock";
 import { blockRewardQueryOptions } from "@/lib/api/blocks";
 import { transactionsStatsQueryOptions } from "@/lib/api/stats";
@@ -27,9 +20,9 @@ import {
 } from "@/themes/dash/lib/transaction-metrics";
 import { AreaChart } from "./area-chart";
 import { BlocksTimeline } from "./blocks-timeline";
-import { CardDecoration } from "./card-decoration";
 import { ChartDateRange, type ChartPeriod } from "./chart-date-range";
 import { InfoPopover } from "./info-popover";
+import { MetricCard } from "./metric-card";
 import { SkeletonBar } from "./skeleton";
 
 function MetricValue({ value, unit }: { value: string; unit?: string }) {
@@ -40,49 +33,6 @@ function MetricValue({ value, unit }: { value: string; unit?: string }) {
         <span className="font-medium text-muted-foreground"> {unit}</span>
       )}
     </span>
-  );
-}
-
-function Metric({
-  label,
-  icon: Icon,
-  description,
-  detail,
-  children,
-}: {
-  label: string;
-  icon: LucideIcon;
-  description: string;
-  detail: ReactNode;
-  children: ReactNode;
-}) {
-  const labelId = useId();
-  return (
-    <article
-      aria-labelledby={labelId}
-      className="@container relative isolate flex min-h-[164px] min-w-0 flex-col gap-4 overflow-hidden rounded-3xl dash-home-panel p-4 sm:p-5"
-    >
-      <CardDecoration icon={Icon} />
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-subtle text-accent">
-          <Icon aria-hidden="true" className="size-4" strokeWidth={1.75} />
-        </span>
-        <h2
-          id={labelId}
-          className="text-sm font-medium leading-tight text-muted-foreground"
-        >
-          <InfoPopover label={label} trigger={label}>
-            {description}
-          </InfoPopover>
-        </h2>
-      </div>
-      <div className="min-w-0 break-words text-xl @[15rem]:text-2xl font-semibold leading-tight tabular-nums text-foreground">
-        {children}
-      </div>
-      <div className="mt-auto flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums">
-        {detail}
-      </div>
-    </article>
   );
 }
 
@@ -190,7 +140,7 @@ export function BlocksOverview({ network }: { network: Network }) {
           </h1>
         </div>
         <div className="grid min-w-0 auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2">
-          <Metric
+          <MetricCard
             label="Blockchain Size"
             icon={Database}
             description="Disk space used by this node’s block and undo files, not the total storage used by the network."
@@ -213,8 +163,8 @@ export function BlocksOverview({ network }: { network: Network }) {
             }
           >
             <MetricValue value={chainSize} unit={chainSizeUnit} />
-          </Metric>
-          <Metric
+          </MetricCard>
+          <MetricCard
             label="Difficulty"
             icon={Gauge}
             description="Current mining difficulty reported by Dash Core. Difficulty has no unit."
@@ -237,14 +187,14 @@ export function BlocksOverview({ network }: { network: Network }) {
             }
           >
             {metricNumber(chain.data?.difficulty, 4)}
-          </Metric>
+          </MetricCard>
           {(
             [
               ["Block Subsidy", "subsidy", Coins],
               ["Block Fees", "fees", ReceiptText],
             ] as const
           ).map(([label, field, icon]) => (
-            <Metric
+            <MetricCard
               key={field}
               label={label}
               icon={icon}
@@ -314,7 +264,7 @@ export function BlocksOverview({ network }: { network: Network }) {
                   —
                 </span>
               )}
-            </Metric>
+            </MetricCard>
           ))}
           {chain.isError && (
             <button
