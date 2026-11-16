@@ -10,7 +10,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ChevronDown, LockKeyhole, X } from "lucide-react";
-import { useCallback, useId, useMemo } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import {
   Popover,
   PopoverContent,
@@ -58,6 +58,7 @@ export function TransactionsListTable({
   const hydrated = useHydrated();
   const navigate = useNavigate({ from: "/transactions/" });
   const titleId = useId();
+  const [attributesOpen, setAttributesOpen] = useState(false);
   const queryClient = useQueryClient();
   const [storedMode, setMode] = useTableViewMode(
     "dash-transactions",
@@ -274,6 +275,74 @@ export function TransactionsListTable({
         cell: ({ row }) => <TransactionTypeBadge type={row.original.type} />,
       },
       {
+        id: "attributes",
+        header: () => (
+          <Popover open={attributesOpen} onOpenChange={setAttributesOpen}>
+            <span className="inline-flex items-center gap-1">
+              Attributes
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Filter: Attributes"
+                  className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  <ChevronDown className="size-3" aria-hidden="true" />
+                </button>
+              </PopoverTrigger>
+            </span>
+            <PopoverContent align="start" className="w-48 p-2">
+              <fieldset
+                aria-label="Transaction attributes"
+                className="space-y-1"
+              >
+                {(
+                  [
+                    ["coinjoin", "CoinJoin", search.coinjoin],
+                    ["multisig", "Multisig", search.multisig],
+                  ] as const
+                ).map(([key, label, value]) => (
+                  <label
+                    key={key}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-secondary"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={value === true}
+                      onChange={(event) =>
+                        update({
+                          [key]: event.target.checked ? true : undefined,
+                        })
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </fieldset>
+            </PopoverContent>
+          </Popover>
+        ),
+        cell: ({ row }) => {
+          const attributes = [
+            row.original.coinjoin && "CoinJoin",
+            row.original.multisig && "Multisig",
+          ].filter(Boolean);
+          return attributes.length ? (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+              {attributes.map((attribute) => (
+                <span
+                  key={String(attribute)}
+                  className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground"
+                >
+                  {attribute}
+                </span>
+              ))}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          );
+        },
+      },
+      {
         accessorKey: "size",
         header: () => (
           <PendingColumnHeader
@@ -326,6 +395,9 @@ export function TransactionsListTable({
       search.block_height,
       search.order,
       search.transaction_type,
+      search.coinjoin,
+      search.multisig,
+      attributesOpen,
       update,
     ],
   );
@@ -392,6 +464,26 @@ export function TransactionsListTable({
       value: TRANSACTION_TYPES.find(
         (type) => type.name === search.transaction_type,
       )?.label,
+    },
+    {
+      key: "coinjoin" as const,
+      label: "CoinJoin",
+      value:
+        search.coinjoin === undefined
+          ? undefined
+          : search.coinjoin
+            ? "Included"
+            : "Excluded",
+    },
+    {
+      key: "multisig" as const,
+      label: "Multisig",
+      value:
+        search.multisig === undefined
+          ? undefined
+          : search.multisig
+            ? "Included"
+            : "Excluded",
     },
   ].filter((filter) => filter.value !== undefined);
   return (
@@ -464,50 +556,17 @@ export function TransactionsListTable({
           </fieldset>
         </div>
       </div>
-      <div className="mb-5 flex flex-wrap items-center gap-3 text-xs">
-        <fieldset
-          aria-label="Transaction attributes"
-          className="inline-flex rounded-full bg-secondary p-1"
-        >
-          {(["All", "CoinJoin", "Multisig"] as const).map((label) => (
+      {(filters.length > 0 || search.order !== "desc") && (
+        <div className="mb-5 flex flex-wrap items-center gap-3 text-xs">
+          {search.order === "asc" && (
             <button
-              key={label}
               type="button"
-              aria-pressed={
-                label === "All"
-                  ? search.coinjoin === undefined &&
-                    search.multisig === undefined
-                  : label === "CoinJoin"
-                    ? search.coinjoin === true
-                    : search.multisig === true
-              }
-              onClick={() =>
-                update({
-                  coinjoin: label === "CoinJoin" ? true : undefined,
-                  multisig: label === "Multisig" ? true : undefined,
-                })
-              }
-              className="rounded-full px-3 py-1.5 text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+              onClick={() => update({ order: "desc" })}
+              className="text-accent"
             >
-              {label}
+              Oldest blocks first ×
             </button>
-          ))}
-        </fieldset>
-        {search.coinjoin === false && <span>Excluding CoinJoin</span>}
-        {search.multisig === false && <span>Excluding multisig</span>}
-        {search.order === "asc" && (
-          <button
-            type="button"
-            onClick={() => update({ order: "desc" })}
-            className="text-accent"
-          >
-            Oldest blocks first ×
-          </button>
-        )}
-        {(filters.length > 0 ||
-          search.coinjoin !== undefined ||
-          search.multisig !== undefined ||
-          search.order !== "desc") && (
+          )}
           <button
             type="button"
             onClick={() =>
@@ -524,8 +583,8 @@ export function TransactionsListTable({
           >
             Clear filters
           </button>
-        )}
-      </div>
+        </div>
+      )}
       {query.isError &&
         !(isInfinite && !searching && infinite.isFetchNextPageError) && (
           <p role="alert" className="mb-4 text-sm text-destructive">
@@ -554,6 +613,7 @@ export function TransactionsListTable({
             "w-52",
             "w-24",
             "w-24",
+            "w-24",
             "w-16",
             "w-28",
             "w-16",
@@ -566,7 +626,7 @@ export function TransactionsListTable({
                 ? "Transactions unavailable"
                 : "No matching transactions."
           }
-          className="min-w-[1000px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_[data-column]:not([data-column=hash]):not([data-column=type])]:text-right [&_td]:tabular-nums"
+          className="min-w-[1120px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_[data-column]:not([data-column=hash]):not([data-column=type]):not([data-column=attributes])]:text-right [&_td]:tabular-nums"
         />
       </div>
       {!searching && isInfinite && infinite.hasNextPage && (
