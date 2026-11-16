@@ -56,7 +56,7 @@ export function HomeDao() {
   return (
     <section
       aria-labelledby={titleId}
-      className="flex flex-col gap-10 py-4 sm:py-8 lg:gap-16"
+      className="flex flex-col gap-10 lg:gap-16"
     >
       <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,745fr)_minmax(0,503fr)] xl:gap-16">
         <DaoLeaderboard

@@ -92,10 +92,7 @@ export function HomeBlocks() {
   ];
 
   return (
-    <section
-      aria-labelledby={titleId}
-      className="space-y-10 py-4 sm:py-8 lg:space-y-16"
-    >
+    <section aria-labelledby={titleId} className="space-y-10 lg:space-y-16">
       {chain.isError && (
         <p role="alert" className="dash-body-compact text-destructive">
           Could not {chain.data ? "refresh" : "load"} network statistics.{" "}

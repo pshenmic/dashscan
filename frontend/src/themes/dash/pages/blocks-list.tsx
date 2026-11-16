@@ -3,9 +3,9 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useHydrated, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { RefreshCw, X } from "lucide-react";
+import { LoaderCircle, RefreshCw, X } from "lucide-react";
 import { useCallback, useId, useMemo } from "react";
 import {
   blockLookupQueryOptions,
@@ -22,8 +22,6 @@ import { BlocksOverview } from "@/themes/dash/components/blocks-overview";
 import { BlocksTable } from "@/themes/dash/components/blocks-table";
 import { LoadMore } from "@/themes/dash/components/load-more";
 import { Pagination } from "@/themes/dash/components/pagination";
-import { SkeletonBar } from "@/themes/dash/components/skeleton";
-import { metricNumber } from "@/themes/dash/lib/home-metrics";
 
 export default function BlocksListPage({
   page,
@@ -43,6 +41,7 @@ export default function BlocksListPage({
   hash?: string;
 }) {
   const network = useStore(appStore, (state) => state.network);
+  const hydrated = useHydrated();
   const queryClient = useQueryClient();
   const navigate = useNavigate({ from: "/blocks/" });
   const titleId = useId();
@@ -135,6 +134,7 @@ export default function BlocksListPage({
       : isInfinite
         ? infiniteQuery
         : pagedQuery;
+  const isFetching = hydrated && query.isFetching;
   const hasNextPage = pagedQuery.data?.resultSet.length === limit;
   const loadMore = useCallback(() => {
     if (
@@ -169,21 +169,15 @@ export default function BlocksListPage({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <h2
             id={titleId}
-            className="flex items-center gap-2 text-xl font-extrabold"
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
           >
             {superblock ? "Superblocks" : "Blocks"}
-            {query.isPending && blocks.length === 0 ? (
-              <SkeletonBar className="w-12" />
-            ) : (
-              <span
-                className="tabular-nums text-muted-foreground"
-                title="Loaded blocks"
-              >
-                {metricNumber(blocks.length, 0)}
-              </span>
-            )}
+            <LoaderCircle
+              aria-hidden="true"
+              className={`size-3.5 motion-safe:animate-spin ${isFetching ? "" : "invisible"}`}
+            />
             <output className="sr-only">
-              {query.isFetching ? "Updating blocks…" : ""}
+              {isFetching ? "Updating blocks…" : ""}
             </output>
           </h2>
           <div className="order-3 flex min-w-0 basis-full flex-wrap items-center gap-2 empty:hidden sm:order-none sm:flex-1 sm:basis-auto sm:justify-end sm:empty:flex">
@@ -261,7 +255,7 @@ export default function BlocksListPage({
           {isInfinite && lookup === undefined && (
             <button
               type="button"
-              disabled={infiniteQuery.isFetching}
+              disabled={isFetching}
               onClick={() =>
                 void queryClient.resetQueries({
                   queryKey: infiniteOptions.queryKey,
@@ -327,7 +321,7 @@ export default function BlocksListPage({
               resetScroll: false,
             })
           }
-          busy={query.isFetching}
+          busy={isFetching}
           skeletonRows={lookup !== undefined ? 1 : isInfinite ? 25 : limit}
           emptyMessage={
             query.isPending
@@ -341,7 +335,7 @@ export default function BlocksListPage({
           (isInfinite ? (
             infiniteQuery.hasNextPage && (
               <LoadMore
-                loading={infiniteQuery.isFetching}
+                loading={isFetching}
                 failed={infiniteQuery.isError}
                 onLoad={loadMore}
               />
@@ -353,7 +347,7 @@ export default function BlocksListPage({
                 page={page}
                 hasNextPage={hasNextPage}
                 disabled={
-                  pagedQuery.isFetching ||
+                  isFetching ||
                   pagedQuery.isPlaceholderData ||
                   pagedQuery.isError ||
                   !pagedQuery.data

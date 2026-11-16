@@ -1,5 +1,7 @@
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
+import { Coins, Layers, type LucideIcon, Vote } from "lucide-react";
 import type { ReactNode } from "react";
+import { Pie, PieChart } from "recharts";
 import { useNow } from "@/components/render-clock";
 import { proposalStatsQueryOptions } from "@/lib/api/governance";
 import { priceQueryOptions } from "@/lib/api/price";
@@ -17,6 +19,7 @@ import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import type { Network } from "@/lib/store";
 import { budgetAllocation, daoTiming } from "@/themes/dash/lib/dao-metrics";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
+import { CardDecoration } from "./card-decoration";
 import { DaoHint } from "./dao-hint";
 import { InfoPopover } from "./info-popover";
 import { MissingApiData } from "./missing-api-data";
@@ -37,49 +40,59 @@ function DaoRing({
       ? Math.min(100, Math.max(0, value))
       : null;
   const size = large ? 120 : 100;
-  const strokeWidth = large ? 24 : 16;
+  const segments =
+    progress == null
+      ? [{ name: "Unavailable", value: 100, fill: "var(--action-subtle)" }]
+      : [
+          { name: "Completed", value: progress, fill: "var(--brand)" },
+          {
+            name: "Remaining",
+            value: 100 - progress,
+            fill: "var(--action-subtle)",
+          },
+        ];
+  const split = progress != null && progress > 0 && progress < 100;
   return (
-    <DaoHint
-      label={`${label}: ${progress == null ? "unavailable" : `${estimated ? "approximately " : ""}${metricNumber(progress, 0)}%`}`}
-      description={label}
+    <div
+      className="relative shrink-0 rounded-full bg-card [&_button]:rounded-full"
+      style={{ width: size, height: size }}
     >
-      <span className="relative block shrink-0">
-        <svg
-          width={size}
-          height={size}
-          viewBox={`0 0 ${size} ${size}`}
-          aria-hidden="true"
-        >
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={(size - strokeWidth) / 2}
-            fill="none"
-            stroke="var(--action-subtle)"
-            strokeWidth={strokeWidth}
+      <div aria-hidden="true" className="pointer-events-none">
+        <PieChart width={size} height={size} accessibilityLayer={false}>
+          <Pie
+            data={segments}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            innerRadius={Math.round(size * 0.3375)}
+            outerRadius={size / 2 - 1}
+            startAngle={90}
+            endAngle={-270}
+            cornerRadius={split ? 4 : 0}
+            paddingAngle={split ? 2 : 0}
+            stroke="none"
+            isAnimationActive={false}
+            rootTabIndex={-1}
           />
-          {progress != null && progress > 0 && (
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={(size - strokeWidth) / 2}
-              fill="none"
-              stroke="var(--brand)"
-              strokeWidth={strokeWidth}
-              strokeLinecap="round"
-              pathLength="100"
-              strokeDasharray={progress === 100 ? undefined : `${progress} 100`}
-              transform={`translate(${size} 0) scale(-1 1) rotate(-90 ${size / 2} ${size / 2})`}
-            />
-          )}
-        </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-sm font-extrabold tabular-nums text-accent">
-          {progress == null
-            ? "—"
-            : `${estimated ? "≈ " : ""}${metricNumber(progress, 0)}%`}
-        </span>
-      </span>
-    </DaoHint>
+        </PieChart>
+      </div>
+      <div className="absolute inset-0">
+        <DaoHint
+          label={`${label}: ${progress == null ? "unavailable" : `${estimated ? "approximately " : ""}${metricNumber(progress, 0)}%`}`}
+          description={label}
+        >
+          <span
+            className="flex items-center justify-center text-sm font-extrabold tabular-nums text-accent"
+            style={{ width: size, height: size }}
+          >
+            {progress == null
+              ? "—"
+              : `${estimated ? "≈ " : ""}${metricNumber(progress, 0)}%`}
+          </span>
+        </DaoHint>
+      </div>
+    </div>
   );
 }
 
@@ -89,15 +102,18 @@ function DaoMetric({
   icon,
   description,
   children,
+  decoration,
 }: {
   label: string;
   value: ReactNode;
   icon: string;
   description: string;
   children?: ReactNode;
+  decoration: LucideIcon;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col justify-center gap-3 rounded-3xl dash-home-panel px-6 py-4">
+    <div className="relative isolate flex min-w-0 flex-1 flex-col justify-center gap-3 rounded-3xl dash-home-panel px-6 py-4">
+      <CardDecoration icon={decoration} />
       <img
         src={`/icons/home/${icon}.svg`}
         alt=""
@@ -141,7 +157,7 @@ function DaoTimingCards({
         : `≈ ${formatDuration(timestamp - now)}`;
   return (
     <>
-      <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
+      <div className="relative isolate flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
         <div className="min-w-[170px] flex-1 space-y-2">
           <h3 className="dash-body-compact text-muted-foreground">
             <DaoHint description="Estimated cutoff for the next funding cycle, supplied by the API. This is not the proposal expiry date. Timing may change as blocks are mined.">
@@ -172,7 +188,7 @@ function DaoTimingCards({
           label="Estimated voting window elapsed, not voter turnout. Calculated from the API deadline and estimated cycle start; timing is not a protocol guarantee."
         />
       </div>
-      <div className="flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
+      <div className="relative isolate flex min-h-[132px] flex-wrap items-center justify-between gap-3 rounded-3xl dash-home-panel px-6 py-4">
         <div className="min-w-[170px] flex-1 space-y-2">
           <h3 className="dash-body-compact text-muted-foreground">
             <DaoHint description="Next treasury payout block. The countdown is an estimate, not a scheduled block time.">
@@ -240,7 +256,7 @@ export function DaoBudgetCards({
     <>
       {" "}
       <div className="grid min-w-0 gap-4 lg:grid-cols-3 min-[1440px]:flex min-[1440px]:flex-col">
-        <div className="flex min-h-[232px] flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
+        <div className="relative isolate flex min-h-[232px] flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
           <div className="flex items-center justify-between gap-3">
             <h3 className="dash-body">
               <InfoPopover
@@ -314,6 +330,7 @@ export function DaoBudgetCards({
       <div className="grid min-w-0 gap-4 sm:grid-cols-3 min-[1440px]:flex min-[1440px]:flex-col">
         <DaoMetric
           icon="minimum-votes"
+          decoration={Vote}
           label="Vote Threshold"
           description="Required weighted Net Yes (Yes − No). Passing the threshold does not guarantee payment."
           value={
@@ -340,6 +357,7 @@ export function DaoBudgetCards({
         </DaoMetric>
         <DaoMetric
           icon="proposals"
+          decoration={Layers}
           label="Active Proposals"
           description="Proposals with an active payment period. Not all are eligible for the next superblock."
           value={
@@ -363,6 +381,7 @@ export function DaoBudgetCards({
         </DaoMetric>
         <DaoMetric
           icon="remaining-budget"
+          decoration={Coins}
           label="Unallocated"
           description="Budget remaining after projected funding, not a treasury account balance."
           value={

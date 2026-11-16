@@ -120,12 +120,10 @@ export function transactionsInfiniteQueryOptions(
       ),
     initialPageParam: 1,
     getNextPageParam: (lastPage, pages, lastPageParam) => {
-      const { page, limit: pageLimit, total } = lastPage.pagination;
+      const { page, limit: pageLimit } = lastPage.pagination;
       if (
         page !== lastPageParam ||
         pageLimit !== limit ||
-        !Number.isSafeInteger(total) ||
-        total < 0 ||
         lastPage.resultSet.length !== limit
       )
         return undefined;
@@ -142,7 +140,7 @@ export function transactionsInfiniteQueryOptions(
         )
       )
         return undefined;
-      return page * pageLimit < total ? page + 1 : undefined;
+      return page + 1;
     },
   });
 }

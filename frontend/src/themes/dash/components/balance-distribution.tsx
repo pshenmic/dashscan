@@ -118,7 +118,7 @@ export function BalanceDistribution({
                   onKeyDown={(event) => {
                     if (event.key === "Escape") setSelected(null);
                   }}
-                  className={`min-w-0 rounded-lg bg-secondary p-2 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring ${selected === index ? "ring-1 ring-brand" : ""}`}
+                  className={`min-w-0 rounded-lg bg-surface-subtle p-2 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring ${selected === index ? "ring-1 ring-brand" : ""}`}
                 >
                   <span className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
                     <span
