@@ -3,7 +3,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import {
   type ColumnDef,
   getCoreRowModel,
@@ -55,6 +55,7 @@ export function TransactionsListTable({
   network: Network;
   search: TransactionsListSearch;
 }) {
+  const hydrated = useHydrated();
   const navigate = useNavigate({ from: "/transactions/" });
   const titleId = useId();
   const queryClient = useQueryClient();
@@ -338,6 +339,7 @@ export function TransactionsListTable({
     getRowId: (row) => row.hash,
   });
   const query = searching ? lookup : isInfinite ? infinite : paged;
+  const isFetching = hydrated && query.isFetching;
   const hasNextPage = paged.data?.resultSet.length === search.limit;
   const loadMore = useCallback(() => {
     if (
@@ -410,7 +412,7 @@ export function TransactionsListTable({
             {metricNumber(rows.length, 0)}
           </span>
           <output className="sr-only">
-            {query.isFetching ? "Updating transactions…" : ""}
+            {isFetching ? "Updating transactions…" : ""}
           </output>
         </h2>
         <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
@@ -432,7 +434,7 @@ export function TransactionsListTable({
           {isInfinite && !searching && (
             <button
               type="button"
-              disabled={infinite.isFetching}
+              disabled={isFetching}
               onClick={() =>
                 void queryClient.resetQueries({
                   queryKey: infiniteOptions.queryKey,
@@ -542,7 +544,7 @@ export function TransactionsListTable({
       <div className="overflow-x-auto">
         <DataTable
           table={table}
-          isFetching={query.isFetching}
+          isFetching={isFetching}
           isEmpty={!rows.length}
           variant="plain"
           growColumn="hash"
@@ -558,16 +560,18 @@ export function TransactionsListTable({
             "w-20",
           ]}
           emptyMessage={
-            query.isError
-              ? "Transactions unavailable"
-              : "No matching transactions."
+            query.isPending
+              ? "Loading transactions…"
+              : query.isError
+                ? "Transactions unavailable"
+                : "No matching transactions."
           }
           className="min-w-[1000px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_[data-column]:not([data-column=hash]):not([data-column=type])]:text-right [&_td]:tabular-nums"
         />
       </div>
       {!searching && isInfinite && infinite.hasNextPage && (
         <LoadMore
-          loading={infinite.isFetching}
+          loading={isFetching}
           failed={infinite.isFetchNextPageError}
           onLoad={loadMore}
           errorMessage="Could not load more transactions."
@@ -578,7 +582,7 @@ export function TransactionsListTable({
           page={search.page}
           hasNextPage={hasNextPage}
           disabled={
-            query.isFetching ||
+            isFetching ||
             paged.isPlaceholderData ||
             paged.isError ||
             !paged.data
