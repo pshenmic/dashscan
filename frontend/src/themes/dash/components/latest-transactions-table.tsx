@@ -8,6 +8,7 @@ import {
 import type { ApiTransaction } from "@/lib/api/types";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { BlockAge } from "./block-age";
+import { FormattedAmount } from "./formatted-amount";
 import { IdentifierLink } from "./identifier-link";
 import { LatestRecordsTable } from "./latest-records-table";
 import { TransactionTypeBadge } from "./transaction-type-badge";
@@ -87,11 +88,15 @@ const columns: ColumnDef<ApiTransaction>[] = [
     accessorKey: "amount",
     header: () => (
       <ColumnLabel
-        label="Output total"
+        label="Output total (DASH)"
         description="Sum of all outputs, including change, in DASH."
       />
     ),
-    cell: ({ row }) => transactionAmount(row.original.amount),
+    cell: ({ row }) => (
+      <FormattedAmount
+        value={transactionAmount(row.original.amount).replace(/ DASH$/, "")}
+      />
+    ),
   },
   {
     accessorKey: "timestamp",

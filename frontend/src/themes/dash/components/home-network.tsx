@@ -80,7 +80,7 @@ function NetworkSection({ network }: { network: Network }) {
   return (
     <section
       aria-labelledby={titleId}
-      className="relative isolate flex flex-col gap-8 py-4 sm:py-8 lg:gap-16"
+      className="relative isolate flex flex-col gap-8 lg:gap-16"
     >
       <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,442px)_minmax(0,1fr)] xl:gap-32">
         <div className="min-w-0">
