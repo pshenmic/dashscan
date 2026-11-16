@@ -51,11 +51,6 @@ export function TransactionsOverview({ network }: { network: Network }) {
     >
       <div className="flex min-w-0 flex-col gap-6">
         <div>
-          <div className="mb-4 flex flex-wrap gap-3 text-xs">
-            <span className="rounded-full bg-secondary px-3 py-1 text-muted-foreground">
-              Mempool: {metricNumber(chain.data?.mempoolSize, 0)}
-            </span>
-          </div>
           <h1 id={titleId} className="dash-heading-page sm:dash-heading-hero">
             <span className="font-extrabold text-brand">Transactions</span>{" "}
             Stats
@@ -137,23 +132,44 @@ export function TransactionsOverview({ network }: { network: Network }) {
         </div>
       </div>
       <div className="flex min-w-0 flex-col gap-6">
-        <div className="relative grid min-w-0 gap-4 xl:shrink-0">
+        <div className="relative grid min-w-0 grid-cols-2 gap-4 xl:shrink-0">
+          <div
+            className={`${surface} relative z-10 flex items-baseline justify-between gap-3 self-end justify-self-start`}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground">
+              <InfoPopover label="Mempool" trigger="Mempool">
+                Transactions in this node’s mempool, not yet included in a
+                block.
+              </InfoPopover>
+            </h2>
+            <p className="text-xl font-semibold tabular-nums text-foreground">
+              {chain.isPending ? (
+                <SkeletonBar className="w-16" />
+              ) : (
+                metricNumber(chain.data?.mempoolSize, 0)
+              )}
+            </p>
+          </div>
           <div className={`${surface} relative z-10 justify-self-end`}>
             <h2 className="text-sm font-medium text-muted-foreground">
               <InfoPopover label="Current TPS" trigger="Current TPS">
                 Average transaction rate over the latest 20 blocks.
               </InfoPopover>
             </h2>
-            <p className="mt-2 text-xl font-semibold text-foreground">
-              {metricNumber(chain.data?.transactionsPerSecond)}{" "}
-              {chain.data?.transactionsPerSecond != null && (
-                <span className="font-medium text-muted-foreground">Tx/s</span>
-              )}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">20 blocks</p>
+            <div className="mt-2 flex items-baseline justify-between gap-3 whitespace-nowrap">
+              <p className="text-xl font-semibold tabular-nums text-foreground">
+                {metricNumber(chain.data?.transactionsPerSecond)}{" "}
+                {chain.data?.transactionsPerSecond != null && (
+                  <span className="font-medium text-muted-foreground">
+                    Tx/s
+                  </span>
+                )}
+              </p>
+              <span className="text-xs text-muted-foreground">20 blocks</span>
+            </div>
           </div>
           <div
-            className={`${surface} flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center xl:mx-[8%] xl:-mt-8 xl:pt-8`}
+            className={`${surface} col-span-2 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center xl:mx-[8%] xl:-mt-8 xl:pt-8`}
           >
             <div className="min-w-0 sm:max-w-[55%]">
               <h2 className="text-sm font-medium text-muted-foreground">
