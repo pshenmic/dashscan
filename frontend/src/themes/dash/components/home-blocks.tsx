@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { blockRewardQueryOptions } from "@/lib/api/blocks";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { useNewBlocks } from "@/themes/dash/hooks/use-new-blocks";
@@ -21,6 +21,12 @@ import { BlockAge } from "./block-age";
 import { HomeIcon } from "./home-icon";
 import { LatestBlocksTable } from "./latest-blocks-table";
 import { MissingApiData } from "./missing-api-data";
+
+function compactDifficulty(value: number | null | undefined) {
+  return value != null && Number.isFinite(value) && value >= 1_000
+    ? formatNumber(value, { notation: "compact", maximumFractionDigits: 2 })
+    : metricNumber(value, 4);
+}
 
 export function HomeBlocks() {
   const titleId = useId();
@@ -104,10 +110,11 @@ export function HomeBlocks() {
       description:
         "Current mining difficulty reported by the node. Difficulty is dimensionless.",
       icon: "difficulty",
-      value: metricNumber(chain.data?.difficulty, 4),
+      value: compactDifficulty(chain.data?.difficulty),
+      valueTitle: metricNumber(chain.data?.difficulty, 4),
       detailLabel: `Avg · ${blocks.length || "—"} blocks`,
-      detail: metricNumber(averageDifficulty, 4),
-      detailTitle: `Average mining difficulty over the latest ${blocks.length} loaded blocks`,
+      detail: compactDifficulty(averageDifficulty),
+      detailTitle: `Average mining difficulty over the latest ${blocks.length} loaded blocks: ${metricNumber(averageDifficulty, 4)}`,
     },
   ];
 
@@ -350,7 +357,22 @@ export function HomeBlocks() {
                   </Tooltip>
                 </h3>
                 <p className="break-words text-2xl font-extrabold leading-[1.2] text-accent">
-                  {item.value}
+                  {item.valueTitle ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={`Difficulty: ${item.valueTitle}`}
+                          className="rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          {item.value}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>{item.valueTitle}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    item.value
+                  )}
                   {item.unit && (
                     <span className="font-medium"> {item.unit}</span>
                   )}
