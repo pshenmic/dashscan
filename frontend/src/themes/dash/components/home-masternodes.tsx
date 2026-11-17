@@ -62,7 +62,7 @@ function MasternodesSection({ network }: { network: Network }) {
   const [countryCode, setCountryCode] = useState("all");
   const [groupHashes, setGroupHashes] = useState<Set<string> | null>(null);
   const listResults = useRef<HTMLElement>(null);
-  const [page, setPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(12);
   const nodes = useQuery({
     ...allMasternodesQueryOptions({ network }),
     refetchInterval: 60_000,
@@ -81,9 +81,7 @@ function MasternodesSection({ network }: { network: Network }) {
     : countryCode === "all"
       ? (nodes.data ?? [])
       : (selected?.nodes ?? []);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / 6));
-  const currentPage = Math.min(page, pageCount);
-  const rows = filtered.slice((currentPage - 1) * 6, currentPage * 6);
+  const rows = filtered.slice(0, visibleCount);
   const selectedHashes =
     groupHashes ??
     (countryCode === "all"
@@ -100,7 +98,8 @@ function MasternodesSection({ network }: { network: Network }) {
   const selectCountry = (code: string) => {
     setGroupHashes(null);
     setCountryCode(code);
-    setPage(1);
+    setVisibleCount(12);
+    if (listResults.current) listResults.current.scrollTop = 0;
   };
   const number = (value: number | undefined) =>
     nodes.isError ? "—" : nodes.isPending ? "…" : metricNumber(value, 0);
@@ -254,25 +253,37 @@ function MasternodesSection({ network }: { network: Network }) {
                 onSelect={(hashes) => {
                   setGroupHashes(new Set(hashes));
                   setCountryCode("all");
-                  setPage(1);
+                  setVisibleCount(12);
+                  if (listResults.current) listResults.current.scrollTop = 0;
                   focusList();
                 }}
               />
             ) : (
               <p className="flex h-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
-                {distribution?.total === 0
+                {nodes.data?.length === 0
                   ? "No masternodes found."
                   : "No geolocation data available."}
               </p>
             )}
           </div>
         </div>
-        <div ref={insetRef} className="min-w-0 xl:ml-[var(--list-offset)]">
+        <div
+          ref={insetRef}
+          className="min-w-0 xl:relative xl:ml-[var(--list-offset)] xl:min-h-0"
+        >
           <section
             ref={listResults}
             aria-label="Masternode results"
             tabIndex={-1}
-            className="mt-6 h-[404px] overflow-auto rounded-xl focus-visible:outline-2 focus-visible:outline-ring xl:mt-0"
+            onScroll={(event) => {
+              const list = event.currentTarget;
+              if (list.scrollHeight - list.scrollTop - list.clientHeight < 80) {
+                setVisibleCount((count) =>
+                  Math.min(count + 12, filtered.length),
+                );
+              }
+            }}
+            className="mt-6 h-[404px] overflow-auto rounded-xl focus-visible:outline-2 focus-visible:outline-ring xl:absolute xl:inset-0 xl:mt-0 xl:h-auto"
           >
             <HomeMasternodesTable
               rows={rows}
@@ -280,32 +291,6 @@ function MasternodesSection({ network }: { network: Network }) {
               error={nodes.isError}
             />
           </section>
-          {
-            <nav
-              aria-label="Masternodes list pages"
-              className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm"
-            >
-              <button
-                type="button"
-                disabled={currentPage === 1}
-                onClick={() => setPage(currentPage - 1)}
-                className="min-h-10 rounded-xl px-3 hover:bg-action-subtle disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                Previous
-              </button>
-              <span>
-                {metricNumber(currentPage, 0)} / {metricNumber(pageCount, 0)}
-              </span>
-              <button
-                type="button"
-                disabled={currentPage === pageCount}
-                onClick={() => setPage(currentPage + 1)}
-                className="min-h-10 rounded-xl px-3 hover:bg-action-subtle disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                Next
-              </button>
-            </nav>
-          }
         </div>
       </section>
       <div

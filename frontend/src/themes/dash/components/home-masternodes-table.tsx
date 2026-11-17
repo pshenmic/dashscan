@@ -3,8 +3,14 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { RelativeTime } from "@/components/relative-time";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { ApiMasternode } from "@/lib/api/types";
-import { getIp } from "@/lib/format";
+import { formatDateTime, getIp } from "@/lib/format";
 import { DataTable } from "./data-table";
 import { IdentifierLink } from "./identifier-link";
 import {
@@ -25,9 +31,36 @@ const columns: ColumnDef<ApiMasternode>[] = [
           height={24}
           className="size-6 shrink-0"
         />
-        <span className="dash-data-mono font-medium">
-          {getIp(row.original.address)}
-        </span>
+        <div className="min-w-0 space-y-1">
+          <span className="dash-data-mono block font-medium">
+            {getIp(row.original.address)}
+          </span>
+          <span className="block text-xs font-normal text-muted-foreground">
+            {row.original.lastPaidBlock > 0 &&
+            row.original.lastPaidTime &&
+            Number.isFinite(Date.parse(row.original.lastPaidTime)) ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="rounded text-left focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    Paid{" "}
+                    <time dateTime={row.original.lastPaidTime}>
+                      <RelativeTime timestamp={row.original.lastPaidTime} />
+                    </time>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Last paid at block #{row.original.lastPaidBlock}:{" "}
+                  {formatDateTime(row.original.lastPaidTime)}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              "No recorded payment"
+            )}
+          </span>
+        </div>
       </div>
     ),
   },
@@ -80,7 +113,7 @@ export function HomeMasternodesTable({
       emptyMessage={
         error ? "Masternodes unavailable." : "No masternodes found."
       }
-      className="min-w-[600px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-surface-subtle [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_th[data-column=address]]:pl-12 [&_[data-column=type]]:text-right [&_[data-column=status]]:text-right [&_td]:h-12 [&_td]:tabular-nums"
+      className="min-w-[600px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_th]:bg-surface-subtle [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_th[data-column=address]]:pl-12 [&_[data-column=type]]:text-right [&_[data-column=status]]:text-right [&_td]:h-12 [&_td]:tabular-nums"
     />
   );
 }

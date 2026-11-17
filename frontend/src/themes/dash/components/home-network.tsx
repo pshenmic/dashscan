@@ -112,9 +112,24 @@ function NetworkSection({ network }: { network: Network }) {
           className="relative isolate min-w-0 rounded-3xl border border-border p-4 sm:p-6"
         >
           <HomeMapSurface mapRef={mapRef} />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="dash-body">Peers Map</h3>
-            <div className="w-full min-w-0 sm:w-48 sm:shrink-0">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <h3 className="dash-body shrink-0 whitespace-nowrap">Peers Map</h3>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <p className="whitespace-nowrap text-xl font-extrabold leading-tight tabular-nums">
+                {peers.data ? metricNumber(data.nodes.length, 0) : "—"}{" "}
+                <span className="text-base font-medium">Reachable Peers</span>
+              </p>
+              {peerChange != null ? (
+                <span
+                  className={`whitespace-nowrap rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${peerChange > 0 ? "bg-positive-brand/12 text-success" : peerChange < 0 ? "bg-destructive/12 text-destructive" : "bg-foreground/5 text-muted-foreground"}`}
+                  title="Change between reachable-peer snapshots 24 hours apart, independent of map filters"
+                >
+                  24H · {peerChange > 0 ? "↑" : peerChange < 0 ? "↓" : ""}
+                  {metricNumber(Math.abs(peerChange))}%
+                </span>
+              ) : null}
+            </div>
+            <div className="ml-auto w-36 min-w-0 shrink-0">
               <Select
                 value={filterValue}
                 disabled={!!status}
@@ -173,21 +188,6 @@ function NetworkSection({ network }: { network: Network }) {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <p className="text-[32px] font-extrabold leading-tight">
-              {peers.data ? metricNumber(data.nodes.length, 0) : "—"}{" "}
-              <span className="text-base font-medium">Reachable Peers</span>
-            </p>
-            {peerChange != null ? (
-              <span
-                className="text-sm text-accent"
-                title="Change between reachable-peer snapshots 24 hours apart, independent of map filters"
-              >
-                24H {peerChange > 0 ? "+" : ""}
-                {metricNumber(peerChange)}%
-              </span>
-            ) : null}
           </div>
           <div
             data-grid-map
