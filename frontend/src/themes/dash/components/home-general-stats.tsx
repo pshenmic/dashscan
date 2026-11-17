@@ -53,9 +53,11 @@ function Change({ value }: { value: number | null }) {
   return (
     <span
       className={
-        value >= 0
+        value > 0
           ? "font-extrabold text-success"
-          : "font-extrabold text-destructive"
+          : value < 0
+            ? "font-extrabold text-destructive"
+            : "font-extrabold text-muted-foreground"
       }
     >
       {value > 0 ? "↑" : value < 0 ? "↓" : ""}
