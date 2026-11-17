@@ -3,10 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { type ReactNode, useId } from "react";
 import { supplyQueryOptions } from "@/lib/api/chain";
-import {
-  priceHistoricalQueryOptions,
-  priceQueryOptions,
-} from "@/lib/api/price";
 import { transactionsBreakdown24hQueryOptions } from "@/lib/api/stats";
 import { formatDateTime, formatHashRate, formatNumber } from "@/lib/format";
 import { homeChainQueryOptions } from "@/lib/home";
@@ -17,14 +13,9 @@ import {
   useHistoryRange,
   useHomeChainHistory,
 } from "@/themes/dash/lib/home-history";
-import {
-  historyChange,
-  metricNumber,
-  sortedHistory,
-  supplyInDash,
-} from "@/themes/dash/lib/home-metrics";
-import { AreaChart } from "./area-chart";
+import { metricNumber, supplyInDash } from "@/themes/dash/lib/home-metrics";
 import { ChainHistoryChart } from "./chain-history-chart";
+import { HomeMarket } from "./home-market";
 import { MissingApiData } from "./missing-api-data";
 
 function StatCard({
@@ -73,11 +64,6 @@ function Change({ value }: { value: number | null }) {
   );
 }
 
-function priceChartDate(timestamp: number) {
-  const date = timestamp * 1000;
-  return `${formatDateTime(date, { day: "2-digit" })}.${formatDateTime(date, { month: "2-digit" })}`;
-}
-
 export function HomeGeneralStats() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
@@ -104,10 +90,6 @@ export function HomeGeneralStats() {
     breakdown.data?.total,
     previousBreakdown.data?.total,
   );
-  const price = useQuery(priceQueryOptions({ network, currency: "usd" }));
-  const history = useQuery(
-    priceHistoricalQueryOptions({ network, currency: "usd" }),
-  );
   const networkSupply = useQuery(supplyQueryOptions({ network }));
   const stats = chain.data;
   const [hashRateValue, hashRateUnit] = formatHashRate(stats?.hashRate).split(
@@ -116,10 +98,7 @@ export function HomeGeneralStats() {
   const [peakHashRateValue, peakHashRateUnit] = formatHashRate(
     stats?.peakHashRate,
   ).split(" ");
-  const priceHistory = sortedHistory(history.data);
   const supply = supplyInDash(networkSupply.data?.totalSupply);
-  const firstPrice = priceHistory[0];
-  const lastPrice = priceHistory.at(-1);
   const difficulty = stats?.difficulty;
   const difficultyScale =
     difficulty != null && difficulty >= 1_000_000
@@ -150,63 +129,8 @@ export function HomeGeneralStats() {
           </button>
         </p>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 @min-[80rem]/overview:grid-cols-[minmax(250px,1.5fr)_minmax(224px,1fr)_minmax(346px,1.7fr)_232px_minmax(200px,1fr)]">
-        <StatCard
-          label="Dash Price (USD)"
-          value={
-            price.data?.usd != null ? `$${metricNumber(price.data.usd)}` : "—"
-          }
-          detail={
-            <span className="flex flex-wrap items-center gap-1">
-              <span className="rounded-lg bg-secondary px-2 py-1">
-                {firstPrice && lastPrice
-                  ? "24H"
-                  : price.isPending
-                    ? "Loading…"
-                    : "USD"}
-              </span>
-              <Change value={historyChange(priceHistory)} />
-            </span>
-          }
-          className="sm:col-span-2 xl:col-span-1"
-        >
-          <div className="min-w-24 flex-1">
-            {priceHistory.length > 1 && firstPrice && lastPrice ? (
-              <>
-                <AreaChart
-                  compact
-                  data={priceHistory}
-                  getValue={(entry) => entry.value}
-                  getKey={(entry) => entry.timestamp}
-                  getXLabel={(entry) => formatDateTime(entry.timestamp * 1000)}
-                  renderTooltip={(entry) => (
-                    <>
-                      <p className="font-extrabold">
-                        ${metricNumber(entry.value)}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {formatDateTime(entry.timestamp * 1000)}
-                      </p>
-                    </>
-                  )}
-                  formatYLabel={(value) => `$${metricNumber(value)}`}
-                  ariaLabel="Dash price history in USD over the last day"
-                  minimumMax={0}
-                />
-                <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-                  <span>{priceChartDate(firstPrice.timestamp)}</span>
-                  <span>{priceChartDate(lastPrice.timestamp)}</span>
-                </div>
-              </>
-            ) : (
-              <p className="dash-label-small text-muted-foreground">
-                {history.isPending
-                  ? "Loading chart…"
-                  : "Price history unavailable"}
-              </p>
-            )}
-          </div>
-        </StatCard>
+      <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-3 @min-[80rem]/overview:grid-cols-[minmax(250px,1.5fr)_minmax(224px,1fr)_minmax(346px,1.7fr)_232px_minmax(200px,1fr)]">
+        <HomeMarket />
         <StatCard
           label="Network Supply"
           value={
