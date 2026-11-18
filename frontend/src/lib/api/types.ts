@@ -52,6 +52,7 @@ export interface ApiVIn {
 }
 
 export interface ApiVOut {
+  spentTxId?: string | null;
   value: number;
   number: number;
   scriptPubKeyASM: string;
