@@ -123,7 +123,7 @@ export function BlockDetailOverview({
     <div className="grid items-stretch gap-6 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <section
         aria-label="Block metadata"
-        className="flex min-w-0 flex-col gap-3 pt-2 sm:px-4"
+        className="flex min-w-0 flex-col gap-3 pt-2"
       >
         <h1 className="dash-heading-page xl:dash-heading-hero">
           <span className="text-accent">
@@ -198,7 +198,7 @@ export function BlockDetailOverview({
       </section>
       <section
         aria-label="Block summary"
-        className="mr-2 flex min-w-0 flex-col sm:mr-8 lg:pt-2"
+        className="flex min-w-0 flex-col lg:pt-2"
       >
         <div className="flex flex-1 flex-col rounded-3xl border border-border bg-card p-5 shadow-[var(--card-shadow)] sm:p-7 lg:rounded-tl-[3rem]">
           <div className="grid grid-cols-1 items-start gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto]">
