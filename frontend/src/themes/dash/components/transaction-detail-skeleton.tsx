@@ -13,11 +13,11 @@ export function TransactionDetailSkeleton() {
         <SkeletonBar className="h-12 flex-1" />
       </div>
       <SkeletonBar className="h-8 w-64 max-w-full rounded-xl" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.45fr)_minmax(0,1fr)]">
         {["block", "amounts", "properties"].map((panel) => (
           <div
             key={panel}
-            className="min-w-0 space-y-3 rounded-3xl border border-border bg-card p-4 sm:p-5"
+            className="min-w-0 space-y-3 rounded-3xl border border-border bg-card p-4 sm:p-5 sm:last:col-span-2 xl:last:col-span-1"
           >
             <SkeletonBar className="w-32" />
             <SkeletonBar className="h-8 w-44" />
