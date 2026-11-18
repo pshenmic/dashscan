@@ -1,5 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { Info } from "lucide-react";
+import {
+  Box,
+  Gauge,
+  Hash,
+  Info,
+  Layers,
+  Shield,
+  ShieldCheck,
+  Tag,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Pie, PieChart } from "recharts";
 import { RelativeTime } from "@/components/relative-time";
@@ -16,7 +25,10 @@ import { SkeletonBar } from "./skeleton";
 function HashValue({ value }: { value: string }) {
   return (
     <div className="flex min-w-0 items-center gap-1">
-      <span title={value} className="dash-data-mono min-w-0 truncate text-sm">
+      <span
+        title={value}
+        className="dash-data-mono min-w-0 flex-1 truncate text-sm"
+      >
         {value}
       </span>
       <CopyButton value={value} />
@@ -44,9 +56,11 @@ const compactDash = new Intl.NumberFormat("en", {
 export function BlockDetailOverview({
   block,
   network,
+  navigation,
 }: {
   block: ApiBlock;
   network: Network;
+  navigation: ReactNode;
 }) {
   const reward = useQuery(
     blockRewardQueryOptions({ network, height: block.height }),
@@ -101,59 +115,88 @@ export function BlockDetailOverview({
       : null;
   const activeShare = shares?.find(({ label }) => label === activeLabel);
   const centerDuffs = activeShare?.amount ?? totalReward ?? 0;
-  const metadata: { label: string; value: ReactNode }[] = [
+  const metrics = [
+    { label: "Nonce", icon: Hash, value: metricNumber(Number(block.nonce), 0) },
     {
-      label: "Timestamp",
-      value: (
-        <div className="flex flex-wrap justify-end gap-2">
-          <time dateTime={block.timestamp}>
-            {formatDateTime(new Date(block.timestamp))}
-          </time>
-          <span className="rounded-full border border-border px-2 text-muted-foreground">
-            <RelativeTime timestamp={block.timestamp} />
-          </span>
-        </div>
-      ),
+      label: "Difficulty",
+      icon: Gauge,
+      value: metricNumber(block.difficulty, 8),
     },
-    { label: "Block Hash", value: <HashValue value={block.hash} /> },
-    { label: "Confirmations", value: metricNumber(block.confirmations, 0) },
     {
-      label: "ChainLock",
-      value: status.isPending ? (
-        <SkeletonBar className="w-16" />
-      ) : status.isError ? (
-        <Retry onClick={() => void status.refetch()} />
-      ) : chainLocked == null ? (
-        "—"
-      ) : chainLocked ? (
-        "Locked"
-      ) : (
-        "Not locked"
-      ),
+      label: "Version",
+      icon: Tag,
+      value: metricNumber(block.version, 0),
     },
-    { label: "Size", value: `${metricNumber(block.size, 0)} bytes` },
-    { label: "Merkle Root", value: <HashValue value={block.merkleRoot} /> },
-    { label: "Nonce", value: metricNumber(Number(block.nonce), 0) },
-    { label: "Difficulty", value: metricNumber(block.difficulty, 8) },
-    { label: "Version", value: metricNumber(block.version, 0) },
   ];
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+    <div className="grid items-stretch gap-6 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <section
         aria-label="Block metadata"
-        className="min-w-0 rounded-3xl bg-card px-4 py-4 sm:px-6"
+        className="flex min-w-0 flex-col gap-3 pt-2 sm:px-4"
       >
-        <dl className="flex h-full flex-col justify-between gap-3 text-sm">
-          {metadata.map(({ label, value }) => (
-            <div key={label} className="flex items-start justify-between gap-4">
-              <dt className="shrink-0 text-muted-foreground">{label}</dt>
-              <dd className="min-w-0 text-right font-medium tabular-nums">
-                {value}
-              </dd>
+        <h1 className="dash-heading-page xl:dash-heading-hero">
+          <span className="text-accent">
+            {block.superblock === true ? "Superblock" : "Block"}
+          </span>{" "}
+          <span className="whitespace-nowrap">
+            #{metricNumber(block.height, 0)}
+          </span>
+        </h1>
+        <div className="flex flex-1 flex-col rounded-3xl border border-border bg-card px-4 py-3">
+          <div className="flex flex-1 flex-col justify-between gap-3">
+            <div className="grid grid-cols-[auto_1fr] items-center gap-x-1">
+              <div className="col-start-2 row-start-1 justify-self-end">
+                {navigation}
+              </div>
+              <dl className="contents">
+                <dt className="col-start-1 row-start-1 text-xs text-muted-foreground">
+                  Timestamp
+                </dt>
+                <dd className="col-span-full mt-1 flex items-center gap-1.5 whitespace-nowrap text-xs sm:text-sm">
+                  <time dateTime={block.timestamp}>
+                    {formatDateTime(new Date(block.timestamp))}
+                  </time>
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                    <RelativeTime timestamp={block.timestamp} />
+                  </span>
+                </dd>
+              </dl>
             </div>
-          ))}
-        </dl>
+            {[
+              { label: "Block Hash", value: block.hash },
+              {
+                label: "Merkle Root",
+                value: block.merkleRoot,
+              },
+            ].map(({ label, value }) => (
+              <dl key={label}>
+                <dt className="text-xs text-muted-foreground">
+                  {label}
+                </dt>
+                <dd className="mt-1 min-w-0">
+                  <HashValue value={value} />
+                </dd>
+              </dl>
+            ))}
+          </div>
+          <dl className="mt-3 grid grid-cols-3 divide-x divide-border border-t border-border pt-3">
+            {metrics.map(({ label, icon: Icon, value }) => (
+              <div
+                key={label}
+                className="min-w-0 not-first:pl-2 sm:not-first:pl-4"
+              >
+                <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+                  {label}
+                </dt>
+                <dd className="mt-1 wrap-anywhere text-base leading-5 font-semibold tabular-nums">
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </section>
       <section
         aria-label="Block summary"
@@ -287,6 +330,54 @@ export function BlockDetailOverview({
             </div>
           </div>
         ) : null}
+        <dl className="mt-3 grid grid-cols-[1.1fr_1fr_1fr] divide-x divide-border rounded-2xl bg-card p-3 text-sm sm:grid-cols-3 sm:p-4">
+          <div>
+            <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Layers aria-hidden="true" className="size-3.5 shrink-0" />{" "}
+              Confirmations
+            </dt>
+            <dd className="mt-1 text-base leading-5 font-semibold tabular-nums">
+              {metricNumber(block.confirmations, 0)}
+            </dd>
+          </div>
+          <div className="pl-2 sm:pl-4">
+            <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+              {chainLocked === true && !status.isError ? (
+                <ShieldCheck
+                  aria-hidden="true"
+                  className="size-3.5 shrink-0 text-success"
+                />
+              ) : (
+                <Shield aria-hidden="true" className="size-3.5 shrink-0" />
+              )}
+              ChainLock
+            </dt>
+            <dd className="mt-1 text-base leading-5 font-semibold">
+              {status.isPending ? (
+                <SkeletonBar className="w-16" />
+              ) : status.isError ? (
+                <Retry onClick={() => void status.refetch()} />
+              ) : chainLocked == null ? (
+                "—"
+              ) : chainLocked ? (
+                <span className="text-success">Locked</span>
+              ) : (
+                "Not locked"
+              )}
+            </dd>
+          </div>
+          <div className="pl-2 sm:pl-4">
+            <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Box aria-hidden="true" className="size-3.5 shrink-0" /> Size
+            </dt>
+            <dd className="mt-1 text-base leading-5 font-semibold tabular-nums">
+              {metricNumber(block.size, 0)}{" "}
+              <span className="text-xs font-normal text-muted-foreground">
+                bytes
+              </span>
+            </dd>
+          </div>
+        </dl>
       </section>
     </div>
   );
