@@ -47,5 +47,3 @@ export function transactionTotals(transaction: ApiTransaction) {
         : null;
   return { input, output, fee, coinbase, monetary, feeApplicable };
 }
-
-export type TransactionTotals = ReturnType<typeof transactionTotals>;

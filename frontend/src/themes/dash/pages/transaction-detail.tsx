@@ -9,29 +9,42 @@ import { formatDateTime } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { CopyButton } from "@/themes/dash/components/copy-button";
 import { ExtraPayloadCard } from "@/themes/dash/components/extra-payload";
-import { MissingApiData } from "@/themes/dash/components/missing-api-data";
 import { PageStatus } from "@/themes/dash/components/page-status";
+import { TransactionAmount } from "@/themes/dash/components/transaction-amount";
 import { TransactionDetailSkeleton } from "@/themes/dash/components/transaction-detail-skeleton";
 import { TransactionInputsOutputs } from "@/themes/dash/components/transaction-inputs-outputs";
 import { TransactionTypeBadge } from "@/themes/dash/components/transaction-type-badge";
-import {
-  TransactionAmount,
-  TransactionValueDistribution,
-} from "@/themes/dash/components/transaction-value-distribution";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { transactionTotals } from "@/themes/dash/lib/transaction-detail";
 
-function DetailRow({
+const summaryGroup =
+  "flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-3 rounded-3xl border border-border bg-card p-4 sm:p-5";
+const summaryDetails = "grid justify-items-start gap-2";
+
+function MetaBadge({
   label,
   children,
+  positive = false,
 }: {
   label: string;
   children: ReactNode;
+  positive?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-4 py-3 text-sm sm:grid-cols-[7rem_minmax(0,1fr)]">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words font-medium">{children}</dd>
+    <div className="flex items-center gap-2">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd>
+        <Badge
+          variant="outline"
+          className={
+            positive
+              ? "h-6 border-success/20 bg-success/10 text-success"
+              : "h-6 border-foreground/12 bg-foreground/5 text-foreground/70"
+          }
+        >
+          {children}
+        </Badge>
+      </dd>
     </div>
   );
 }
@@ -42,7 +55,7 @@ function BlockLink({ height }: { height: number }) {
       to="/blocks/$hashOrHeight"
       params={{ hashOrHeight: String(height) }}
       search={{ page: 1, limit: 10 }}
-      className="inline-flex items-center gap-2 rounded-full bg-action-subtle px-3 py-1 text-accent hover:underline"
+      className="text-accent hover:underline"
     >
       #{metricNumber(height, 0)}
     </Link>
@@ -87,189 +100,137 @@ export default function TransactionDetailPage({ hash }: { hash: string }) {
     transaction.timestamp && Number.isFinite(Date.parse(transaction.timestamp))
       ? transaction.timestamp
       : null;
-  const confirmationLabel =
-    transaction.confirmations > 0 ? "Confirmed" : "Unconfirmed";
+  const confirmations = transaction.confirmations;
+  const hasConfirmations =
+    confirmations != null &&
+    Number.isSafeInteger(confirmations) &&
+    confirmations >= 0;
+  const size =
+    transaction.size == null
+      ? "—"
+      : `${metricNumber(transaction.size, 0)} bytes`;
   return (
-    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-12">
-      <header className="space-y-4 rounded-3xl bg-card p-4 sm:p-6">
-        <h1 className="text-xl font-medium text-muted-foreground">
-          Transaction
-        </h1>
-        <div className="group flex min-w-0 items-center gap-3">
-          <img
-            src="/icons/transaction-detail/hash.svg"
-            alt=""
-            width={31}
-            height={31}
-            className="size-8 shrink-0 dark:hidden"
-          />
-          <img
-            src="/icons/transaction-detail/hash-dark.svg"
-            alt=""
-            width={31}
-            height={31}
-            className="hidden size-8 shrink-0 dark:block"
-          />
-          <span className="min-w-0 break-all font-mono text-base leading-relaxed sm:text-2xl">
-            {transaction.hash}
-          </span>
-          <CopyButton value={transaction.hash} />
+    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16">
+      <header className="min-w-0 space-y-2">
+        <div className="group flex min-w-0 items-center gap-2">
+          <h1 className="dash-heading-page flex min-w-0 items-baseline gap-[0.25em] xl:dash-heading-hero">
+            <span className="shrink-0 text-accent">Transaction</span>{" "}
+            <span className="truncate" title={transaction.hash}>
+              {transaction.hash}
+            </span>
+          </h1>
+          <CopyButton value={transaction.hash} label="Copy TxID" />
         </div>
-        <div className="flex flex-wrap items-center gap-4 text-xs">
-          <span className="inline-flex min-h-8 items-center gap-2 rounded-full bg-secondary px-3 py-1">
-            <span className="text-muted-foreground">Fee:</span>
-            {!totals.feeApplicable ? (
-              "Not applicable"
-            ) : totals.fee !== null ? (
-              <TransactionAmount value={totals.fee} />
-            ) : (
-              <MissingApiData
-                inline
-                description="Return the transaction fee in duffs, or all input values needed to calculate it. Special transactions require their protocol-specific fee calculation."
-              />
-            )}
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="text-muted-foreground">Block:</span>
-            {hasBlock ? (
-              <BlockLink height={transaction.blockHeight} />
-            ) : (
-              "Unconfirmed"
-            )}
-          </span>
-        </div>
+        {hasBlock && timestamp && (
+          <p className="inline-flex max-w-full flex-wrap items-baseline gap-x-2 rounded-xl border border-border bg-card px-3 py-1.5 text-sm">
+            <span className="sr-only">Block time: </span>
+            <time dateTime={timestamp}>{formatDateTime(timestamp)}</time>
+            <span className="text-xs text-muted-foreground">
+              <RelativeTime timestamp={timestamp} />
+            </span>
+          </p>
+        )}
       </header>
       {query.isError && (
         <output className="block text-sm text-muted-foreground">
           Transaction updates are unavailable. Showing the last loaded data.
         </output>
       )}
-      <div className="grid items-stretch gap-6 lg:grid-cols-2">
-        <section
-          aria-label="Transaction details"
-          className="min-w-0 rounded-3xl bg-card px-4 py-4 sm:px-6"
-        >
-          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1.3fr]">
-            <div className="min-w-0 space-y-3 rounded-3xl bg-secondary p-4">
-              <dt className="text-sm text-muted-foreground">Status</dt>
-              <dd>
-                <Badge
-                  variant="outline"
-                  className="max-w-full border-brand bg-action-subtle text-accent"
-                >
-                  {transaction.chainLocked === true
-                    ? "ChainLocked"
-                    : confirmationLabel}
-                </Badge>
-              </dd>
+      <div
+        className={`grid gap-4 sm:grid-cols-2 ${totals.monetary ? "lg:grid-cols-3" : ""}`}
+      >
+        <section aria-label="Block" className={summaryGroup}>
+          <div className="min-w-0 max-w-full space-y-2">
+            <h2 className="text-xl font-extrabold">Block</h2>
+            <p className="text-2xl font-bold tabular-nums sm:text-3xl">
+              {hasBlock ? (
+                <BlockLink height={transaction.blockHeight} />
+              ) : confirmations === 0 ? (
+                "Unconfirmed"
+              ) : (
+                "—"
+              )}
+            </p>
+          </div>
+          <dl className={summaryDetails}>
+            <MetaBadge label="Confirmations">
+              {hasConfirmations ? metricNumber(confirmations, 0) : "—"}
+            </MetaBadge>
+            {hasBlock && (
+              <MetaBadge
+                label="ChainLock"
+                positive={transaction.chainLocked === true}
+              >
+                {transaction.chainLocked === true
+                  ? "Locked"
+                  : transaction.chainLocked === false
+                    ? "Not locked"
+                    : "—"}
+              </MetaBadge>
+            )}
+          </dl>
+        </section>
+        {totals.monetary && (
+          <section aria-label="Total output" className={summaryGroup}>
+            <div className="min-w-0 max-w-full space-y-2">
+              <h2 className="text-xl font-extrabold">Total output</h2>
+              <p className="wrap-anywhere text-2xl font-bold tabular-nums sm:text-3xl">
+                <TransactionAmount value={totals.output} />
+              </p>
             </div>
-            <div className="min-w-0 space-y-3 rounded-3xl bg-secondary p-4">
-              <dt className="text-sm text-muted-foreground">InstantSend</dt>
-              <dd>
-                <Badge
-                  variant="outline"
-                  className={
-                    instantLocked
-                      ? "border-brand bg-action-subtle text-accent"
-                      : "border-border text-muted-foreground"
-                  }
-                >
-                  {instantLocked
-                    ? "Locked"
-                    : transaction.instantLock === false
-                      ? "Not locked"
-                      : "—"}
-                </Badge>
-              </dd>
-            </div>
-            <div className="min-w-0 space-y-3 rounded-3xl bg-secondary p-4">
-              <dt className="text-sm text-muted-foreground">
-                Transaction type
-              </dt>
+            {((!totals.coinbase && transaction.vIn?.length > 0) ||
+              totals.feeApplicable) && (
+              <dl className={summaryDetails}>
+                {!totals.coinbase && transaction.vIn?.length > 0 && (
+                  <MetaBadge label="Total input">
+                    <TransactionAmount value={totals.input} />
+                  </MetaBadge>
+                )}
+                {totals.feeApplicable && (
+                  <MetaBadge label="Fee">
+                    <TransactionAmount value={totals.fee} />
+                  </MetaBadge>
+                )}
+              </dl>
+            )}
+          </section>
+        )}
+        <section aria-label="Transaction properties" className={summaryGroup}>
+          <dl className={summaryDetails}>
+            <div className="flex items-center gap-2">
+              <dt className="text-xs text-muted-foreground">Type</dt>
               <dd>
                 <TransactionTypeBadge type={transaction.type} />
               </dd>
             </div>
-          </dl>
-          <dl className="mt-6 divide-y divide-border/50">
-            <DetailRow label="TxID">
-              <div className="group flex items-center gap-1">
-                <span
-                  className="min-w-0 flex-1 truncate font-mono text-xs"
-                  title={transaction.hash}
-                >
-                  {transaction.hash}
-                </span>
-                <CopyButton value={transaction.hash} />
-              </div>
-            </DetailRow>
-            <DetailRow label="Block">
-              {hasBlock ? (
-                <BlockLink height={transaction.blockHeight} />
-              ) : (
-                "Unconfirmed"
-              )}
-            </DetailRow>
-            <DetailRow label="Timestamp">
-              {timestamp ? (
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <time dateTime={timestamp}>{formatDateTime(timestamp)}</time>
-                  <span className="rounded-lg border border-border px-2 py-1 text-muted-foreground">
-                    <RelativeTime timestamp={timestamp} />
-                  </span>
-                </div>
-              ) : (
-                "—"
-              )}
-            </DetailRow>
-            <DetailRow label="Confirmations">
-              {transaction.confirmations == null
-                ? "—"
-                : metricNumber(transaction.confirmations, 0)}
-            </DetailRow>
-            {totals.monetary && (
-              <>
-                {transaction.vIn?.length > 0 && !totals.coinbase && (
-                  <DetailRow label="Total input">
-                    <TransactionAmount value={totals.input} />
-                  </DetailRow>
-                )}
-                <DetailRow label="Total output">
-                  <TransactionAmount value={totals.output} />
-                </DetailRow>
-              </>
+            {transaction.coinjoin && (
+              <MetaBadge label="Classification">CoinJoin</MetaBadge>
             )}
-            <DetailRow label="Fee">
-              {!totals.feeApplicable ? (
-                "Not applicable"
-              ) : (
-                <TransactionAmount value={totals.fee} />
-              )}
-            </DetailRow>
-            <DetailRow label="Size">
-              {transaction.size == null
-                ? "—"
-                : `${metricNumber(transaction.size, 0)} bytes`}
-            </DetailRow>
+          </dl>
+          <dl className={summaryDetails}>
+            <MetaBadge label="Size">{size}</MetaBadge>
+            {totals.monetary && !totals.coinbase && (
+              <MetaBadge label="InstantSend" positive={instantLocked}>
+                {instantLocked
+                  ? "Locked"
+                  : transaction.instantLock === false
+                    ? "Not locked"
+                    : "—"}
+              </MetaBadge>
+            )}
           </dl>
         </section>
-        <TransactionValueDistribution
-          transaction={transaction}
-          totals={totals}
-        />
       </div>
-      {transaction.extraPayload && (
-        <ExtraPayloadCard
-          txType={transaction.type}
-          payload={transaction.extraPayload}
-        />
-      )}
       {totals.monetary && (
         <TransactionInputsOutputs
           transaction={transaction}
           coinbase={totals.coinbase}
         />
       )}
+      <ExtraPayloadCard
+        txType={transaction.type}
+        payload={transaction.extraPayload}
+      />
     </main>
   );
 }
