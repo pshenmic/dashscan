@@ -1,6 +1,13 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import {
+  ArrowLeftRight,
+  Coins,
+  LockKeyhole,
+  LockKeyholeOpen,
+  type LucideIcon,
+} from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { assetStatsQueryOptions } from "@/lib/api/stats";
 import {
@@ -22,7 +29,9 @@ import {
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { BlockAge } from "./block-age";
+import { CardDecoration } from "./card-decoration";
 import { ChainHistoryChart } from "./chain-history-chart";
+import { FormattedAmount } from "./formatted-amount";
 import { HomeIcon } from "./home-icon";
 import { InfoPopover } from "./info-popover";
 import { MissingApiData } from "./missing-api-data";
@@ -77,7 +86,7 @@ function TransferRow({
   const deposit = transaction.type === "ASSET_LOCK";
   const amount = assetTransferAmount(deposit ? detail : transaction);
   return (
-    <li className="grid min-h-[66px] min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl bg-card px-3 py-[18px] text-sm">
+    <li className="grid min-h-[66px] min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl bg-card px-3 py-[18px] text-sm ring-1 ring-border">
       <span className="text-muted-foreground">
         {transaction.timestamp ? (
           <BlockAge
@@ -97,7 +106,7 @@ function TransferRow({
         {deposit ? "Deposit" : "Withdrawal"}
       </Link>
       <span
-        className="min-w-0 truncate text-right font-extrabold tabular-nums"
+        className="min-w-0 truncate text-right font-medium tabular-nums"
         title={
           amount == null
             ? undefined
@@ -111,8 +120,10 @@ function TransferRow({
         ) : (
           <>
             {deposit ? "+" : "−"}{" "}
-            {transactionAmount(amount).replace(/ DASH$/, "")}{" "}
-            <span className="font-medium">DASH</span>
+            <FormattedAmount
+              value={transactionAmount(amount).replace(/ DASH$/, "")}
+              unit="DASH"
+            />
           </>
         )}
       </span>
@@ -137,15 +148,18 @@ function TransferRow({
 
 function AssetMetric({
   icon,
+  decoration,
   label,
   children,
 }: {
   icon: string;
+  decoration: LucideIcon;
   label: string;
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl bg-secondary/75 px-4 py-4 sm:px-6">
+    <div className="relative isolate flex min-h-[120px] min-w-0 flex-col justify-end gap-3 rounded-3xl bg-surface-subtle px-4 py-4 inset-ring inset-ring-border sm:px-6">
+      <CardDecoration icon={decoration} />
       <img
         src={`/icons/home/${icon}.svg`}
         alt=""
@@ -249,7 +263,7 @@ export function HomeAssets() {
   return (
     <section
       aria-labelledby={titleId}
-      className="flex flex-col gap-10 py-4 sm:py-8 lg:gap-16"
+      className="flex flex-col gap-10 lg:gap-16"
     >
       <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,608fr)_minmax(0,672fr)]">
         <div className="min-w-0">
@@ -314,7 +328,7 @@ export function HomeAssets() {
               ) || (
                 <ul
                   aria-label="Latest AssetUnlock withdrawals"
-                  className="space-y-2 rounded-xl shadow-card"
+                  className="space-y-2 rounded-xl"
                 >
                   {withdrawals.map((transaction) => (
                     <TransferRow
@@ -334,7 +348,7 @@ export function HomeAssets() {
               ) || (
                 <ul
                   aria-label="Latest AssetLock deposits"
-                  className="space-y-2 rounded-xl shadow-card"
+                  className="space-y-2 rounded-xl"
                 >
                   {deposits.map((transaction, index) => (
                     <TransferRow
@@ -363,7 +377,11 @@ export function HomeAssets() {
       )}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,716fr)_minmax(0,580fr)]">
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
-          <AssetMetric icon="credit-pool" label="Core credit pool balance">
+          <AssetMetric
+            icon="credit-pool"
+            decoration={Coins}
+            label="Core credit pool balance"
+          >
             <div className="flex flex-wrap items-center gap-2">
               <p
                 className="whitespace-nowrap text-xl font-extrabold leading-[1.2] text-accent sm:text-2xl"
@@ -388,7 +406,11 @@ export function HomeAssets() {
               />
             </div>
           </AssetMetric>
-          <AssetMetric icon="asset-lock" label="Deposited amount in 24 Hours">
+          <AssetMetric
+            icon="asset-lock"
+            decoration={LockKeyhole}
+            label="Deposited amount in 24 Hours"
+          >
             <div className="flex flex-wrap items-center gap-2">
               <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending ? "…" : metricDuffs(locked?.amount)}{" "}
@@ -408,7 +430,11 @@ export function HomeAssets() {
               )}
             </div>
           </AssetMetric>
-          <AssetMetric icon="asset-unlock" label="Withdrawn amount in 24 Hours">
+          <AssetMetric
+            icon="asset-unlock"
+            decoration={LockKeyholeOpen}
+            label="Withdrawn amount in 24 Hours"
+          >
             <div className="flex flex-wrap items-center gap-2">
               <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
                 {assetStats.isPending ? "…" : metricDuffs(unlocked?.amount)}{" "}
@@ -430,6 +456,7 @@ export function HomeAssets() {
           </AssetMetric>
           <AssetMetric
             icon="asset-activity"
+            decoration={ArrowLeftRight}
             label="AssetLocks/AssetUnlocks in 24 Hours"
           >
             <div className="flex items-center gap-2">
