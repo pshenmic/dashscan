@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Coins } from "lucide-react";
-import type { ReactNode } from "react";
+import { Info } from "lucide-react";
+import { type ReactNode, useState } from "react";
+import { Pie, PieChart } from "recharts";
 import { RelativeTime } from "@/components/relative-time";
 import { blockRewardQueryOptions } from "@/lib/api/blocks";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
@@ -9,6 +10,7 @@ import { formatDateTime } from "@/lib/format";
 import type { Network } from "@/lib/store";
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
 import { CopyButton } from "./copy-button";
+import { InfoPopover } from "./info-popover";
 import { SkeletonBar } from "./skeleton";
 
 function HashValue({ value }: { value: string }) {
@@ -34,54 +36,10 @@ function Retry({ onClick }: { onClick: () => void }) {
   );
 }
 
-function SummaryMetric({
-  label,
-  name,
-  children,
-}: {
-  label: string;
-  name: "status" | "transactions" | "fees" | "reward";
-  children: ReactNode;
-}) {
-  return (
-    <div className="relative flex min-h-24 min-w-0 items-center gap-4 overflow-hidden rounded-3xl bg-brand/4 p-3">
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-6 -top-4 size-28 rotate-30 bg-brand"
-        style={{
-          mask: `url('/icons/block-detail/${name === "fees" ? "reward" : name}-decor.svg') center / contain no-repeat`,
-        }}
-      />
-      {name === "fees" || name === "reward" ? (
-        <span className="relative flex size-12 shrink-0 items-center justify-center rounded-full border border-action-subtle bg-card">
-          {name === "fees" ? (
-            <Coins aria-hidden="true" className="size-5 text-brand" />
-          ) : (
-            <img
-              src={`/icons/block-detail/${name}.svg`}
-              alt=""
-              width={20}
-              height={20}
-              className="size-5 object-contain"
-            />
-          )}
-        </span>
-      ) : (
-        <img
-          src={`/icons/block-detail/${name}.svg`}
-          alt=""
-          width={48}
-          height={48}
-          className="relative size-12 shrink-0"
-        />
-      )}
-      <div className="relative min-w-0 space-y-2">
-        <p className="text-sm leading-tight text-muted-foreground">{label}</p>
-        <div className="text-base font-extrabold tabular-nums">{children}</div>
-      </div>
-    </div>
-  );
-}
+const compactDash = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumSignificantDigits: 3,
+});
 
 export function BlockDetailOverview({
   block,
@@ -104,10 +62,45 @@ export function BlockDetailOverview({
     refetchInterval: 30_000,
   });
   const firstTransaction = status.data?.resultSet[0];
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  const payout = reward.data;
+  const totalReward =
+    payout?.miner != null &&
+    payout.masternode != null &&
+    payout.treasury != null
+      ? payout.miner + payout.masternode + payout.treasury
+      : null;
+  const shares =
+    payout?.miner != null &&
+    payout.masternode != null &&
+    payout.platform != null &&
+    payout.treasury != null &&
+    payout.platform <= payout.masternode
+      ? [
+          { label: "Miner", amount: payout.miner, fill: "var(--chart-1)" },
+          {
+            label: "Masternode",
+            amount: payout.masternode - payout.platform,
+            fill: "var(--chart-5)",
+          },
+          {
+            label: "Platform credit pool",
+            amount: payout.platform,
+            fill: "var(--chart-4)",
+          },
+          {
+            label: "Treasury",
+            amount: payout.treasury,
+            fill: "var(--muted-foreground)",
+          },
+        ].filter(({ amount }) => amount > 0)
+      : null;
   const chainLocked =
     firstTransaction?.blockHash === block.hash
       ? firstTransaction.chainLocked
       : null;
+  const activeShare = shares?.find(({ label }) => label === activeLabel);
+  const centerDuffs = activeShare?.amount ?? totalReward ?? 0;
   const metadata: { label: string; value: ReactNode }[] = [
     {
       label: "Timestamp",
@@ -166,47 +159,134 @@ export function BlockDetailOverview({
         aria-label="Block summary"
         className="flex min-w-0 flex-col gap-4 rounded-3xl bg-card p-4"
       >
-        <div className="grid flex-1 gap-4 sm:grid-cols-2">
-          {(
-            [
-              { label: "Block fees", name: "fees", value: reward.data?.fees },
-              {
-                label: "Block Subsidy",
-                name: "reward",
-                value: reward.data?.subsidy,
-              },
-            ] as const
-          ).map(({ label, name, value }) => (
-            <SummaryMetric key={name} label={label} name={name}>
+        <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-2 px-1">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold">Block Reward</h3>
+              <InfoPopover
+                label="About reward distribution"
+                trigger={<Info className="size-4 text-muted-foreground" />}
+              >
+                Includes transaction fees. The Platform credit pool is part of
+                the masternode reward. Treasury payouts fund approved proposals
+                in superblocks only.
+              </InfoPopover>
+            </div>
+            <p className="mt-1 font-semibold tabular-nums">
               {reward.isPending ? (
-                <SkeletonBar className="w-28" />
+                <SkeletonBar className="w-24" />
               ) : reward.isError ? (
-                <button
-                  type="button"
-                  onClick={() => void reward.refetch()}
-                  className="text-sm text-accent underline"
-                >
-                  Retry
-                </button>
-              ) : value != null ? (
-                <span
-                  className="break-words"
-                  title={`${metricDuffs(value)} DASH`}
-                >
-                  {metricDuffs(value, name === "fees" ? 8 : 6)}{" "}
-                  <span className="text-xs font-medium text-muted-foreground">
-                    DASH
-                  </span>
-                </span>
+                <Retry onClick={() => void reward.refetch()} />
+              ) : totalReward != null ? (
+                `${metricDuffs(totalReward)} DASH`
               ) : (
-                <span>
-                  <span aria-hidden="true">—</span>
-                  <span className="sr-only">{label} unavailable</span>
-                </span>
+                "—"
               )}
-            </SummaryMetric>
-          ))}
+            </p>
+          </div>
+          <dl className="space-y-1 text-sm sm:text-right">
+            <dt className="text-muted-foreground">
+              <InfoPopover
+                label="About transaction fees"
+                trigger="Transaction fees"
+              >
+                Total fees paid by transactions in this block. Already included
+                in the block reward.
+              </InfoPopover>
+            </dt>
+            <dd className="font-semibold tabular-nums">
+              {reward.isPending ? (
+                <SkeletonBar className="w-24" />
+              ) : payout?.fees != null ? (
+                `${metricDuffs(payout.fees)} DASH`
+              ) : (
+                "—"
+              )}
+            </dd>
+          </dl>
         </div>
+        {reward.isPending ? (
+          <SkeletonBar className="h-48 w-full rounded-3xl" />
+        ) : shares && totalReward != null && totalReward > 0 ? (
+          <div className="flex flex-col items-center gap-5 rounded-3xl dash-home-panel p-4 sm:flex-row sm:p-5">
+            <div className="relative shrink-0" aria-hidden="true">
+              <PieChart width={174} height={174} accessibilityLayer={false}>
+                <Pie
+                  data={shares.map((share) => ({
+                    ...share,
+                    opacity:
+                      activeShare && activeShare.label !== share.label
+                        ? 0.5
+                        : 1,
+                    stroke:
+                      activeShare?.label === share.label
+                        ? "var(--brand)"
+                        : "none",
+                  }))}
+                  dataKey="amount"
+                  nameKey="label"
+                  innerRadius={59}
+                  outerRadius={86}
+                  startAngle={90}
+                  endAngle={-270}
+                  cornerRadius={4}
+                  paddingAngle={2}
+                  stroke="none"
+                  isAnimationActive={false}
+                  rootTabIndex={-1}
+                  onMouseEnter={(_, index) =>
+                    setActiveLabel(shares[index].label)
+                  }
+                  onMouseLeave={() => setActiveLabel(null)}
+                  onClick={(_, index) => setActiveLabel(shares[index].label)}
+                />
+              </PieChart>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <strong className="text-xl tabular-nums">
+                  {centerDuffs > 0 && centerDuffs < 100_000
+                    ? "<0.001"
+                    : compactDash.format(centerDuffs / 100_000_000)}
+                </strong>
+                <span className="text-xs text-muted-foreground">DASH</span>
+              </div>
+            </div>
+            <div className="w-full min-w-0 flex-1">
+              <dl className="grid grid-rows-[repeat(4,minmax(1.25rem,auto))] gap-y-3 text-sm">
+                {shares.map(({ label, amount, fill }) => (
+                  <div
+                    key={label}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3"
+                  >
+                    <dt>
+                      <button
+                        type="button"
+                        aria-pressed={activeShare?.label === label}
+                        className="flex items-center gap-2 rounded text-left text-muted-foreground aria-pressed:text-foreground focus-visible:outline-ring"
+                        onFocus={() => setActiveLabel(label)}
+                        onBlur={() => setActiveLabel(null)}
+                        onClick={() => setActiveLabel(label)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") setActiveLabel(null);
+                        }}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: fill }}
+                        />
+                        {label}
+                      </button>
+                    </dt>
+                    <dd className="text-right font-semibold tabular-nums">
+                      {metricDuffs(amount)}
+                      <span className="sr-only"> DASH</span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

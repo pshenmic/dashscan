@@ -32,20 +32,11 @@ export function BlockDetailSkeleton() {
           ))}
         </div>
         <div className="space-y-4 rounded-3xl bg-card p-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {["fees", "subsidy"].map((field) => (
-              <div
-                key={field}
-                className="flex min-h-24 items-center gap-4 rounded-3xl bg-brand/4 p-3"
-              >
-                <SkeletonBar className="size-12 shrink-0 rounded-full" />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <SkeletonBar className="w-24" />
-                  <SkeletonBar className="w-28" />
-                </div>
-              </div>
-            ))}
+          <div className="flex justify-between">
+            <SkeletonBar className="w-16" />
+            <SkeletonBar className="w-24" />
           </div>
+          <SkeletonBar className="h-48 w-full rounded-3xl" />
         </div>
       </div>
       <section
