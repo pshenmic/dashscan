@@ -31,6 +31,7 @@ import {
 import { ColumnSearch } from "./column-search";
 import { DataTable } from "./data-table";
 import { IdentifierLink } from "./identifier-link";
+import { InfoPopover } from "./info-popover";
 import { LoadMore } from "./load-more";
 import { Pagination } from "./pagination";
 import { TransactionTypeBadge } from "./transaction-type-badge";
@@ -62,13 +63,17 @@ const columns: ColumnDef<ApiTransaction>[] = [
   },
   {
     accessorKey: "amount",
-    header: "Output total (DASH)",
+    header: () => (
+      <InfoPopover
+        label="Output total (DASH)"
+        trigger="Output total (DASH)"
+        side="right"
+      >
+        Sum of all transaction outputs, including any change returned to the
+        sender. This is not necessarily the amount sent to someone else.
+      </InfoPopover>
+    ),
     cell: ({ row }) => metricDuffs(row.original.amount),
-  },
-  {
-    accessorKey: "confirmations",
-    header: "Confirmations",
-    cell: ({ row }) => metricNumber(row.original.confirmations, 0),
   },
 ];
 
@@ -145,13 +150,8 @@ export function BlockTransactionsTable({
   ]);
   const rows = useMemo(
     () =>
-      loadedRows
-        .filter((transaction) => transaction.blockHash === block.hash)
-        .map((transaction) => ({
-          ...transaction,
-          confirmations: block.confirmations,
-        })),
-    [loadedRows, block.hash, block.confirmations],
+      loadedRows.filter((transaction) => transaction.blockHash === block.hash),
+    [loadedRows, block.hash],
   );
   const hasMore = infinite.hasNextPage && rows.length < block.txCount;
   const activeQuery = searching ? lookup : isInfinite ? infinite : transactions;
@@ -252,7 +252,7 @@ export function BlockTransactionsTable({
             growColumn="hash"
             caption={`Transactions in block ${block.height}`}
             skeletonRows={searching ? 1 : Math.min(limit, block.txCount)}
-            skeletonWidths={["w-52", "w-24", "w-16", "w-28", "w-16"]}
+            skeletonWidths={["w-52", "w-24", "w-16", "w-28"]}
             emptyMessage={
               searching
                 ? "No matching transaction in this block."
