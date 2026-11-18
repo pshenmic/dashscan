@@ -52,6 +52,7 @@ export interface ApiVIn {
 }
 
 export interface ApiVOut {
+  spentTxId?: string | null;
   value: number;
   number: number;
   scriptPubKeyASM: string;
@@ -140,6 +141,7 @@ export interface ApiProUpRevTxPayload {
 }
 
 export interface ApiCbTxPayload {
+  merkleRootAssetUnlocks?: string | null;
   version: number;
   height: number;
   merkleRootMNList: string;
@@ -175,7 +177,15 @@ export interface ApiAssetUnlockTxPayload {
   quorumSig: string;
 }
 
+export interface ApiProDisTxPayload {
+  version: number;
+  actorIndex: number;
+  proTxHash: string;
+  sigs: string[];
+}
+
 export type ApiExtraPayload =
+  | ApiProDisTxPayload
   | ApiProRegTxPayload
   | ApiProUpServTxPayload
   | ApiProUpRegTxPayload

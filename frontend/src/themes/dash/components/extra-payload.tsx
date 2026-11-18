@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import type {
@@ -14,9 +13,11 @@ import type {
   ApiProUpServTxPayload,
   ApiQcTxPayload,
 } from "@/lib/api/types";
-import { DUFFS_PER_DASH, formatNumber, txTypeNum } from "@/lib/format";
+import { formatNumber, txTypeNum } from "@/lib/format";
 import { CopyButton } from "@/themes/dash/components/copy-button";
 import { HashCell } from "@/themes/dash/components/hash-cell";
+import { TransactionAmount } from "@/themes/dash/components/transaction-amount";
+import { transactionAmount } from "@/themes/dash/lib/transaction-detail";
 
 const REVOCATION_REASONS: Record<number, string> = {
   0: "Not specified",
@@ -37,18 +38,28 @@ function countBitsSet(hex: string | null | undefined): number {
 }
 
 interface ExtraPayloadCardProps {
+  blockHeight?: number;
   txType: string | number | null | undefined;
   payload: ApiExtraPayload | null | undefined;
 }
 
-export function ExtraPayloadCard({ txType, payload }: ExtraPayloadCardProps) {
+export function ExtraPayloadCard({
+  txType,
+  payload,
+  blockHeight,
+}: ExtraPayloadCardProps) {
   if (!payload) return null;
   const typeNum = txTypeNum(txType);
+  if (typeNum === 5 && "merkleRootMNList" in payload)
+    return <CoinbasePayload p={payload} blockHeight={blockHeight} />;
+  if (typeNum === 8 && "outputs" in payload)
+    return <AssetLockTxBody p={payload} />;
+  if (typeNum === 9 && "requestedHeight" in payload)
+    return <AssetUnlockTxBody p={payload} />;
   return (
     <Card className="flex flex-col gap-3 border-0 px-6 py-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm text-muted-foreground">Extra Payload</h2>
-        <ChevronUp className="size-4 text-muted-foreground" />
       </div>
       <div className="flex flex-col">{renderPayloadBody(typeNum, payload)}</div>
     </Card>
@@ -65,16 +76,40 @@ function renderPayloadBody(txType: number, payload: ApiExtraPayload) {
       return <ProUpRegTxBody p={payload as ApiProUpRegTxPayload} />;
     case 4:
       return <ProUpRevTxBody p={payload as ApiProUpRevTxPayload} />;
-    case 5:
-      return <CbTxBody p={payload as ApiCbTxPayload} />;
     case 6:
       return <QcTxBody p={payload as ApiQcTxPayload} />;
     case 7:
       return <MnHfTxBody p={payload as ApiMnHfTxPayload} />;
-    case 8:
-      return <AssetLockTxBody p={payload as ApiAssetLockTxPayload} />;
-    case 9:
-      return <AssetUnlockTxBody p={payload as ApiAssetUnlockTxPayload} />;
+    case 10:
+      if ("actorIndex" in payload && Array.isArray(payload.sigs)) {
+        return (
+          <>
+            <PayloadRow label="Registration transaction">
+              <TxHashLink hash={payload.proTxHash} />
+            </PayloadRow>
+            <PayloadRow label="Actor index">
+              <Bold>{payload.actorIndex}</Bold>
+            </PayloadRow>
+            <PayloadRow label="Payload version">
+              <Bold>{payload.version}</Bold>
+            </PayloadRow>
+            <PayloadRow label="Signatures" align="start">
+              {payload.sigs.length ? (
+                <ul className="grid min-w-0 flex-1 gap-1">
+                  {payload.sigs.map((signature) => (
+                    <li key={signature} className="min-w-0">
+                      <HexValue value={signature} />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Muted />
+              )}
+            </PayloadRow>
+          </>
+        );
+      }
+      return <Muted />;
     default:
       return (
         <span className="text-xs text-muted-foreground">
@@ -133,8 +168,10 @@ function Muted() {
 function HexValue({ value }: { value: string | null | undefined }) {
   if (!value) return <Muted />;
   return (
-    <div className="flex min-w-0 items-center gap-1.5">
-      <HashCell hash={value} />
+    <div className="group flex min-w-0 items-center gap-1.5">
+      <span className="dash-data-mono truncate" title={value}>
+        {value}
+      </span>
       <CopyButton value={value} />
     </div>
   );
@@ -193,18 +230,6 @@ function ServiceValue({ ip, port }: { ip: string; port: number }) {
       <span>{ip}</span>
       <span className="text-accent">:{port}</span>
       <span className="size-1.5 rounded-full bg-emerald-500" />
-    </span>
-  );
-}
-
-function DashValue({ duffs }: { duffs: number | string | null | undefined }) {
-  if (duffs == null) return <Muted />;
-  const num = typeof duffs === "string" ? Number(duffs) : duffs;
-  if (!Number.isFinite(num)) return <Muted />;
-  return (
-    <span>
-      <Bold>{(num / DUFFS_PER_DASH).toFixed(8)}</Bold>{" "}
-      <span className="text-muted-foreground">DASH</span>
     </span>
   );
 }
@@ -307,37 +332,107 @@ function ProUpRevTxBody({ p }: { p: ApiProUpRevTxPayload }) {
   );
 }
 
-function CbTxBody({ p }: { p: ApiCbTxPayload }) {
+function CoinbasePayload({
+  p,
+  blockHeight,
+}: {
+  p: ApiCbTxPayload;
+  blockHeight?: number;
+}) {
+  const diff = transactionAmount(p.bestCLHeightDiff);
+  const hasSignature = Boolean(
+    p.bestCLSignature && !/^0+$/.test(p.bestCLSignature),
+  );
+  const signedHeight =
+    hasSignature &&
+    diff != null &&
+    Number.isSafeInteger(p.height) &&
+    p.height > diff
+      ? p.height - diff - 1
+      : null;
   return (
-    <>
-      <PayloadRow label="Version">
-        <Bold>{p.version}</Bold>
-      </PayloadRow>
-      <PayloadRow label="Height">
-        <HeightPill height={p.height} />
-      </PayloadRow>
-      <PayloadRow label="Merkle Root MN List">
-        <HexValue value={p.merkleRootMNList} />
-      </PayloadRow>
-      <PayloadRow label="Merkle Root Quorums">
-        <HexValue value={p.merkleRootQuorums} />
-      </PayloadRow>
-      {p.bestCLHeightDiff != null ? (
-        <PayloadRow label="Best CL Height Diff">
-          <Bold>{p.bestCLHeightDiff}</Bold>
-        </PayloadRow>
-      ) : null}
-      {p.bestCLSignature ? (
-        <PayloadRow label="Best CL Signature" align="start">
-          <HexValue value={p.bestCLSignature} />
-        </PayloadRow>
-      ) : null}
-      {p.creditPoolBalance != null ? (
-        <PayloadRow label="Credit Pool Balance">
-          <DashValue duffs={p.creditPoolBalance} />
-        </PayloadRow>
-      ) : null}
-    </>
+    <Card className="min-w-0 gap-4 rounded-3xl p-4 sm:p-6">
+      <div
+        className={
+          p.creditPoolBalance != null || hasSignature
+            ? "grid gap-5 lg:grid-cols-2"
+            : undefined
+        }
+      >
+        {(p.creditPoolBalance != null || hasSignature) && (
+          <div className="flex min-w-0 flex-col gap-3">
+            {p.creditPoolBalance != null && (
+              <section className="min-w-0 space-y-2">
+                <h2 className="text-xl font-extrabold">Credit pool balance</h2>
+                <p className="wrap-anywhere text-2xl font-bold tabular-nums sm:text-3xl">
+                  <TransactionAmount
+                    value={transactionAmount(p.creditPoolBalance)}
+                  />
+                </p>
+              </section>
+            )}
+            {hasSignature && p.bestCLSignature && (
+              <section className="mt-auto grid min-w-0 gap-1">
+                <h2 className="text-sm font-semibold">
+                  ChainLock
+                  {signedHeight != null && (
+                    <>
+                      {" "}
+                      for{" "}
+                      <Link
+                        to="/blocks/$hashOrHeight"
+                        params={{ hashOrHeight: String(signedHeight) }}
+                        className="text-accent hover:underline"
+                      >
+                        #{formatNumber(signedHeight)}
+                      </Link>
+                    </>
+                  )}
+                </h2>
+                <div className="min-w-0 text-xs">
+                  <HexValue value={p.bestCLSignature} />
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+        <section className="flex min-w-0 flex-col gap-2">
+          <h2 className="text-xl font-extrabold">Merkle roots</h2>
+          <dl className="mt-auto grid gap-x-3 gap-y-2 sm:grid-cols-[max-content_minmax(0,1fr)]">
+            {[
+              ["Masternode list", p.merkleRootMNList],
+              ["Quorums", p.merkleRootQuorums],
+              ["Asset unlocks", p.merkleRootAssetUnlocks],
+            ].map(
+              ([label, value]) =>
+                value != null && (
+                  <div
+                    key={label}
+                    className="grid min-w-0 gap-y-0.5 sm:col-span-2 sm:grid-cols-subgrid sm:items-center"
+                  >
+                    <dt className="text-xs text-muted-foreground">{label}</dt>
+                    <dd className="min-w-0 text-xs">
+                      <HexValue value={value} />
+                    </dd>
+                  </div>
+                ),
+            )}
+          </dl>
+        </section>
+      </div>
+      {(p.height !== blockHeight || (signedHeight == null && diff != null)) && (
+        <div className="flex flex-wrap items-center gap-x-4 text-xs text-muted-foreground">
+          {p.height !== blockHeight && (
+            <span>
+              Payload height <HeightPill height={p.height} />
+            </span>
+          )}
+          {signedHeight == null && diff != null && (
+            <span>ChainLock height difference: {formatNumber(diff)}</span>
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -412,65 +507,88 @@ function MnHfTxBody({ p }: { p: ApiMnHfTxPayload }) {
 
 function AssetLockTxBody({ p }: { p: ApiAssetLockTxPayload }) {
   return (
-    <>
-      <PayloadRow label="Version">
-        <Bold>{p.version}</Bold>
-      </PayloadRow>
-      {p.outputs?.map((out, idx) => {
-        const num = Number(out.satoshis);
-        const valueDash = Number.isFinite(num)
-          ? (num / DUFFS_PER_DASH).toFixed(8)
-          : "—";
-        return (
-          <NestedGroup
-            key={`${out.script}-${idx}`}
-            title={`Credit Output (${idx})`}
-          >
-            <PayloadRow label="Value">
-              <span>
-                <Bold>{valueDash}</Bold>{" "}
-                <span className="text-muted-foreground">DASH</span>
-              </span>
-            </PayloadRow>
-            <PayloadRow label="Value Sat">
-              <Bold>{out.satoshis}</Bold>
-            </PayloadRow>
-            <div className="my-2 rounded-2xl bg-background/80 px-4 py-3">
-              <div className="mb-1 text-xs text-muted-foreground">
-                Script Pub Key
-              </div>
-              <PayloadRow label="Hex" align="start">
-                <HexValue value={out.script} />
-              </PayloadRow>
-            </div>
-          </NestedGroup>
-        );
-      })}
-    </>
+    <Card className="min-w-0 gap-3 rounded-3xl p-4 sm:p-6">
+      <h2 className="text-xl font-extrabold">DASH locked for Platform</h2>
+      {p.outputs?.length ? (
+        <ol className="divide-y divide-border">
+          {p.outputs.map((output, index) => {
+            const keyHash =
+              /^OP_DUP OP_HASH160 (?:OP_PUSHBYTES_20 )?([a-f0-9]{40}) OP_EQUALVERIFY OP_CHECKSIG$/i.exec(
+                output.script,
+              )?.[1];
+            return (
+              <li
+                key={`${index}-${output.script}`}
+                className="grid min-w-0 gap-3 py-3 first:pt-0 last:pb-0 sm:grid-cols-2"
+              >
+                <div>
+                  <h3 className="text-xs text-muted-foreground">
+                    {p.outputs.length === 1
+                      ? "Locked amount"
+                      : `Credit output #${index}`}
+                  </h3>
+                  <p className="text-lg font-bold">
+                    <TransactionAmount
+                      value={transactionAmount(output.satoshis)}
+                    />
+                  </p>
+                </div>
+                <div className="min-w-0 text-xs">
+                  <p className="mb-1 text-muted-foreground">
+                    {keyHash ? "Public key hash" : "Locking script"}
+                  </p>
+                  <HexValue value={keyHash ?? output.script} />
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          No credit outputs available.
+        </p>
+      )}
+    </Card>
   );
 }
 
 function AssetUnlockTxBody({ p }: { p: ApiAssetUnlockTxPayload }) {
   return (
-    <>
-      <PayloadRow label="Version">
-        <Bold>{p.version}</Bold>
-      </PayloadRow>
-      <PayloadRow label="Index">
-        <Bold>{p.index}</Bold>
-      </PayloadRow>
-      <PayloadRow label="Fee">
-        <Bold>{p.fee}</Bold>
-      </PayloadRow>
-      <PayloadRow label="Requested Height">
-        <HeightPill height={p.requestedHeight} />
-      </PayloadRow>
-      <PayloadRow label="Quorum Hash">
-        <HexValue value={p.quorumHash} />
-      </PayloadRow>
-      <PayloadRow label="Quorum Signature" align="start">
-        <HexValue value={p.quorumSig} />
-      </PayloadRow>
-    </>
+    <Card className="grid min-w-0 gap-5 rounded-3xl p-4 sm:p-6 lg:grid-cols-2">
+      <section className="min-w-0 space-y-2">
+        <h2 className="text-xl font-extrabold">Unlock request</h2>
+        <dl className="grid grid-cols-[max-content_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2 text-sm">
+          <dt className="text-muted-foreground">Unlock index</dt>
+          <dd className="tabular-nums">{p.index}</dd>
+          <dt className="text-muted-foreground">Requested height</dt>
+          <dd>
+            <Link
+              to="/blocks/$hashOrHeight"
+              params={{ hashOrHeight: String(p.requestedHeight) }}
+              className="text-accent hover:underline"
+            >
+              #{formatNumber(p.requestedHeight)}
+            </Link>
+          </dd>
+          <dt className="text-muted-foreground">Unlock fee</dt>
+          <dd>
+            <TransactionAmount value={transactionAmount(p.fee)} />
+          </dd>
+        </dl>
+      </section>
+      <section className="min-w-0 space-y-2">
+        <h2 className="text-xl font-extrabold">Quorum</h2>
+        <dl className="grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3 gap-y-2 text-sm">
+          <dt className="text-muted-foreground">Hash</dt>
+          <dd className="min-w-0 text-xs">
+            <HexValue value={p.quorumHash} />
+          </dd>
+          <dt className="text-muted-foreground">Signature</dt>
+          <dd className="min-w-0 text-xs">
+            <HexValue value={p.quorumSig} />
+          </dd>
+        </dl>
+      </section>
+    </Card>
   );
 }
