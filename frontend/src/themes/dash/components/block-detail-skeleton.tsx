@@ -28,11 +28,11 @@ export function BlockDetailSkeleton() {
                 <SkeletonBar className="h-6 w-full" />
               </div>
             ))}
-            <div className="grid grid-cols-3 gap-2 border-t border-border pt-3">
-              {["nonce", "difficulty", "version"].map((field) => (
-                <SkeletonBar key={field} className="h-9 w-full" />
-              ))}
-            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-3 sm:p-4">
+            {["nonce", "difficulty", "version"].map((field) => (
+              <SkeletonBar key={field} className="h-10 w-full" />
+            ))}
           </div>
         </div>
         <div className="min-w-0 lg:pt-2">
@@ -46,7 +46,7 @@ export function BlockDetailSkeleton() {
             </div>
             <SkeletonBar className="mt-3 h-28 w-full rounded-2xl" />
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl bg-card p-3 sm:p-4">
+          <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-3 sm:p-4">
             {["confirmations", "chainlock", "size"].map((field) => (
               <SkeletonBar key={field} className="h-10 w-full" />
             ))}

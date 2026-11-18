@@ -178,23 +178,23 @@ export function BlockDetailOverview({
               </dl>
             ))}
           </div>
-          <dl className="mt-3 grid grid-cols-3 divide-x divide-border border-t border-border pt-3">
-            {metrics.map(({ label, icon: Icon, value }) => (
-              <div
-                key={label}
-                className="min-w-0 not-first:pl-2 sm:not-first:pl-4"
-              >
-                <dt className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-                  {label}
-                </dt>
-                <dd className="mt-1 wrap-anywhere text-base leading-5 font-semibold tabular-nums">
-                  {value}
-                </dd>
-              </div>
-            ))}
-          </dl>
         </div>
+        <dl className="grid grid-cols-3 divide-x divide-border rounded-2xl border border-border bg-card p-3 text-sm sm:p-4">
+          {metrics.map(({ label, icon: Icon, value }) => (
+            <div
+              key={label}
+              className="min-w-0 not-first:pl-2 sm:not-first:pl-4"
+            >
+              <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+                {label}
+              </dt>
+              <dd className="mt-1 wrap-anywhere text-base leading-5 font-semibold tabular-nums">
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
       <section
         aria-label="Block summary"
@@ -293,7 +293,7 @@ export function BlockDetailOverview({
             )}
           </div>
         </div>
-        <dl className="mt-3 grid grid-cols-[1.1fr_1fr_1fr] divide-x divide-border rounded-2xl bg-card p-3 text-sm sm:grid-cols-3 sm:p-4">
+        <dl className="mt-3 grid grid-cols-[1.1fr_1fr_1fr] divide-x divide-border rounded-2xl border border-border bg-card p-3 text-sm sm:grid-cols-3 sm:p-4">
           <div>
             <dt className="flex items-center gap-1 text-xs text-muted-foreground">
               <Layers aria-hidden="true" className="size-3.5 shrink-0" />{" "}
