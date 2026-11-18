@@ -230,6 +230,7 @@ export default function TransactionDetailPage({ hash }: { hash: string }) {
       <ExtraPayloadCard
         txType={transaction.type}
         payload={transaction.extraPayload}
+        blockHeight={hasBlock ? transaction.blockHeight : undefined}
       />
     </main>
   );

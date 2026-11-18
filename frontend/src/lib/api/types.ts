@@ -141,6 +141,7 @@ export interface ApiProUpRevTxPayload {
 }
 
 export interface ApiCbTxPayload {
+  merkleRootAssetUnlocks?: string | null;
   version: number;
   height: number;
   merkleRootMNList: string;

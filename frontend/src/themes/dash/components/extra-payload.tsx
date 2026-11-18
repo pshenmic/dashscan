@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import type {
@@ -17,6 +16,8 @@ import type {
 import { DUFFS_PER_DASH, formatNumber, txTypeNum } from "@/lib/format";
 import { CopyButton } from "@/themes/dash/components/copy-button";
 import { HashCell } from "@/themes/dash/components/hash-cell";
+import { TransactionAmount } from "@/themes/dash/components/transaction-amount";
+import { transactionAmount } from "@/themes/dash/lib/transaction-detail";
 
 const REVOCATION_REASONS: Record<number, string> = {
   0: "Not specified",
@@ -37,18 +38,24 @@ function countBitsSet(hex: string | null | undefined): number {
 }
 
 interface ExtraPayloadCardProps {
+  blockHeight?: number;
   txType: string | number | null | undefined;
   payload: ApiExtraPayload | null | undefined;
 }
 
-export function ExtraPayloadCard({ txType, payload }: ExtraPayloadCardProps) {
+export function ExtraPayloadCard({
+  txType,
+  payload,
+  blockHeight,
+}: ExtraPayloadCardProps) {
   if (!payload) return null;
   const typeNum = txTypeNum(txType);
+  if (typeNum === 5 && "merkleRootMNList" in payload)
+    return <CoinbasePayload p={payload} blockHeight={blockHeight} />;
   return (
     <Card className="flex flex-col gap-3 border-0 px-6 py-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm text-muted-foreground">Extra Payload</h2>
-        <ChevronUp className="size-4 text-muted-foreground" />
       </div>
       <div className="flex flex-col">{renderPayloadBody(typeNum, payload)}</div>
     </Card>
@@ -65,8 +72,6 @@ function renderPayloadBody(txType: number, payload: ApiExtraPayload) {
       return <ProUpRegTxBody p={payload as ApiProUpRegTxPayload} />;
     case 4:
       return <ProUpRevTxBody p={payload as ApiProUpRevTxPayload} />;
-    case 5:
-      return <CbTxBody p={payload as ApiCbTxPayload} />;
     case 6:
       return <QcTxBody p={payload as ApiQcTxPayload} />;
     case 7:
@@ -133,8 +138,10 @@ function Muted() {
 function HexValue({ value }: { value: string | null | undefined }) {
   if (!value) return <Muted />;
   return (
-    <div className="flex min-w-0 items-center gap-1.5">
-      <HashCell hash={value} />
+    <div className="group flex min-w-0 items-center gap-1.5">
+      <span className="dash-data-mono truncate" title={value}>
+        {value}
+      </span>
       <CopyButton value={value} />
     </div>
   );
@@ -193,18 +200,6 @@ function ServiceValue({ ip, port }: { ip: string; port: number }) {
       <span>{ip}</span>
       <span className="text-accent">:{port}</span>
       <span className="size-1.5 rounded-full bg-emerald-500" />
-    </span>
-  );
-}
-
-function DashValue({ duffs }: { duffs: number | string | null | undefined }) {
-  if (duffs == null) return <Muted />;
-  const num = typeof duffs === "string" ? Number(duffs) : duffs;
-  if (!Number.isFinite(num)) return <Muted />;
-  return (
-    <span>
-      <Bold>{(num / DUFFS_PER_DASH).toFixed(8)}</Bold>{" "}
-      <span className="text-muted-foreground">DASH</span>
     </span>
   );
 }
@@ -307,37 +302,107 @@ function ProUpRevTxBody({ p }: { p: ApiProUpRevTxPayload }) {
   );
 }
 
-function CbTxBody({ p }: { p: ApiCbTxPayload }) {
+function CoinbasePayload({
+  p,
+  blockHeight,
+}: {
+  p: ApiCbTxPayload;
+  blockHeight?: number;
+}) {
+  const diff = transactionAmount(p.bestCLHeightDiff);
+  const hasSignature = Boolean(
+    p.bestCLSignature && !/^0+$/.test(p.bestCLSignature),
+  );
+  const signedHeight =
+    hasSignature &&
+    diff != null &&
+    Number.isSafeInteger(p.height) &&
+    p.height > diff
+      ? p.height - diff - 1
+      : null;
   return (
-    <>
-      <PayloadRow label="Version">
-        <Bold>{p.version}</Bold>
-      </PayloadRow>
-      <PayloadRow label="Height">
-        <HeightPill height={p.height} />
-      </PayloadRow>
-      <PayloadRow label="Merkle Root MN List">
-        <HexValue value={p.merkleRootMNList} />
-      </PayloadRow>
-      <PayloadRow label="Merkle Root Quorums">
-        <HexValue value={p.merkleRootQuorums} />
-      </PayloadRow>
-      {p.bestCLHeightDiff != null ? (
-        <PayloadRow label="Best CL Height Diff">
-          <Bold>{p.bestCLHeightDiff}</Bold>
-        </PayloadRow>
-      ) : null}
-      {p.bestCLSignature ? (
-        <PayloadRow label="Best CL Signature" align="start">
-          <HexValue value={p.bestCLSignature} />
-        </PayloadRow>
-      ) : null}
-      {p.creditPoolBalance != null ? (
-        <PayloadRow label="Credit Pool Balance">
-          <DashValue duffs={p.creditPoolBalance} />
-        </PayloadRow>
-      ) : null}
-    </>
+    <Card className="min-w-0 gap-4 rounded-3xl p-4 sm:p-6">
+      <div
+        className={
+          p.creditPoolBalance != null || hasSignature
+            ? "grid gap-5 lg:grid-cols-2"
+            : undefined
+        }
+      >
+        {(p.creditPoolBalance != null || hasSignature) && (
+          <div className="flex min-w-0 flex-col gap-3">
+            {p.creditPoolBalance != null && (
+              <section className="min-w-0 space-y-2">
+                <h2 className="text-xl font-extrabold">Credit pool balance</h2>
+                <p className="wrap-anywhere text-2xl font-bold tabular-nums sm:text-3xl">
+                  <TransactionAmount
+                    value={transactionAmount(p.creditPoolBalance)}
+                  />
+                </p>
+              </section>
+            )}
+            {hasSignature && p.bestCLSignature && (
+              <section className="mt-auto grid min-w-0 gap-1">
+                <h2 className="text-sm font-semibold">
+                  ChainLock
+                  {signedHeight != null && (
+                    <>
+                      {" "}
+                      for{" "}
+                      <Link
+                        to="/blocks/$hashOrHeight"
+                        params={{ hashOrHeight: String(signedHeight) }}
+                        className="text-accent hover:underline"
+                      >
+                        #{formatNumber(signedHeight)}
+                      </Link>
+                    </>
+                  )}
+                </h2>
+                <div className="min-w-0 text-xs">
+                  <HexValue value={p.bestCLSignature} />
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+        <section className="flex min-w-0 flex-col gap-2">
+          <h2 className="text-xl font-extrabold">Merkle roots</h2>
+          <dl className="mt-auto grid gap-x-3 gap-y-2 sm:grid-cols-[max-content_minmax(0,1fr)]">
+            {[
+              ["Masternode list", p.merkleRootMNList],
+              ["Quorums", p.merkleRootQuorums],
+              ["Asset unlocks", p.merkleRootAssetUnlocks],
+            ].map(
+              ([label, value]) =>
+                value != null && (
+                  <div
+                    key={label}
+                    className="grid min-w-0 gap-y-0.5 sm:col-span-2 sm:grid-cols-subgrid sm:items-center"
+                  >
+                    <dt className="text-xs text-muted-foreground">{label}</dt>
+                    <dd className="min-w-0 text-xs">
+                      <HexValue value={value} />
+                    </dd>
+                  </div>
+                ),
+            )}
+          </dl>
+        </section>
+      </div>
+      {(p.height !== blockHeight || (signedHeight == null && diff != null)) && (
+        <div className="flex flex-wrap items-center gap-x-4 text-xs text-muted-foreground">
+          {p.height !== blockHeight && (
+            <span>
+              Payload height <HeightPill height={p.height} />
+            </span>
+          )}
+          {signedHeight == null && diff != null && (
+            <span>ChainLock height difference: {formatNumber(diff)}</span>
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 
