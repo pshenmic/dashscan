@@ -13,7 +13,7 @@ import type {
   ApiProUpServTxPayload,
   ApiQcTxPayload,
 } from "@/lib/api/types";
-import { DUFFS_PER_DASH, formatNumber, txTypeNum } from "@/lib/format";
+import { formatNumber, txTypeNum } from "@/lib/format";
 import { CopyButton } from "@/themes/dash/components/copy-button";
 import { HashCell } from "@/themes/dash/components/hash-cell";
 import { TransactionAmount } from "@/themes/dash/components/transaction-amount";
@@ -52,6 +52,10 @@ export function ExtraPayloadCard({
   const typeNum = txTypeNum(txType);
   if (typeNum === 5 && "merkleRootMNList" in payload)
     return <CoinbasePayload p={payload} blockHeight={blockHeight} />;
+  if (typeNum === 8 && "outputs" in payload)
+    return <AssetLockTxBody p={payload} />;
+  if (typeNum === 9 && "requestedHeight" in payload)
+    return <AssetUnlockTxBody p={payload} />;
   return (
     <Card className="flex flex-col gap-3 border-0 px-6 py-5">
       <div className="flex items-center justify-between">
@@ -76,10 +80,6 @@ function renderPayloadBody(txType: number, payload: ApiExtraPayload) {
       return <QcTxBody p={payload as ApiQcTxPayload} />;
     case 7:
       return <MnHfTxBody p={payload as ApiMnHfTxPayload} />;
-    case 8:
-      return <AssetLockTxBody p={payload as ApiAssetLockTxPayload} />;
-    case 9:
-      return <AssetUnlockTxBody p={payload as ApiAssetUnlockTxPayload} />;
     default:
       return (
         <span className="text-xs text-muted-foreground">
@@ -477,65 +477,88 @@ function MnHfTxBody({ p }: { p: ApiMnHfTxPayload }) {
 
 function AssetLockTxBody({ p }: { p: ApiAssetLockTxPayload }) {
   return (
-    <>
-      <PayloadRow label="Version">
-        <Bold>{p.version}</Bold>
-      </PayloadRow>
-      {p.outputs?.map((out, idx) => {
-        const num = Number(out.satoshis);
-        const valueDash = Number.isFinite(num)
-          ? (num / DUFFS_PER_DASH).toFixed(8)
-          : "—";
-        return (
-          <NestedGroup
-            key={`${out.script}-${idx}`}
-            title={`Credit Output (${idx})`}
-          >
-            <PayloadRow label="Value">
-              <span>
-                <Bold>{valueDash}</Bold>{" "}
-                <span className="text-muted-foreground">DASH</span>
-              </span>
-            </PayloadRow>
-            <PayloadRow label="Value Sat">
-              <Bold>{out.satoshis}</Bold>
-            </PayloadRow>
-            <div className="my-2 rounded-2xl bg-background/80 px-4 py-3">
-              <div className="mb-1 text-xs text-muted-foreground">
-                Script Pub Key
-              </div>
-              <PayloadRow label="Hex" align="start">
-                <HexValue value={out.script} />
-              </PayloadRow>
-            </div>
-          </NestedGroup>
-        );
-      })}
-    </>
+    <Card className="min-w-0 gap-3 rounded-3xl p-4 sm:p-6">
+      <h2 className="text-xl font-extrabold">DASH locked for Platform</h2>
+      {p.outputs?.length ? (
+        <ol className="divide-y divide-border">
+          {p.outputs.map((output, index) => {
+            const keyHash =
+              /^OP_DUP OP_HASH160 (?:OP_PUSHBYTES_20 )?([a-f0-9]{40}) OP_EQUALVERIFY OP_CHECKSIG$/i.exec(
+                output.script,
+              )?.[1];
+            return (
+              <li
+                key={`${index}-${output.script}`}
+                className="grid min-w-0 gap-3 py-3 first:pt-0 last:pb-0 sm:grid-cols-2"
+              >
+                <div>
+                  <h3 className="text-xs text-muted-foreground">
+                    {p.outputs.length === 1
+                      ? "Locked amount"
+                      : `Credit output #${index}`}
+                  </h3>
+                  <p className="text-lg font-bold">
+                    <TransactionAmount
+                      value={transactionAmount(output.satoshis)}
+                    />
+                  </p>
+                </div>
+                <div className="min-w-0 text-xs">
+                  <p className="mb-1 text-muted-foreground">
+                    {keyHash ? "Public key hash" : "Locking script"}
+                  </p>
+                  <HexValue value={keyHash ?? output.script} />
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          No credit outputs available.
+        </p>
+      )}
+    </Card>
   );
 }
 
 function AssetUnlockTxBody({ p }: { p: ApiAssetUnlockTxPayload }) {
   return (
-    <>
-      <PayloadRow label="Version">
-        <Bold>{p.version}</Bold>
-      </PayloadRow>
-      <PayloadRow label="Index">
-        <Bold>{p.index}</Bold>
-      </PayloadRow>
-      <PayloadRow label="Fee">
-        <Bold>{p.fee}</Bold>
-      </PayloadRow>
-      <PayloadRow label="Requested Height">
-        <HeightPill height={p.requestedHeight} />
-      </PayloadRow>
-      <PayloadRow label="Quorum Hash">
-        <HexValue value={p.quorumHash} />
-      </PayloadRow>
-      <PayloadRow label="Quorum Signature" align="start">
-        <HexValue value={p.quorumSig} />
-      </PayloadRow>
-    </>
+    <Card className="grid min-w-0 gap-5 rounded-3xl p-4 sm:p-6 lg:grid-cols-2">
+      <section className="min-w-0 space-y-2">
+        <h2 className="text-xl font-extrabold">Unlock request</h2>
+        <dl className="grid grid-cols-[max-content_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2 text-sm">
+          <dt className="text-muted-foreground">Unlock index</dt>
+          <dd className="tabular-nums">{p.index}</dd>
+          <dt className="text-muted-foreground">Requested height</dt>
+          <dd>
+            <Link
+              to="/blocks/$hashOrHeight"
+              params={{ hashOrHeight: String(p.requestedHeight) }}
+              className="text-accent hover:underline"
+            >
+              #{formatNumber(p.requestedHeight)}
+            </Link>
+          </dd>
+          <dt className="text-muted-foreground">Unlock fee</dt>
+          <dd>
+            <TransactionAmount value={transactionAmount(p.fee)} />
+          </dd>
+        </dl>
+      </section>
+      <section className="min-w-0 space-y-2">
+        <h2 className="text-xl font-extrabold">Quorum</h2>
+        <dl className="grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3 gap-y-2 text-sm">
+          <dt className="text-muted-foreground">Hash</dt>
+          <dd className="min-w-0 text-xs">
+            <HexValue value={p.quorumHash} />
+          </dd>
+          <dt className="text-muted-foreground">Signature</dt>
+          <dd className="min-w-0 text-xs">
+            <HexValue value={p.quorumSig} />
+          </dd>
+        </dl>
+      </section>
+    </Card>
   );
 }
