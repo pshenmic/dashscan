@@ -1,27 +1,41 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeftRight, Coins, ReceiptText } from "lucide-react";
-import { useId } from "react";
+import { ChartLine } from "lucide-react";
+import { useId, useState } from "react";
 import { Pie, PieChart } from "recharts";
-import { transactionsBreakdown24hQueryOptions } from "@/lib/api/stats";
+import { useClockValue } from "@/components/render-clock";
+import {
+  chainHistoryQueryOptions,
+  transactionsBreakdown24hQueryOptions,
+} from "@/lib/api/stats";
 import { homeChainQueryOptions } from "@/lib/home";
 import type { Network } from "@/lib/store";
-import { useHomeChainHistory } from "@/themes/dash/lib/home-history";
 import {
   metricDuffs,
   metricDuffsCompact,
   metricNumber,
 } from "@/themes/dash/lib/home-metrics";
 import { ChainHistoryChart } from "./chain-history-chart";
+import { ChartDateRange, type ChartPeriod } from "./chart-date-range";
 import { InfoPopover } from "./info-popover";
-import { MetricCard } from "./metric-card";
-import { MissingApiData } from "./missing-api-data";
 import { SkeletonBar } from "./skeleton";
 import { TransactionHistoryPanel } from "./transaction-history-panel";
-
 export function TransactionsOverview({ network }: { network: Network }) {
   const titleId = useId();
   const chain = useQuery(homeChainQueryOptions(network));
-  const fees = useHomeChainHistory(network);
+  const today = useClockValue(
+    (now) => Math.floor(now / 86_400_000) * 86_400_000,
+  );
+  const [period, setPeriod] = useState<ChartPeriod>({ days: 30 });
+  const end = period.end ?? today;
+  const hourly = period.days === 1;
+  const fees = useQuery(
+    chainHistoryQueryOptions({
+      network,
+      timestampStart: new Date(end - period.days * 86_400_000).toISOString(),
+      timestampEnd: new Date(end).toISOString(),
+      intervalsCount: hourly ? 24 : period.days,
+    }),
+  );
   const breakdown = useQuery({
     ...transactionsBreakdown24hQueryOptions({ network }),
     refetchInterval: 60_000,
@@ -41,92 +55,23 @@ export function TransactionsOverview({ network }: { network: Network }) {
       ]
     : [];
   const surface = "rounded-3xl dash-home-panel px-4 py-4 sm:px-5";
-  const pending = (description: string) => (
-    <MissingApiData inline description={description} />
-  );
   return (
     <section
       aria-labelledby={titleId}
-      className="grid min-w-0 gap-6 rounded-3xl bg-card p-4 sm:rounded-[48px] sm:p-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"
+      className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"
     >
-      <div className="flex min-w-0 flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6 xl:grid xl:grid-rows-[auto_1fr_auto]">
         <div>
           <h1 id={titleId} className="dash-heading-page sm:dash-heading-hero">
             <span className="font-extrabold text-brand">Transactions</span>{" "}
             Stats
           </h1>
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              Last 24h
-            </p>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[
-                {
-                  label: "Transactions",
-                  icon: ArrowLeftRight,
-                  value: metricNumber(total, 0),
-                  exact: null,
-                  unit: null,
-                  description:
-                    "Confirmed transactions in the last 24 hours, including coinbase.",
-                },
-                {
-                  label: "Average Fee",
-                  icon: Coins,
-                  value: metricDuffsCompact(breakdown.data?.averageFee),
-                  exact: metricDuffs(breakdown.data?.averageFee),
-                  unit: "DASH",
-                  description:
-                    "Average across transactions with a known fee in the last 24 hours, excluding coinbase.",
-                },
-                {
-                  label: "Total Fees",
-                  icon: ReceiptText,
-                  value: metricDuffsCompact(breakdown.data?.fees),
-                  exact: metricDuffs(breakdown.data?.fees),
-                  unit: "DASH",
-                  description:
-                    "Total known transaction fees in the last 24 hours, excluding coinbase.",
-                },
-              ].map((metric) => (
-                <MetricCard
-                  key={metric.label}
-                  label={metric.label}
-                  icon={metric.icon}
-                  compact
-                  description={
-                    <>
-                      {metric.description}
-                      {metric.exact != null && metric.exact !== "—" && (
-                        <p className="mt-2 font-medium tabular-nums">
-                          {metric.exact} DASH
-                        </p>
-                      )}
-                    </>
-                  }
-                >
-                  {breakdown.isPending ? (
-                    <SkeletonBar className="w-24" />
-                  ) : (
-                    <span className="inline-flex items-baseline gap-x-1 whitespace-nowrap">
-                      {metric.value}{" "}
-                      {metric.value !== "—" && metric.unit != null && (
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {metric.unit}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </MetricCard>
-              ))}
-            </div>
-          </div>
+        <div>
           <TransactionHistoryPanel network={network} title="Confirmed" />
         </div>
       </div>
-      <div className="flex min-w-0 flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-3">
         <div className="relative grid min-w-0 grid-cols-2 gap-4 xl:shrink-0">
           <div
             className={`${surface} relative z-10 flex items-baseline justify-between gap-3 self-end justify-self-start`}
@@ -162,65 +107,6 @@ export function TransactionsOverview({ network }: { network: Network }) {
               </p>
               <span className="text-xs text-muted-foreground">20 blocks</span>
             </div>
-          </div>
-          <div
-            className={`${surface} col-span-2 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center xl:mx-[8%] xl:-mt-8 xl:pt-8`}
-          >
-            <div className="min-w-0 sm:max-w-[55%]">
-              <h2 className="text-sm font-medium text-muted-foreground">
-                <InfoPopover
-                  label="Latest Core block fees"
-                  trigger="Latest Core block fees"
-                >
-                  Fees collected in the latest Core block. The chart shows daily
-                  average fees per block over 30 days.
-                  {chain.data?.blockFees != null && (
-                    <p className="mt-2 font-medium tabular-nums">
-                      {metricDuffs(chain.data.blockFees)} DASH
-                    </p>
-                  )}
-                </InfoPopover>
-              </h2>
-              <p className="mt-2 flex flex-wrap items-baseline gap-x-1 text-xl font-semibold text-foreground">
-                {chain.isPending ? (
-                  <SkeletonBar className="w-24" />
-                ) : chain.data?.blockFees != null ? (
-                  <>
-                    <span className="whitespace-nowrap">
-                      {metricDuffsCompact(chain.data.blockFees)}
-                    </span>
-                    <span className="font-medium text-muted-foreground">
-                      DASH
-                    </span>
-                  </>
-                ) : (
-                  pending(
-                    "Return the transaction fees for the latest Core block in duffs.",
-                  )
-                )}
-              </p>
-              <p
-                className="mt-2 text-xs text-muted-foreground"
-                title="The API does not return the height associated with these fees."
-              >
-                Core tip
-              </p>
-            </div>
-            <figure className="min-w-0 flex-1">
-              <figcaption className="mb-1 text-xs font-medium text-muted-foreground">
-                Avg/block · 30D
-              </figcaption>
-              <ChainHistoryChart
-                data={fees.data}
-                metric="feesPerBlock"
-                label="Daily average fees per block · 30 days"
-                formatValue={(value) => `${metricDuffs(value)} DASH`}
-                loading={fees.isPending}
-                error={fees.isError}
-                onRetry={() => void fees.refetch()}
-                height={64}
-              />
-            </figure>
           </div>
         </div>
         <div className="flex flex-1 flex-col items-center gap-5 rounded-3xl dash-home-panel p-4 sm:flex-row sm:p-5">
@@ -316,6 +202,93 @@ export function TransactionsOverview({ network }: { network: Network }) {
               </dl>
             </div>
           </div>
+        </div>
+        <div className="isolate grid min-w-0 gap-2 sm:gap-0 xl:mt-auto">
+          <div className="relative z-10 grid gap-2 sm:flex sm:flex-wrap sm:justify-center">
+            {[
+              {
+                label: "Avg/tx · 24H",
+                value: metricDuffsCompact(breakdown.data?.averageFee),
+                exact: metricDuffs(breakdown.data?.averageFee),
+                description:
+                  "Average across transactions with a known fee in the last 24 hours, excluding coinbase.",
+              },
+              {
+                label: "Total fees · 24H",
+                value: metricDuffsCompact(breakdown.data?.fees),
+                exact: metricDuffs(breakdown.data?.fees),
+                description:
+                  "Total known transaction fees in the last 24 hours, excluding coinbase.",
+              },
+            ].map((metric) => (
+              <dl
+                key={metric.label}
+                className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-2xl border border-border bg-card px-4 py-2 shadow-[var(--card-shadow)]"
+              >
+                <dt className="text-sm font-medium text-muted-foreground">
+                  <InfoPopover label={metric.label} trigger={metric.label}>
+                    {metric.description}
+                    {metric.exact !== "—" && (
+                      <p className="mt-2 font-medium tabular-nums">
+                        {metric.exact} DASH
+                      </p>
+                    )}
+                  </InfoPopover>
+                </dt>
+                <dd className="whitespace-nowrap font-semibold tabular-nums">
+                  {breakdown.isPending ? (
+                    <SkeletonBar className="w-24" />
+                  ) : (
+                    <span className="inline-flex items-baseline gap-x-1 whitespace-nowrap">
+                      {metric.value}{" "}
+                      {metric.value !== "—" && (
+                        <span className="text-xs font-medium text-muted-foreground">
+                          DASH
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </dd>
+              </dl>
+            ))}
+          </div>
+          <figure
+            className={
+              "flex min-w-0 flex-col gap-2 rounded-3xl dash-home-panel p-4 sm:-mt-3 sm:p-5 sm:pt-7"
+            }
+          >
+            <figcaption className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
+                <span className="flex size-8 items-center justify-center rounded-full bg-action-subtle text-accent">
+                  <ChartLine
+                    aria-hidden="true"
+                    className="size-4"
+                    strokeWidth={1.75}
+                  />
+                </span>
+                Fees
+              </span>
+              <ChartDateRange
+                value={period}
+                today={today}
+                onChange={setPeriod}
+              />
+            </figcaption>
+            <ChainHistoryChart
+              data={fees.data}
+              metric="fees"
+              label={
+                hourly ? "Hourly transaction fees" : "Daily transaction fees"
+              }
+              hourlyAxis={hourly}
+              formatValue={(value) => `${metricDuffs(value)} DASH`}
+              loading={fees.isPending}
+              error={fees.isError}
+              onRetry={() => void fees.refetch()}
+              height={156}
+              chartAxes
+            />
+          </figure>
         </div>
       </div>
       {(chain.isError || breakdown.isError) && (
