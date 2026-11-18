@@ -18,7 +18,13 @@ export function addressDistribution(
     rows.reduce((total, entry) => total + BigInt(entry.balance as string), 0n);
   const total = sum(entries);
   if (total === 0n)
-    return { total: "0", shares: null, amounts: null, topTen: null };
+    return {
+      total: "0",
+      shares: null,
+      amounts: null,
+      topTen: null,
+      topThree: null,
+    };
   const groups = [
     sum(ranked.slice(0, 1)),
     sum(ranked.slice(1, 5)),
@@ -32,5 +38,6 @@ export function addressDistribution(
     shares: [...groups, total - top].map(percentage),
     amounts: [...groups, total - top].map(String),
     topTen: percentage(top),
+    topThree: percentage(sum(ranked.slice(0, 3))),
   };
 }
