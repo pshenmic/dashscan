@@ -322,6 +322,7 @@ export default function BlocksListPage({
             })
           }
           busy={isFetching}
+          skeletonRows={lookup !== undefined ? 1 : isInfinite ? 25 : limit}
           emptyMessage={
             query.isPending
               ? "Loading blocks…"
