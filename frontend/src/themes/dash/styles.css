@@ -393,6 +393,38 @@
   }
 }
 
+@keyframes dash-types-scroll {
+  to { transform: translateX(-50%); }
+}
+
+.dash-types-strip {
+  overflow-x: clip;
+  mask-image: linear-gradient(to right, transparent, black 1.25rem, black calc(100% - 0.75rem), transparent);
+}
+
+.dash-types-track {
+  animation: dash-types-scroll 48s linear infinite;
+}
+
+.dash-types-strip:hover .dash-types-track {
+  animation-play-state: paused;
+}
+
+.dash-types-strip:has(:focus-visible) {
+  overflow-x: auto;
+  mask-image: none;
+}
+
+.dash-types-strip:has(:focus-visible) .dash-types-track {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce), (hover: none) {
+  .dash-types-strip { overflow-x: auto; mask-image: none; }
+  .dash-types-track { animation: none; }
+  .dash-types-track [data-copy] { display: none; }
+}
+
 @keyframes dash-timeline-arrival {
   from { opacity: 0.7; }
   to { opacity: 0; }
