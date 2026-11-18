@@ -16,7 +16,7 @@ import { InfoPopover } from "./info-popover";
 import { MetricCard } from "./metric-card";
 import { MissingApiData } from "./missing-api-data";
 import { SkeletonBar } from "./skeleton";
-import { TransactionHistoryCard } from "./transaction-history-card";
+import { TransactionHistoryPanel } from "./transaction-history-panel";
 
 export function TransactionsOverview({ network }: { network: Network }) {
   const titleId = useId();
@@ -123,12 +123,7 @@ export function TransactionsOverview({ network }: { network: Network }) {
               ))}
             </div>
           </div>
-          <TransactionHistoryCard
-            network={network}
-            chartHeight={112}
-            inlineHeader
-            className="justify-between gap-6 p-4 sm:p-5"
-          />
+          <TransactionHistoryPanel network={network} title="Confirmed" />
         </div>
       </div>
       <div className="flex min-w-0 flex-col gap-6">
