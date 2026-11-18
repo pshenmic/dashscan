@@ -31,6 +31,7 @@ import {
 import { ColumnSearch } from "./column-search";
 import { DataTable } from "./data-table";
 import { IdentifierLink } from "./identifier-link";
+import { InfoPopover } from "./info-popover";
 import { LoadMore } from "./load-more";
 import { Pagination } from "./pagination";
 import { TransactionTypeBadge } from "./transaction-type-badge";
@@ -62,7 +63,16 @@ const columns: ColumnDef<ApiTransaction>[] = [
   },
   {
     accessorKey: "amount",
-    header: "Output total (DASH)",
+    header: () => (
+      <InfoPopover
+        label="Output total (DASH)"
+        trigger="Output total (DASH)"
+        side="right"
+      >
+        Sum of all transaction outputs, including any change returned to the
+        sender. This is not necessarily the amount sent to someone else.
+      </InfoPopover>
+    ),
     cell: ({ row }) => metricDuffs(row.original.amount),
   },
 ];

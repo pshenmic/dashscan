@@ -113,7 +113,7 @@ export function BlockDetailOverview({
       value: metricNumber(block.difficulty, 8),
     },
     {
-      label: "Version",
+      label: "Block version",
       icon: Tag,
       value: metricNumber(block.version, 0),
     },
@@ -158,11 +158,19 @@ export function BlockDetailOverview({
               {
                 label: "Merkle Root",
                 value: block.merkleRoot,
+                description:
+                  "A single hash derived from all transaction IDs in this block. It can be used to verify that a transaction is included.",
               },
-            ].map(({ label, value }) => (
+            ].map(({ label, value, description }) => (
               <dl key={label}>
                 <dt className="text-xs text-muted-foreground">
-                  {label}
+                  {description ? (
+                    <InfoPopover label={label} trigger={label} side="right">
+                      {description}
+                    </InfoPopover>
+                  ) : (
+                    label
+                  )}
                 </dt>
                 <dd className="mt-1 min-w-0">
                   <HashValue value={value} />
@@ -199,6 +207,7 @@ export function BlockDetailOverview({
                 <InfoPopover
                   label="Block Reward"
                   trigger="Block Reward"
+                  side="right"
                 >
                   Includes transaction fees. The Platform credit pool is part of
                   the masternode reward. Treasury payouts fund approved
@@ -221,6 +230,7 @@ export function BlockDetailOverview({
               <dt className="text-muted-foreground">
                 <InfoPopover
                   label="Transaction fees"
+                  side="right"
                   trigger="Transaction fees"
                 >
                   Total fees paid by transactions in this block. Already
@@ -287,7 +297,14 @@ export function BlockDetailOverview({
           <div>
             <dt className="flex items-center gap-1 text-xs text-muted-foreground">
               <Layers aria-hidden="true" className="size-3.5 shrink-0" />{" "}
-              Confirmations
+              <InfoPopover
+                label="Confirmations"
+                trigger="Confirmations"
+                side="right"
+              >
+                Starts at 1 for the latest block. Each new block added after it
+                increases the count by 1.
+              </InfoPopover>
             </dt>
             <dd className="mt-1 text-base leading-5 font-semibold tabular-nums">
               {metricNumber(block.confirmations, 0)}
@@ -303,7 +320,10 @@ export function BlockDetailOverview({
               ) : (
                 <Shield aria-hidden="true" className="size-3.5 shrink-0" />
               )}
-              ChainLock
+              <InfoPopover label="ChainLock" trigger="ChainLock" side="right">
+                A ChainLock is a masternode quorum signature for a block. Dash
+                Core nodes reject competing blocks at the locked height.
+              </InfoPopover>
             </dt>
             <dd className="mt-1 text-base leading-5 font-semibold">
               {status.isPending ? (
