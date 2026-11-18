@@ -96,7 +96,7 @@ export function BlocksTimeline({
       ) : (
         <ol
           aria-label="Recent blocks and upcoming heights"
-          className="-mx-4 -my-6 flex gap-6 overflow-x-auto px-4 py-6 sm:-mx-6 sm:px-6"
+          className="-my-6 flex gap-6 overflow-x-auto scroll-px-4 px-4 py-6 [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%_-_12px),transparent)] forced-colors:[mask-image:none]"
         >
           {timeline.map((block) => (
             <li key={block.hash} className="min-w-max flex-1 rounded-xl">
