@@ -39,11 +39,12 @@ export function BlockAge({
       <TooltipContent className="max-w-64">
         <p>{formatDateTime(timestamp)}</p>
         {blockHeight != null && <p>Block #{formatNumber(blockHeight)}</p>}
-        <p>
-          {blockHeight != null
-            ? "Timestamp of the containing block, not when the transaction was first seen."
-            : "Block timestamp."}
-        </p>
+        {blockHeight != null && (
+          <p>
+            Timestamp of the containing block, not when the transaction was
+            first seen.
+          </p>
+        )}
       </TooltipContent>
     </Tooltip>
   );
