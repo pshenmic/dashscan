@@ -7,10 +7,10 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Avatar } from "dash-ui-kit/react";
 import { ArrowLeftRight, MoveDown, MoveUp, Wallet } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import {
   Card,
   CardAction,
@@ -27,11 +27,10 @@ import type { ApiTransaction } from "@/lib/api/types";
 import {
   addressNetAmount,
   formatDash,
-  formatRelativeTime,
-  getTxTypeBadgeStyle,
-  getTxTypeLabel,
+  formatDateTime,
+  formatNumber,
 } from "@/lib/format";
-import { getPageCount, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+import { getPageCount, type PageSize } from "@/lib/pagination";
 import { appStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { AreaChart } from "@/themes/dash/components/area-chart";
@@ -42,6 +41,7 @@ import { MiniStatCard } from "@/themes/dash/components/mini-stat-card";
 import { PageStatus } from "@/themes/dash/components/page-status";
 import { Pagination } from "@/themes/dash/components/pagination";
 import { SearchInput } from "@/themes/dash/components/search-input";
+import { TransactionTypeBadge } from "@/themes/dash/components/transaction-type-badge";
 
 type ChartRange = "1d" | "1w" | "1m" | "1y";
 
@@ -76,7 +76,7 @@ const makeTxColumns = (address: string): ColumnDef<ApiTransaction>[] => [
       const ts = getValue<string | null>();
       return (
         <span className="text-muted-foreground">
-          {ts ? formatRelativeTime(ts) : "Pending"}
+          {ts ? <RelativeTime timestamp={ts} /> : "Pending"}
         </span>
       );
     },
@@ -100,17 +100,7 @@ const makeTxColumns = (address: string): ColumnDef<ApiTransaction>[] => [
   {
     accessorKey: "type",
     header: "Type",
-    cell: ({ row }) => (
-      <Badge
-        variant="outline"
-        className={cn(
-          "h-6 rounded-full px-2 text-[11px] font-medium",
-          getTxTypeBadgeStyle(row.original.type),
-        )}
-      >
-        {getTxTypeLabel(row.original.type)}
-      </Badge>
-    ),
+    cell: ({ row }) => <TransactionTypeBadge type={row.original.type} />,
   },
   {
     accessorKey: "size",
@@ -151,7 +141,7 @@ const makeTxColumns = (address: string): ColumnDef<ApiTransaction>[] => [
       const c = getValue<number | null>();
       return (
         <span className="text-muted-foreground">
-          {c != null ? c.toLocaleString() : "—"}
+          {c != null ? formatNumber(c) : "—"}
         </span>
       );
     },
@@ -163,7 +153,7 @@ const txSkeletonWidths = ["w-20", "w-44", "w-24", "w-14", "w-20", "w-16"];
 interface ClassicAddressDetailPageProps {
   address: string;
   page: number;
-  limit: number;
+  limit: PageSize;
 }
 
 export default function ClassicAddressDetailPage({
@@ -276,7 +266,7 @@ export default function ClassicAddressDetailPage({
               value={
                 <>
                   <span>
-                    {(Number(detail.balance) / 1e8).toLocaleString(undefined, {
+                    {formatNumber(Number(detail.balance) / 1e8, {
                       maximumFractionDigits: 4,
                     })}
                   </span>
@@ -292,7 +282,7 @@ export default function ClassicAddressDetailPage({
               value={
                 <>
                   <span>
-                    {(Number(detail.received) / 1e8).toLocaleString(undefined, {
+                    {formatNumber(Number(detail.received) / 1e8, {
                       maximumFractionDigits: 4,
                     })}
                   </span>
@@ -308,7 +298,7 @@ export default function ClassicAddressDetailPage({
               value={
                 <>
                   <span>
-                    {(Number(detail.sent) / 1e8).toLocaleString(undefined, {
+                    {formatNumber(Number(detail.sent) / 1e8, {
                       maximumFractionDigits: 4,
                     })}
                   </span>
@@ -321,7 +311,7 @@ export default function ClassicAddressDetailPage({
               icon={<ArrowLeftRight className="size-5" strokeWidth={1.75} />}
               label="Transactions"
               bgImage="/images/blocks/superblock.png"
-              value={Number(detail.txCount).toLocaleString()}
+              value={formatNumber(Number(detail.txCount))}
             />
           </div>
 
@@ -353,7 +343,7 @@ export default function ClassicAddressDetailPage({
                 <CardTitle className="mt-1 flex flex-wrap items-baseline gap-2 text-[34px] font-medium tracking-[-0.03em]">
                   <span className="font-extrabold text-[#21314d]">
                     {balanceDash != null
-                      ? balanceDash.toLocaleString(undefined, {
+                      ? formatNumber(balanceDash, {
                           maximumFractionDigits: 4,
                         })
                       : "—"}
@@ -392,12 +382,12 @@ export default function ClassicAddressDetailPage({
                 getXLabel={(p) => {
                   const date = new Date(p.timestamp);
                   if (range === "1d") {
-                    return date.toLocaleTimeString([], {
+                    return formatDateTime(date, {
                       hour: "2-digit",
                       minute: "2-digit",
                     });
                   }
-                  return date.toLocaleDateString("en-US", {
+                  return formatDateTime(date, {
                     month: "short",
                     day: "numeric",
                   });
@@ -405,13 +395,13 @@ export default function ClassicAddressDetailPage({
                 renderTooltip={(p) => (
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {p.value.toLocaleString(undefined, {
+                      {formatNumber(p.value, {
                         maximumFractionDigits: 4,
                       })}{" "}
                       DASH
                     </span>
                     <span className="text-muted-foreground">
-                      {new Date(p.timestamp).toLocaleString()}
+                      {formatDateTime(new Date(p.timestamp))}
                     </span>
                   </div>
                 )}
@@ -464,12 +454,9 @@ export default function ClassicAddressDetailPage({
           pageCount={txPageCount}
           onPageChange={(p) => navigate({ search: { page: p, limit } })}
           pageSize={limit}
-          onPageSizeChange={(size) => {
-            const next = (PAGE_SIZE_OPTIONS as readonly number[]).includes(size)
-              ? (size as (typeof PAGE_SIZE_OPTIONS)[number])
-              : 10;
-            navigate({ search: { page: 1, limit: next } });
-          }}
+          onPageSizeChange={(size) =>
+            navigate({ search: { page: 1, limit: size } })
+          }
         />
       </Card>
     </main>

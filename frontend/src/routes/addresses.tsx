@@ -7,7 +7,7 @@ import {
 } from "@/lib/api/addresses";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import RedesignAddressesPage from "@/themes/neo/pages/addresses";
+import AddressesPage from "@/themes/dash/pages/addresses-list";
 
 const addressesSearchSchema = z.object({
   tab: z.enum(["active", "rich"]).optional().catch(undefined),
@@ -49,5 +49,5 @@ export const Route = createFileRoute("/addresses")({
 });
 
 function AddressesRoute() {
-  return <RedesignAddressesPage />;
+  return <AddressesPage />;
 }

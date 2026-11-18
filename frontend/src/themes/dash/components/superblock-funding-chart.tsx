@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format";
 import { AreaChart } from "@/themes/dash/components/area-chart";
 
 type SuperblockFundingChartProps = {
@@ -13,7 +14,7 @@ function Tooltip({ item }: { item: { label: string; value: number } }) {
   return (
     <>
       <div className="font-semibold text-[#21314d]">
-        Payout: {item.value.toLocaleString()} Ð
+        Payout: {formatNumber(item.value)} Ð
       </div>
       <div className="mt-0.5 text-[#7f8da8]">{item.label}</div>
     </>

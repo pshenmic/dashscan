@@ -4,9 +4,7 @@ import { addressQueryOptions } from "@/lib/api/addresses";
 import { paginationSearchSchema } from "@/lib/pagination";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
-import RedesignAddressDetailPage from "@/themes/neo/pages/address-detail";
 
 const ClassicAddressDetailPage = lazy(
   () => import("@/themes/dash/pages/address-detail"),
@@ -37,10 +35,8 @@ export const Route = createFileRoute("/address/$address")({
 });
 
 function AddressDetailRoute() {
-  const theme = useActiveTheme();
   const { address } = Route.useParams();
   const { page, limit } = Route.useSearch();
-  if (theme === "neo") return <RedesignAddressDetailPage address={address} />;
   return (
     <Suspense fallback={<LazyThemePageFallback />}>
       <ClassicAddressDetailPage address={address} page={page} limit={limit} />

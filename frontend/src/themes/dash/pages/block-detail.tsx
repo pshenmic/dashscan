@@ -1,7 +1,6 @@
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { Avatar } from "dash-ui-kit/react";
 import {
   ArrowLeftRight,
   BookKey,
@@ -10,6 +9,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useState } from "react";
+import { Avatar } from "@/components/identicon";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -21,10 +22,9 @@ import {
 import { blockQueryOptions } from "@/lib/api/blocks";
 import { transactionsByHeightQueryOptions } from "@/lib/api/transactions";
 import {
+  formatDateTime,
   formatDuffs,
-  formatRelativeTime,
-  getTxTypeBadgeStyle,
-  getTxTypeLabel,
+  formatNumber,
   sumVOut,
 } from "@/lib/format";
 import { getPageCount } from "@/lib/pagination";
@@ -35,6 +35,7 @@ import { PageStatus } from "@/themes/dash/components/page-status";
 import { Pagination } from "@/themes/dash/components/pagination";
 import { SearchInput } from "@/themes/dash/components/search-input";
 import { SkeletonBar } from "@/themes/dash/components/skeleton";
+import { TransactionTypeBadge } from "@/themes/dash/components/transaction-type-badge";
 import { TwoLineHash } from "@/themes/dash/components/two-line-hash";
 
 interface ClassicBlockDetailPageProps {
@@ -137,17 +138,17 @@ export default function ClassicBlockDetailPage({
           <Card className="mt-auto px-6 py-4">
             <div className="flex flex-col gap-3">
               <DetailRow label="Timestamp:">
-                <span>{new Date(block.timestamp).toLocaleString()}</span>
+                <span>{formatDateTime(new Date(block.timestamp))}</span>
                 <Badge
                   variant="outline"
                   className="ml-2 rounded-full border-border text-xs font-medium"
                 >
-                  {formatRelativeTime(block.timestamp)}
+                  {<RelativeTime timestamp={block.timestamp} />}
                 </Badge>
               </DetailRow>
               <DetailRow label="Confirmations:">
                 <span className="font-medium text-muted-foreground">
-                  {block.confirmations.toLocaleString()}
+                  {formatNumber(block.confirmations)}
                 </span>
               </DetailRow>
               <DetailRow label="Merkle Root:">
@@ -162,9 +163,7 @@ export default function ClassicBlockDetailPage({
                 </span>
               </DetailRow>
               <DetailRow label="Nonce:">
-                <span className="font-medium">
-                  {block.nonce.toLocaleString()}
-                </span>
+                <span className="font-medium">{formatNumber(block.nonce)}</span>
               </DetailRow>
               <DetailRow label="Difficulty:">
                 <span className="font-medium">{block.difficulty}</span>
@@ -238,7 +237,7 @@ export default function ClassicBlockDetailPage({
                 variant="outline"
                 className="rounded-full border-border font-medium"
               >
-                {block.size.toLocaleString()} bytes
+                {formatNumber(block.size)} bytes
               </Badge>
             </div>
           </div>
@@ -311,7 +310,11 @@ export default function ClassicBlockDetailPage({
                   >
                     <td className="rounded-l-xl border-y border-l border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
                       <span className="whitespace-nowrap text-muted-foreground">
-                        {tx.timestamp ? formatRelativeTime(tx.timestamp) : "—"}
+                        {tx.timestamp ? (
+                          <RelativeTime timestamp={tx.timestamp} />
+                        ) : (
+                          "—"
+                        )}
                       </span>
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
@@ -324,11 +327,7 @@ export default function ClassicBlockDetailPage({
                       </Link>
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10">
-                      <Badge
-                        className={`h-6 whitespace-nowrap border font-medium ${getTxTypeBadgeStyle(tx.type)}`}
-                      >
-                        {getTxTypeLabel(tx.type)}
-                      </Badge>
+                      <TransactionTypeBadge type={tx.type} />
                     </td>
                     <td className="border-y border-border bg-secondary/50 px-3 py-2 text-right transition-colors group-hover:bg-accent/10">
                       <span>{formatDuffs(sumVOut(tx.vOut))} DASH</span>

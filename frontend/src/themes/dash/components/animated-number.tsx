@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatNumber } from "@/lib/format";
 
 export function AnimatedNumber({
   value,
@@ -22,5 +23,5 @@ export function AnimatedNumber({
     requestAnimationFrame(tick);
   }, [value, duration]);
 
-  return <span className={className}>{display.toLocaleString()}</span>;
+  return <span className={className}>{formatNumber(display)}</span>;
 }

@@ -3,7 +3,10 @@ import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
 import { apiFetch, getBaseUrl } from "./client";
 import type {
+  ApiAddressHistoryEntry,
+  ApiAssetStats,
   ApiBlockTransactionsStatsEntry,
+  ApiChainHistoryEntry,
   ApiTransactionsBreakdown,
   ApiTransactionsStatsEntry,
 } from "./types";
@@ -107,12 +110,10 @@ export function blockTransactionsStatsQueryOptions(params: FetchStatsInput) {
   });
 }
 
-interface FetchBreakdownInput {
-  network: Network;
-}
+type FetchBreakdownInput = FetchStatsInput;
 
 async function getTransactionsBreakdown24h(params: FetchBreakdownInput) {
-  const url = new URL("/transactions/stats", getBaseUrl(params.network));
+  const url = buildStatsUrl("/transactions/stats", params);
   const response = await apiFetch(url);
   if (response.status === 404) {
     return {
@@ -137,7 +138,80 @@ export function transactionsBreakdown24hQueryOptions(
   params: FetchBreakdownInput,
 ) {
   return queryOptions({
-    queryKey: ["transactionsBreakdown24h", params.network],
+    queryKey: [
+      "transactionsBreakdown24h",
+      params.network,
+      params.timestampStart ?? null,
+      params.timestampEnd ?? null,
+    ],
     queryFn: () => getTransactionsBreakdown24h(params),
+  });
+}
+
+async function getOptionalStats<T>(
+  path: string,
+  params: FetchStatsInput,
+  signal: AbortSignal,
+): Promise<T | null> {
+  const response = await apiFetch(buildStatsUrl(path, params), { signal });
+  if (response.status === 404) return null;
+  if (!response.ok)
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  return response.json() as Promise<T>;
+}
+
+export function chainHistoryQueryOptions(params: FetchStatsInput) {
+  return queryOptions({
+    queryKey: [
+      "chainHistory",
+      params.network,
+      params.timestampStart,
+      params.timestampEnd,
+      params.intervalsCount,
+    ],
+    queryFn: ({ signal }) =>
+      getOptionalStats<ApiChainHistoryEntry[]>(
+        "/chain/stats/chart",
+        params,
+        signal,
+      ),
+    staleTime: 300_000,
+  });
+}
+
+export function addressHistoryQueryOptions(params: FetchStatsInput) {
+  return queryOptions({
+    queryKey: [
+      "addressHistory",
+      params.network,
+      params.timestampStart,
+      params.timestampEnd,
+      params.intervalsCount,
+    ],
+    queryFn: ({ signal }) =>
+      getOptionalStats<ApiAddressHistoryEntry[]>(
+        "/addresses/chart",
+        params,
+        signal,
+      ),
+    staleTime: 300_000,
+  });
+}
+
+export function assetStatsQueryOptions(params: FetchStatsInput) {
+  return queryOptions({
+    queryKey: [
+      "assetStats",
+      params.network,
+      params.timestampStart,
+      params.timestampEnd,
+    ],
+    queryFn: ({ signal }) =>
+      getOptionalStats<ApiAssetStats>(
+        "/transactions/assetlocks/stats",
+        params,
+        signal,
+      ),
+    staleTime: 60_000,
   });
 }

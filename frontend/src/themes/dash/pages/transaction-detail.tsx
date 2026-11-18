@@ -10,11 +10,18 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
+import { RelativeTime } from "@/components/relative-time";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction, ApiVIn, ApiVOut } from "@/lib/api/types";
-import { DUFFS_PER_DASH, formatDuffs, formatRelativeTime, txTypeNum } from "@/lib/format";
+import {
+  DUFFS_PER_DASH,
+  formatDateTime,
+  formatDuffs,
+  formatNumber,
+  getTxTypeLabel,
+} from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { AddressLink } from "@/themes/dash/components/address-link";
 import { CopyButton } from "@/themes/dash/components/copy-button";
@@ -23,23 +30,6 @@ import { HashCell } from "@/themes/dash/components/hash-cell";
 import { PageStatus } from "@/themes/dash/components/page-status";
 
 type IconType = ComponentType<SVGProps<SVGSVGElement>>;
-
-const TX_TYPE_SHORT_LABELS: Record<number, string> = {
-  0: "Normal",
-  1: "Pro Reg Tx",
-  2: "Pro Up Serv Tx",
-  3: "Pro Up Reg Tx",
-  4: "Pro Up Rev Tx",
-  5: "Cb Tx",
-  6: "Qc Tx",
-  7: "Mn Hf Tx",
-  8: "Asset Lock",
-  9: "Asset Unlock",
-};
-
-function getShortTxTypeLabel(type: string | number | null | undefined): string {
-  return TX_TYPE_SHORT_LABELS[txTypeNum(type)] ?? `Type ${type}`;
-}
 
 function sumInputs(vIn: ApiVIn[] | null | undefined): number | null {
   if (!vIn || vIn.length === 0) return null;
@@ -105,7 +95,7 @@ export default function ClassicTransactionDetailPage({
 
   const status = deriveStatus(tx);
   const StatusIcon = status.icon;
-  const typeLabel = getShortTxTypeLabel(tx.type);
+  const typeLabel = getTxTypeLabel(tx.type);
 
   const totalInput = sumInputs(tx.vIn);
   const totalOutput = sumOutputs(tx.vOut);
@@ -120,7 +110,13 @@ export default function ClassicTransactionDetailPage({
   const hasInputs = !!tx.vIn && tx.vIn.length > 0 && !isCoinbase;
   const hasOutputs = !!tx.vOut && tx.vOut.length > 0;
 
-  const INPUTS_ON_LEFT = new Set(["PROVIDER_REGISTRATION", "COINBASE", "QUORUM_COMMITMENT", "ASSET_LOCK", "ASSET_UNLOCK"]);
+  const INPUTS_ON_LEFT = new Set([
+    "PROVIDER_REGISTRATION",
+    "COINBASE",
+    "QUORUM_COMMITMENT",
+    "ASSET_LOCK",
+    "ASSET_UNLOCK",
+  ]);
   const inputsOnLeft = INPUTS_ON_LEFT.has(tx.type ?? "");
 
   const inputsSection = hasInputs ? (
@@ -184,7 +180,7 @@ export default function ClassicTransactionDetailPage({
               label="Confirmations"
               value={
                 <p className="text-3xl font-extrabold">
-                  {(tx.confirmations ?? 0).toLocaleString()}
+                  {formatNumber(tx.confirmations ?? 0)}
                 </p>
               }
             />
@@ -221,12 +217,12 @@ export default function ClassicTransactionDetailPage({
               <DetailRow label="Timestamp">
                 {tx.timestamp ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span>{new Date(tx.timestamp).toLocaleString()}</span>
+                    <span>{formatDateTime(new Date(tx.timestamp))}</span>
                     <Badge
                       variant="outline"
                       className="rounded-full border-border text-xs font-medium"
                     >
-                      {formatRelativeTime(tx.timestamp)}
+                      {<RelativeTime timestamp={tx.timestamp} />}
                     </Badge>
                   </div>
                 ) : (
@@ -332,7 +328,7 @@ function BlockPill({ height, hash }: { height: number; hash?: string }) {
         className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 transition-colors hover:bg-accent/10"
       >
         <span className="font-mono font-bold text-foreground">
-          {height.toLocaleString()}
+          {formatNumber(height)}
         </span>
       </Link>
       <CopyButton value={hash ?? String(height)} />

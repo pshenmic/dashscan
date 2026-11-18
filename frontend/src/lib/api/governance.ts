@@ -10,6 +10,26 @@ import type {
 
 type ProposalType = "valid" | "funding" | "delete" | "endorsed" | "all";
 
+export function proposalStatsQueryOptions({ network }: { network: Network }) {
+  return queryOptions({
+    queryKey: ["proposal-stats", network],
+    queryFn: async ({
+      signal,
+    }): Promise<{ active: number; previousActive: number } | null> => {
+      const response = await apiFetch(
+        new URL("/governance/proposals/stats", getBaseUrl(network)),
+        { signal },
+      );
+      if (response.status === 404) return null;
+      if (!response.ok)
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      return response.json();
+    },
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+}
+
 interface FetchProposalsInput {
   network: Network;
   proposalType?: ProposalType;
