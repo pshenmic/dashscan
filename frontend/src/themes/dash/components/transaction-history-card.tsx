@@ -3,6 +3,7 @@ import { useClockValue } from "@/components/render-clock";
 import { transactionsStatsQueryOptions } from "@/lib/api/stats";
 import { formatDateTime } from "@/lib/format";
 import type { Network } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import {
   transactionHistoryRange,
@@ -10,7 +11,19 @@ import {
 } from "@/themes/dash/lib/transaction-metrics";
 import { AreaChart } from "./area-chart";
 import { InfoPopover } from "./info-popover";
-export function TransactionHistoryCard({ network }: { network: Network }) {
+export function TransactionHistoryCard({
+  network,
+  surface = "outlined",
+  chartHeight = 164,
+  inlineHeader = false,
+  className,
+}: {
+  network: Network;
+  surface?: "outlined" | "subtle";
+  chartHeight?: number;
+  inlineHeader?: boolean;
+  className?: string;
+}) {
   const day = useClockValue((now) => Math.floor(now / 86_400_000) * 86_400_000);
   const range = transactionHistoryRange(day);
   const history = useQuery(
@@ -19,10 +32,33 @@ export function TransactionHistoryCard({ network }: { network: Network }) {
   const summary = transactionHistorySummary(history.data, range.timestampEnd);
 
   return (
-    <div className="flex flex-1 flex-col gap-8 rounded-3xl dash-home-panel p-6">
-      <div className="space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-base font-medium leading-4 tracking-[-0.009em]">
+    <div
+      className={cn(
+        "flex min-w-0 flex-1 flex-col gap-8 rounded-3xl p-6",
+        surface === "subtle" ? "bg-secondary" : "dash-home-panel",
+        className,
+      )}
+    >
+      <div
+        className={
+          inlineHeader
+            ? "flex flex-wrap items-center justify-between gap-x-4 gap-y-2"
+            : "space-y-2"
+        }
+      >
+        <div
+          className={
+            inlineHeader
+              ? "flex min-w-0 max-w-full flex-wrap items-center gap-x-4 gap-y-2"
+              : "space-y-2"
+          }
+        >
+          <h3
+            className={cn(
+              "text-base font-medium leading-4 tracking-[-0.009em]",
+              inlineHeader && "text-sm text-muted-foreground",
+            )}
+          >
             <InfoPopover
               label="About transaction history"
               trigger="Transactions history"
@@ -32,36 +68,70 @@ export function TransactionHistoryCard({ network }: { network: Network }) {
               at zero. Counts reflect indexed blocks.
             </InfoPopover>
           </h3>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <p className="text-[32px] font-extrabold leading-[1.1] tabular-nums">
-            {history.isPending ? "…" : metricNumber(summary.currentTotal, 0)}{" "}
-            <span className="text-base font-medium">TXS</span>
-          </p>
-          {summary.change !== null && (
-            <span
-              className={`rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${summary.change > 0 ? "bg-positive-brand/12 text-success" : summary.change < 0 ? "bg-destructive/12 text-destructive" : "bg-foreground/5 text-muted-foreground"}`}
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-x-4 gap-y-2",
+              inlineHeader && "gap-x-2",
+            )}
+          >
+            <p
+              className={cn(
+                "text-[32px] font-extrabold leading-[1.1] tabular-nums",
+                inlineHeader && "whitespace-nowrap text-2xl font-semibold",
+              )}
             >
-              {summary.change > 0 ? "↑" : summary.change < 0 ? "↓" : ""}
-              {metricNumber(Math.abs(summary.change))}%
-            </span>
-          )}
+              {history.isPending ? "…" : metricNumber(summary.currentTotal, 0)}{" "}
+              <span
+                className={cn(
+                  "text-base font-medium",
+                  inlineHeader && "text-muted-foreground",
+                )}
+              >
+                {inlineHeader ? "Txs" : "TXS"}
+              </span>
+            </p>
+            {summary.change !== null && (
+              <span
+                className={cn(
+                  "whitespace-nowrap rounded-full px-2 py-1 text-xs font-extrabold tabular-nums",
+                  summary.change > 0
+                    ? "bg-positive-brand/12 text-success"
+                    : summary.change < 0
+                      ? "bg-destructive/12 text-destructive"
+                      : "bg-foreground/5 text-muted-foreground",
+                  inlineHeader && "font-medium",
+                )}
+              >
+                {summary.change > 0 ? "↑" : summary.change < 0 ? "↓" : ""}
+                {metricNumber(Math.abs(summary.change))}%
+              </span>
+            )}
+          </div>
         </div>
-        <p className="text-sm font-medium leading-4 tracking-[-0.009em] text-muted-foreground">
+        <p
+          className={cn(
+            "text-sm font-medium leading-4 tracking-[-0.009em] text-muted-foreground",
+            inlineHeader && "ml-auto text-right text-xs",
+          )}
+        >
           {summary.previousTotal !== null ? (
             <>
-              Compared to{" "}
-              <strong className="font-extrabold">
+              {inlineHeader ? "vs " : "Compared to "}
+              <strong
+                className={inlineHeader ? "font-semibold" : "font-extrabold"}
+              >
                 {metricNumber(summary.previousTotal, 0)}
               </strong>{" "}
-              in the previous 30 days
+              {inlineHeader ? "· prev. 30D" : "in the previous 30 days"}
             </>
+          ) : inlineHeader ? (
+            "30D · UTC"
           ) : (
             "Last 30 complete days · UTC"
           )}
         </p>
       </div>
-      <div className="min-h-[204px]">
+      <div style={{ minHeight: chartHeight + 40 }}>
         {history.isPending ? (
           <output className="dash-body-compact block py-8 text-muted-foreground">
             Loading history…
@@ -100,7 +170,7 @@ export function TransactionHistoryCard({ network }: { network: Network }) {
             <AreaChart
               data={summary.current}
               compact
-              compactHeight={164}
+              compactHeight={chartHeight}
               zeroBaseline
               getValue={(entry) => entry.data.count}
               getKey={(entry) => entry.timestamp}

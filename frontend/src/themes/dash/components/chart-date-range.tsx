@@ -7,7 +7,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 
 const DAY_MS = 86_400_000;
 const PRESETS = [7, 30, 90];
@@ -88,13 +87,10 @@ export function ChartDateRange({
                 : `Chart date range: ${label}`
             }
             aria-pressed={value.end != null}
-            className={cn(
-              "inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-action-subtle hover:text-accent focus-visible:outline-2 focus-visible:outline-ring [@media(pointer:coarse)]:min-h-9",
-              value.end != null && "bg-action-subtle text-accent",
-            )}
+            title={value.end == null ? "Choose custom dates" : label}
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-action-subtle hover:text-accent aria-pressed:bg-action-subtle aria-pressed:text-accent focus-visible:outline-2 focus-visible:outline-ring [@media(pointer:coarse)]:size-9"
           >
             <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
-            {value.end != null && <span>{label}</span>}
           </button>
         </PopoverTrigger>
         <PopoverContent

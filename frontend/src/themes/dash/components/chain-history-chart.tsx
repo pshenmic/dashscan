@@ -17,6 +17,8 @@ export function ChainHistoryChart({
   onRetry,
   height = 128,
   detailedAxis = false,
+  hourlyAxis = false,
+  chartAxes = false,
 }: {
   data: ApiChainHistoryEntry[] | null | undefined;
   metric: ChainMetric;
@@ -27,6 +29,8 @@ export function ChainHistoryChart({
   onRetry: () => void;
   height?: number;
   detailedAxis?: boolean;
+  hourlyAxis?: boolean;
+  chartAxes?: boolean;
 }) {
   const points = chainMetricSeries(data, metric);
   if (loading || error || points.length < 2)
@@ -64,7 +68,9 @@ export function ChainHistoryChart({
             )}
           </div>
         </div>
-        <div aria-hidden="true" className={detailedAxis ? "h-10" : "h-6"} />
+        {!chartAxes && (
+          <div aria-hidden="true" className={detailedAxis ? "h-10" : "h-6"} />
+        )}
       </div>
     );
   const labelCount = Math.min(points.length, detailedAxis ? 6 : 2);
@@ -76,48 +82,74 @@ export function ChainHistoryChart({
   return (
     <div className="@container w-full min-w-0">
       <AreaChart
-        compact
+        compact={!chartAxes}
+        height={height}
+        tooltipPlacement={chartAxes ? "point" : undefined}
         compactHeight={height}
         data={points}
         getValue={(entry) => entry.value}
         getKey={(entry) => entry.timestamp}
-        getXLabel={(entry) => formatDateTime(entry.timestamp)}
+        getXLabel={(entry) =>
+          chartAxes
+            ? formatDateTime(
+                entry.timestamp,
+                hourlyAxis
+                  ? { hour: "2-digit", minute: "2-digit" }
+                  : { month: "short", day: "numeric" },
+              )
+            : formatDateTime(entry.timestamp)
+        }
         renderTooltip={(entry) => (
           <>
-            <p>{formatDateTime(entry.timestamp)}</p>
-            <p>{formatValue(entry.value)}</p>
+            <p
+              className={
+                chartAxes ? "text-xs font-extrabold tabular-nums" : undefined
+              }
+            >
+              {formatValue(entry.value)}
+            </p>
+            <p>{formatDateTime(entry.timestamp)} UTC</p>
           </>
         )}
         ariaLabel={label}
         fillFadeStart={0.5}
-        formatYLabel={formatValue}
+        formatYLabel={
+          chartAxes ? (tick) => formatValue(Math.round(tick)) : formatValue
+        }
         minimumMax={0}
       />
-      <div
-        className={cn(
-          "flex justify-between gap-2 text-xs text-muted-foreground",
-          detailedAxis ? "mt-6 font-medium" : "mt-2",
-        )}
-      >
-        {labels.map((point, index) => (
-          <span
-            key={point.timestamp}
-            className={cn(
-              "whitespace-nowrap",
-              index > 0 &&
-                index < labels.length - 1 &&
-                (index === Math.floor(labels.length / 2)
-                  ? "hidden @[14rem]:inline"
-                  : "hidden @[20rem]:inline"),
-            )}
-          >
-            {formatDateTime(point.timestamp, {
-              month: "short",
-              day: "numeric",
-            })}
-          </span>
-        ))}
-      </div>
+      {!chartAxes && (
+        <div
+          className={cn(
+            "flex justify-between gap-2 text-xs text-muted-foreground",
+            detailedAxis ? "mt-6 font-medium" : "mt-2",
+          )}
+        >
+          {labels.map((point, index) => (
+            <span
+              key={point.timestamp}
+              className={cn(
+                "whitespace-nowrap",
+                index > 0 &&
+                  index < labels.length - 1 &&
+                  (index === Math.floor(labels.length / 2)
+                    ? "hidden @[14rem]:inline"
+                    : "hidden @[20rem]:inline"),
+              )}
+            >
+              {formatDateTime(
+                point.timestamp,
+                hourlyAxis
+                  ? { hour: "2-digit", minute: "2-digit" }
+                  : {
+                      month: "short",
+                      day: "numeric",
+                    },
+              )}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

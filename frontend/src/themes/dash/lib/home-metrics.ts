@@ -51,6 +51,15 @@ export function metricBytes(value: number | null | undefined) {
   return `${metricNumber(value / scale)} ${unit}`;
 }
 
+export function metricDuffsCompact(value: number | string | null | undefined) {
+  const amount = supplyInDash(value == null ? value : String(value));
+  if (amount == null) return "—";
+  return formatNumber(amount, {
+    notation: amount >= 10_000 ? "compact" : "standard",
+    maximumSignificantDigits: amount > 0 && amount < 0.01 ? 3 : 4,
+  });
+}
+
 export function sortedHistory(history: ApiHistoricalEntry[] | undefined) {
   return (history ?? [])
     .filter(
