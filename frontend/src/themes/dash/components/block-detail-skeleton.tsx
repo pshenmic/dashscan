@@ -8,8 +8,8 @@ export function BlockDetailSkeleton() {
       className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16"
     >
       <output className="sr-only">Loading block…</output>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <div className="flex min-h-[312px] min-w-0 flex-col gap-3 pt-2 sm:px-4">
+      <div className="grid gap-6 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div className="flex min-h-[312px] min-w-0 flex-col gap-3 pt-2">
           <SkeletonBar className="h-12 w-64" />
           <div className="flex flex-1 flex-col justify-between gap-3 rounded-3xl border border-border bg-card px-4 py-3">
             <div className="space-y-1">
@@ -35,7 +35,7 @@ export function BlockDetailSkeleton() {
             </div>
           </div>
         </div>
-        <div className="mr-2 min-w-0 sm:mr-8 lg:pt-2">
+        <div className="min-w-0 lg:pt-2">
           <div className="rounded-3xl border border-border bg-card p-5 sm:p-7 lg:rounded-tl-[3rem]">
             <div className="grid grid-cols-1 items-start gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto]">
               <div>
