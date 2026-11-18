@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Coins } from "lucide-react";
 import type { ReactNode } from "react";
 import { RelativeTime } from "@/components/relative-time";
-import { Badge } from "@/components/ui/badge";
 import { blockRewardQueryOptions } from "@/lib/api/blocks";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
 import type { ApiBlock } from "@/lib/api/types";
@@ -20,6 +19,18 @@ function HashValue({ value }: { value: string }) {
       </span>
       <CopyButton value={value} />
     </div>
+  );
+}
+
+function Retry({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-sm text-accent underline"
+    >
+      Retry
+    </button>
   );
 }
 
@@ -111,16 +122,31 @@ export function BlockDetailOverview({
         </div>
       ),
     },
+    { label: "Block Hash", value: <HashValue value={block.hash} /> },
     { label: "Confirmations", value: metricNumber(block.confirmations, 0) },
+    {
+      label: "ChainLock",
+      value: status.isPending ? (
+        <SkeletonBar className="w-16" />
+      ) : status.isError ? (
+        <Retry onClick={() => void status.refetch()} />
+      ) : chainLocked == null ? (
+        "—"
+      ) : chainLocked ? (
+        "Locked"
+      ) : (
+        "Not locked"
+      ),
+    },
+    { label: "Size", value: `${metricNumber(block.size, 0)} bytes` },
     { label: "Merkle Root", value: <HashValue value={block.merkleRoot} /> },
     { label: "Nonce", value: metricNumber(Number(block.nonce), 0) },
     { label: "Difficulty", value: metricNumber(block.difficulty, 8) },
     { label: "Version", value: metricNumber(block.version, 0) },
-    { label: "Size", value: `${metricNumber(block.size, 0)} bytes` },
   ];
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <section
         aria-label="Block metadata"
         className="min-w-0 rounded-3xl bg-card px-4 py-4 sm:px-6"
@@ -140,52 +166,7 @@ export function BlockDetailOverview({
         aria-label="Block summary"
         className="flex min-w-0 flex-col gap-4 rounded-3xl bg-card p-4"
       >
-        <div className="flex min-w-0 items-center gap-4 rounded-3xl bg-brand/4 p-3">
-          <img
-            src="/icons/block-detail/hash.svg"
-            alt=""
-            width={48}
-            height={48}
-            className="size-12 shrink-0"
-          />
-          <div className="min-w-0 flex-1 space-y-1">
-            <p className="text-sm text-muted-foreground">Block Hash</p>
-            <HashValue value={block.hash} />
-          </div>
-        </div>
         <div className="grid flex-1 gap-4 sm:grid-cols-2">
-          <SummaryMetric label="ChainLock" name="status">
-            {status.isPending ? (
-              <SkeletonBar className="w-28" />
-            ) : status.isError ? (
-              <button
-                type="button"
-                onClick={() => void status.refetch()}
-                className="text-sm text-accent underline"
-              >
-                Retry
-              </button>
-            ) : typeof chainLocked === "boolean" ? (
-              <Badge
-                variant="outline"
-                className={
-                  chainLocked
-                    ? "border-brand bg-action-subtle text-brand"
-                    : "border-border text-muted-foreground"
-                }
-              >
-                {chainLocked ? "ChainLocked" : "Not ChainLocked"}
-              </Badge>
-            ) : (
-              <span>
-                <span aria-hidden="true">—</span>
-                <span className="sr-only">ChainLock status unavailable</span>
-              </span>
-            )}
-          </SummaryMetric>
-          <SummaryMetric label="Transactions" name="transactions">
-            {metricNumber(block.txCount, 0)}
-          </SummaryMetric>
           {(
             [
               { label: "Block fees", name: "fees", value: reward.data?.fees },

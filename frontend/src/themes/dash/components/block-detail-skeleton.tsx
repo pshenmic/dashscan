@@ -9,17 +9,18 @@ export function BlockDetailSkeleton() {
     >
       <output className="sr-only">Loading block…</output>
       <SkeletonBar className="h-[42px] w-72" />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div className="flex min-h-[312px] min-w-0 flex-col justify-between gap-3 rounded-3xl bg-card px-4 py-4 sm:px-6">
           {[
             "timestamp",
+            "hash",
             "confirmations",
+            "chainlock",
+            "size",
             "merkle",
-            "bits",
             "nonce",
             "difficulty",
             "version",
-            "size",
           ].map((field) => (
             <div
               key={field}
@@ -31,15 +32,8 @@ export function BlockDetailSkeleton() {
           ))}
         </div>
         <div className="space-y-4 rounded-3xl bg-card p-4">
-          <div className="flex items-center gap-4 rounded-3xl bg-brand/4 p-3">
-            <SkeletonBar className="size-12 shrink-0 rounded-full" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <SkeletonBar className="w-24" />
-              <SkeletonBar className="w-full" />
-            </div>
-          </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            {["status", "transactions", "miner", "subsidy"].map((field) => (
+            {["fees", "subsidy"].map((field) => (
               <div
                 key={field}
                 className="flex min-h-24 items-center gap-4 rounded-3xl bg-brand/4 p-3"
