@@ -33,19 +33,16 @@ import {
   type TableViewMode,
   useTableViewMode,
 } from "@/lib/use-table-view-mode";
-import {
-  metricBytes,
-  metricDuffs,
-  metricNumber,
-} from "@/themes/dash/lib/home-metrics";
+import { metricBytes, metricNumber } from "@/themes/dash/lib/home-metrics";
+import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import type { TransactionsListSearch } from "@/themes/dash/pages/transactions-list";
 import { BlockAge } from "./block-age";
 import { ColumnSearch } from "./column-search";
 import { DataTable } from "./data-table";
+import { FormattedAmount } from "./formatted-amount";
 import { IdentifierLink } from "./identifier-link";
 import { LoadMore } from "./load-more";
 import { Pagination } from "./pagination";
-import { PendingColumnHeader } from "./pending-column-header";
 import { TransactionTypeBadge } from "./transaction-type-badge";
 
 export function TransactionsListTable({
@@ -161,7 +158,7 @@ export function TransactionsListTable({
           />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 max-sm:w-36">
             <div className="min-w-0 flex-1">
               <IdentifierLink
                 kind="transaction"
@@ -198,37 +195,6 @@ export function TransactionsListTable({
             </span>
           </div>
         ),
-      },
-      {
-        accessorKey: "blockHeight",
-        header: () => (
-          <ColumnSearch
-            kind="height"
-            label="Block"
-            activeValue={search.block_height?.toString()}
-            onChange={(value) =>
-              update({
-                block_height: value === undefined ? undefined : Number(value),
-              })
-            }
-            sorting={{
-              order: search.order,
-              onChange: (order) => update({ order }),
-            }}
-          />
-        ),
-        cell: ({ row }) =>
-          row.original.blockHash ? (
-            <Link
-              to="/blocks/$hashOrHeight"
-              params={{ hashOrHeight: row.original.blockHash }}
-              className="text-brand hover:underline"
-            >
-              {metricNumber(row.original.blockHeight, 0)}
-            </Link>
-          ) : (
-            "—"
-          ),
       },
       {
         accessorKey: "type",
@@ -273,6 +239,37 @@ export function TransactionsListTable({
           </Popover>
         ),
         cell: ({ row }) => <TransactionTypeBadge type={row.original.type} />,
+      },
+      {
+        accessorKey: "blockHeight",
+        header: () => (
+          <ColumnSearch
+            kind="height"
+            label="Block"
+            activeValue={search.block_height?.toString()}
+            onChange={(value) =>
+              update({
+                block_height: value === undefined ? undefined : Number(value),
+              })
+            }
+            sorting={{
+              order: search.order,
+              onChange: (order) => update({ order }),
+            }}
+          />
+        ),
+        cell: ({ row }) =>
+          row.original.blockHash ? (
+            <Link
+              to="/blocks/$hashOrHeight"
+              params={{ hashOrHeight: row.original.blockHash }}
+              className="text-brand hover:underline"
+            >
+              {metricNumber(row.original.blockHeight, 0)}
+            </Link>
+          ) : (
+            "—"
+          ),
       },
       {
         id: "attributes",
@@ -344,12 +341,7 @@ export function TransactionsListTable({
       },
       {
         accessorKey: "size",
-        header: () => (
-          <PendingColumnHeader
-            label="Size"
-            description="Transaction sizes are available. The API does not support filtering or sorting by size."
-          />
-        ),
+        header: "Size",
         cell: ({ row }) => metricBytes(row.original.size),
       },
       {
@@ -371,7 +363,9 @@ export function TransactionsListTable({
           </Tooltip>
         ),
         cell: ({ row }) => (
-          <span className="text-brand">{metricDuffs(row.original.amount)}</span>
+          <FormattedAmount
+            value={transactionAmount(row.original.amount).replace(/ DASH$/, "")}
+          />
         ),
       },
       {
@@ -384,7 +378,10 @@ export function TransactionsListTable({
         header: "Timestamp",
         cell: ({ row }) =>
           row.original.timestamp ? (
-            <BlockAge timestamp={row.original.timestamp} />
+            <BlockAge
+              timestamp={row.original.timestamp}
+              blockHeight={row.original.blockHeight}
+            />
           ) : (
             "—"
           ),
@@ -626,7 +623,7 @@ export function TransactionsListTable({
                 ? "Transactions unavailable"
                 : "No matching transactions."
           }
-          className="min-w-[1120px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_[data-column]:not([data-column=hash]):not([data-column=type]):not([data-column=attributes])]:text-right [&_td]:tabular-nums"
+          className="max-sm:w-max sm:min-w-[1120px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_[data-column]:not([data-column=hash]):not([data-column=type]):not([data-column=attributes])]:text-right [&_td]:tabular-nums"
         />
       </div>
       {!searching && isInfinite && infinite.hasNextPage && (
