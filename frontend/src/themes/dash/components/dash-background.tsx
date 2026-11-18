@@ -12,7 +12,7 @@ import {
 const preferenceKey = "dashscan:home-background-motion";
 const bandHeight = 640;
 
-export function HomeBackground() {
+export function DashBackground({ isHome }: { isHome: boolean }) {
   const [enabled, setEnabled] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -59,7 +59,7 @@ export function HomeBackground() {
       <div
         aria-hidden="true"
         data-home-motion={enabled && allowed && visible}
-        className="pointer-events-none absolute inset-x-0 -top-[88px] bottom-0 -z-10 overflow-hidden"
+        className="pointer-events-none absolute inset-y-0 left-1/2 -z-10 w-full max-w-[1440px] -translate-x-1/2 overflow-hidden"
       >
         <div className="dash-home-grid-surface absolute inset-0">
           <div className="dash-home-grid-fill absolute inset-y-0 left-1/2 w-[1440px] -translate-x-1/2" />
@@ -69,14 +69,22 @@ export function HomeBackground() {
               mask: "url(/images/home/grid.svg) center / contain no-repeat",
             }}
           />
+          <div
+            className="absolute bottom-0 left-1/2 h-[1132px] w-[1440px] -translate-x-1/2 rotate-180 bg-foreground"
+            style={{
+              mask: "url(/images/home/grid.svg) center / contain no-repeat",
+            }}
+          />
         </div>
-        <GridSignals running={enabled && allowed && visible} />
+        <GridSignals running={enabled && allowed && visible} isHome={isHome} />
       </div>
       {allowed && (
         <button
           type="button"
           aria-pressed={enabled}
-          title={enabled ? "Pause home animations" : "Resume home animations"}
+          title={
+            enabled ? "Pause background motion" : "Resume background motion"
+          }
           onClick={toggleMotion}
           className="fixed bottom-4 left-4 z-40 inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-xs text-muted-foreground shadow-card hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
@@ -85,14 +93,20 @@ export function HomeBackground() {
           ) : (
             <Play aria-hidden="true" className="size-3.5" />
           )}
-          Home animations
+          Background motion
         </button>
       )}
     </>
   );
 }
 
-function GridSignals({ running }: { running: boolean }) {
+function GridSignals({
+  running,
+  isHome,
+}: {
+  running: boolean;
+  isHome: boolean;
+}) {
   const container = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 1440, height: 0 });
   const [surfaces, setSurfaces] = useState<GridArea[]>([]);
@@ -102,12 +116,14 @@ function GridSignals({ running }: { running: boolean }) {
   useEffect(() => {
     const element = container.current;
     if (!element || typeof ResizeObserver === "undefined") return;
-    const content = Array.from(
-      element
-        .closest("main")
-        ?.querySelectorAll<HTMLElement>("[data-grid-content] > section") ?? [],
-    );
     const observer = new ResizeObserver(() => {
+      const content = isHome
+        ? Array.from(
+            document.querySelectorAll<HTMLElement>(
+              ".dash-home [data-grid-content] > section",
+            ),
+          )
+        : [];
       const bounds = element.getBoundingClientRect();
       const width = Math.round(bounds.width);
       const height = Math.round(bounds.height);
@@ -118,6 +134,7 @@ function GridSignals({ running }: { running: boolean }) {
       );
       setSurfaces(
         content.flatMap((area) => {
+          observer.observe(area);
           const rectangle = area.getBoundingClientRect();
           const surface = {
             x: rectangle.left - bounds.left + (1440 - width) / 2,
@@ -125,9 +142,9 @@ function GridSignals({ running }: { running: boolean }) {
             width: rectangle.width,
             height: rectangle.height,
           };
-          const map = area
-            .querySelector("[data-grid-map]")
-            ?.getBoundingClientRect();
+          const mapElement = area.querySelector("[data-grid-map]");
+          if (mapElement) observer.observe(mapElement);
+          const map = mapElement?.getBoundingClientRect();
           if (!map) return [surface];
           const mapLeft = map.left - rectangle.left;
           const mapTop = map.top - rectangle.top;
@@ -157,13 +174,8 @@ function GridSignals({ running }: { running: boolean }) {
       );
     });
     observer.observe(element);
-    for (const area of content) {
-      observer.observe(area);
-      const map = area.querySelector("[data-grid-map]");
-      if (map) observer.observe(map);
-    }
     return () => observer.disconnect();
-  }, []);
+  }, [isHome]);
 
   useEffect(() => {
     const element = container.current;
