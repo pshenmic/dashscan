@@ -35,12 +35,22 @@ export function BlockDetailSkeleton() {
             </div>
           </div>
         </div>
-        <div className="space-y-4 rounded-3xl bg-card p-4">
-          <div className="flex justify-between">
-            <SkeletonBar className="w-16" />
-            <SkeletonBar className="w-24" />
+        <div className="mr-2 min-w-0 sm:mr-8 lg:pt-2">
+          <div className="rounded-3xl border border-border bg-card p-5 sm:p-7 lg:rounded-tl-[3rem]">
+            <div className="grid grid-cols-1 items-start gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto]">
+              <div>
+                <SkeletonBar className="h-5 w-24" />
+                <SkeletonBar className="mt-1 h-8 w-48 sm:h-9" />
+              </div>
+              <SkeletonBar className="h-16 w-40 max-w-full -translate-y-1 justify-self-end rounded-3xl sm:-translate-y-2" />
+            </div>
+            <SkeletonBar className="mt-3 h-28 w-full rounded-2xl" />
           </div>
-          <SkeletonBar className="h-48 w-full rounded-3xl" />
+          <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl bg-card p-3 sm:p-4">
+            {["confirmations", "chainlock", "size"].map((field) => (
+              <SkeletonBar key={field} className="h-10 w-full" />
+            ))}
+          </div>
         </div>
       </div>
       <section
