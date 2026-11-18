@@ -18,7 +18,7 @@ import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { transactionTotals } from "@/themes/dash/lib/transaction-detail";
 
 const summaryGroup =
-  "flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-3 rounded-3xl border border-border bg-card p-4 sm:p-5";
+  "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-3 rounded-3xl border border-border bg-card p-4 sm:p-5";
 const summaryDetails = "grid justify-items-start gap-2";
 
 function MetaBadge({
@@ -137,7 +137,7 @@ export default function TransactionDetailPage({ hash }: { hash: string }) {
         </output>
       )}
       <div
-        className={`grid gap-4 sm:grid-cols-2 ${totals.monetary ? "lg:grid-cols-3" : ""}`}
+        className={`grid gap-4 ${totals.monetary ? "sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.45fr)_minmax(0,1fr)]" : "sm:grid-cols-2"}`}
       >
         <section aria-label="Block" className={summaryGroup}>
           <div className="min-w-0 max-w-full space-y-2">
@@ -195,7 +195,10 @@ export default function TransactionDetailPage({ hash }: { hash: string }) {
             )}
           </section>
         )}
-        <section aria-label="Transaction properties" className={summaryGroup}>
+        <section
+          aria-label="Transaction properties"
+          className={`${summaryGroup} ${totals.monetary ? "sm:col-span-2 xl:col-span-1" : ""}`}
+        >
           <dl className={summaryDetails}>
             <div className="flex items-center gap-2">
               <dt className="text-xs text-muted-foreground">Type</dt>
