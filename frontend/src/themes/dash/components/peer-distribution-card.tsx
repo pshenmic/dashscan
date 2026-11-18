@@ -5,6 +5,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tooltip,
   TooltipContent,
@@ -29,7 +30,7 @@ const countryLabels: Record<string, string> = {
   AE: "UAE",
 };
 const hintClassName =
-  "max-w-64 rounded-xl border border-border bg-popover px-3 py-2 text-left text-xs text-popover-foreground shadow-md";
+  "max-w-[min(16rem,calc(100vw-2rem))] rounded-xl border border-border bg-popover px-3 py-2 text-left text-xs text-popover-foreground shadow-md [overflow-wrap:anywhere]";
 
 function DistributionDetail({ label, count, percent }: PeerSlice) {
   return (
@@ -104,6 +105,9 @@ export function PeerDistributionCard({
             />
             <ChartTooltip
               allowEscapeViewBox={{ x: true, y: true }}
+              cursor={false}
+              isAnimationActive={false}
+              wrapperStyle={{ pointerEvents: "none", zIndex: 50 }}
               content={({ active, payload }) => {
                 const slice = payload?.[0]?.payload as PeerSlice | undefined;
                 return active && slice ? (
@@ -120,13 +124,13 @@ export function PeerDistributionCard({
           />
         )}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="@container/peer-legend min-w-0 flex-1">
         <h3 className="text-sm font-medium leading-[1.1] text-muted-foreground">
           {title}
         </h3>
         {loading ? (
           <output
-            className="mt-3 grid min-h-[84px] grid-cols-2 gap-x-4 gap-y-3"
+            className="mt-3 grid min-h-[84px] grid-cols-2 gap-x-2 gap-y-3 @max-[14rem]/peer-legend:min-h-[120px]"
             aria-label={`Loading ${title}`}
           >
             {["first", "second", "third", "fourth"].map((slot) => (
@@ -141,11 +145,11 @@ export function PeerDistributionCard({
             ))}
           </output>
         ) : status || !slices.length ? (
-          <p className="mt-3 flex min-h-[84px] items-center text-sm text-muted-foreground">
+          <p className="mt-3 flex min-h-[84px] items-center text-sm text-muted-foreground @max-[14rem]/peer-legend:min-h-[120px]">
             {status ?? "No peers observed"}
           </p>
         ) : (
-          <ul className="mt-3 grid min-h-[84px] grid-cols-2 gap-x-4 gap-y-3 text-xs">
+          <ul className="mt-3 grid min-h-[84px] grid-cols-2 gap-x-2 gap-y-3 text-xs @max-[14rem]/peer-legend:min-h-[120px]">
             {slices.map((slice, index) => {
               const selected =
                 selection?.facet === facet && selection.value === slice.value;
@@ -159,9 +163,9 @@ export function PeerDistributionCard({
                   onFocus={() => setHovered(index)}
                   onBlur={() => setHovered(null)}
                   onClick={() => select(slice)}
-                  className={`flex min-h-9 w-full min-w-0 items-center gap-2 rounded-lg text-left hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${selected ? "bg-action-subtle" : ""}`}
+                  className={`flex min-h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring @max-[14rem]/peer-legend:flex-col @max-[14rem]/peer-legend:items-start @max-[14rem]/peer-legend:gap-1 ${selected ? "bg-action-subtle" : ""}`}
                 >
-                  <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+                  <span className="inline-flex min-w-0 flex-1 items-center gap-2 text-sm font-medium text-foreground @max-[14rem]/peer-legend:w-full @max-[14rem]/peer-legend:flex-none">
                     <span
                       aria-hidden="true"
                       className="size-3 shrink-0 rounded-sm border border-foreground/40"
@@ -187,6 +191,8 @@ export function PeerDistributionCard({
                       <PopoverTrigger asChild>{button}</PopoverTrigger>
                       <PopoverContent
                         aria-label={`Other categories in ${title}`}
+                        sideOffset={8}
+                        collisionPadding={12}
                         className={hintClassName}
                       >
                         <DistributionDetail {...slice} />
@@ -219,9 +225,13 @@ export function PeerDistributionCard({
                       </PopoverContent>
                     </Popover>
                   ) : (
-                    <Tooltip>
+                    <Tooltip delayDuration={250}>
                       <TooltipTrigger asChild>{button}</TooltipTrigger>
-                      <TooltipContent className={hintClassName}>
+                      <TooltipContent
+                        sideOffset={8}
+                        collisionPadding={12}
+                        className={hintClassName}
+                      >
                         <DistributionDetail {...slice} />
                       </TooltipContent>
                     </Tooltip>
@@ -235,5 +245,3 @@ export function PeerDistributionCard({
     </div>
   );
 }
-
-import { ScrollArea } from "@/components/ui/scroll-area";
