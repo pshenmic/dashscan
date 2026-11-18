@@ -1,5 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import { type ReactNode, useId } from "react";
+import { DashBackground } from "@/themes/dash/components/dash-background";
 import Footer from "@/themes/dash/components/footer";
 import Header from "@/themes/dash/components/header";
 
@@ -16,19 +17,7 @@ export default function ClassicShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      {isHome && (
-        <div
-          aria-hidden="true"
-          className="dash-home-grid-surface pointer-events-none absolute inset-y-0 left-1/2 -z-10 w-full max-w-[1440px] -translate-x-1/2 overflow-hidden"
-        >
-          <div
-            className="absolute bottom-0 left-1/2 h-[1132px] w-[1440px] -translate-x-1/2 rotate-180 bg-foreground"
-            style={{
-              mask: "url(/images/home/grid.svg) center / contain no-repeat",
-            }}
-          />
-        </div>
-      )}
+      <DashBackground isHome={isHome} />
       <Header />
       <div
         id={contentId}
