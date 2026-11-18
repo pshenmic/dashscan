@@ -10,12 +10,20 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ChevronDown, LockKeyhole, X } from "lucide-react";
-import { useCallback, useId, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
@@ -45,6 +53,9 @@ import { LoadMore } from "./load-more";
 import { Pagination } from "./pagination";
 import { TransactionTypeBadge } from "./transaction-type-badge";
 
+const toolbarChipClass =
+  "inline-flex h-9 max-w-48 items-center gap-2 rounded-xl bg-secondary px-3 text-xs text-foreground hover:bg-action-subtle hover:text-accent focus-visible:outline-2 focus-visible:outline-ring";
+
 export function TransactionsListTable({
   network,
   search,
@@ -55,6 +66,7 @@ export function TransactionsListTable({
   const hydrated = useHydrated();
   const navigate = useNavigate({ from: "/transactions/" });
   const titleId = useId();
+  const typeTrigger = useRef<HTMLButtonElement>(null);
   const [attributesOpen, setAttributesOpen] = useState(false);
   const queryClient = useQueryClient();
   const [storedMode, setMode] = useTableViewMode(
@@ -199,44 +211,49 @@ export function TransactionsListTable({
       {
         accessorKey: "type",
         header: () => (
-          <Popover>
-            <span className="inline-flex items-center gap-1">
-              Type
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Filter: Type"
-                  className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-ring"
-                >
-                  <ChevronDown className="size-3" aria-hidden="true" />
-                </button>
-              </PopoverTrigger>
-            </span>
-            <PopoverContent
-              align="start"
-              className="max-h-80 w-56 overflow-y-auto p-2"
+          <Select
+            value={search.transaction_type ?? "all"}
+            onValueChange={(value) =>
+              update({
+                transaction_type: TRANSACTION_TYPES.find(
+                  (type) => type.name === value,
+                )?.name,
+              })
+            }
+          >
+            <SelectTrigger
+              ref={typeTrigger}
+              size="sm"
+              aria-label="Filter: Type"
+              data-active={search.transaction_type !== undefined}
+              className="data-[size=sm]:h-6 gap-1 border-0 px-1 py-0 shadow-none hover:bg-action-subtle data-[active=true]:text-accent dark:bg-transparent"
             >
-              <fieldset aria-label="Transaction type" className="space-y-1">
-                {[
-                  { name: undefined, label: "All types" },
-                  ...TRANSACTION_TYPES,
-                ].map((type) => (
-                  <label
-                    key={type.name ?? "all"}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-secondary"
-                  >
-                    <input
-                      type="radio"
-                      name="transaction-type"
-                      checked={search.transaction_type === type.name}
-                      onChange={() => update({ transaction_type: type.name })}
-                    />
-                    {type.label}
-                  </label>
-                ))}
-              </fieldset>
-            </PopoverContent>
-          </Popover>
+              Type
+            </SelectTrigger>
+            <SelectContent
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                typeTrigger.current?.focus({ preventScroll: true });
+              }}
+              position="popper"
+              align="start"
+              collisionPadding={8}
+              aria-label="Transaction type"
+              className="w-52 max-h-[min(20rem,var(--radix-select-content-available-height))] rounded-xl [&_[data-slot=select-item]]:h-9 [&_[data-slot=select-item]:focus]:bg-action-subtle [&_[data-slot=select-item]:focus]:text-foreground"
+            >
+              <SelectItem value="all">All types</SelectItem>
+              <SelectSeparator />
+              {TRANSACTION_TYPES.map((type) => (
+                <SelectItem
+                  key={type.name}
+                  value={type.name}
+                  textValue={type.label}
+                >
+                  <TransactionTypeBadge type={type.name} withTooltip={false} />
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         ),
         cell: ({ row }) => <TransactionTypeBadge type={row.original.type} />,
       },
@@ -274,49 +291,50 @@ export function TransactionsListTable({
       {
         id: "attributes",
         header: () => (
-          <Popover open={attributesOpen} onOpenChange={setAttributesOpen}>
-            <span className="inline-flex items-center gap-1">
-              Attributes
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Filter: Attributes"
-                  className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-ring"
-                >
-                  <ChevronDown className="size-3" aria-hidden="true" />
-                </button>
-              </PopoverTrigger>
-            </span>
-            <PopoverContent align="start" className="w-48 p-2">
-              <fieldset
-                aria-label="Transaction attributes"
-                className="space-y-1"
+          <DropdownMenu
+            modal={false}
+            open={attributesOpen}
+            onOpenChange={setAttributesOpen}
+          >
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Filter: Attributes"
+                data-active={
+                  search.coinjoin !== undefined || search.multisig !== undefined
+                }
+                className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-action-subtle data-[active=true]:text-accent focus-visible:outline-2 focus-visible:outline-ring"
               >
-                {(
-                  [
-                    ["coinjoin", "CoinJoin", search.coinjoin],
-                    ["multisig", "Multisig", search.multisig],
-                  ] as const
-                ).map(([key, label, value]) => (
-                  <label
-                    key={key}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-secondary"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={value === true}
-                      onChange={(event) =>
-                        update({
-                          [key]: event.target.checked ? true : undefined,
-                        })
-                      }
-                    />
-                    {label}
-                  </label>
-                ))}
-              </fieldset>
-            </PopoverContent>
-          </Popover>
+                Attributes
+                <ChevronDown className="size-3" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              collisionPadding={8}
+              aria-label="Transaction attributes"
+              className="w-44 rounded-xl"
+            >
+              {(
+                [
+                  ["coinjoin", "CoinJoin", search.coinjoin],
+                  ["multisig", "Multisig", search.multisig],
+                ] as const
+              ).map(([key, label, value]) => (
+                <DropdownMenuCheckboxItem
+                  key={key}
+                  checked={value === true}
+                  onSelect={(event) => event.preventDefault()}
+                  onCheckedChange={(checked) =>
+                    update({ [key]: checked ? true : undefined })
+                  }
+                  className="rounded-md focus:bg-action-subtle focus:text-foreground data-[state=checked]:text-accent"
+                >
+                  {label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         ),
         cell: ({ row }) => {
           const attributes = [
@@ -483,6 +501,13 @@ export function TransactionsListTable({
             : "Excluded",
     },
   ].filter((filter) => filter.value !== undefined);
+  const resultPage = isInfinite ? infinite.data?.pages[0] : paged.data;
+  const resultCount = searching
+    ? lookup.isSuccess
+      ? rows.length
+      : undefined
+    : resultPage?.pagination.total;
+  const estimated = filters.length === 0;
   return (
     <section
       aria-labelledby={titleId}
@@ -494,12 +519,18 @@ export function TransactionsListTable({
           className="flex items-center gap-2 text-xl font-extrabold"
         >
           Transactions{" "}
-          <span
-            className="text-muted-foreground tabular-nums"
-            title="Loaded transactions"
-          >
-            {metricNumber(rows.length, 0)}
-          </span>
+          {resultCount != null && resultCount >= 0 && (
+            <span
+              className="text-muted-foreground tabular-nums"
+              title={
+                estimated
+                  ? "Estimated total indexed transactions"
+                  : "Matching transactions"
+              }
+            >
+              {metricNumber(resultCount, 0)}
+            </span>
+          )}
           <output className="sr-only">
             {isFetching ? "Updating transactions…" : ""}
           </output>
@@ -512,7 +543,7 @@ export function TransactionsListTable({
               title={String(filter.value)}
               aria-label={`Clear ${filter.label} filter`}
               onClick={() => update({ [filter.key]: undefined })}
-              className="inline-flex max-w-48 items-center gap-2 rounded-lg bg-action-subtle px-3 py-1 text-xs text-accent"
+              className={toolbarChipClass}
             >
               <span className="truncate">
                 {filter.label}: {filter.value}
@@ -520,6 +551,17 @@ export function TransactionsListTable({
               <X className="size-3 shrink-0" aria-hidden="true" />
             </button>
           ))}
+          {search.order === "asc" && (
+            <button
+              type="button"
+              aria-label="Reset sort to newest blocks first"
+              onClick={() => update({ order: "desc" })}
+              className={toolbarChipClass}
+            >
+              Oldest blocks first
+              <X className="size-3 shrink-0" aria-hidden="true" />
+            </button>
+          )}
           {isInfinite && !searching && (
             <button
               type="button"
@@ -537,7 +579,7 @@ export function TransactionsListTable({
           )}
           <fieldset
             aria-label="Loading mode"
-            className="inline-flex shrink-0 rounded-xl bg-secondary p-1"
+            className="inline-flex h-9 shrink-0 rounded-xl bg-secondary p-1"
           >
             {(["pagination", "infinite"] as const).map((value) => (
               <button
@@ -553,35 +595,6 @@ export function TransactionsListTable({
           </fieldset>
         </div>
       </div>
-      {(filters.length > 0 || search.order !== "desc") && (
-        <div className="mb-5 flex flex-wrap items-center gap-3 text-xs">
-          {search.order === "asc" && (
-            <button
-              type="button"
-              onClick={() => update({ order: "desc" })}
-              className="text-accent"
-            >
-              Oldest blocks first ×
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() =>
-              update({
-                hash: undefined,
-                block_height: undefined,
-                transaction_type: undefined,
-                coinjoin: undefined,
-                multisig: undefined,
-                order: "desc",
-              })
-            }
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Clear filters
-          </button>
-        </div>
-      )}
       {query.isError &&
         !(isInfinite && !searching && infinite.isFetchNextPageError) && (
           <p role="alert" className="mb-4 text-sm text-destructive">
