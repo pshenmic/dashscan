@@ -14,10 +14,12 @@ export function InfoPopover({
   label,
   children,
   trigger,
+  side,
 }: {
   label: string;
   children: ReactNode;
   trigger: ReactNode;
+  side?: "right";
 }) {
   return (
     <Tooltip>
@@ -33,11 +35,17 @@ export function InfoPopover({
             </button>
           </TooltipTrigger>
         </PopoverTrigger>
-        <PopoverContent className="max-w-[calc(100vw-2rem)] text-sm">
+        <PopoverContent
+          side={side}
+          className="max-w-[calc(100vw-2rem)] text-sm"
+        >
           {children}
         </PopoverContent>
       </Popover>
-      <TooltipContent className="max-w-72 rounded-xl border border-border bg-popover text-popover-foreground text-sm">
+      <TooltipContent
+        side={side}
+        className="max-w-72 rounded-xl border border-border bg-popover text-popover-foreground text-sm"
+      >
         {children}
       </TooltipContent>
     </Tooltip>

@@ -46,57 +46,59 @@ export default function BlockDetailPage({
     );
   }
   const navigationClass =
-    "inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm tabular-nums transition-colors hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-ring";
+    "inline-flex min-h-10 items-center gap-1 whitespace-nowrap rounded-xl border border-border bg-card px-2 text-sm tabular-nums text-accent shadow-[var(--card-shadow)] transition-colors [&:any-link:hover]:text-primary focus-visible:outline-2 focus-visible:outline-ring sm:px-3 pointer-coarse:min-h-11";
   return (
     <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="dash-heading-page break-words">
-          Block <span className="text-accent">#</span>
-          {metricNumber(block.height, 0)}
-        </h1>
-        <nav aria-label="Adjacent blocks" className="flex items-center gap-2">
-          {block.height > 0 && (
-            <Link
-              to="/blocks/$hashOrHeight"
-              params={{ hashOrHeight: String(block.height - 1) }}
-              search={{ page: 1, limit }}
-              aria-label="Previous block"
-              className={navigationClass}
-            >
-              <ChevronLeft className="size-4" aria-hidden="true" />
-              {metricNumber(block.height - 1, 0)}
-            </Link>
-          )}
-          {block.confirmations > 1 ? (
-            <Link
-              to="/blocks/$hashOrHeight"
-              params={{ hashOrHeight: String(block.height + 1) }}
-              search={{ page: 1, limit }}
-              aria-label="Next block"
-              className={navigationClass}
-            >
-              {metricNumber(block.height + 1, 0)}
-              <ChevronRight className="size-4" aria-hidden="true" />
-            </Link>
-          ) : (
-            <button
-              type="button"
-              disabled
-              aria-label="Next block"
-              className={`${navigationClass} opacity-40`}
-            >
-              {metricNumber(block.height + 1, 0)}
-              <ChevronRight className="size-4" aria-hidden="true" />
-            </button>
-          )}
-        </nav>
-      </div>
       {query.isError && (
         <output className="block text-sm text-muted-foreground">
           Block updates are unavailable. Showing the last loaded data.
         </output>
       )}
-      <BlockDetailOverview block={block} network={network} />
+      <BlockDetailOverview
+        block={block}
+        network={network}
+        navigation={
+          <nav
+            aria-label="Adjacent blocks"
+            className="flex items-center gap-1.5"
+          >
+            {block.height > 0 && (
+              <Link
+                to="/blocks/$hashOrHeight"
+                params={{ hashOrHeight: String(block.height - 1) }}
+                search={{ page: 1, limit }}
+                aria-label="Previous block"
+                className={navigationClass}
+              >
+                <ChevronLeft className="size-4" aria-hidden="true" />
+                {metricNumber(block.height - 1, 0)}
+              </Link>
+            )}
+            {block.confirmations > 1 ? (
+              <Link
+                to="/blocks/$hashOrHeight"
+                params={{ hashOrHeight: String(block.height + 1) }}
+                search={{ page: 1, limit }}
+                aria-label="Next block"
+                className={navigationClass}
+              >
+                {metricNumber(block.height + 1, 0)}
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                aria-label="Next block"
+                className={`${navigationClass} text-muted-foreground`}
+              >
+                {metricNumber(block.height + 1, 0)}
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </button>
+            )}
+          </nav>
+        }
+      />
       <BlockTransactionsTable
         key={`${network}:${block.hash}`}
         block={block}
