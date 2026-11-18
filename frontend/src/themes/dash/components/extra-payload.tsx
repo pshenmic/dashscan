@@ -80,6 +80,36 @@ function renderPayloadBody(txType: number, payload: ApiExtraPayload) {
       return <QcTxBody p={payload as ApiQcTxPayload} />;
     case 7:
       return <MnHfTxBody p={payload as ApiMnHfTxPayload} />;
+    case 10:
+      if ("actorIndex" in payload && Array.isArray(payload.sigs)) {
+        return (
+          <>
+            <PayloadRow label="Registration transaction">
+              <TxHashLink hash={payload.proTxHash} />
+            </PayloadRow>
+            <PayloadRow label="Actor index">
+              <Bold>{payload.actorIndex}</Bold>
+            </PayloadRow>
+            <PayloadRow label="Payload version">
+              <Bold>{payload.version}</Bold>
+            </PayloadRow>
+            <PayloadRow label="Signatures" align="start">
+              {payload.sigs.length ? (
+                <ul className="grid min-w-0 flex-1 gap-1">
+                  {payload.sigs.map((signature) => (
+                    <li key={signature} className="min-w-0">
+                      <HexValue value={signature} />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Muted />
+              )}
+            </PayloadRow>
+          </>
+        );
+      }
+      return <Muted />;
     default:
       return (
         <span className="text-xs text-muted-foreground">

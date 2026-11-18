@@ -177,7 +177,15 @@ export interface ApiAssetUnlockTxPayload {
   quorumSig: string;
 }
 
+export interface ApiProDisTxPayload {
+  version: number;
+  actorIndex: number;
+  proTxHash: string;
+  sigs: string[];
+}
+
 export type ApiExtraPayload =
+  | ApiProDisTxPayload
   | ApiProRegTxPayload
   | ApiProUpServTxPayload
   | ApiProUpRegTxPayload
