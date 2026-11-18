@@ -65,11 +65,6 @@ const columns: ColumnDef<ApiTransaction>[] = [
     header: "Output total (DASH)",
     cell: ({ row }) => metricDuffs(row.original.amount),
   },
-  {
-    accessorKey: "confirmations",
-    header: "Confirmations",
-    cell: ({ row }) => metricNumber(row.original.confirmations, 0),
-  },
 ];
 
 export function BlockTransactionsTable({
@@ -145,13 +140,8 @@ export function BlockTransactionsTable({
   ]);
   const rows = useMemo(
     () =>
-      loadedRows
-        .filter((transaction) => transaction.blockHash === block.hash)
-        .map((transaction) => ({
-          ...transaction,
-          confirmations: block.confirmations,
-        })),
-    [loadedRows, block.hash, block.confirmations],
+      loadedRows.filter((transaction) => transaction.blockHash === block.hash),
+    [loadedRows, block.hash],
   );
   const hasMore = infinite.hasNextPage && rows.length < block.txCount;
   const activeQuery = searching ? lookup : isInfinite ? infinite : transactions;
@@ -252,7 +242,7 @@ export function BlockTransactionsTable({
             growColumn="hash"
             caption={`Transactions in block ${block.height}`}
             skeletonRows={searching ? 1 : Math.min(limit, block.txCount)}
-            skeletonWidths={["w-52", "w-24", "w-16", "w-28", "w-16"]}
+            skeletonWidths={["w-52", "w-24", "w-16", "w-28"]}
             emptyMessage={
               searching
                 ? "No matching transaction in this block."
