@@ -28,6 +28,10 @@ function compactDifficulty(value: number | null | undefined) {
     : metricNumber(value, 4);
 }
 
+function formatInterval(seconds: number) {
+  return `${metricNumber(Math.floor(seconds / 60), 0)}m ${String(seconds % 60).padStart(2, "0")}s`;
+}
+
 export function HomeBlocks() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
@@ -47,21 +51,23 @@ export function HomeBlocks() {
   );
   const latest = blocks[0];
   const timeline = blocks.slice(0, 3).reverse();
-  const upcoming = latest
-    ? ["Next block", "Following block"].map((label, index) => ({
-        height: latest.height + index + 1,
-        label,
-      }))
-    : [];
   const blockTime = chain.data?.blockTime;
   const averageSeconds =
     blockTime != null && Number.isFinite(blockTime) && blockTime > 0
       ? Math.round(blockTime / 1000)
       : null;
   const averageInterval =
-    averageSeconds == null
-      ? "—"
-      : `${metricNumber(Math.floor(averageSeconds / 60), 0)}m ${String(averageSeconds % 60).padStart(2, "0")}s`;
+    averageSeconds == null ? "—" : formatInterval(averageSeconds);
+  const upcoming = latest
+    ? ["Next block", "Following block"].map((label, index) => ({
+        height: latest.height + index + 1,
+        label,
+        estimate:
+          averageSeconds == null
+            ? null
+            : formatInterval(averageSeconds * (index + 1)),
+      }))
+    : [];
   const averageSize = blocks.length
     ? blocks.reduce((total, block) => total + block.size, 0) / blocks.length
     : null;
@@ -234,13 +240,14 @@ export function HomeBlocks() {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-64">
-                  Average interval over the latest 20 indexed blocks. This is
-                  historical data, not a countdown to the next block.
+                  Average interval over the latest 20 indexed blocks, used for
+                  the upcoming estimates. Mining times are random, not
+                  scheduled.
                 </TooltipContent>
               </Tooltip>
             </div>
             <p className="mt-2 text-base font-medium leading-[1.1] text-muted-foreground">
-              Recently mined blocks and upcoming block heights.
+              Recently mined blocks and estimated waiting times.
             </p>
           </div>
           {blocksQuery.isPending ? (
@@ -309,12 +316,35 @@ export function HomeBlocks() {
                       />
                       #{metricNumber(block.height, 0)}
                     </span>
-                    <span className="whitespace-nowrap text-xs font-extrabold leading-[1.3]">
-                      {block.label}
-                    </span>
+                    {block.estimate ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="w-fit whitespace-nowrap rounded-sm text-xs font-extrabold leading-[1.3] focus-visible:outline-2 focus-visible:outline-ring"
+                            aria-label={`${block.label}: approximately ${block.estimate}`}
+                          >
+                            ~{block.estimate}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-64">
+                          Estimated waiting time based on the recent average
+                          block interval. Not a countdown or a guaranteed mining
+                          time.
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <span className="whitespace-nowrap text-xs font-extrabold leading-[1.3]">
+                        {block.label}
+                      </span>
+                    )}
                   </div>
                   <div className="relative mt-2 min-h-[26px] pt-3 text-center text-[10px] text-muted-foreground before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-dashed before:border-brand/24 after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)] group-last:before:right-0">
-                    <span className="sr-only">Not yet mined</span>
+                    {block.estimate ? (
+                      <span>{block.label}</span>
+                    ) : (
+                      <span className="sr-only">Not yet mined</span>
+                    )}
                   </div>
                 </li>
               ))}
