@@ -299,6 +299,20 @@ export function DaoBudgetCards({
                   USD {usd(currentBudget?.totalBudget)}
                 </p>
               )}
+              <dl className="space-y-1 border-t border-border pt-2 text-xs">
+                <div className="flex flex-wrap justify-between gap-x-3">
+                  <dt className="text-muted-foreground">Requested</dt>
+                  <dd className="tabular-nums">
+                    {metricNumber(currentBudget?.totalRequested)} DASH
+                  </dd>
+                </div>
+                <div className="flex flex-wrap justify-between gap-x-3">
+                  <dt className="text-muted-foreground">Projected</dt>
+                  <dd className="tabular-nums">
+                    {metricNumber(allocation?.allocated)} DASH
+                  </dd>
+                </div>
+              </dl>
             </div>
           </div>
           {budget.isError ? (
@@ -340,10 +354,16 @@ export function DaoBudgetCards({
             </>
           }
         >
-          <div className="flex min-h-6 items-center gap-1">
+          <div className="flex min-h-6 flex-wrap items-center gap-1">
             <span className="rounded-lg bg-foreground/4 px-2 py-1 text-xs text-muted-foreground">
               Net Yes
             </span>
+            {currentBudget?.enoughVotesCount != null && (
+              <DaoHint description="Proposals in the next budget projection that currently meet the vote threshold. This does not guarantee funding.">
+                {metricNumber(currentBudget.enoughVotesCount, 0)} proposals
+                qualify
+              </DaoHint>
+            )}
             {!budget.isPending &&
               !budget.isError &&
               currentBudget?.requiredVotes == null && (
