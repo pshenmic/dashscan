@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ChartLine } from "lucide-react";
 import { useId, useState } from "react";
 import { useClockValue } from "@/components/render-clock";
@@ -8,7 +9,7 @@ import {
 } from "@/lib/api/stats";
 import { homeChainQueryOptions } from "@/lib/home";
 import type { Network } from "@/lib/store";
-import { getTxTypeLabel } from "@/lib/transaction-types";
+import { getTxTypeLabel, TRANSACTION_TYPES } from "@/lib/transaction-types";
 import {
   metricDuffs,
   metricDuffsCompact,
@@ -20,7 +21,16 @@ import { InfoPopover } from "./info-popover";
 import { SkeletonBar } from "./skeleton";
 import { TransactionHistoryPanel } from "./transaction-history-panel";
 
+import { TransactionTypeBadge } from "./transaction-type-badge";
+
+const specialTypes = TRANSACTION_TYPES.filter((type) => type.id !== 0);
+
 export function TransactionsOverview({ network }: { network: Network }) {
+  const navigate = useNavigate({ from: "/transactions/" });
+  const selectedType = useSearch({
+    from: "/transactions/",
+    select: (search) => search.transaction_type,
+  });
   const titleId = useId();
   const chain = useQuery(homeChainQueryOptions(network));
   const today = useClockValue(
@@ -146,10 +156,12 @@ export function TransactionsOverview({ network }: { network: Network }) {
 
               <dl className="flex flex-wrap items-center gap-2 py-1 text-xs">
                 {types.map((type) => {
+                  const isSpecial = type.name === "Special";
                   return (
                     <div
                       key={type.name}
-                      className="relative inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-full border border-border bg-card px-2 py-1"
+                      data-special={isSpecial}
+                      className="relative inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-full border border-border bg-card px-2 py-1 @[32rem]:data-[special=true]:rounded-r-none @[32rem]:data-[special=true]:border-r-transparent"
                     >
                       <dt className="font-medium text-muted-foreground">
                         {type.name}
@@ -161,12 +173,57 @@ export function TransactionsOverview({ network }: { network: Network }) {
                             {metricNumber((type.count / total) * 100, 1)}%
                           </span>
                         )}
+                        {isSpecial && (
+                          <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute -inset-y-px left-full z-10 hidden w-[calc(0.5rem+1.25rem)] border-y border-border bg-card [mask-image:linear-gradient(to_right,black_0.5rem,transparent)] @[32rem]:block"
+                          />
+                        )}
                       </dd>
                     </div>
                   );
                 })}
               </dl>
             </div>
+            <section
+              aria-label="Known special types"
+              className="flex w-full min-w-0 flex-1 items-center gap-1"
+            >
+              <div className="dash-types-strip min-w-0 flex-1">
+                <div className="dash-types-track flex w-max">
+                  {[false, true].map((copy) => (
+                    <ul
+                      key={String(copy)}
+                      aria-hidden={copy || undefined}
+                      data-copy={copy || undefined}
+                      className="flex shrink-0 gap-1.5 py-1 pr-1.5"
+                    >
+                      {specialTypes.map((entry) => (
+                        <li key={entry.id} className="shrink-0">
+                          <TransactionTypeBadge
+                            type={entry.name}
+                            size="stat"
+                            filter={{
+                              duplicate: copy,
+                              selected: selectedType === entry.name,
+                              apply: () =>
+                                void navigate({
+                                  search: (previous) => ({
+                                    ...previous,
+                                    page: 1,
+                                    transaction_type: entry.name,
+                                  }),
+                                  resetScroll: false,
+                                }),
+                            }}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  ))}
+                </div>
+              </div>
+            </section>
           </div>
         </div>
         <div className="isolate grid min-w-0 gap-2 sm:gap-0 xl:mt-auto">
