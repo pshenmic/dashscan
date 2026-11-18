@@ -140,7 +140,7 @@ export function BlockDetailOverview({
                 {navigation}
               </div>
               <dl className="contents">
-                <dt className="col-start-1 row-start-1 text-xs text-muted-foreground">
+                <dt className="col-start-1 row-start-1 text-xs font-medium text-foreground">
                   Timestamp
                 </dt>
                 <dd className="col-span-full mt-1 flex items-center gap-1.5 whitespace-nowrap text-xs sm:text-sm">
@@ -163,7 +163,7 @@ export function BlockDetailOverview({
               },
             ].map(({ label, value, description }) => (
               <dl key={label}>
-                <dt className="text-xs text-muted-foreground">
+                <dt className="text-xs font-medium text-foreground">
                   {description ? (
                     <InfoPopover label={label} trigger={label} side="right">
                       {description}
@@ -226,7 +226,7 @@ export function BlockDetailOverview({
                 )}
               </p>
             </div>
-            <dl className="relative w-max min-w-0 max-w-full -translate-y-1 justify-self-end space-y-1 rounded-3xl border border-border bg-card px-5 py-3 text-sm shadow-[var(--card-shadow)] sm:-translate-y-2 sm:px-6">
+            <dl className="relative w-max min-w-0 max-w-full -translate-y-1 justify-self-end space-y-1 rounded-3xl border border-border bg-card px-5 py-3 text-sm sm:-translate-y-2 sm:px-6">
               <dt className="text-muted-foreground">
                 <InfoPopover
                   label="Transaction fees"
@@ -238,7 +238,7 @@ export function BlockDetailOverview({
                 </InfoPopover>
               </dt>
               <dd
-                className="truncate text-lg font-semibold tabular-nums text-accent"
+                className="truncate text-lg font-semibold tabular-nums text-foreground"
                 title={
                   payout?.fees != null
                     ? `${metricDuffs(payout.fees)} DASH`
@@ -262,7 +262,9 @@ export function BlockDetailOverview({
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
                 {shares.map(({ label, amount, fill }) => (
                   <div key={label} className="grid min-w-0 gap-y-0.5 text-sm">
-                    <dt className="text-xs text-muted-foreground">{label}</dt>
+                    <dt className="text-xs font-medium text-foreground">
+                      {label}
+                    </dt>
                     <dd className="font-semibold tabular-nums">
                       {metricDuffs(amount)}{" "}
                       <span className="text-xs font-normal text-muted-foreground">
