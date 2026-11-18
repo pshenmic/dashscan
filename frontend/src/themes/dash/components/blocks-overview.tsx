@@ -174,7 +174,7 @@ export function BlocksOverview({ network }: { network: Network }) {
   return (
     <section
       aria-labelledby={titleId}
-      className="grid min-w-0 items-start gap-6 rounded-3xl bg-card p-4 sm:rounded-[48px] sm:p-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"
+      className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"
     >
       <div className="flex min-w-0 flex-col gap-6">
         <div>
