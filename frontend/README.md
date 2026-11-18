@@ -100,9 +100,11 @@ and initial browser render agree even when the HTML was cached. The clock starts
 updating after hydration. Do not use the browser's default locale, time zone or
 `Date.now()` directly to produce initial page text.
 
-There are two themes, `neo` (default) and `dash`, sharing routes and API queries.
-Check both when changing shared components or state. Map changes also require
-checking the masternode and peer maps, zoom/pan, country hover and markers.
+Dash is the only application theme, with light and dark color modes. Color mode
+is stored locally; previous theme-selection cookies are ignored. Pages live in
+`src/themes/dash/pages`, while shared explorer components live in
+`src/components/explorer`. Map changes require checking both the masternode and
+peer maps, zoom/pan, country hover and markers.
 
 The framework packages are pinned to a known-compatible TanStack Start/Router
 pair. Upgrade them together rather than independently. The scoped

@@ -1,12 +1,11 @@
 function SkeletonBar({ className }: { className?: string }) {
   return (
     <div
-      className={`h-5 rounded-md bg-muted-foreground/10 ${className ?? ""}`}
+      className={`h-5 rounded-md bg-muted-foreground/10 motion-safe:animate-[shimmer_1.5s_ease-in-out_infinite] ${className ?? ""}`}
       style={{
         backgroundImage:
           "linear-gradient(90deg, transparent 0%, oklch(from var(--muted-foreground) l c h / 0.12) 50%, transparent 100%)",
         backgroundSize: "200% 100%",
-        animation: "shimmer 1.5s ease-in-out infinite",
       }}
     />
   );
@@ -21,7 +20,7 @@ function SkeletonRow({
 }) {
   return (
     <tr
-      className="animate-fade-in-up"
+      className="motion-safe:animate-fade-in-up"
       style={{ animationDelay: `${index * 50}ms` }}
     >
       {widths.map((w, i) => {

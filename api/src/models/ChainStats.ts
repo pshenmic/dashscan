@@ -95,7 +95,7 @@ export default class ChainStats {
       latestHeight,
       hashRate,
       mempoolSize,
-      Number(row.latest_superblock_height)
+      row.latest_superblock_height != null ? Number(row.latest_superblock_height) : undefined
     );
   }
 

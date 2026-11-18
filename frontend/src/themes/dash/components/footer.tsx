@@ -19,163 +19,101 @@ const SOCIAL_LINKS = [
   },
 ];
 
-let cachedFmts: {
-  tz: string;
-  time: Intl.DateTimeFormat;
-  date: Intl.DateTimeFormat;
-  parts: Intl.DateTimeFormat;
-} | null = null;
-
-function getFmts() {
-  if (cachedFmts) return cachedFmts;
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  cachedFmts = {
-    tz,
+function createFormatters() {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return {
+    timeZone,
     time: new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
-      timeZone: tz,
+      timeZone,
     }),
     date: new Intl.DateTimeFormat("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
-      timeZone: tz,
-    }),
-    parts: new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-      timeZone: tz,
+      timeZone,
     }),
   };
-  return cachedFmts;
-}
-
-function getLocalTime() {
-  const { tz, time, date, parts: partsFmt } = getFmts();
-  const now = new Date();
-
-  const parts: Record<string, number> = {};
-  for (const p of partsFmt.formatToParts(now)) {
-    if (p.type !== "literal") parts[p.type] = Number(p.value);
-  }
-
-  return {
-    hours: parts.hour ?? 0,
-    minutes: parts.minute ?? 0,
-    seconds: parts.second ?? 0,
-    display: `${time.format(now)} \u2022 ${date.format(now)} (${tz})`,
-  };
-}
-
-function AnalogClock({
-  hours,
-  minutes,
-  seconds,
-}: {
-  hours: number;
-  minutes: number;
-  seconds: number;
-}) {
-  const hourAngle = ((hours % 12) + minutes / 60) * 30;
-  const minuteAngle = (minutes + seconds / 60) * 6;
-
-  return (
-    <svg
-      width="32"
-      height="32"
-      viewBox="0 0 32 32"
-      className="shrink-0"
-      aria-hidden="true"
-    >
-      <circle
-        cx="16"
-        cy="16"
-        r="15"
-        fill="none"
-        stroke="var(--primary)"
-        strokeWidth="1"
-        opacity={0.32}
-      />
-      <line
-        x1="16"
-        y1="16"
-        x2="16"
-        y2="9"
-        stroke="var(--primary)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        transform={`rotate(${hourAngle} 16 16)`}
-      />
-      <line
-        x1="16"
-        y1="16"
-        x2="16"
-        y2="6"
-        stroke="var(--primary)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        transform={`rotate(${minuteAngle} 16 16)`}
-      />
-    </svg>
-  );
 }
 
 export default function Footer() {
   const now = useNow();
   const year = new Date(now).getUTCFullYear();
-  const [clock, setClock] = useState<{
-    hours: number;
-    minutes: number;
-    seconds: number;
-    display: string;
-  } | null>(null);
-
-  useEffect(() => {
-    setClock(getLocalTime());
-    const interval = setInterval(() => setClock(getLocalTime()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const [formatters, setFormatters] = useState<ReturnType<
+    typeof createFormatters
+  > | null>(null);
+  useEffect(() => setFormatters(createFormatters()), []);
+  const parts = formatters?.time.formatToParts(now);
+  const time = parts
+    ?.filter((part) => part.type !== "dayPeriod")
+    .map((part) => part.value)
+    .join("")
+    .trim();
+  const period = parts?.find((part) => part.type === "dayPeriod")?.value;
 
   return (
-    <footer className="mt-20 h-[88px] bg-transparent">
-      <div className="mx-auto flex h-full max-w-[1440px] flex-col items-center justify-between gap-4 rounded-t-3xl border-t border-border px-6 py-4 text-sm text-muted-foreground md:flex-row md:gap-0 md:py-0">
-        <div className="flex items-center gap-3">
-          <AnalogClock
-            hours={clock?.hours ?? 0}
-            minutes={clock?.minutes ?? 0}
-            seconds={clock?.seconds ?? 0}
+    <footer className="mx-auto w-full max-w-[1440px] rounded-t-3xl border-t border-border bg-card px-4 py-6 sm:px-8">
+      <div className="grid items-center justify-items-center gap-6 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <div className="flex w-full min-w-0 max-w-full items-center gap-4 lg:justify-self-start">
+          <span
+            aria-hidden="true"
+            className="size-8 shrink-0 bg-foreground"
+            style={{
+              mask: "url(/icons/footer/clock.svg) center / contain no-repeat",
+            }}
           />
-          <div className="flex flex-col">
-            <span className="font-pixel text-[10px] text-primary/[0.48]">
-              pshenmic.dev
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {clock?.display || "\u00A0"}
-            </span>
+          <div className="flex min-w-0 flex-col gap-2">
+            <span
+              role="img"
+              aria-label="Pshenmic"
+              className="h-2 w-[95px] bg-foreground"
+              style={{
+                mask: "url(/icons/footer/pshenmic.svg) center / contain no-repeat",
+              }}
+            />
+            <time
+              dateTime={formatters ? new Date(now).toISOString() : undefined}
+              className="min-h-3 text-xs leading-normal text-muted-foreground [overflow-wrap:anywhere]"
+            >
+              {formatters ? (
+                <>
+                  <span className="font-extrabold tabular-nums text-foreground">
+                    {time}
+                  </span>{" "}
+                  {period} • {formatters.date.format(now)} (
+                  {formatters.timeZone})
+                </>
+              ) : (
+                <span aria-hidden="true">—</span>
+              )}
+            </time>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
+        <nav
+          aria-label="Social links"
+          className="flex items-center justify-center gap-2"
+        >
           {SOCIAL_LINKS.map((link) => (
             <a
               key={link.label}
               href={link.href}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={link.label}
-              className="flex size-10 items-center justify-center rounded-[12px] bg-primary/[0.04] transition-opacity hover:opacity-80"
+              className="flex h-10 w-12 items-center justify-center rounded-xl bg-foreground/4 text-foreground transition-colors hover:bg-foreground/8 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
-              <img src={link.icon} alt="" className="size-5" />
+              <span className="sr-only">{link.label} (opens in a new tab)</span>
+              <span
+                aria-hidden="true"
+                className="size-6 bg-current"
+                style={{ mask: `url(${link.icon}) center / contain no-repeat` }}
+              />
             </a>
           ))}
-        </div>
-
-        <p className="m-0 text-sm text-muted-foreground">
-          {year} &copy; Dashscan
+        </nav>
+        <p className="text-xs text-muted-foreground lg:justify-self-end lg:text-right">
+          {year} © DashScan Explorer
         </p>
       </div>
     </footer>
