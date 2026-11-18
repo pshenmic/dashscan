@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChartLine } from "lucide-react";
 import { useId, useState } from "react";
-import { Pie, PieChart } from "recharts";
 import { useClockValue } from "@/components/render-clock";
 import {
   chainHistoryQueryOptions,
@@ -9,6 +8,7 @@ import {
 } from "@/lib/api/stats";
 import { homeChainQueryOptions } from "@/lib/home";
 import type { Network } from "@/lib/store";
+import { getTxTypeLabel } from "@/lib/transaction-types";
 import {
   metricDuffs,
   metricDuffsCompact,
@@ -19,6 +19,7 @@ import { ChartDateRange, type ChartPeriod } from "./chart-date-range";
 import { InfoPopover } from "./info-popover";
 import { SkeletonBar } from "./skeleton";
 import { TransactionHistoryPanel } from "./transaction-history-panel";
+
 export function TransactionsOverview({ network }: { network: Network }) {
   const titleId = useId();
   const chain = useQuery(homeChainQueryOptions(network));
@@ -48,13 +49,12 @@ export function TransactionsOverview({ network }: { network: Network }) {
     total >= 0 &&
     special >= 0 &&
     special <= total;
-  const slices = validComposition
+  const types = validComposition
     ? [
-        { name: "Standard", count: total - special, fill: "var(--chart-1)" },
-        { name: "Special", count: special, fill: "var(--chart-5)" },
+        { name: getTxTypeLabel(0), count: total - special },
+        { name: "Special", count: special },
       ]
     : [];
-  const surface = "rounded-3xl dash-home-panel px-4 py-4 sm:px-5";
   return (
     <section
       aria-labelledby={titleId}
@@ -70,135 +70,101 @@ export function TransactionsOverview({ network }: { network: Network }) {
         <div>
           <TransactionHistoryPanel network={network} title="Confirmed" />
         </div>
+        <dl className="relative z-10 -mt-9 flex min-w-0 justify-center-safe gap-2 overflow-x-auto py-1 xl:pb-0">
+          {[
+            {
+              label: "Mempool",
+              value: metricNumber(chain.data?.mempoolSize, 0),
+              loading: chain.isPending,
+              description:
+                "Transactions in this node’s mempool, not yet included in a block.",
+            },
+            {
+              label: "Current TPS",
+              value: metricNumber(chain.data?.transactionsPerSecond),
+              unit: chain.data?.transactionsPerSecond != null ? "Tx/s" : null,
+              loading: chain.isPending,
+              description:
+                "Average transaction rate over the latest 20 blocks.",
+            },
+            {
+              label: "CoinJoin · 24H",
+              value: metricNumber(breakdown.data?.coinjoin, 0),
+              loading: breakdown.isPending,
+              description:
+                "Confirmed transactions identified as CoinJoin in the last 24 hours.",
+            },
+            {
+              label: "Multisig · 24H",
+              value: metricNumber(breakdown.data?.multisig, 0),
+              loading: breakdown.isPending,
+              description:
+                "Confirmed transactions identified as multisig in the last 24 hours.",
+            },
+          ].map((metric) => (
+            <div
+              key={metric.label}
+              className="flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-2xl dash-home-panel px-2.5"
+            >
+              <dt className="text-sm font-medium text-muted-foreground">
+                <InfoPopover label={metric.label} trigger={metric.label}>
+                  {metric.description}
+                </InfoPopover>
+              </dt>
+              <dd className="min-w-[2ch] text-right text-base font-semibold tabular-nums">
+                {metric.loading ? (
+                  <SkeletonBar className="w-6" />
+                ) : (
+                  <>
+                    {metric.value}
+                    {metric.unit && (
+                      <span className="text-sm font-medium text-muted-foreground">
+                        {" "}
+                        {metric.unit}
+                      </span>
+                    )}
+                  </>
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </div>
       <div className="flex min-w-0 flex-col gap-3">
-        <div className="relative grid min-w-0 grid-cols-2 gap-4 xl:shrink-0">
-          <div
-            className={`${surface} relative z-10 flex items-baseline justify-between gap-3 self-end justify-self-start`}
-          >
-            <h2 className="text-sm font-medium text-muted-foreground">
-              <InfoPopover label="Mempool" trigger="Mempool">
-                Transactions in this node’s mempool, not yet included in a
-                block.
-              </InfoPopover>
-            </h2>
-            <p className="text-xl font-semibold tabular-nums text-foreground">
-              {chain.isPending ? (
-                <SkeletonBar className="w-16" />
-              ) : (
-                metricNumber(chain.data?.mempoolSize, 0)
-              )}
-            </p>
-          </div>
-          <div className={`${surface} relative z-10 justify-self-end`}>
-            <h2 className="text-sm font-medium text-muted-foreground">
-              <InfoPopover label="Current TPS" trigger="Current TPS">
-                Average transaction rate over the latest 20 blocks.
-              </InfoPopover>
-            </h2>
-            <div className="mt-2 flex items-baseline justify-between gap-3 whitespace-nowrap">
-              <p className="text-xl font-semibold tabular-nums text-foreground">
-                {metricNumber(chain.data?.transactionsPerSecond)}{" "}
-                {chain.data?.transactionsPerSecond != null && (
-                  <span className="font-medium text-muted-foreground">
-                    Tx/s
-                  </span>
-                )}
-              </p>
-              <span className="text-xs text-muted-foreground">20 blocks</span>
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-1 flex-col items-center gap-5 rounded-3xl dash-home-panel p-4 sm:flex-row sm:p-5">
-          <div className="relative size-[174px] shrink-0">
-            <div aria-hidden="true">
-              {validComposition && total > 0 ? (
-                <PieChart width={174} height={174} accessibilityLayer={false}>
-                  <Pie
-                    data={slices}
-                    dataKey="count"
-                    nameKey="name"
-                    innerRadius={59}
-                    outerRadius={86}
-                    startAngle={90}
-                    endAngle={-270}
-                    cornerRadius={4}
-                    paddingAngle={2}
-                    stroke="none"
-                    isAnimationActive={false}
-                    rootTabIndex={-1}
-                  />
-                </PieChart>
-              ) : (
-                <div className="size-full rounded-full border-[26px] border-secondary" />
-              )}
-            </div>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs text-muted-foreground">Total</span>
-              <strong className="text-xl tabular-nums">
-                {metricNumber(total, 0)}
-              </strong>
-            </div>
-          </div>
-          <div className="w-full min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-medium text-muted-foreground">
-                <InfoPopover
-                  label="About transaction composition"
-                  trigger="Transaction types"
-                >
-                  Confirmed transactions in the last 24 hours. CoinJoin and
-                  multisig are overlapping attributes, not additional chart
-                  slices.
+        <div className="@container">
+          <div className="flex flex-col items-start gap-2 @[32rem]:flex-row @[32rem]:items-end">
+            <div className="grid w-fit min-w-0 max-w-full shrink-0 gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <InfoPopover label="About transaction types" trigger="Types">
+                  Normal (type 0) and special (nonzero type) transactions
+                  confirmed in the last 24 hours.
                 </InfoPopover>
+                <span className="rounded-lg bg-card px-2 py-1 text-xs">
+                  24H
+                </span>
               </h2>
-              <span className="rounded-lg bg-card px-2 py-1 text-xs font-medium text-muted-foreground">
-                24H
-              </span>
-            </div>
-            <dl className="mt-5 space-y-3 text-sm">
-              {slices.map((slice) => (
-                <div
-                  key={slice.name}
-                  className="flex items-baseline justify-between gap-3"
-                >
-                  <dt className="flex shrink-0 items-center gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="size-2.5 shrink-0 rounded-full"
-                      style={{ background: slice.fill }}
-                    />
-                    {slice.name}
-                  </dt>
-                  <dd className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-right tabular-nums">
-                    <span className="font-extrabold">
-                      {metricNumber(slice.count, 0)}
-                    </span>
-                    <span className="w-[6ch] font-medium text-muted-foreground">
-                      {total
-                        ? `${metricNumber((slice.count / total) * 100, 1)}%`
-                        : ""}
-                    </span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <div className="mt-4 border-t border-border pt-4">
-              <h3 className="text-xs font-medium text-muted-foreground">
-                Attributes
-              </h3>
-              <dl className="mt-3 space-y-3 text-sm">
-                {(["coinjoin", "multisig"] as const).map((key) => (
-                  <div
-                    key={key}
-                    className="flex items-baseline justify-between gap-4"
-                  >
-                    <dt>{key === "coinjoin" ? "CoinJoin" : "Multisig"}</dt>
-                    <dd className="text-right font-extrabold tabular-nums">
-                      {metricNumber(breakdown.data?.[key], 0)}
-                    </dd>
-                  </div>
-                ))}
+
+              <dl className="flex flex-wrap items-center gap-2 py-1 text-xs">
+                {types.map((type) => {
+                  return (
+                    <div
+                      key={type.name}
+                      className="relative inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-full border border-border bg-card px-2 py-1"
+                    >
+                      <dt className="font-medium text-muted-foreground">
+                        {type.name}
+                      </dt>
+                      <dd className="flex items-baseline gap-1.5 font-semibold tabular-nums">
+                        {metricNumber(type.count, 0)}
+                        {total != null && total > 0 && (
+                          <span className="font-medium text-muted-foreground">
+                            {metricNumber((type.count / total) * 100, 1)}%
+                          </span>
+                        )}
+                      </dd>
+                    </div>
+                  );
+                })}
               </dl>
             </div>
           </div>
