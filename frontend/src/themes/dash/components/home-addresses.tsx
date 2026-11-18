@@ -14,9 +14,9 @@ import {
   addressesQueryOptions,
   richListQueryOptions,
 } from "@/lib/api/addresses";
-import { supplyQueryOptions } from "@/lib/api/chain";
+import { priceQueryOptions } from "@/lib/api/price";
 import { addressHistoryQueryOptions } from "@/lib/api/stats";
-import { formatCompact } from "@/lib/format";
+import { formatCompact, formatCompactUsd } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { addressDistribution } from "@/themes/dash/lib/address-metrics";
 import {
@@ -25,7 +25,7 @@ import {
   useHistoryRange,
   useHomeChainHistory,
 } from "@/themes/dash/lib/home-history";
-import { metricNumber, supplyInDash } from "@/themes/dash/lib/home-metrics";
+import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { FormattedAmount } from "./formatted-amount";
 import { HomeIcon } from "./home-icon";
@@ -81,12 +81,31 @@ function AddressMetric({
   );
 }
 
+function balanceShare(balance: string | null, total: string | null) {
+  if (
+    balance == null ||
+    !/^\d+$/.test(balance) ||
+    total == null ||
+    !/^\d+$/.test(total) ||
+    BigInt(total) === 0n
+  )
+    return "—";
+  const share = Number((BigInt(balance) * 1_000_000n) / BigInt(total)) / 10_000;
+  return BigInt(balance) > 0n && share < 0.01
+    ? "<0.01%"
+    : `${metricNumber(share)}%`;
+}
+
 function AddressTable({
   rows,
   ranked = false,
+  totalBalance = null,
+  usdPrice = null,
 }: {
   rows: { address: string; balance: string | null; txCount?: number | null }[];
   ranked?: boolean;
+  totalBalance?: string | null;
+  usdPrice?: number | null;
 }) {
   return (
     <div className={`min-h-0 overflow-auto ${ranked ? "max-h-[328px]" : ""}`}>
@@ -110,7 +129,14 @@ function AddressTable({
             >
               Balance (DASH)
             </th>
-            {!ranked && (
+            {ranked ? (
+              <th
+                scope="col"
+                className="whitespace-nowrap border-b border-foreground/8 px-3 pb-3 pt-2 text-right font-medium"
+              >
+                Share
+              </th>
+            ) : (
               <th
                 scope="col"
                 className="whitespace-nowrap border-b border-foreground/8 px-3 pb-3 pt-2 text-right font-medium"
@@ -140,11 +166,42 @@ function AddressTable({
                 />
               </td>
               <td className="whitespace-nowrap px-3 py-[18px] text-right font-medium tabular-nums text-foreground">
-                <FormattedAmount
-                  value={transactionAmount(row.balance).replace(/ DASH$/, "")}
-                />
+                {ranked &&
+                usdPrice != null &&
+                row.balance != null &&
+                /^\d+$/.test(row.balance) ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="cursor-help rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      >
+                        <FormattedAmount
+                          value={transactionAmount(row.balance).replace(
+                            / DASH$/,
+                            "",
+                          )}
+                        />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      ≈{" "}
+                      {formatCompactUsd(
+                        (Number(row.balance) / 100_000_000) * usdPrice,
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <FormattedAmount
+                    value={transactionAmount(row.balance).replace(/ DASH$/, "")}
+                  />
+                )}
               </td>
-              {!ranked && (
+              {ranked ? (
+                <td className="whitespace-nowrap px-3 py-[18px] text-right text-xs tabular-nums text-muted-foreground">
+                  {balanceShare(row.balance, totalBalance)}
+                </td>
+              ) : (
                 <td className="px-3 py-[18px] text-right tabular-nums">
                   {metricNumber(row.txCount, 0)}
                 </td>
@@ -331,7 +388,18 @@ export function HomeAddresses() {
     ...addressesQueryOptions({ network, page: 1, limit: 1 }),
     refetchInterval: 60_000,
   });
-  const networkSupply = useQuery(supplyQueryOptions({ network }));
+  const price = useQuery({
+    ...priceQueryOptions({ network, currency: "usd" }),
+    enabled: network === "mainnet",
+  });
+  const usdPrice =
+    network === "mainnet" &&
+    price.data?.usd != null &&
+    Number.isFinite(price.data.usd) &&
+    price.data.usd > 0 &&
+    !price.isError
+      ? price.data.usd
+      : null;
   const activeAddresses = (active.data?.resultSet ?? []).flatMap((entry) =>
     entry.address ? [entry.address] : [],
   );
@@ -370,7 +438,6 @@ export function HomeAddresses() {
     utxo.height >= 0
       ? `Core UTXO snapshot at block #${metricNumber(utxo.height, 0)}`
       : "Core UTXO snapshot";
-  const supply = supplyInDash(networkSupply.data?.totalSupply);
   const count = unique.data?.pagination.total;
   const addressRange = useHistoryRange(31);
   const addressHistory = useQuery(
@@ -501,10 +568,16 @@ export function HomeAddresses() {
       <div className="flex min-w-0 flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <AddressMetric
-            label="Network Supply"
-            value={supply === null ? "—" : `≈ ${formatCompact(supply)} DASH`}
-            detail="Sum of unspent outputs reported by Dash Core for the selected network. Cached for 30 minutes; not market-provider circulating supply."
-            period="Core UTXO snapshot"
+            label="Top 3 address share"
+            value={
+              distribution?.topThree != null
+                ? `${metricNumber(distribution.topThree)}%`
+                : rich.isPending
+                  ? "…"
+                  : "—"
+            }
+            detail="Combined balance of the three largest addresses as a share of the rich-list balance distribution. Addresses do not necessarily represent separate owners."
+            period="Unspent balance concentration"
           />
           <AddressMetric
             label="Unique Addresses"
@@ -563,7 +636,12 @@ export function HomeAddresses() {
                 No address balances found.
               </p>
             ) : (
-              <AddressTable rows={richRows} ranked />
+              <AddressTable
+                rows={richRows}
+                ranked
+                totalBalance={distribution?.total ?? null}
+                usdPrice={usdPrice}
+              />
             )}
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useStore } from "@tanstack/react-store";
 import { useId } from "react";
 import { transactionsBreakdown24hQueryOptions } from "@/lib/api/stats";
 import { transactionsQueryOptions } from "@/lib/api/transactions";
-import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
+import { homeBlocksQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { useHomeChainHistory } from "@/themes/dash/lib/home-history";
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
@@ -18,7 +18,6 @@ import { TransactionHistoryCard } from "./transaction-history-card";
 export function HomeTransactions() {
   const titleId = useId();
   const network = useStore(appStore, (state) => state.network);
-  const chain = useQuery(homeChainQueryOptions(network));
   const blocks = useQuery(homeBlocksQueryOptions(network));
   const latest = blocks.data?.resultSet[0];
   const feeHistory = useHomeChainHistory(network);
@@ -58,9 +57,9 @@ export function HomeTransactions() {
         </p>
       )}
       <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,725fr)_minmax(0,503fr)] xl:gap-8 min-[1400px]:gap-[84px]">
-        <div className="relative order-2 grid min-w-0 items-start gap-4 sm:grid-cols-2 xl:order-1">
+        <div className="relative order-2 grid min-w-0 items-start gap-3 sm:grid-cols-2 xl:order-1">
           <div
-            className={`${surface} ${softShadow} relative min-w-0 xl:justify-self-start`}
+            className={`${surface} ${softShadow} relative min-w-0 xl:z-10 xl:translate-y-6 xl:self-end xl:justify-self-start`}
           >
             <h3 className="text-xs font-medium leading-[1.1] text-muted-foreground">
               Total Transactions
@@ -93,44 +92,48 @@ export function HomeTransactions() {
             </div>
           </div>
           <div
-            className={`${surface} ${softShadow} relative min-w-0 xl:mt-6 xl:justify-self-end`}
+            className={`${surface} ${softShadow} relative min-w-0 xl:z-10 xl:mt-2 xl:w-full xl:translate-y-8 xl:justify-self-end`}
           >
-            <h3 className="text-xs font-medium leading-[1.1] text-muted-foreground">
-              Current TPS
-            </h3>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <p
-                className="whitespace-nowrap text-xl font-extrabold leading-6 text-accent"
-                title="Average over 20 blocks"
-              >
-                {metricNumber(chain.data?.transactionsPerSecond)}{" "}
-                <span className="font-medium">Tx/s</span>
-              </p>
-              <span className="inline-flex items-center gap-1">
-                <span className="dash-label-small rounded-lg bg-secondary px-2 py-1 text-muted-foreground">
-                  24H
-                </span>
-                {breakdown.data?.total != null ? (
-                  <span
-                    className="text-xs text-muted-foreground"
-                    title="Average confirmed transaction rate over the last 24 hours"
-                  >
-                    Avg {metricNumber(breakdown.data.total / 86400)} Tx/s
-                  </span>
-                ) : breakdown.isSuccess ? (
-                  <MissingApiData
-                    label="Unavailable"
-                    inline
-                    description="The selected network has not returned the 24-hour transaction total."
-                  />
-                ) : (
-                  <span>{breakdown.isPending ? "…" : "—"}</span>
-                )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-medium leading-4 text-muted-foreground">
+                <InfoPopover
+                  label="About transaction activity"
+                  trigger="Transaction activity"
+                >
+                  Confirmed transactions. Regular excludes special types,
+                  CoinJoin and multisig. CoinJoin and multisig are attributes
+                  that can overlap with special types and each other; these
+                  counts must not be added together.
+                </InfoPopover>
+              </h3>
+              <span className="rounded-lg bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">
+                24H
               </span>
             </div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-4">
+              {[
+                { label: "Regular", value: breakdown.data?.normal },
+                { label: "Special", value: breakdown.data?.special },
+                { label: "CoinJoin", value: breakdown.data?.coinjoin },
+                { label: "Multisig", value: breakdown.data?.multisig },
+              ].map((item) => (
+                <div key={item.label} className="min-w-0 space-y-1">
+                  <dt className="text-xs leading-4 text-muted-foreground">
+                    {item.label}
+                  </dt>
+                  <dd className="text-base font-semibold leading-5 tabular-nums text-accent">
+                    {breakdown.isPending
+                      ? "…"
+                      : breakdown.isError
+                        ? "—"
+                        : metricNumber(item.value, 0)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
           <div
-            className={`${surface} ${softShadow} flex min-w-0 flex-wrap items-center gap-6 sm:col-span-2 xl:ml-[9.5%] xl:w-[82.75%]`}
+            className={`${surface} ${softShadow} flex min-w-0 flex-wrap items-center gap-6 sm:col-span-2 xl:mx-auto xl:w-[90%] xl:pt-7`}
           >
             <div className="min-w-0 flex-1 basis-40">
               <h3 className="text-sm font-medium leading-4 tracking-[-0.009em] text-muted-foreground">
@@ -173,7 +176,7 @@ export function HomeTransactions() {
             </div>
           </div>
           <div
-            className={`${surface} relative min-w-0 shadow-card sm:col-span-2 sm:mx-auto sm:w-fit xl:ml-auto xl:mr-[31%]`}
+            className={`${surface} relative min-w-0 shadow-card sm:col-span-2 sm:mx-auto sm:w-fit xl:z-10 xl:-mt-6`}
           >
             <h3 className="text-xs font-medium leading-[1.1] text-muted-foreground">
               Fees average

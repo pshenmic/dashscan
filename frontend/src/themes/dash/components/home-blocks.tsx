@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { blockRewardQueryOptions } from "@/lib/api/blocks";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { useNewBlocks } from "@/themes/dash/hooks/use-new-blocks";
@@ -21,6 +21,12 @@ import { BlocksTimeline } from "./blocks-timeline";
 import { HomeIcon } from "./home-icon";
 import { LatestBlocksTable } from "./latest-blocks-table";
 import { MissingApiData } from "./missing-api-data";
+
+function compactDifficulty(value: number | null | undefined) {
+  return value != null && Number.isFinite(value) && value >= 1_000
+    ? formatNumber(value, { notation: "compact", maximumFractionDigits: 2 })
+    : metricNumber(value, 4);
+}
 
 export function HomeBlocks() {
   const titleId = useId();
@@ -43,6 +49,10 @@ export function HomeBlocks() {
   const averageSize = blocks.length
     ? blocks.reduce((total, block) => total + block.size, 0) / blocks.length
     : null;
+  const averageTransactions = blocks.length
+    ? blocks.reduce((total, block) => total + block.txCount, 0) / blocks.length
+    : null;
+  const indexedBlocks = blocksQuery.data?.pagination.total;
   const averageDifficulty = blocks.length
     ? blocks.reduce((total, block) => total + block.difficulty, 0) /
       blocks.length
@@ -84,10 +94,11 @@ export function HomeBlocks() {
       description:
         "Current mining difficulty reported by the node. Difficulty is dimensionless.",
       icon: "difficulty",
-      value: metricNumber(chain.data?.difficulty, 4),
+      value: compactDifficulty(chain.data?.difficulty),
+      valueTitle: metricNumber(chain.data?.difficulty, 4),
       detailLabel: `Avg · ${blocks.length || "—"} blocks`,
-      detail: metricNumber(averageDifficulty, 4),
-      detailTitle: `Average mining difficulty over the latest ${blocks.length} loaded blocks`,
+      detail: compactDifficulty(averageDifficulty),
+      detailTitle: `Average mining difficulty over the latest ${blocks.length} loaded blocks: ${metricNumber(averageDifficulty, 4)}`,
     },
   ];
 
@@ -237,7 +248,22 @@ export function HomeBlocks() {
                   </Tooltip>
                 </h3>
                 <p className="break-words text-2xl font-extrabold leading-[1.2] text-accent">
-                  {item.value}
+                  {item.valueTitle ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={`Difficulty: ${item.valueTitle}`}
+                          className="rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          {item.value}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>{item.valueTitle}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    item.value
+                  )}
                   {item.unit && (
                     <span className="font-medium"> {item.unit}</span>
                   )}
@@ -265,10 +291,39 @@ export function HomeBlocks() {
           ))}
         </div>
         <div className="min-w-0 rounded-3xl dash-home-panel p-4 sm:p-6">
-          <h3 className="text-2xl font-medium leading-[1.1]">Block List</h3>
-          <p className="mb-6 mt-2 text-sm font-medium leading-[1.1] text-muted-foreground">
-            Latest indexed blocks · updates every 30 seconds
-          </p>
+          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h3 className="text-2xl font-medium leading-[1.1]">Block List</h3>
+              {indexedBlocks != null && indexedBlocks >= 0 && (
+                <span className="text-sm tabular-nums text-muted-foreground">
+                  ≈ {metricNumber(indexedBlocks, 0)} indexed blocks
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs leading-5 text-muted-foreground">
+              {averageTransactions != null && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="whitespace-nowrap rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      Avg{" "}
+                      <strong className="font-medium tabular-nums text-foreground">
+                        {metricNumber(averageTransactions)}
+                      </strong>{" "}
+                      Tx/block · last {blocks.length}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-64">
+                    Average transactions per block over the latest{" "}
+                    {blocks.length} indexed blocks. The table shows up to 6.
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              <span className="whitespace-nowrap">Refresh · 30s</span>
+            </div>
+          </div>
           {blocksQuery.isError && blocks.length > 0 && (
             <p role="alert" className="dash-label-small mb-4 text-destructive">
               Could not refresh blocks. Showing the last available data.{" "}
