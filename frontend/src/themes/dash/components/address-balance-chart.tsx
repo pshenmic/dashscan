@@ -1,19 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useHydrated } from "@tanstack/react-router";
+import { useState } from "react";
+import { useClockValue } from "@/components/render-clock";
 import { addressBalanceChartQueryOptions } from "@/lib/api/addresses";
 import type { ApiAddressDetail } from "@/lib/api/types";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import type { Network } from "@/lib/store";
-import { metricDuffs } from "@/themes/dash/lib/home-metrics";
 import { AreaChart } from "./area-chart";
+import { ChartDateRange, type ChartPeriod } from "./chart-date-range";
+import { InfoPopover } from "./info-popover";
 import { SkeletonBar } from "./skeleton";
 
-const ranges = [
-  { label: "1D", days: 1 },
-  { label: "1W", days: 7 },
-  { label: "1M", days: 30 },
-  { label: "1Y", days: 365 },
-] as const;
+const DAY_MS = 86_400_000;
 
 export function AddressBalanceChart({
   detail,
@@ -22,20 +20,19 @@ export function AddressBalanceChart({
   detail: ApiAddressDetail;
   network: Network;
 }) {
-  const [days, setDays] = useState<number>(30);
-  const [end, setEnd] = useState<number | null>(null);
-  useEffect(() => {
-    setEnd(Date.now());
-  }, []);
+  const hydrated = useHydrated();
+  const today = useClockValue((now) => Math.floor(now / DAY_MS) * DAY_MS);
+  const [period, setPeriod] = useState<ChartPeriod>({ days: 30 });
+  const end = period.end ?? today;
   const query = useQuery({
     ...addressBalanceChartQueryOptions({
       network,
       address: detail.address,
-      timestampStart: new Date((end ?? 0) - days * 86_400_000).toISOString(),
-      timestampEnd: new Date(end ?? 0).toISOString(),
+      timestampStart: new Date(end - period.days * DAY_MS).toISOString(),
+      timestampEnd: new Date(end).toISOString(),
       intervalsCount: 60,
     }),
-    enabled: end !== null,
+    enabled: hydrated,
     staleTime: 60_000,
   });
   const points = (query.data ?? [])
@@ -53,54 +50,21 @@ export function AddressBalanceChart({
   return (
     <section
       aria-label="Balance history"
-      className="flex min-w-0 flex-col gap-6 rounded-3xl bg-card p-4 sm:p-6"
+      className="flex min-w-0 flex-col gap-4 rounded-3xl border border-border bg-card p-4 sm:p-5 lg:self-center"
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-4">
-          <div className="flex size-14 shrink-0 items-center justify-center rounded-full border border-brand/12">
-            <img
-              src="/icons/dash.svg"
-              alt=""
-              width={28}
-              height={28}
-              className="size-7"
-            />
-          </div>
-          <div className="min-w-0">
-            <h2 className="mb-2 text-sm text-muted-foreground">
-              Current balance (DASH)
-            </h2>
-            <p
-              className="break-words text-2xl font-extrabold tabular-nums sm:text-[32px]"
-              title={`${metricDuffs(detail.balance)} DASH`}
-            >
-              {metricDuffs(detail.balance, 4)}
-            </p>
-          </div>
+        <div className="min-w-0">
+          <h2 className="text-xl font-extrabold">
+            <InfoPopover label="Balance history" trigger="Balance history">
+              Confirmed balance in DASH. Mempool changes are not included.
+            </InfoPopover>
+          </h2>
         </div>
-        <fieldset
-          aria-label="Balance history period"
-          className="inline-flex rounded-xl bg-action-subtle p-1"
-        >
-          {ranges.map((range) => (
-            <button
-              key={range.label}
-              type="button"
-              aria-pressed={days === range.days}
-              onClick={() => {
-                setDays(range.days);
-                setEnd(Date.now());
-              }}
-              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground aria-pressed:bg-card aria-pressed:text-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              {range.label}
-            </button>
-          ))}
-        </fieldset>
+        <ChartDateRange value={period} today={today} onChange={setPeriod} />
       </div>
-      <div className="flex min-h-64 flex-1 items-center">
+      <div className="flex min-h-48 items-center">
         {query.isPending ? (
-          <SkeletonBar className="h-64 w-full rounded-xl" />
+          <SkeletonBar className="h-48 w-full rounded-xl" />
         ) : query.isError ? (
           <div role="alert" className="w-full text-center text-sm">
             <p>Could not load balance history.</p>
@@ -118,13 +82,15 @@ export function AddressBalanceChart({
           </p>
         ) : (
           <AreaChart
+            height={192}
+            compactHeight={192}
             data={points}
             getKey={(point) => point.timestamp}
             getValue={(point) => point.value}
             getXLabel={(point) =>
               formatDateTime(
                 new Date(point.timestamp),
-                days === 1
+                period.days === 1
                   ? { hour: "2-digit", minute: "2-digit" }
                   : { month: "short", day: "numeric" },
               )
