@@ -5,13 +5,11 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { masternodeVotesQueryOptions } from "@/lib/api/masternodes";
-import type { ApiMasternode, ApiProposalVote } from "@/lib/api/types";
-import { formatDateTime, getMnTypeLabel } from "@/lib/format";
+import type { ApiProposalVote } from "@/lib/api/types";
 import type { Network } from "@/lib/store";
-import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { BlockAge } from "./block-age";
 import { CopyButton } from "./copy-button";
 import { DataTable } from "./data-table";
@@ -149,80 +147,5 @@ export function MasternodeVotes({
         />
       )}
     </section>
-  );
-}
-
-export function MasternodeActivity({
-  network,
-  node,
-}: {
-  network: Network;
-  node: ApiMasternode;
-}) {
-  const titleId = useId();
-  const platformExplorer =
-    network === "testnet"
-      ? "https://testnet.platform-explorer.com"
-      : "https://platform-explorer.com";
-  const lastPaidTime =
-    node.lastPaidTime && Date.parse(node.lastPaidTime) > 0
-      ? node.lastPaidTime
-      : null;
-  return (
-    <div className="min-w-0 rounded-3xl bg-card p-4 sm:p-6">
-      <section aria-labelledby={titleId} className="pb-5">
-        <h2 id={titleId} className="text-xl font-extrabold">
-          Core payments
-        </h2>
-        <dl className="mt-5 grid gap-5 sm:grid-cols-2">
-          <div className="space-y-2">
-            <dt className="text-xs text-muted-foreground">Last paid block</dt>
-            <dd className="text-xl font-medium tabular-nums">
-              {node.lastPaidBlock > 0 ? (
-                <Link
-                  to="/blocks/$hashOrHeight"
-                  params={{ hashOrHeight: String(node.lastPaidBlock) }}
-                  className="text-accent hover:underline"
-                >
-                  #{metricNumber(node.lastPaidBlock, 0)}
-                </Link>
-              ) : node.lastPaidBlock === 0 ? (
-                "Never"
-              ) : (
-                "—"
-              )}
-            </dd>
-          </div>
-          <div className="space-y-2">
-            <dt className="text-xs text-muted-foreground">Last payment</dt>
-            <dd className="text-sm tabular-nums">
-              {node.lastPaidBlock > 0 && lastPaidTime ? (
-                <time dateTime={lastPaidTime}>
-                  {formatDateTime(lastPaidTime)}
-                </time>
-              ) : (
-                "—"
-              )}
-            </dd>
-          </div>
-        </dl>
-      </section>
-      {getMnTypeLabel(node.type) === "Evonode" && (
-        <section
-          aria-label="Platform activity"
-          className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-5"
-        >
-          <h2 className="text-xl font-extrabold">Platform</h2>
-          <a
-            href={`${platformExplorer}/validator/${node.proTxHash.toLowerCase()}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-accent hover:underline"
-          >
-            View validator<span className="sr-only"> (opens in a new tab)</span>
-          </a>
-        </section>
-      )}
-    </div>
   );
 }

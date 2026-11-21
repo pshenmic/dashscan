@@ -3,10 +3,6 @@ import { Link, useSearch } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { masternodeQueryOptions } from "@/lib/api/masternodes";
 import { appStore, type Network } from "@/lib/store";
-import {
-  MasternodeActivity,
-  MasternodeVotes,
-} from "@/themes/dash/components/masternode-activity";
 import { MasternodeOverview } from "@/themes/dash/components/masternode-overview";
 import { MasternodeTransactions } from "@/themes/dash/components/masternode-transactions";
 import { SkeletonBar } from "@/themes/dash/components/skeleton";
@@ -71,13 +67,7 @@ function MasternodeDetail({
         </div>
       ) : node ? (
         <>
-          <div className="grid items-start gap-4 xl:grid-cols-2">
-            <MasternodeOverview node={node} />
-            <div className="flex min-w-0 flex-col gap-4">
-              <MasternodeActivity network={network} node={node} />
-              <MasternodeVotes network={network} hash={node.proTxHash} />
-            </div>
-          </div>
+          <MasternodeOverview node={node} network={network} />
           <MasternodeTransactions
             network={network}
             hash={node.proTxHash}
