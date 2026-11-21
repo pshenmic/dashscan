@@ -23,6 +23,7 @@ export function addressDistribution(
       shares: null,
       amounts: null,
       topTen: null,
+      topTenDuffs: null,
       topThree: null,
     };
   const groups = [
@@ -38,6 +39,7 @@ export function addressDistribution(
     shares: [...groups, total - top].map(percentage),
     amounts: [...groups, total - top].map(String),
     topTen: percentage(top),
+    topTenDuffs: top.toString(),
     topThree: percentage(sum(ranked.slice(0, 3))),
   };
 }

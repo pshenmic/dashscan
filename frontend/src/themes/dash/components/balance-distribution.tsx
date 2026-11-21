@@ -90,13 +90,14 @@ export function BalanceDistribution({
       </div>
       <div className="min-w-0 w-full flex-1 space-y-3">
         <h3 className="dash-body-compact text-muted-foreground">
-          Top 10 addresses
+          Address balance distribution
         </h3>
         <p className="text-2xl leading-8">
+          The 10 largest addresses hold{" "}
           <strong className="text-accent">
             {metricNumber(distribution.topTen)}%
           </strong>{" "}
-          of unspent balance
+          of all unspent DASH.
         </p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
           {segments.map((segment, index) => (

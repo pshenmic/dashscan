@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import {
   Tooltip,
@@ -16,8 +15,8 @@ import type { Network } from "@/lib/store";
 import { addressDistribution } from "@/themes/dash/lib/address-metrics";
 import { useHistoryRange } from "@/themes/dash/lib/home-history";
 import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
+import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { AreaChart } from "./area-chart";
-import { BalanceDistribution } from "./balance-distribution";
 import { SkeletonBar } from "./skeleton";
 
 function MetricHint({
@@ -110,27 +109,7 @@ export function AddressesOverview({ network }: { network: Network }) {
     amount != null &&
     /^\d+$/.test(amount) &&
     Number.isSafeInteger(Number(amount));
-  const snapshotHeight = utxo?.height;
-  const validHeight =
-    snapshotHeight != null &&
-    Number.isSafeInteger(snapshotHeight) &&
-    snapshotHeight >= 0;
   const metrics = [
-    {
-      label: "Indexed addresses",
-      value: metricNumber(
-        totalCount != null &&
-          Number.isSafeInteger(totalCount) &&
-          totalCount >= 0
-          ? totalCount
-          : null,
-        0,
-      ),
-      loading: history.isPending,
-      badge: null,
-      unit: null,
-      detail: `Addresses reported by the indexer history, not wallets or users. ${last ? `Reporting window ends ${formatDateTime(last.intervalEnd)}. Completeness is not reported by the API.` : "History unavailable."}`,
-    },
     {
       label: "Active addresses",
       value: metricNumber(
@@ -147,7 +126,7 @@ export function AddressesOverview({ network }: { network: Network }) {
       detail: `Distinct addresses involved in confirmed transactions. ${formatDateTime(activityRange.timestampStart)} – ${formatDateTime(activityRange.timestampEnd)}. The window ends at the last complete hour.`,
     },
     {
-      label: "UTXO value",
+      label: "Value",
       value: validAmount ? formatCompact(Number(amount) / 100_000_000) : "—",
       loading: rich.isPending,
       badge: null,
@@ -171,79 +150,125 @@ export function AddressesOverview({ network }: { network: Network }) {
         "Unspent transaction outputs in the Core snapshot. One transaction or address can have multiple outputs.",
     },
   ];
+  const renderMetric = (
+    { label, value, loading, detail, badge, unit }: (typeof metrics)[number],
+    inline = false,
+  ) => (
+    <div
+      key={label}
+      className={`min-w-0 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm ${inline ? "flex items-baseline gap-1.5 self-center whitespace-nowrap" : ""}`}
+    >
+      <h2 className="text-sm text-muted-foreground">
+        <MetricHint label={label}>{detail}</MetricHint>
+      </h2>
+      <div
+        className={`flex items-baseline ${inline ? "gap-1" : "mt-1 flex-wrap gap-x-2 gap-y-1"}`}
+      >
+        {loading ? (
+          <SkeletonBar className="w-24" />
+        ) : (
+          <strong className="break-words text-lg sm:text-xl font-extrabold tabular-nums text-foreground">
+            {value}
+          </strong>
+        )}
+        {unit && value !== "—" && !loading && (
+          <span className="text-sm font-medium text-muted-foreground">
+            {unit}
+          </span>
+        )}
+        {badge && (
+          <span className="ml-auto self-center rounded-md bg-action-subtle px-2 py-1 text-[10px] font-medium text-accent">
+            {badge}
+          </span>
+        )}
+      </div>
+    </div>
+  );
   return (
     <section
       aria-label="Address statistics"
-      className="space-y-6 rounded-3xl bg-card p-4 sm:rounded-[48px] sm:p-8"
+      className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"
     >
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex min-h-60 flex-1 items-center rounded-3xl bg-secondary p-6">
-            {rich.isPending ? (
-              <SkeletonBar className="h-40 w-full" />
-            ) : distribution ? (
-              <BalanceDistribution key={network} distribution={distribution} />
-            ) : rich.isError ? (
-              <button
-                type="button"
-                className="text-sm text-destructive underline"
-                onClick={() => void rich.refetch()}
-              >
-                Retry distribution
-              </button>
+      <div className="flex min-w-0 flex-col gap-2 sm:gap-0">
+        <div className="flex min-w-0 flex-col sm:mr-16">
+          <div className="relative z-10 -mb-3 flex max-w-full flex-wrap items-baseline justify-center gap-x-2 self-center rounded-2xl border border-border bg-card px-4 py-2 shadow-sm">
+            <h2 className="text-sm text-muted-foreground">
+              <MetricHint label="Indexed addresses">
+                Addresses reported by the indexer, not wallets or users.
+                {last &&
+                  ` Reporting window ends ${formatDateTime(last.intervalEnd)}.`}
+              </MetricHint>
+            </h2>
+            {history.isPending ? (
+              <SkeletonBar className="w-20" />
             ) : (
-              <output className="w-full text-center text-sm text-muted-foreground">
-                No distribution data
-              </output>
+              <strong className="text-lg tabular-nums">
+                {metricNumber(
+                  totalCount != null &&
+                    Number.isSafeInteger(totalCount) &&
+                    totalCount >= 0
+                    ? totalCount
+                    : null,
+                  0,
+                )}
+              </strong>
             )}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {metrics.map(({ label, value, loading, detail, badge, unit }) => (
-              <div
-                key={label}
-                className="min-w-0 rounded-3xl bg-secondary px-6 py-4"
-              >
-                <h2 className="text-sm text-muted-foreground">
-                  <MetricHint label={label}>{detail}</MetricHint>
-                </h2>
-                <div className="mt-3 flex min-h-9 flex-wrap items-baseline gap-x-2 gap-y-1">
-                  {loading ? (
-                    <SkeletonBar className="w-24" />
-                  ) : (
-                    <strong className="break-words text-2xl font-extrabold tabular-nums text-foreground">
-                      {value}
-                    </strong>
-                  )}
-                  {unit && value !== "—" && !loading && (
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {unit}
-                    </span>
-                  )}
-                  {badge && (
-                    <span className="ml-auto self-center rounded-md bg-action-subtle px-2 py-1 text-[10px] font-medium text-accent">
-                      {badge}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="relative min-w-0">
+            <div className="min-w-0 space-y-2 rounded-3xl dash-home-panel px-4 pb-4 pt-6 sm:pb-8 sm:pr-28">
+              <h2 className="text-xl font-extrabold">
+                {distribution?.topTenDuffs != null ? (
+                  <MetricHint label="Top 10 addresses">
+                    Combined balance of the 10 largest addresses:{" "}
+                    {transactionAmount(distribution.topTenDuffs)}
+                  </MetricHint>
+                ) : (
+                  "Top 10 addresses"
+                )}
+              </h2>
+              {rich.isPending ? (
+                <SkeletonBar className="h-8 w-32" />
+              ) : distribution?.topTen != null ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    <strong className="text-2xl font-extrabold tabular-nums text-brand">
+                      {metricNumber(distribution.topTen)}%
+                    </strong>{" "}
+                    of total UTXO value
+                  </p>
+                  <div
+                    aria-hidden="true"
+                    className="h-1 overflow-hidden rounded-full bg-secondary"
+                  >
+                    <div
+                      className="h-full rounded-full bg-brand"
+                      style={{ width: `${distribution.topTen}%` }}
+                    />
+                  </div>
+                </>
+              ) : rich.isError ? (
+                <button
+                  type="button"
+                  className="text-sm text-destructive underline"
+                  onClick={() => void rich.refetch()}
+                >
+                  Retry distribution
+                </button>
+              ) : (
+                <output className="w-full text-center text-sm text-muted-foreground">
+                  No distribution data
+                </output>
+              )}
+            </div>
+            <div className="mt-2 sm:absolute sm:-right-16 sm:top-1/2 sm:mt-0 sm:w-40 sm:-translate-y-1/2">
+              {renderMetric(metrics[0])}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 px-2 text-xs text-muted-foreground">
-            <span className="rounded-md bg-secondary px-2 py-1">
-              {network === "testnet" ? "Testnet" : "Mainnet"}
-            </span>
-            <span>UTXO snapshot</span>
-            {validHeight ? (
-              <Link
-                to="/blocks/$hashOrHeight"
-                params={{ hashOrHeight: String(snapshotHeight) }}
-                className="text-accent hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                #{metricNumber(snapshotHeight, 0)}
-              </Link>
-            ) : (
-              <span>—</span>
-            )}
+        </div>
+        <div className="space-y-2 sm:mr-16">
+          <div className="relative mx-auto flex w-full flex-wrap justify-center gap-2 sm:-mt-4">
+            {renderMetric(metrics[1], true)}
+            {renderMetric(metrics[2])}
           </div>
           {(activity.isError || rich.isError) && (
             <p role="alert" className="text-sm text-destructive">
@@ -261,126 +286,113 @@ export function AddressesOverview({ network }: { network: Network }) {
             </p>
           )}
         </div>
-        <div className="flex min-w-0 flex-col gap-6 rounded-3xl bg-secondary p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-extrabold">
-              <MetricHint label="New addresses">
-                <p>
-                  Addresses first recorded by the indexer in each 24-hour
-                  interval, not new users or wallets.
-                </p>
-                <p className="mt-2">
-                  The API does not distinguish missing hourly records from zero
-                  activity. Totals and averages use the reported counts.
-                </p>
-              </MetricHint>
-            </h2>
-            <fieldset
-              aria-label="Address history period"
-              className="flex rounded-xl bg-card p-1"
-            >
-              {[7, 30, 90].map((period) => (
-                <button
-                  key={period}
-                  type="button"
-                  aria-pressed={days === period}
-                  onClick={() => setDays(period)}
-                  className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground aria-pressed:bg-action-subtle aria-pressed:text-accent focus-visible:outline-2 focus-visible:outline-ring"
-                >
-                  {period}D
-                </button>
-              ))}
-            </fieldset>
-          </div>
-          <p className="-mt-3 text-xs text-muted-foreground">
-            24-hour intervals · UTC
-          </p>
-          <div className="flex min-h-48 flex-1 items-center justify-center">
+      </div>
+      <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="relative z-10 inline-flex max-w-full flex-wrap items-baseline justify-center gap-x-2 rounded-2xl border border-border bg-card px-4 py-2 text-sm text-muted-foreground shadow-sm">
+            <MetricHint label="New addresses">
+              <p>
+                Addresses first recorded by the indexer in each 24-hour
+                interval, not new users or wallets.
+              </p>
+              <p className="mt-2">
+                The API does not distinguish missing hourly records from zero
+                activity. The total uses the reported counts.
+              </p>
+            </MetricHint>
             {history.isPending ? (
-              <SkeletonBar className="h-40 w-full" />
-            ) : history.isError && !validSeries ? (
+              <SkeletonBar className="w-20" />
+            ) : newCount != null ? (
+              <strong className="whitespace-nowrap text-lg tabular-nums text-foreground">
+                {metricNumber(newCount, 0)}
+                <span className="sr-only"> in the selected {days} days</span>
+              </strong>
+            ) : null}
+          </h2>
+          <fieldset
+            aria-label="Address history period"
+            className="flex items-center gap-1.5"
+          >
+            {[7, 30, 90].map((period) => (
               <button
+                key={period}
                 type="button"
-                className="text-sm text-destructive underline"
-                onClick={() => void history.refetch()}
+                aria-pressed={days === period}
+                aria-label={`${period} days`}
+                onClick={() => setDays(period)}
+                className="min-h-9 rounded-2xl border border-border bg-card px-3 text-xs font-semibold tabular-nums text-muted-foreground shadow-sm hover:border-accent aria-pressed:border-accent aria-pressed:bg-action-subtle aria-pressed:text-accent focus-visible:outline-2 focus-visible:outline-ring"
               >
-                Retry history
+                {period}D
               </button>
-            ) : !validSeries ? (
-              <output className="text-sm text-muted-foreground">
-                No history data for this period
-              </output>
-            ) : (
-              <AreaChart
-                data={points}
-                getKey={(entry) => entry.timestamp}
-                getValue={(entry) => entry.data.newAddresses ?? 0}
-                getXLabel={(entry) =>
-                  formatDateTime(entry.timestamp, {
-                    month: "short",
-                    day: "numeric",
-                  })
-                }
-                renderTooltip={(entry) => (
-                  <>
-                    <p>
-                      {formatDateTime(entry.timestamp)} –{" "}
-                      {formatDateTime(entry.intervalEnd)}
-                    </p>
-                    <p>
-                      {metricNumber(entry.data.newAddresses, 0)} new addresses
-                    </p>
-                  </>
-                )}
-                ariaLabel="New indexed addresses per 24-hour interval"
-                interpolation="linear"
-                formatYLabel={formatCompact}
-                minimumMax={0}
-                zeroBaseline
-              />
-            )}
-          </div>
-          {history.isError && validSeries && (
-            <p role="alert" className="text-sm text-destructive">
-              Could not refresh history.{" "}
-              <button
-                type="button"
-                className="underline"
-                onClick={() => void history.refetch()}
-              >
-                Retry
-              </button>
-            </p>
-          )}
-          {(history.isPending || validSeries) && (
-            <dl className="grid grid-cols-2 gap-4 border-t border-border pt-4">
-              <div>
-                <dt className="text-sm text-muted-foreground">
-                  New addresses · {days}D
-                </dt>
-                <dd className="mt-2 text-xl font-extrabold tabular-nums text-brand">
-                  {history.isPending ? (
-                    <SkeletonBar className="w-24" />
-                  ) : (
-                    metricNumber(newCount, 0)
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm text-muted-foreground">
-                  Average per 24H
-                </dt>
-                <dd className="mt-2 text-xl font-extrabold tabular-nums text-brand">
-                  {history.isPending ? (
-                    <SkeletonBar className="w-24" />
-                  ) : (
-                    metricNumber(newCount == null ? null : newCount / days, 0)
-                  )}
-                </dd>
-              </div>
-            </dl>
+            ))}
+          </fieldset>
+        </div>
+        <div className="flex min-h-40 items-center justify-center">
+          {history.isPending ? (
+            <SkeletonBar className="h-40 w-full" />
+          ) : history.isError && !validSeries ? (
+            <button
+              type="button"
+              className="text-sm text-destructive underline"
+              onClick={() => void history.refetch()}
+            >
+              Retry history
+            </button>
+          ) : !validSeries ? (
+            <output className="text-sm text-muted-foreground">
+              No history data for this period
+            </output>
+          ) : (
+            <AreaChart
+              data={points}
+              height={180}
+              getKey={(entry) => entry.timestamp}
+              getValue={(entry) => entry.data.newAddresses ?? 0}
+              getXLabel={(entry) =>
+                formatDateTime(entry.timestamp, {
+                  month: "short",
+                  day: "numeric",
+                })
+              }
+              renderTooltip={(entry) => (
+                <>
+                  <p className="font-semibold tabular-nums">
+                    {metricNumber(entry.data.newAddresses, 0)} new{" "}
+                    {entry.data.newAddresses === 1 ? "address" : "addresses"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    24h to{" "}
+                    {formatDateTime(entry.intervalEnd, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hourCycle: "h23",
+                    })}{" "}
+                    UTC
+                  </p>
+                </>
+              )}
+              ariaLabel="New indexed addresses per 24-hour interval"
+              interpolation="linear"
+              formatYLabel={formatCompact}
+              minimumMax={0}
+              zeroBaseline
+            />
           )}
         </div>
+        {history.isError && validSeries && (
+          <p role="alert" className="text-sm text-destructive">
+            Could not refresh history.{" "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => void history.refetch()}
+            >
+              Retry
+            </button>
+          </p>
+        )}
       </div>
     </section>
   );
