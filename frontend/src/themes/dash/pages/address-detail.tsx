@@ -46,12 +46,16 @@ export default function AddressDetailPage({
   }
   return (
     <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16">
-      <header className="group flex min-w-0 items-center gap-2">
-        <h1 className="dash-heading-page flex min-w-0 flex-wrap items-baseline gap-x-[0.25em] xl:dash-heading-hero">
-          <span className="shrink-0 text-accent">Address</span>
-          <span className="min-w-0 break-all">{address}</span>
+      <header className="min-w-0 space-y-3">
+        <h1 className="dash-heading-page sm:dash-heading-hero">
+          <span className="font-extrabold text-brand">Address</span>
         </h1>
-        <CopyButton value={address} label="Copy address" />
+        <div className="group flex min-w-0 items-center gap-2">
+          <span className="min-w-0 break-all font-mono text-sm leading-6 sm:text-base">
+            {address}
+          </span>
+          <CopyButton value={address} label="Copy address" />
+        </div>
       </header>
       {query.isError && (
         <output className="block text-sm text-muted-foreground">
@@ -86,7 +90,10 @@ function AddressSkeleton() {
       className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16"
     >
       <output className="sr-only">Loading address…</output>
-      <SkeletonBar className="h-10 w-full max-w-3xl" />
+      <div className="space-y-3">
+        <SkeletonBar className="h-[42px] w-40 sm:h-[60px] sm:w-56" />
+        <SkeletonBar className="h-6 w-full max-w-md" />
+      </div>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <div className="isolate grid min-w-0 gap-4 sm:gap-0">
           <div className="rounded-3xl border border-border bg-card p-4 sm:row-start-2 sm:mr-6 sm:-mt-4 sm:px-5 sm:py-8">
