@@ -68,6 +68,9 @@ export function ChainHistoryChart({
       </div>
     );
   const labelCount = Math.min(points.length, detailedAxis ? 6 : 2);
+  const sameDay =
+    points[0].timestamp.slice(0, 10) ===
+    points[points.length - 1].timestamp.slice(0, 10);
   const labels = Array.from(
     { length: labelCount },
     (_, index) =>
@@ -111,10 +114,15 @@ export function ChainHistoryChart({
                   : "hidden @[20rem]:inline"),
             )}
           >
-            {formatDateTime(point.timestamp, {
-              month: "short",
-              day: "numeric",
-            })}
+            {formatDateTime(
+              point.timestamp,
+              sameDay
+                ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+                : {
+                    month: "short",
+                    day: "numeric",
+                  },
+            )}
           </span>
         ))}
       </div>
