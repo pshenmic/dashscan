@@ -11,7 +11,7 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
   borderless?: boolean;
-  variant?: "default" | "plain";
+  variant?: "default" | "plain" | "lined";
   growColumn?: string;
   caption?: string;
   className?: string;
@@ -33,7 +33,7 @@ export function DataTable<T>({
   className,
   getRowProps,
 }: DataTableProps<T>) {
-  const plain = variant === "plain";
+  const plain = variant !== "default";
   return (
     <table
       aria-busy={isFetching}
@@ -45,7 +45,7 @@ export function DataTable<T>({
       )}
       style={{
         borderCollapse: "separate",
-        borderSpacing: plain ? "0 8px" : "0 6px",
+        borderSpacing: variant === "lined" ? "0" : plain ? "0 8px" : "0 6px",
       }}
     >
       {caption && <caption className="sr-only">{caption}</caption>}
@@ -87,7 +87,7 @@ export function DataTable<T>({
               // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
               key={index}
               widths={skeletonWidths}
-              variant={variant}
+              variant={plain ? "plain" : "default"}
             />
           ))
         ) : table.getRowModel().rows.length > 0 ? (
@@ -96,9 +96,11 @@ export function DataTable<T>({
               {...getRowProps?.(row.original)}
               key={row.id}
               className={
-                plain
-                  ? "bg-secondary/60"
-                  : "group cursor-pointer transition-colors"
+                variant === "lined"
+                  ? "[&:not(:last-child)>td]:border-b [&:not(:last-child)>td]:border-border/60"
+                  : plain
+                    ? "bg-secondary/60"
+                    : "group cursor-pointer transition-colors"
               }
               onClick={onRowClick ? () => onRowClick(row.original) : undefined}
             >
@@ -114,8 +116,8 @@ export function DataTable<T>({
                       plain
                         ? cn(
                             "px-3 py-3",
-                            isFirst && "rounded-l-xl",
-                            isLast && "rounded-r-xl",
+                            variant === "plain" && isFirst && "rounded-l-xl",
+                            variant === "plain" && isLast && "rounded-r-xl",
                           )
                         : `${borderless ? "" : "border-y border-border"} bg-secondary/50 px-3 py-2 transition-colors group-hover:bg-accent/10 ${isFirst ? `rounded-l-xl ${borderless ? "" : "border-l"} overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-accent before:opacity-0 before:transition-opacity before:duration-150 group-hover:before:opacity-100 relative` : ""} ${isLast ? `rounded-r-xl ${borderless ? "" : "border-r"}` : ""}`
                     }

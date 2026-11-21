@@ -12,8 +12,10 @@ export function ColumnSearch({
   activeValue,
   onChange,
   sorting,
+  network,
 }: {
-  kind: "height" | "hash";
+  kind: "height" | "hash" | "address";
+  network?: "mainnet" | "testnet";
   label: string;
   activeValue?: string;
   onChange: (value: string | undefined) => void;
@@ -27,21 +29,33 @@ export function ColumnSearch({
   const [value, setValue] = useState("");
   const [dirty, setDirty] = useState(false);
   const [composing, setComposing] = useState(false);
-  const normalized = value.trim().replace(/^#/, "").replace(/\s/g, "");
+  const normalized =
+    kind === "address"
+      ? value.trim()
+      : value.trim().replace(/^#/, "").replace(/\s/g, "");
   const valid =
     kind === "height"
       ? /^\d+$/.test(normalized) && Number.isSafeInteger(Number(normalized))
-      : /^[a-f\d]{64}$/i.test(normalized);
+      : kind === "address"
+        ? (network === "mainnet"
+            ? /^[X7][1-9A-HJ-NP-Za-km-z]{33}$/
+            : /^[y8][1-9A-HJ-NP-Za-km-z]{33}$/
+          ).test(normalized)
+        : /^[a-f\d]{64}$/i.test(normalized);
   const nextValue = !normalized
     ? undefined
     : kind === "height"
       ? String(Number(normalized))
-      : normalized.toLowerCase();
+      : kind === "address"
+        ? normalized
+        : normalized.toLowerCase();
   const hint =
     normalized && !valid
       ? kind === "height"
         ? "Enter a non-negative whole number."
-        : "Enter all 64 hexadecimal characters."
+        : kind === "address"
+          ? `Enter a complete ${network} address.`
+          : "Enter all 64 hexadecimal characters."
       : "";
 
   const applyValue = useCallback(() => {
@@ -132,7 +146,8 @@ export function ColumnSearch({
               }}
               onCompositionStart={() => setComposing(true)}
               onCompositionEnd={() => setComposing(false)}
-              placeholder={label}
+              placeholder={kind === "address" ? "Paste full address" : label}
+              autoCapitalize="none"
               inputMode={kind === "height" ? "numeric" : "text"}
               autoComplete="off"
               spellCheck={false}
