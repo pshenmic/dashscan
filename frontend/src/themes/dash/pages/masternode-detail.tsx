@@ -36,12 +36,15 @@ function MasternodeDetail({
   });
   const node = query.data;
   return (
-    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[34px] font-medium tracking-tight">
-          Masternode <span className="text-muted-foreground">Info</span>
-        </h1>
-      </div>
+    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16 [&_a.dash-data-mono]:text-accent [&_a.dash-data-mono:hover]:underline">
+      <h1 className="dash-heading-page flex min-w-0 flex-col gap-2 sm:dash-heading-hero sm:flex-row sm:items-baseline sm:gap-4">
+        <span className="shrink-0 font-extrabold text-brand">Masternode</span>
+        {node && (
+          <span title={node.proTxHash} className="min-w-0 truncate font-mono">
+            {node.proTxHash}
+          </span>
+        )}
+      </h1>
       {query.isError && (
         <div role="alert" className="rounded-2xl bg-card p-5 text-sm">
           <p>
