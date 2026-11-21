@@ -1,6 +1,7 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
+import type { TransactionTypeFilter } from "@/lib/transaction-types";
 import { apiFetch, getBaseUrl } from "./client";
 import type {
   ApiAddress,
@@ -109,7 +110,9 @@ export function addressQueryOptions(params: FetchAddressInput) {
 
 interface FetchAddressTransactionsInput
   extends PaginationParams,
-    FetchAddressInput {}
+    FetchAddressInput {
+  transactionType?: TransactionTypeFilter;
+}
 
 async function getAddressTransactions(
   params: FetchAddressTransactionsInput,
@@ -124,6 +127,8 @@ async function getAddressTransactions(
   if (params.limit !== undefined)
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
+  if (params.transactionType)
+    url.searchParams.set("transaction_type", params.transactionType);
 
   const response = await apiFetch(url, { signal });
   if (!response.ok) {
@@ -147,6 +152,7 @@ export function addressTransactionsQueryOptions(
       params.page,
       params.limit,
       params.order,
+      params.transactionType,
     ],
     queryFn: ({ signal }) => getAddressTransactions(params, signal),
   });
@@ -155,6 +161,7 @@ export function addressTransactionsQueryOptions(
 interface InfiniteAddressTransactionsInput extends FetchAddressInput {
   limit?: number;
   order?: "asc" | "desc";
+  transactionType?: TransactionTypeFilter;
 }
 
 export function addressTransactionsInfiniteQueryOptions(
@@ -169,6 +176,7 @@ export function addressTransactionsInfiniteQueryOptions(
       params.address,
       limit,
       order,
+      params.transactionType,
     ],
     queryFn: ({ pageParam, signal }) =>
       getAddressTransactions(
@@ -178,6 +186,7 @@ export function addressTransactionsInfiniteQueryOptions(
           page: pageParam,
           limit,
           order,
+          transactionType: params.transactionType,
         },
         signal,
       ),

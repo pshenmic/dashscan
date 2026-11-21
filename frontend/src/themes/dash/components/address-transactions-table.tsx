@@ -1,16 +1,19 @@
-import {
-  keepPreviousData,
-  useInfiniteQuery,
-  useQuery,
-} from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   type ColumnDef,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { X } from "lucide-react";
-import { useCallback, useId, useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, X } from "lucide-react";
+import { type RefObject, useCallback, useId, useMemo, useRef } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+} from "@/components/ui/select";
 import {
   addressTransactionsInfiniteQueryOptions,
   addressTransactionsQueryOptions,
@@ -20,6 +23,12 @@ import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
 import type { PageSize } from "@/lib/pagination";
 import type { Network } from "@/lib/store";
+import {
+  getTransactionType,
+  getTxTypeLabel,
+  TRANSACTION_TYPES,
+  type TransactionTypeFilter,
+} from "@/lib/transaction-types";
 import {
   type TableViewMode,
   useTableViewMode,
@@ -34,6 +43,52 @@ import { InfoPopover } from "./info-popover";
 import { LoadMore } from "./load-more";
 import { Pagination } from "./pagination";
 import { TransactionTypeBadge } from "./transaction-type-badge";
+
+const toolbarChipClass =
+  "inline-flex h-9 max-w-48 items-center gap-2 rounded-xl bg-secondary px-3 text-xs text-foreground hover:bg-action-subtle hover:text-accent focus-visible:outline-2 focus-visible:outline-ring";
+
+function TypeFilter({
+  value,
+  onChange,
+  trigger,
+}: {
+  value: TransactionTypeFilter | undefined;
+  onChange: (value: string) => void;
+  trigger: RefObject<HTMLButtonElement | null>;
+}) {
+  return (
+    <Select value={value ?? "all"} onValueChange={onChange}>
+      <SelectTrigger
+        ref={trigger}
+        size="sm"
+        aria-label="Filter: Type"
+        data-active={value !== undefined}
+        className="data-[size=sm]:h-6 gap-1 border-0 px-1 py-0 shadow-none hover:bg-action-subtle data-[active=true]:text-accent dark:bg-transparent"
+      >
+        Type
+      </SelectTrigger>
+      <SelectContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          trigger.current?.focus({ preventScroll: true });
+        }}
+        position="popper"
+        align="start"
+        collisionPadding={8}
+        aria-label="Transaction type"
+        className="w-52 max-h-[min(20rem,var(--radix-select-content-available-height))] rounded-xl [&_[data-slot=select-item]]:h-9 [&_[data-slot=select-item]:focus]:bg-action-subtle [&_[data-slot=select-item]:focus]:text-foreground"
+      >
+        <SelectItem value="all">All types</SelectItem>
+        <SelectSeparator />
+        {TRANSACTION_TYPES.map((type) => (
+          <SelectItem key={type.name} value={type.name} textValue={type.label}>
+            <TransactionTypeBadge type={type.name} withTooltip={false} />
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function belongsToAddress(transaction: ApiTransaction, address: string) {
   return (
@@ -62,7 +117,14 @@ function netChange(transaction: ApiTransaction, address: string) {
   return Number.isSafeInteger(total) ? total : null;
 }
 
-function transactionColumns(address: string): ColumnDef<ApiTransaction>[] {
+function transactionColumns(
+  address: string,
+  transactionType: TransactionTypeFilter | undefined,
+  onTypeChange: (value: string) => void,
+  order: "asc" | "desc",
+  onOrderChange: () => void,
+  typeTrigger: RefObject<HTMLButtonElement | null>,
+): ColumnDef<ApiTransaction>[] {
   return [
     {
       accessorKey: "hash",
@@ -80,7 +142,13 @@ function transactionColumns(address: string): ColumnDef<ApiTransaction>[] {
     },
     {
       accessorKey: "type",
-      header: "Type",
+      header: () => (
+        <TypeFilter
+          value={transactionType}
+          onChange={onTypeChange}
+          trigger={typeTrigger}
+        />
+      ),
       cell: ({ row }) => <TransactionTypeBadge type={row.original.type} />,
     },
     {
@@ -114,7 +182,25 @@ function transactionColumns(address: string): ColumnDef<ApiTransaction>[] {
     },
     {
       accessorKey: "timestamp",
-      header: "Timestamp",
+      header: () => (
+        <button
+          type="button"
+          aria-label={
+            order === "desc"
+              ? "Newest blocks first. Show oldest first"
+              : "Oldest blocks first. Show newest first"
+          }
+          onClick={onOrderChange}
+          className="inline-flex items-center gap-1 rounded focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          Timestamp
+          {order === "desc" ? (
+            <ArrowDown className="size-3.5" aria-hidden="true" />
+          ) : (
+            <ArrowUp className="size-3.5" aria-hidden="true" />
+          )}
+        </button>
+      ),
       cell: ({ row }) => {
         const timestamp = row.original.timestamp;
         if (!timestamp || !Number.isFinite(Date.parse(timestamp)))
@@ -144,8 +230,42 @@ export function AddressTransactionsTable({
   total: number;
 }) {
   const navigate = useNavigate({ from: "/address/$address" });
+  const search = useSearch({ from: "/address/$address" });
+  const { hash, type: transactionType } = search;
+  const order = search.order ?? "desc";
+  const setHash = useCallback(
+    (value: string | undefined) => {
+      void navigate({
+        search: (previous) => ({ ...previous, hash: value, page: 1 }),
+        resetScroll: false,
+      });
+    },
+    [navigate],
+  );
+  const changeType = useCallback(
+    (value: string) => {
+      const type = TRANSACTION_TYPES.find(
+        (entry) => entry.name === value,
+      )?.name;
+      void navigate({
+        search: (previous) => ({ ...previous, type, page: 1 }),
+        resetScroll: false,
+      });
+    },
+    [navigate],
+  );
+  const changeOrder = useCallback(() => {
+    void navigate({
+      search: (previous) => ({
+        ...previous,
+        order: order === "desc" ? "asc" : "desc",
+        page: 1,
+      }),
+      resetScroll: false,
+    });
+  }, [navigate, order]);
   const headingId = useId();
-  const [hash, setHash] = useState<string | undefined>();
+  const typeTrigger = useRef<HTMLButtonElement>(null);
   const searching = hash !== undefined;
   const [storedMode, setMode] = useTableViewMode(
     "dash-address-transactions",
@@ -159,25 +279,35 @@ export function AddressTransactionsTable({
       address,
       page,
       limit,
-      order: "desc",
+      order,
+      transactionType,
     }),
     enabled: !searching && !isInfinite,
-    placeholderData: keepPreviousData,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[5] === order &&
+      previousQuery?.queryKey[6] === transactionType
+        ? previous
+        : undefined,
   });
   const infinite = useInfiniteQuery({
     ...addressTransactionsInfiniteQueryOptions({
       network,
       address,
       limit,
-      order: "desc",
+      order,
+      transactionType,
     }),
     enabled: !searching && isInfinite,
     staleTime: 30_000,
-    placeholderData: (previous) =>
-      previous ??
-      (transactions.data?.pagination.page === 1
-        ? { pages: [transactions.data], pageParams: [1] }
-        : undefined),
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[3] === limit &&
+      previousQuery?.queryKey[4] === order &&
+      previousQuery?.queryKey[5] === transactionType
+        ? previous
+        : !transactions.isPlaceholderData &&
+            transactions.data?.pagination.page === 1
+          ? { pages: [transactions.data], pageParams: [1] }
+          : undefined,
   });
   const lookup = useQuery({
     ...searchQueryOptions({ network, query: hash ?? "" }),
@@ -190,7 +320,12 @@ export function AddressTransactionsTable({
   const found = transaction.data;
   const rows = useMemo(() => {
     if (searching)
-      return found && belongsToAddress(found, address) ? [found] : [];
+      return found &&
+        belongsToAddress(found, address) &&
+        (!transactionType ||
+          getTransactionType(found.type)?.name === transactionType)
+        ? [found]
+        : [];
     if (!isInfinite) return transactions.data?.resultSet ?? [];
     const seen = new Set<string>();
     return (
@@ -200,7 +335,15 @@ export function AddressTransactionsTable({
       seen.add(transaction.hash);
       return true;
     });
-  }, [searching, found, address, isInfinite, transactions.data, infinite.data]);
+  }, [
+    searching,
+    found,
+    address,
+    transactionType,
+    isInfinite,
+    transactions.data,
+    infinite.data,
+  ]);
   const activeQuery = searching
     ? lookup.data?.transaction && !lookup.isError
       ? transaction
@@ -208,22 +351,39 @@ export function AddressTransactionsTable({
     : isInfinite
       ? infinite
       : transactions;
-  const columns = useMemo(() => transactionColumns(address), [address]);
+  const columns = useMemo(
+    () =>
+      transactionColumns(
+        address,
+        transactionType,
+        changeType,
+        order,
+        changeOrder,
+        typeTrigger,
+      ),
+    [address, transactionType, changeType, order, changeOrder],
+  );
   const table = useReactTable({
     data: rows,
     columns,
-    state: { globalFilter: hash },
+    state: {
+      globalFilter: hash,
+      sorting: [{ id: "timestamp", desc: order === "desc" }],
+    },
     onGlobalFilterChange: setHash,
     manualFiltering: true,
     manualPagination: true,
+    manualSorting: true,
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => row.hash,
   });
-  const count =
-    transactions.data?.pagination.total ??
-    infinite.data?.pages[0]?.pagination.total ??
-    total;
-  const validCount = Number.isSafeInteger(count) && count >= 0;
+  const currentData = isInfinite ? infinite.data?.pages[0] : transactions.data;
+  const count = searching
+    ? activeQuery.isPending || activeQuery.isError
+      ? null
+      : rows.length
+    : (currentData?.pagination.total ?? (transactionType ? null : total));
+  const validCount = count != null && Number.isSafeInteger(count) && count >= 0;
   const pageCount = validCount ? Math.max(1, Math.ceil(count / limit)) : page;
   const hasMore = infinite.hasNextPage;
   const loadMore = useCallback(() => {
@@ -238,7 +398,10 @@ export function AddressTransactionsTable({
   const changeMode = (next: TableViewMode) => {
     setMode(next);
     if (page !== 1)
-      void navigate({ search: { page: 1, limit }, resetScroll: false });
+      void navigate({
+        search: (previous) => ({ ...previous, page: 1, limit }),
+        resetScroll: false,
+      });
   };
   return (
     <section
@@ -259,21 +422,35 @@ export function AddressTransactionsTable({
           </output>
         </h2>
         <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+          {transactionType && (
+            <button
+              type="button"
+              aria-label="Clear transaction type filter"
+              onClick={() => changeType("all")}
+              className={toolbarChipClass}
+            >
+              <span className="truncate">
+                Type: {getTxTypeLabel(transactionType)}
+              </span>
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          )}
           {hash && (
             <button
               type="button"
               aria-label="Clear transaction hash filter"
               title={hash}
               onClick={() => setHash(undefined)}
-              className="inline-flex max-w-full items-center gap-2 rounded-lg bg-action-subtle px-3 py-1 text-xs text-accent focus-visible:outline-2 focus-visible:outline-ring sm:max-w-64"
+              className={toolbarChipClass}
             >
-              <span className="truncate">Transaction Hash: {hash}</span>
+              <span className="truncate">Hash: {hash}</span>
               <X className="size-3 shrink-0" aria-hidden="true" />
             </button>
           )}
           <fieldset
             aria-label="Loading mode"
             className="inline-flex shrink-0 rounded-xl bg-secondary p-1"
+            disabled={searching}
           >
             {(["pagination", "infinite"] as const).map((value) => (
               <button
@@ -338,13 +515,17 @@ export function AddressTransactionsTable({
           align="end"
           onPageChange={(nextPage) =>
             void navigate({
-              search: { page: nextPage, limit },
+              search: (previous) => ({ ...previous, page: nextPage, limit }),
               resetScroll: false,
             })
           }
           onPageSizeChange={(nextLimit) =>
             void navigate({
-              search: { page: 1, limit: nextLimit },
+              search: (previous) => ({
+                ...previous,
+                page: 1,
+                limit: nextLimit,
+              }),
               resetScroll: false,
             })
           }
