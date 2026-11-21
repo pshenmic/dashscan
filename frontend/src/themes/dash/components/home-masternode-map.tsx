@@ -21,6 +21,7 @@ import {
 } from "@/themes/dash/lib/masternode-metrics";
 
 const initialCenter: [number, number] = [0, 25];
+const worldCenter: [number, number] = [0, 0];
 
 function getMasternodeId(node: ApiMasternode) {
   return node.proTxHash;
@@ -36,11 +37,13 @@ function FixedSizeMarker({ children }: { children: ReactNode }) {
 }
 
 export function HomeMasternodeMap({
+  fitHeight,
   nodes,
   onSelect,
   selectedHashes,
   onSelectCountry,
 }: {
+  fitHeight?: boolean;
   nodes: ApiMasternode[];
   onSelect: (hashes: string[]) => void;
   selectedHashes: Set<string> | null;
@@ -48,6 +51,7 @@ export function HomeMasternodeMap({
 }) {
   return (
     <HomeNodeMap
+      fitHeight={fitHeight}
       nodes={nodes}
       onSelect={onSelect}
       selectedHashes={selectedHashes}
@@ -61,6 +65,7 @@ export function HomeMasternodeMap({
 }
 
 export function HomeNodeMap<Node>({
+  fitHeight = false,
   nodes,
   onSelect,
   selectedHashes = null,
@@ -70,6 +75,7 @@ export function HomeNodeMap<Node>({
   getLocation,
   getCountries,
 }: {
+  fitHeight?: boolean;
   nodes: Node[];
   onSelect?: (ids: string[]) => void;
   selectedHashes?: Set<string> | null;
@@ -82,20 +88,27 @@ export function HomeNodeMap<Node>({
   ) => { code: string; name: string; nodes: Node[] }[];
 }) {
   const container = useRef<HTMLFieldSetElement>(null);
-  const [width, setWidth] = useState(742);
+  const [{ width, height }, setSize] = useState({ width: 742, height: 207 });
+  const defaultCenter = fitHeight ? worldCenter : initialCenter;
   const [position, setPosition] = useState({
-    coordinates: initialCenter,
+    coordinates: defaultCenter,
     zoom: 1,
   });
   const [active, setActive] = useState<string | null>(null);
   useEffect(() => {
     if (!container.current) return;
-    const observer = new ResizeObserver(([entry]) =>
-      setWidth(Math.max(1, entry.contentRect.width)),
-    );
+    const observer = new ResizeObserver(([entry]) => {
+      const width = Math.max(1, entry.contentRect.width);
+      const height = fitHeight ? Math.max(1, entry.contentRect.height) : 207;
+      setSize((size) =>
+        size.width === width && size.height === height
+          ? size
+          : { width, height },
+      );
+    });
     observer.observe(container.current);
     return () => observer.disconnect();
-  }, []);
+  }, [fitHeight]);
   const index = useMemo(() => {
     const cluster = new Supercluster<{ node: Node }>({
       radius: 48,
@@ -141,9 +154,12 @@ export function HomeNodeMap<Node>({
     >
       <ComposableMap
         width={width}
-        height={207}
+        height={fitHeight ? Math.min(height, width / 2) : height}
+        preserveAspectRatio={fitHeight ? "xMidYMin meet" : "xMidYMid meet"}
         projection="geoEqualEarth"
-        projectionConfig={{ scale: width / 5.8 }}
+        projectionConfig={{
+          scale: fitHeight ? Math.min(width / 5.5, height / 2.7) : width / 5.8,
+        }}
         className="h-full w-full"
         role="group"
         aria-label="Interactive map: arrow keys to pan; + and − to zoom; 0 to reset"
@@ -184,14 +200,14 @@ export function HomeNodeMap<Node>({
           if (["+", "=", "-", "0"].includes(event.key)) {
             event.preventDefault();
             if (event.key === "0") {
-              setPosition({ coordinates: initialCenter, zoom: 1 });
+              setPosition({ coordinates: defaultCenter, zoom: 1 });
               setActive(null);
             } else changeZoom(event.key === "-" ? 0.5 : 2);
           }
         }}
       >
         <ZoomableGroup
-          key={width}
+          key={`${width}:${height}`}
           center={position.coordinates}
           zoom={position.zoom}
           minZoom={0.6}
