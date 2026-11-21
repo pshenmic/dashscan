@@ -16,17 +16,7 @@ import { ChainHistoryChart } from "./chain-history-chart";
 import { InfoPopover } from "./info-popover";
 import { SkeletonBar } from "./skeleton";
 
-export function MasternodesOverview({
-  network,
-  total,
-  collateral,
-  loading,
-}: {
-  network: Network;
-  total: number | undefined;
-  collateral: number | undefined;
-  loading: boolean;
-}) {
+export function MasternodesOverview({ network }: { network: Network }) {
   const [days, setDays] = useState(30);
   const history = useHomeChainHistory(network, days + 1, days + 1);
   const combined = useMemo(
@@ -61,14 +51,6 @@ export function MasternodesOverview({
                 </InfoPopover>
               </h2>
             </div>
-            <p className="mt-2 text-[32px] font-extrabold tabular-nums">
-              {loading ? (
-                <SkeletonBar className="inline-block w-24" />
-              ) : (
-                metricNumber(total, 0)
-              )}{" "}
-              <span className="text-base font-medium">Nodes</span>
-            </p>
             {change != null && (
               <p className="mt-1 text-xs text-accent">
                 {change > 0 ? "+" : ""}
@@ -109,31 +91,6 @@ export function MasternodesOverview({
             />
           )}
         </div>
-      </section>
-      <section className="min-w-0 rounded-3xl bg-card px-5 py-4 sm:px-6">
-        <div className="mb-3 flex items-center gap-2">
-          <h2 className="text-sm text-muted-foreground">
-            <InfoPopover
-              label="About masternode collateral"
-              trigger="Masternode collateral"
-            >
-              Calculated from registered nodes across all statuses: 1,000 DASH
-              per regular masternode and 4,000 DASH per Evonode. This is not a
-              locked balance. Spending collateral removes the node from the
-              masternode list.
-            </InfoPopover>
-          </h2>
-        </div>
-        <p className="text-2xl font-semibold tabular-nums">
-          {loading ? (
-            <SkeletonBar className="inline-block w-32" />
-          ) : (
-            metricNumber(collateral, 0)
-          )}{" "}
-          <span className="text-sm font-medium text-muted-foreground">
-            DASH
-          </span>
-        </p>
       </section>
     </div>
   );
