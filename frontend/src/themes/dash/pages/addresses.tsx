@@ -10,6 +10,7 @@ import {
   addressRankingInfiniteQueryOptions,
   addressRankingQueryOptions,
 } from "@/lib/api/address-ranking";
+import { lookupAddress } from "@/lib/api/addresses";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { useAddressUsdPrice } from "@/themes/dash/components/address-balance";
@@ -45,9 +46,16 @@ function AddressList() {
     order,
   };
   const infiniteOptions = addressRankingInfiniteQueryOptions(params);
+  const address = search.address;
+  const detail = useQuery({
+    queryKey: ["address-lookup", network, address],
+    queryFn: ({ signal }) =>
+      address ? lookupAddress({ network, address }, signal) : null,
+    enabled: !!address,
+  });
   const paged = useQuery({
     ...addressRankingQueryOptions(params, page),
-    enabled: !infinite,
+    enabled: !address && !infinite,
     placeholderData: (previous, previousQuery) => {
       const previousParams = previousQuery?.queryKey[1] as
         | typeof params
@@ -61,11 +69,21 @@ function AddressList() {
   });
   const scrolling = useInfiniteQuery({
     ...infiniteOptions,
-    enabled: infinite,
+    enabled: !address && infinite,
   });
-  const query = infinite ? scrolling : paged;
+  const query = address ? detail : infinite ? scrolling : paged;
   const data = infinite ? scrolling.data?.pages[0] : paged.data;
   const rows = useMemo(() => {
+    if (address)
+      return detail.data
+        ? [
+            {
+              address: detail.data.address,
+              balance: detail.data.balance,
+              txCount: Number(detail.data.txCount),
+            },
+          ]
+        : [];
     const entries = infinite
       ? (scrolling.data?.pages.flatMap((batch) => batch?.resultSet ?? []) ?? [])
       : (paged.data?.resultSet ?? []);
@@ -75,7 +93,7 @@ function AddressList() {
       seen.add(entry.address);
       return true;
     });
-  }, [infinite, scrolling.data, paged.data]);
+  }, [address, detail.data, infinite, scrolling.data, paged.data]);
   const total = data?.pagination.total;
   const pageCount = total != null && total >= 0 ? Math.ceil(total / limit) : 0;
   const update = (patch: Partial<typeof search>) =>
@@ -125,24 +143,40 @@ function AddressList() {
             id={titleId}
             className="text-sm font-medium text-muted-foreground"
           >
-            Addresses by balance
+            {address ? "Address search" : "Addresses by balance"}
           </h2>
-          <fieldset
-            aria-label="Loading mode"
-            className="flex rounded-xl bg-secondary p-1"
-          >
-            {(["pagination", "infinite"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={mode === value}
-                onClick={() => changeMode(value)}
-                className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground aria-pressed:bg-card aria-pressed:text-accent focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                {value === "pagination" ? "Pages" : "Scroll"}
-              </button>
-            ))}
-          </fieldset>
+          {address ? (
+            <button
+              type="button"
+              className="rounded-lg bg-secondary px-3 py-1.5 text-xs hover:text-accent focus-visible:outline-2 focus-visible:outline-ring"
+              onClick={() =>
+                void navigate({
+                  search: (previous) => ({ ...previous, address: undefined }),
+                  replace: true,
+                  resetScroll: false,
+                })
+              }
+            >
+              Clear filter
+            </button>
+          ) : (
+            <fieldset
+              aria-label="Loading mode"
+              className="flex rounded-xl bg-secondary p-1"
+            >
+              {(["pagination", "infinite"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={mode === value}
+                  onClick={() => changeMode(value)}
+                  className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground aria-pressed:bg-card aria-pressed:text-accent focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  {value === "pagination" ? "Pages" : "Scroll"}
+                </button>
+              ))}
+            </fieldset>
+          )}
         </div>
         {query.isError && (
           <p role="alert" className="mb-3 text-sm text-destructive">
@@ -162,38 +196,44 @@ function AddressList() {
           rows={rows}
           usdPrice={usdPrice}
           order={order}
-          onOrderChange={(order) => update({ order })}
+          onOrderChange={address ? undefined : (order) => update({ order })}
           busy={query.isFetching}
           emptyMessage={
-            query.isError ? "Addresses unavailable" : "No addresses found."
+            query.isError
+              ? "Addresses unavailable"
+              : address
+                ? "Address not found."
+                : "No addresses found."
           }
-          limit={limit}
+          limit={address ? 1 : limit}
         />
-        {infinite
-          ? scrolling.hasNextPage && (
-              <LoadMore
-                errorMessage="Could not load more addresses."
-                loading={scrolling.isFetching}
-                failed={scrolling.isFetchNextPageError}
-                onLoad={() => {
-                  if (!scrolling.isFetching) void scrolling.fetchNextPage();
-                }}
-              />
-            )
-          : pageCount > 0 && (
-              <div className="mt-4">
-                <Pagination
-                  align="end"
-                  page={page}
-                  pageCount={pageCount}
-                  pageSize={limit}
-                  onPageChange={(next) =>
-                    update({ page: next, view: "pagination" })
-                  }
-                  onPageSizeChange={(size) => update({ limit: size })}
+        {address
+          ? null
+          : infinite
+            ? scrolling.hasNextPage && (
+                <LoadMore
+                  errorMessage="Could not load more addresses."
+                  loading={scrolling.isFetching}
+                  failed={scrolling.isFetchNextPageError}
+                  onLoad={() => {
+                    if (!scrolling.isFetching) void scrolling.fetchNextPage();
+                  }}
                 />
-              </div>
-            )}
+              )
+            : pageCount > 0 && (
+                <div className="mt-4">
+                  <Pagination
+                    align="end"
+                    page={page}
+                    pageCount={pageCount}
+                    pageSize={limit}
+                    onPageChange={(next) =>
+                      update({ page: next, view: "pagination" })
+                    }
+                    onPageSizeChange={(size) => update({ limit: size })}
+                  />
+                </div>
+              )}
       </section>
     </main>
   );

@@ -91,13 +91,23 @@ export async function getAddressesInfo(
   >;
 }
 
-async function getAddress(params: FetchAddressInput) {
+export async function lookupAddress(
+  params: FetchAddressInput,
+  signal?: AbortSignal,
+) {
   const url = new URL(`/address/${params.address}`, getBaseUrl(params.network));
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
+  if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
   return response.json() as Promise<ApiAddressDetail>;
+}
+
+async function getAddress(params: FetchAddressInput) {
+  const result = await lookupAddress(params);
+  if (!result) throw new Error("API error: 404 Not Found");
+  return result;
 }
 
 export const fetchAddress = createServerFn({ method: "POST" })

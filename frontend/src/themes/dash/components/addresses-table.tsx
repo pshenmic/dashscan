@@ -1,3 +1,5 @@
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useStore } from "@tanstack/react-store";
 import {
   type ColumnDef,
   getCoreRowModel,
@@ -9,8 +11,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { AddressRankingEntry } from "@/lib/api/address-ranking";
+import { appStore } from "@/lib/store";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { AddressBalance } from "./address-balance";
+import { ColumnSearch } from "./column-search";
 import { DataTable } from "./data-table";
 import { IdentifierLink } from "./identifier-link";
 
@@ -19,6 +23,27 @@ function valueShare(concentration: string | null | undefined) {
   const value = Number(concentration);
   if (!Number.isFinite(value) || value > 100) return "—";
   return value > 0 && value < 0.01 ? "<0.01%" : `${metricNumber(value, 2)}%`;
+}
+
+function AddressHeader() {
+  const navigate = useNavigate({ from: "/addresses" });
+  const { address } = useSearch({ from: "/addresses" });
+  const network = useStore(appStore, (state) => state.network);
+  return (
+    <ColumnSearch
+      kind="address"
+      network={network}
+      label="Address"
+      activeValue={address}
+      onChange={(address) =>
+        void navigate({
+          search: (previous) => ({ ...previous, address }),
+          replace: true,
+          resetScroll: false,
+        })
+      }
+    />
+  );
 }
 
 export function AddressesTable({
@@ -41,7 +66,7 @@ export function AddressesTable({
   const columns: ColumnDef<AddressRankingEntry>[] = [
     {
       accessorKey: "address",
-      header: "Address",
+      header: AddressHeader,
       cell: ({ row }) =>
         row.original.address ? (
           <IdentifierLink kind="address" value={row.original.address} />

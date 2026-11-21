@@ -13,6 +13,11 @@ import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
 const DashAddressesPage = lazy(() => import("@/themes/dash/pages/addresses"));
 
 const addressesSearchSchema = z.object({
+  address: z
+    .string()
+    .regex(/^[X7y8][1-9A-HJ-NP-Za-km-z]{33}$/)
+    .optional()
+    .catch(undefined),
   tab: z.enum(["active", "rich"]).optional().catch(undefined),
   window: z.enum(["24h", "3d", "7d", "30d"]).optional().catch(undefined),
   page: z.number().int().min(1).optional().catch(undefined),
