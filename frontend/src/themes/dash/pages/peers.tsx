@@ -2,23 +2,28 @@ import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { useCallback, useMemo, useState } from "react";
 import { countryName } from "@/components/explorer/geo/iso-codes";
-import { PeersTable } from "@/themes/dash/components/peers-table";
-import { Pagination } from "@/themes/dash/components/pagination";
 import {
   EMPTY_PEER_FILTERS,
   type PeerFilters,
-  PeersFilterBar,
 } from "@/components/explorer/peers-filter-bar";
-import { HomeNodeMap } from "@/themes/dash/components/home-masternode-map";
-import { peerCountries, peerLocation } from "@/themes/dash/lib/network-metrics";
+import { Badge } from "@/components/explorer/ui/badge";
 import {
   type ApiPeer,
   allPeersQueryOptions,
   derivePeerUserAgents,
+  isValidIpv4,
   peerUserAgentsQueryOptions,
 } from "@/lib/api/peers";
 import { formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
+import { HomeNodeMap } from "@/themes/dash/components/home-masternode-map";
+import { Pagination } from "@/themes/dash/components/pagination";
+import { PeersTable } from "@/themes/dash/components/peers-table";
+import {
+  peerClientLabel,
+  peerCountries,
+  peerLocation,
+} from "@/themes/dash/lib/network-metrics";
 
 const PAGINATION_PAGE_SIZE = 10;
 
@@ -28,7 +33,6 @@ const peerId = (peer: ApiPeer) => peer.address;
 function searchHaystack(peer: ApiPeer): string {
   return [
     peer.address,
-    peer.userAgent ?? "",
     peer.geo?.city ?? "",
     peer.geo ? countryName(peer.geo.countryCode) : "",
   ]
@@ -39,13 +43,17 @@ function searchHaystack(peer: ApiPeer): string {
 export default function PeersListPage() {
   const network = useStore(appStore, (state) => state.network);
   const [search, setSearch] = useState("");
+  const [protocol, setProtocol] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
   const [filters, setFilters] = useState<PeerFilters>(EMPTY_PEER_FILTERS);
 
-  const { data: allPeers, isFetching } = useQuery(
-    allPeersQueryOptions({ network }),
-  );
+  const {
+    data: allPeers,
+    isFetching,
+    isError,
+    refetch,
+  } = useQuery(allPeersQueryOptions({ network }));
   const { data: apiUserAgents } = useQuery(
     peerUserAgentsQueryOptions({ network }),
   );
@@ -66,6 +74,25 @@ export default function PeersListPage() {
     };
   }, [peers]);
 
+  const agentOptions = useMemo(() => {
+    const options = userAgents.map(({ userAgent, count }) => ({
+      value: userAgent,
+      label: peerClientLabel(userAgent),
+      count,
+    }));
+    const seen = new Set<string>();
+    const duplicates = new Set<string>();
+    for (const { label } of options) {
+      if (seen.has(label)) duplicates.add(label);
+      seen.add(label);
+    }
+    return options.map((option) =>
+      duplicates.has(option.label)
+        ? { ...option, label: option.value }
+        : option,
+    );
+  }, [userAgents]);
+
   const searchable = useMemo(
     () => peers.map((peer) => ({ peer, haystack: searchHaystack(peer) })),
     [peers],
@@ -73,17 +100,22 @@ export default function PeersListPage() {
 
   const mapPeers = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const exactIp = isValidIpv4(q);
     const out: ApiPeer[] = [];
     for (const { peer, haystack } of searchable) {
       if (filters.status === "available" && !peer.available) continue;
       if (filters.status === "unavailable" && peer.available) continue;
       if (filters.userAgent && peer.userAgent !== filters.userAgent) continue;
-      if (filters.ip && peer.host !== filters.ip) continue;
-      if (q && !haystack.includes(q)) continue;
+      if (
+        protocol.trim() &&
+        !String(peer.protocolVersion ?? "").includes(protocol.trim())
+      )
+        continue;
+      if (q && (exactIp ? peer.host !== q : !haystack.includes(q))) continue;
       out.push(peer);
     }
     return out;
-  }, [searchable, search, filters]);
+  }, [searchable, search, protocol, filters.status, filters.userAgent]);
 
   const countries = useMemo(() => peerCountries(mapPeers), [mapPeers]);
   const filtered = filters.country
@@ -112,13 +144,23 @@ export default function PeersListPage() {
   const handleClearFilters = useCallback(() => {
     setFilters(EMPTY_PEER_FILTERS);
     setSearch("");
+    setProtocol("");
     setPage(1);
   }, []);
 
+  const size = pageSize;
+  const pageCount = Math.max(1, Math.ceil(total / size));
+  const currentPage = Math.min(page, pageCount);
+  const hasFilters = !!(
+    filters.country ||
+    filters.userAgent ||
+    filters.status !== "all" ||
+    search ||
+    protocol
+  );
   const pageData = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, page, pageSize]);
+    return filtered.slice((currentPage - 1) * size, currentPage * size);
+  }, [filtered, currentPage, size]);
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
@@ -185,34 +227,151 @@ export default function PeersListPage() {
           </div>
         </section>
 
-        <PeersFilterBar
-          filters={filters}
-          search={search}
-          userAgents={userAgents}
-          total={peers.length}
-          filteredTotal={total}
-          onFiltersChange={handleFiltersChange}
-          onSearchChange={handleSearchChange}
-          onClear={handleClearFilters}
-        />
-
-        <PeersTable
-          rows={pageData}
-          busy={isFetching}
-          emptyMessage="No peers found."
-        />
-        {total > 0 && (
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            pageCount={Math.ceil(total / pageSize)}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
+        <section aria-label="Peer list" className="relative z-10 min-w-0">
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            {allPeers && hasFilters && (
+              <span className="text-sm text-muted-foreground">
+                {formatNumber(total)} {total === 1 ? "peer" : "peers"}
+              </span>
+            )}
+            {(
+              [
+                ["Peer address", search, () => handleSearchChange("")],
+                [
+                  "Protocol version",
+                  protocol,
+                  () => {
+                    setProtocol("");
+                    setPage(1);
+                  },
+                ],
+                [
+                  "Status",
+                  filters.status === "all"
+                    ? ""
+                    : filters.status === "available"
+                      ? "Available"
+                      : "Unavailable",
+                  () => handleFiltersChange({ ...filters, status: "all" }),
+                ],
+                [
+                  "User agent",
+                  agentOptions.find(
+                    (option) => option.value === filters.userAgent,
+                  )?.label ?? filters.userAgent,
+                  () => handleFiltersChange({ ...filters, userAgent: null }),
+                ],
+                [
+                  "Country",
+                  filters.country === "unknown"
+                    ? "Unknown"
+                    : filters.country
+                      ? countryName(filters.country)
+                      : "",
+                  () => handleCountryChange(null),
+                ],
+              ] as const
+            ).map(([label, value, clear]) =>
+              value ? (
+                <Badge
+                  key={label}
+                  asChild
+                  variant={
+                    label === "Status"
+                      ? filters.status === "available"
+                        ? "soft-success"
+                        : "soft-destructive"
+                      : "soft-accent"
+                  }
+                >
+                  <button
+                    type="button"
+                    aria-label={`Remove filter: ${label}, ${value}`}
+                    onClick={clear}
+                  >
+                    <span className="max-w-48 truncate">
+                      {label}: {value}
+                    </span>
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </Badge>
+              ) : null,
+            )}
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="text-xs text-accent hover:underline"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+          {isError && (
+            <p role="alert" className="mb-2 text-sm text-destructive">
+              {allPeers ? "Could not refresh peers." : "Could not load peers."}{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={() => void refetch()}
+              >
+                Try again
+              </button>
+            </p>
+          )}
+          <PeersTable
+            search={search}
+            onSearchChange={handleSearchChange}
+            protocol={protocol}
+            onProtocolChange={(value) => {
+              setProtocol(value);
               setPage(1);
             }}
+            status={filters.status}
+            onStatusChange={(status) =>
+              handleFiltersChange({ ...filters, status })
+            }
+            country={filters.country}
+            userAgent={filters.userAgent}
+            countryPicker={countries.map(({ code, name, nodes }) => ({
+              value: code,
+              label: name,
+              count: nodes.length,
+            }))}
+            agentPicker={agentOptions}
+            onCountryChange={handleCountryChange}
+            onAgentChange={(userAgent) =>
+              handleFiltersChange({ ...filters, userAgent })
+            }
+            rows={pageData}
+            busy={isFetching}
+            emptyMessage={
+              isError && !allPeers
+                ? "Peers unavailable."
+                : hasFilters
+                  ? "No matching peers."
+                  : "No peers reported."
+            }
           />
-        )}
+          {total > 0 && (
+            <nav
+              aria-label="Peer list pagination"
+              className="mt-2 rounded-xl border border-border bg-card [&>div]:py-2"
+            >
+              <Pagination
+                align="end"
+                page={currentPage}
+                pageCount={pageCount}
+                pageSize={size}
+                onPageChange={setPage}
+                onPageSizeChange={(next) => {
+                  setPageSize(next);
+                  setPage(1);
+                }}
+              />
+            </nav>
+          )}
+        </section>
         <p className="text-xs text-muted-foreground">
           IP geolocation:{" "}
           <a className="underline" href="https://db-ip.com/">

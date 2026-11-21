@@ -3,8 +3,22 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { ChevronDown } from "lucide-react";
+import { createContext, useContext } from "react";
 import { countryFlagEmoji } from "@/components/explorer/geo/iso-codes";
+import {
+  PeerColumnPicker,
+  type PeerStatusFilter,
+} from "@/components/explorer/peers-filter-bar";
 import { Badge } from "@/components/explorer/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
@@ -21,6 +35,118 @@ import { peerClientLabel } from "@/themes/dash/lib/network-metrics";
 import { BlockAge } from "./block-age";
 import { CopyButton } from "./copy-button";
 import { DataTable } from "./data-table";
+
+type FilterControls = {
+  countryPicker: React.ComponentProps<typeof PeerColumnPicker>["options"];
+  agentPicker: React.ComponentProps<typeof PeerColumnPicker>["options"];
+  country: string | null;
+  userAgent: string | null;
+  onCountryChange: (value: string | null) => void;
+  onAgentChange: (value: string | null) => void;
+  search: string;
+  onSearchChange: (value: string) => void;
+  protocol: string;
+  onProtocolChange: (value: string) => void;
+  status: PeerStatusFilter;
+  onStatusChange: (status: PeerStatusFilter) => void;
+};
+const FilterContext = createContext<FilterControls | null>(null);
+const triggerClass =
+  "inline-flex items-center gap-1 rounded-md px-1 hover:bg-action-subtle hover:text-accent focus-visible:outline-2 focus-visible:outline-ring data-[active=true]:text-accent";
+
+function SearchHeader({ protocol = false }: { protocol?: boolean }) {
+  const control = useContext(FilterContext);
+  const label = protocol ? "Protocol version" : "Peer address";
+  if (!control) return label;
+  const value = protocol ? control.protocol : control.search;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={triggerClass}
+          data-active={!!value}
+          aria-label={`Filter: ${label}`}
+        >
+          {label}
+          <ChevronDown aria-hidden="true" className="size-3" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 rounded-xl p-2">
+        <Input
+          type="search"
+          inputMode={protocol ? "numeric" : "search"}
+          value={value}
+          aria-label={`Search ${label}`}
+          placeholder={protocol ? "Protocol version…" : "Address or location…"}
+          onChange={(event) =>
+            (protocol ? control.onProtocolChange : control.onSearchChange)(
+              event.target.value,
+            )
+          }
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ChoiceHeader({ country = false }: { country?: boolean }) {
+  const control = useContext(FilterContext);
+  const label = country ? "Country" : "User agent";
+  if (!control) return label;
+  return (
+    <PeerColumnPicker
+      label={label}
+      plural={country ? "countries" : "user agents"}
+      className={triggerClass}
+      value={country ? control.country : control.userAgent}
+      options={country ? control.countryPicker : control.agentPicker}
+      onChange={country ? control.onCountryChange : control.onAgentChange}
+    />
+  );
+}
+
+function StatusHeader() {
+  const control = useContext(FilterContext);
+  if (!control) return "Status";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Filter by status: ${control.status}`}
+          className={triggerClass}
+          data-active={control.status !== "all"}
+        >
+          Status <ChevronDown aria-hidden="true" className="size-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="rounded-xl">
+        <DropdownMenuRadioGroup
+          value={control.status}
+          onValueChange={(value) => {
+            if (
+              value === "all" ||
+              value === "available" ||
+              value === "unavailable"
+            )
+              control.onStatusChange(value);
+          }}
+        >
+          <DropdownMenuRadioItem value="all">
+            All statuses
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="available">
+            <Badge variant="soft-success">Available</Badge>
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="unavailable">
+            <Badge variant="soft-destructive">Unavailable</Badge>
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 const regionNames = new Intl.DisplayNames("en", {
   type: "region",
@@ -72,12 +198,12 @@ function PeerCountry({ geo }: { geo: ApiPeer["geo"] }) {
 const columns: ColumnDef<ApiPeer>[] = [
   {
     id: "country",
-    header: "Country",
+    header: () => <ChoiceHeader country />,
     cell: ({ row }) => <PeerCountry geo={row.original.geo} />,
   },
   {
     accessorKey: "address",
-    header: "Peer address",
+    header: () => <SearchHeader />,
     cell: function AddressCell({ row: { original: peer } }) {
       const suffix = `:${peer.port}`;
       const hasPort =
@@ -98,7 +224,7 @@ const columns: ColumnDef<ApiPeer>[] = [
   },
   {
     accessorKey: "available",
-    header: "Status",
+    header: StatusHeader,
     cell: ({ row: { original: peer } }) => (
       <Badge variant={peer.available ? "soft-success" : "soft-destructive"}>
         {peer.available ? "Available" : "Unavailable"}
@@ -107,7 +233,7 @@ const columns: ColumnDef<ApiPeer>[] = [
   },
   {
     accessorKey: "userAgent",
-    header: "User agent",
+    header: () => <ChoiceHeader />,
     cell: ({ row: { original: peer } }) =>
       peer.userAgent ? (
         <Tooltip>
@@ -129,7 +255,7 @@ const columns: ColumnDef<ApiPeer>[] = [
   },
   {
     accessorKey: "protocolVersion",
-    header: "Protocol version",
+    header: () => <SearchHeader protocol />,
     cell: ({ row: { original: peer } }) => (
       <Popover>
         <PopoverTrigger asChild>
@@ -181,7 +307,8 @@ export function PeersTable({
   rows,
   busy,
   emptyMessage,
-}: {
+  ...controls
+}: FilterControls & {
   rows: ApiPeer[];
   busy: boolean;
   emptyMessage: string;
@@ -193,18 +320,20 @@ export function PeersTable({
     getRowId: (peer) => peer.address,
   });
   return (
-    <div className="overflow-x-auto">
-      <DataTable
-        table={table}
-        variant="plain"
-        growColumn="address"
-        caption="Network peers"
-        isFetching={busy}
-        isEmpty={!rows.length}
-        skeletonWidths={["w-24", "w-40", "w-20", "w-32", "w-16", "w-16"]}
-        emptyMessage={emptyMessage}
-        className="min-w-[680px] text-sm font-medium leading-5 [&_tr>*]:border-y [&_tr>*]:border-border [&_tr>*]:bg-card [&_tr>:first-child]:rounded-l-xl [&_tr>:first-child]:border-l [&_tr>:last-child]:rounded-r-xl [&_tr>:last-child]:border-r [&_th]:py-3 [&_th]:font-semibold [&_[data-column=protocolVersion]]:text-right [&_[data-column=lastSeen]]:text-right [&_td]:tabular-nums [&_tr:focus-within_td]:bg-surface-subtle hover:[&_tbody_tr:hover_td]:bg-surface-subtle"
-      />
-    </div>
+    <FilterContext.Provider value={controls}>
+      <div className="overflow-x-auto">
+        <DataTable
+          table={table}
+          variant="plain"
+          growColumn="address"
+          caption="Network peers"
+          isFetching={busy}
+          isEmpty={!rows.length}
+          skeletonWidths={["w-24", "w-40", "w-20", "w-32", "w-16", "w-16"]}
+          emptyMessage={emptyMessage}
+          className="min-w-[680px] text-sm font-medium leading-5 [&_tr>*]:border-y [&_tr>*]:border-border [&_tr>*]:bg-card [&_tr>:first-child]:rounded-l-xl [&_tr>:first-child]:border-l [&_tr>:last-child]:rounded-r-xl [&_tr>:last-child]:border-r [&_th]:py-3 [&_th]:font-semibold [&_[data-column=protocolVersion]]:text-right [&_[data-column=lastSeen]]:text-right [&_td]:tabular-nums [&_tr:focus-within_td]:bg-surface-subtle hover:[&_tbody_tr:hover_td]:bg-surface-subtle"
+        />
+      </div>
+    </FilterContext.Provider>
   );
 }
