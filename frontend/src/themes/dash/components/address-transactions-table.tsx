@@ -11,12 +11,6 @@ import {
 } from "@tanstack/react-table";
 import { X } from "lucide-react";
 import { useCallback, useId, useMemo, useState } from "react";
-import { RelativeTime } from "@/components/relative-time";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   addressTransactionsInfiniteQueryOptions,
   addressTransactionsQueryOptions,
@@ -24,21 +18,19 @@ import {
 import { searchQueryOptions } from "@/lib/api/search";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import type { ApiTransaction } from "@/lib/api/types";
-import { formatDateTime } from "@/lib/format";
 import type { PageSize } from "@/lib/pagination";
 import type { Network } from "@/lib/store";
 import {
   type TableViewMode,
   useTableViewMode,
 } from "@/lib/use-table-view-mode";
-import {
-  metricBytes,
-  metricDuffs,
-  metricNumber,
-} from "@/themes/dash/lib/home-metrics";
+import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
+import { BlockAge } from "./block-age";
 import { ColumnSearch } from "./column-search";
 import { DataTable } from "./data-table";
+import { FormattedAmount } from "./formatted-amount";
 import { IdentifierLink } from "./identifier-link";
+import { InfoPopover } from "./info-popover";
 import { LoadMore } from "./load-more";
 import { Pagination } from "./pagination";
 import { TransactionTypeBadge } from "./transaction-type-badge";
@@ -92,22 +84,25 @@ function transactionColumns(address: string): ColumnDef<ApiTransaction>[] {
       cell: ({ row }) => <TransactionTypeBadge type={row.original.type} />,
     },
     {
-      accessorKey: "size",
-      header: "Size",
-      cell: ({ row }) => metricBytes(row.original.size),
-    },
-    {
       id: "amount",
-      header: "Net change (DASH)",
+      header: () => (
+        <InfoPopover label="Net change (DASH)" trigger="Net change (DASH)">
+          Outputs received minus inputs spent by this address, in DASH.
+        </InfoPopover>
+      ),
       cell: ({ row }) => {
         const value = netChange(row.original, address);
         if (value == null) return "—";
         return (
-          <span
-            className={`tabular-nums ${value > 0 ? "text-success" : value < 0 ? "text-destructive" : ""}`}
-          >
-            {value > 0 ? "+" : value < 0 ? "−" : ""}
-            {metricDuffs(Math.abs(value))}
+          <span className="inline-flex items-baseline tabular-nums">
+            <span
+              className={
+                value > 0 ? "text-success" : value < 0 ? "text-destructive" : ""
+              }
+            >
+              {value > 0 ? "+" : value < 0 ? "−" : ""}
+            </span>
+            <FormattedAmount value={metricDuffs(Math.abs(value))} />
           </span>
         );
       },
@@ -122,24 +117,13 @@ function transactionColumns(address: string): ColumnDef<ApiTransaction>[] {
       header: "Timestamp",
       cell: ({ row }) => {
         const timestamp = row.original.timestamp;
-        if (!timestamp || !Number.isFinite(Date.parse(timestamp))) return "—";
+        if (!timestamp || !Number.isFinite(Date.parse(timestamp)))
+          return row.original.confirmations === 0 ? "Pending" : "—";
         return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label={formatDateTime(new Date(timestamp))}
-                className="inline-block min-w-24 whitespace-nowrap text-right text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                <time dateTime={timestamp}>
-                  <RelativeTime timestamp={timestamp} />
-                </time>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {formatDateTime(new Date(timestamp))}
-            </TooltipContent>
-          </Tooltip>
+          <BlockAge
+            timestamp={timestamp}
+            blockHeight={row.original.blockHeight}
+          />
         );
       },
     },
@@ -318,7 +302,7 @@ export function AddressTransactionsTable({
             </button>
           </div>
         )}
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <DataTable
           table={table}
           isFetching={activeQuery.isFetching}
@@ -327,7 +311,7 @@ export function AddressTransactionsTable({
           growColumn="hash"
           caption={`Transactions for address ${address}`}
           skeletonRows={searching ? 1 : limit}
-          skeletonWidths={["w-52", "w-24", "w-16", "w-28", "w-16", "w-24"]}
+          skeletonWidths={["w-52", "w-24", "w-28", "w-16", "w-24"]}
           emptyMessage={
             activeQuery.isError
               ? ""
@@ -335,7 +319,7 @@ export function AddressTransactionsTable({
                 ? "No matching transaction for this address."
                 : "No transactions on this page."
           }
-          className="min-w-[940px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_[data-column]:not([data-column=hash]):not([data-column=type])]:text-right [&_td]:tabular-nums"
+          className="min-w-[800px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-surface-subtle [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_[data-column]:not([data-column=hash]):not([data-column=type])]:text-right [&_td]:h-12 [&_td]:tabular-nums"
         />
       </div>
       {!searching && isInfinite && hasMore && (
