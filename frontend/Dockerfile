@@ -1,30 +1,27 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 
-# vite.config.ts inlines these via `define`, so they are baked in at build time
-# and cannot be changed by the runtime environment.
+COPY package.json package-lock.json ./
+RUN npm install --global npm@11.19.0 && npm ci
+
+COPY tsconfig.json vite.config.ts ./
+COPY src ./src
+COPY public ./public
+
 ARG DASHSCAN_API_URL
-ARG NETWORK
+ARG NETWORK=testnet
 ENV DASHSCAN_API_URL=$DASHSCAN_API_URL
 ENV NETWORK=$NETWORK
 
-COPY yarn.lock /app/yarn.lock
-COPY package.json /app/package.json
-COPY tsconfig.json /app/tsconfig.json
-COPY vite.config.ts /app/vite.config.ts
-COPY src /app/src
-COPY public /app/public
-
-RUN yarn
-RUN yarn build
+RUN npm run build
 
 FROM node:24-alpine AS frontend
 WORKDIR /app
 ENV NODE_ENV=production
+ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# The nitro node-server output is fully bundled, so no node_modules is needed.
-COPY --from=build /app/.output /app/.output
-
+COPY --from=build --chown=node:node /app/.output ./.output
+USER node
 EXPOSE 3000
 CMD ["node", ".output/server/index.mjs"]

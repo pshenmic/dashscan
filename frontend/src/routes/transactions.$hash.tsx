@@ -3,9 +3,7 @@ import { lazy, Suspense } from "react";
 import { transactionQueryOptions } from "@/lib/api/transactions";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
-import RedesignTransactionDetailPage from "@/themes/neo/pages/transaction-detail";
 
 const ClassicTransactionDetailPage = lazy(
   () => import("@/themes/dash/pages/transaction-detail"),
@@ -35,9 +33,7 @@ export const Route = createFileRoute("/transactions/$hash")({
 });
 
 function TransactionDetailRoute() {
-  const theme = useActiveTheme();
   const { hash } = Route.useParams();
-  if (theme === "neo") return <RedesignTransactionDetailPage hash={hash} />;
   return (
     <Suspense fallback={<LazyThemePageFallback />}>
       <ClassicTransactionDetailPage hash={hash} />
