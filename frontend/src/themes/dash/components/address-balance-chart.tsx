@@ -34,6 +34,8 @@ export function AddressBalanceChart({
     }),
     enabled: hydrated,
     staleTime: 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
   const points = (query.data ?? [])
     .flatMap((point) => {
