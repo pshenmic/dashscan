@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import { CircleCheck, Network, Server, ServerCrash } from "lucide-react";
+import { CircleCheck, Server, ServerCrash } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import {
   DataTable,
@@ -11,7 +11,6 @@ import {
   countryName,
   formatLocation,
 } from "@/components/explorer/geo/iso-codes";
-import { PeersDistribution } from "@/components/explorer/peers-distribution";
 import {
   EMPTY_PEER_FILTERS,
   type PeerFilters,
@@ -19,13 +18,6 @@ import {
 } from "@/components/explorer/peers-filter-bar";
 import { PeersMap } from "@/components/explorer/peers-map";
 import { Badge } from "@/components/explorer/ui/badge";
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/explorer/ui/card";
 import { RelativeTime } from "@/components/relative-time";
 import {
   type ApiPeer,
@@ -33,7 +25,7 @@ import {
   derivePeerUserAgents,
   peerUserAgentsQueryOptions,
 } from "@/lib/api/peers";
-import { formatCompact, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
 
 const PAGINATION_PAGE_SIZE = 10;
@@ -199,72 +191,36 @@ export default function PeersListPage() {
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-6">
-        <header className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Peers
+      <div className="isolate flex flex-col gap-6">
+        <header className="relative z-10 grid w-full max-w-56 grid-cols-1 gap-2">
+          <h1 className="dash-heading-page mb-1 flex items-baseline gap-[0.25em] sm:dash-heading-hero">
+            <span className="font-extrabold text-brand">Peers</span>{" "}
+            <span className="tabular-nums">
+              {allPeers ? formatNumber(stats.total) : "—"}
+            </span>
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Peer-to-peer nodes discovered by the network crawler.
-          </p>
+          {(["available", "unavailable"] as const).map((status) => (
+            <button
+              key={status}
+              type="button"
+              aria-pressed={filters.status === status}
+              onClick={() =>
+                handleFiltersChange({
+                  ...filters,
+                  status: filters.status === status ? "all" : status,
+                })
+              }
+              className="flex h-9 w-full items-center justify-between rounded-xl border border-border bg-card px-3 text-sm shadow-xs hover:border-accent focus-visible:outline-2 focus-visible:outline-ring aria-pressed:border-accent aria-pressed:ring-1 aria-pressed:ring-accent"
+            >
+              {status === "available" ? "Available" : "Unavailable"}{" "}
+              <span
+                className={`rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${!allPeers ? "bg-secondary text-muted-foreground" : status === "available" ? "bg-positive-brand/12 text-success" : "bg-destructive/12 text-destructive"}`}
+              >
+                {allPeers ? formatNumber(stats[status]) : "—"}
+              </span>
+            </button>
+          ))}
         </header>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardDescription>Total Peers</CardDescription>
-              <CardTitle className="text-2xl tabular-nums text-accent">
-                {stats.total > 0 ? formatCompact(stats.total) : "—"}
-              </CardTitle>
-              <CardAction>
-                <div className="flex size-9 items-center justify-center rounded-full bg-accent/12 [&_svg]:text-accent">
-                  <Network className="size-4" />
-                </div>
-              </CardAction>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Available</CardDescription>
-              <CardTitle className="text-2xl tabular-nums text-accent">
-                {stats.total > 0 ? formatNumber(stats.available) : "—"}
-              </CardTitle>
-              <CardAction>
-                <div className="flex size-9 items-center justify-center rounded-full bg-success/12 [&_svg]:text-success">
-                  <CircleCheck className="size-4" />
-                </div>
-              </CardAction>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Unavailable</CardDescription>
-              <CardTitle className="text-2xl tabular-nums text-accent">
-                {stats.total > 0 ? formatNumber(stats.unavailable) : "—"}
-              </CardTitle>
-              <CardAction>
-                <div className="flex size-9 items-center justify-center rounded-full bg-destructive/12 [&_svg]:text-destructive">
-                  <ServerCrash className="size-4" />
-                </div>
-              </CardAction>
-            </CardHeader>
-          </Card>
-        </div>
-
-        <PeersDistribution
-          total={stats.total}
-          available={stats.available}
-          userAgents={userAgents}
-          isLoading={isFetching && peers.length === 0}
-          status={filters.status}
-          userAgent={filters.userAgent}
-          onStatusChange={(status) =>
-            handleFiltersChange({ ...filters, status })
-          }
-          onUserAgentChange={(userAgent) =>
-            handleFiltersChange({ ...filters, userAgent })
-          }
-        />
 
         <PeersMap
           variant="page"
