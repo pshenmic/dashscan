@@ -16,7 +16,8 @@ import {
   type PeerFilters,
   PeersFilterBar,
 } from "@/components/explorer/peers-filter-bar";
-import { PeersMap } from "@/components/explorer/peers-map";
+import { HomeNodeMap } from "@/themes/dash/components/home-masternode-map";
+import { peerCountries, peerLocation } from "@/themes/dash/lib/network-metrics";
 import { Badge } from "@/components/explorer/ui/badge";
 import { RelativeTime } from "@/components/relative-time";
 import {
@@ -31,6 +32,7 @@ import { appStore } from "@/lib/store";
 const PAGINATION_PAGE_SIZE = 10;
 
 const EMPTY_PEERS: ApiPeer[] = [];
+const peerId = (peer: ApiPeer) => peer.address;
 
 function searchHaystack(peer: ApiPeer): string {
   return [
@@ -148,14 +150,12 @@ export default function PeersListPage() {
     [peers],
   );
 
-  const filtered = useMemo(() => {
+  const mapPeers = useMemo(() => {
     const q = search.trim().toLowerCase();
     const out: ApiPeer[] = [];
     for (const { peer, haystack } of searchable) {
       if (filters.status === "available" && !peer.available) continue;
       if (filters.status === "unavailable" && peer.available) continue;
-      if (filters.country && peer.geo?.countryCode !== filters.country)
-        continue;
       if (filters.userAgent && peer.userAgent !== filters.userAgent) continue;
       if (filters.ip && peer.host !== filters.ip) continue;
       if (q && !haystack.includes(q)) continue;
@@ -163,6 +163,16 @@ export default function PeersListPage() {
     }
     return out;
   }, [searchable, search, filters]);
+
+  const countries = useMemo(() => peerCountries(mapPeers), [mapPeers]);
+  const filtered = filters.country
+    ? (countries.find(({ code }) => code === filters.country)?.nodes ??
+      EMPTY_PEERS)
+    : mapPeers;
+  const selectedIds = useMemo(
+    () => (filters.country ? new Set(filtered.map(peerId)) : null),
+    [filtered, filters.country],
+  );
 
   const total = filtered.length;
 
@@ -222,16 +232,37 @@ export default function PeersListPage() {
           ))}
         </header>
 
-        <PeersMap
-          variant="page"
-          filteredPeers={filtered}
-          selectedCountry={filters.country}
-          onSelectCountry={handleCountryChange}
-          statusFilter={filters.status}
-          onStatusFilterChange={(status) =>
-            handleFiltersChange({ ...filters, status })
-          }
-        />
+        <section
+          aria-label="Peer locations"
+          className="relative overflow-x-clip overflow-y-visible"
+        >
+          <div className="relative h-[207px]">
+            <div className="absolute inset-0 [&_fieldset>svg]:overflow-visible">
+              {mapPeers.some(peerLocation) ? (
+                <HomeNodeMap
+                  key={network}
+                  nodes={mapPeers}
+                  selectedHashes={selectedIds}
+                  label="peers"
+                  getId={peerId}
+                  getLocation={peerLocation}
+                  getCountries={peerCountries}
+                  onSelectCountry={(code) =>
+                    handleCountryChange(code === filters.country ? null : code)
+                  }
+                />
+              ) : (
+                <p className="grid h-full place-items-center text-sm text-muted-foreground">
+                  {allPeers
+                    ? "No peer locations"
+                    : isFetching
+                      ? "Loading peers…"
+                      : "Map unavailable"}
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
 
         <PeersFilterBar
           filters={filters}
@@ -262,6 +293,19 @@ export default function PeersListPage() {
             },
           }}
         />
+        <p className="text-xs text-muted-foreground">
+          IP geolocation:{" "}
+          <a className="underline" href="https://db-ip.com/">
+            DB-IP
+          </a>
+          {" · "}
+          <a
+            className="underline"
+            href="https://creativecommons.org/licenses/by/4.0/"
+          >
+            CC BY 4.0
+          </a>
+        </p>
       </div>
     </div>
   );
