@@ -1,24 +1,31 @@
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useClockValue } from "@/components/render-clock";
+import { chainHistoryQueryOptions } from "@/lib/api/stats";
 import type { Network } from "@/lib/store";
-import {
-  snapshotChange,
-  useHomeChainHistory,
-} from "@/themes/dash/lib/home-history";
+import { snapshotChange } from "@/themes/dash/lib/home-history";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { ChainHistoryChart } from "./chain-history-chart";
+import { ChartDateRange, type ChartPeriod } from "./chart-date-range";
 import { InfoPopover } from "./info-popover";
 import { SkeletonBar } from "./skeleton";
 
+const DAY_MS = 86_400_000;
+
 export function MasternodesOverview({ network }: { network: Network }) {
-  const [days, setDays] = useState(30);
-  const history = useHomeChainHistory(network, days + 1, days + 1);
+  const [period, setPeriod] = useState<ChartPeriod>({ days: 30 });
+  const { days } = period;
+  const today = useClockValue((now) => Math.floor(now / DAY_MS) * DAY_MS);
+  const end = period.end ?? today;
+  const start = end - days * DAY_MS;
+  const history = useQuery(
+    chainHistoryQueryOptions({
+      network,
+      timestampStart: new Date(start - DAY_MS).toISOString(),
+      timestampEnd: new Date(end).toISOString(),
+      intervalsCount: days === 1 ? 48 : days + 1,
+    }),
+  );
   const combined = useMemo(
     () =>
       history.data?.map((entry) => ({
@@ -34,64 +41,51 @@ export function MasternodesOverview({ network }: { network: Network }) {
     [history.data],
   );
   const change = snapshotChange(combined, "masternodes", days);
+  const visible = combined?.filter(
+    (entry) => Date.parse(entry.timestamp) >= start,
+  );
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <section className="flex min-h-[310px] flex-1 flex-col rounded-3xl bg-card p-4 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-medium">
-                <InfoPopover
-                  label="About masternode history"
-                  trigger="Masternode growth"
-                >
-                  Regular masternodes and Evonodes across all statuses. History
-                  uses network snapshots, not indexer registration dates.
-                  Missing snapshots are not zero.
-                </InfoPopover>
-              </h2>
-            </div>
-            {change != null && (
-              <p className="mt-1 text-xs text-accent">
-                {change > 0 ? "+" : ""}
-                {metricNumber(change)}% · {days}D
-              </p>
-            )}
-          </div>
-          <Select
-            value={String(days)}
-            onValueChange={(value) => setDays(Number(value))}
-          >
-            <SelectTrigger
-              aria-label="History period"
-              className="w-32 rounded-full bg-action-subtle text-accent"
+    <section className="min-w-0 rounded-3xl dash-home-panel p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-base font-medium">
+            <InfoPopover
+              label="About masternode growth"
+              trigger="Masternode growth"
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent position="popper" className="rounded-xl">
-              <SelectItem value="7">7 days</SelectItem>
-              <SelectItem value="30">30 days</SelectItem>
-              <SelectItem value="90">90 days</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="mt-6 flex min-h-52 flex-1 items-end">
-          {history.isPending ? (
-            <SkeletonBar className="h-52 w-full" />
-          ) : (
-            <ChainHistoryChart
-              data={combined}
-              metric="masternodes"
-              label="Total masternode snapshot history"
-              formatValue={(value) => `${metricNumber(value, 0)} nodes`}
-              loading={false}
-              error={history.isError}
-              onRetry={() => void history.refetch()}
-              height={210}
-            />
+              Regular masternodes and Evonodes across all statuses. History uses
+              network snapshots, not indexer registration dates. Missing
+              snapshots are not zero.
+            </InfoPopover>
+          </h2>
+          {change != null && (
+            <span
+              className={`whitespace-nowrap rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${change > 0 ? "bg-positive-brand/12 text-success" : change < 0 ? "bg-destructive/12 text-destructive" : "bg-secondary text-muted-foreground"}`}
+            >
+              {change > 0 ? "+" : ""}
+              {metricNumber(change)}%
+            </span>
           )}
         </div>
-      </section>
-    </div>
+        <ChartDateRange value={period} today={today} onChange={setPeriod} />
+      </div>
+      <div className="mt-3 flex min-h-32 items-end">
+        {history.isPending ? (
+          <SkeletonBar className="h-32 w-full" />
+        ) : (
+          <ChainHistoryChart
+            data={visible}
+            metric="masternodes"
+            label="Total masternode snapshot history"
+            formatValue={(value) => `${metricNumber(value, 0)} nodes`}
+            loading={false}
+            error={history.isError}
+            onRetry={() => void history.refetch()}
+            height={128}
+            detailedAxis
+          />
+        )}
+      </div>
+    </section>
   );
 }
