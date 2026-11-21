@@ -16,7 +16,9 @@ import {
 } from "@/lib/api/peers";
 import { formatNumber } from "@/lib/format";
 import { appStore } from "@/lib/store";
+import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { HomeNodeMap } from "@/themes/dash/components/home-masternode-map";
+import { LoadMore } from "@/themes/dash/components/load-more";
 import { Pagination } from "@/themes/dash/components/pagination";
 import { PeersTable } from "@/themes/dash/components/peers-table";
 import {
@@ -44,6 +46,7 @@ export default function PeersListPage() {
   const network = useStore(appStore, (state) => state.network);
   const [search, setSearch] = useState("");
   const [protocol, setProtocol] = useState("");
+  const [mode, setMode] = useTableViewMode("dash-peers", "pagination");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
   const [filters, setFilters] = useState<PeerFilters>(EMPTY_PEER_FILTERS);
@@ -148,7 +151,8 @@ export default function PeersListPage() {
     setPage(1);
   }, []);
 
-  const size = pageSize;
+  const infinite = mode === "infinite";
+  const size = infinite ? 25 : pageSize;
   const pageCount = Math.max(1, Math.ceil(total / size));
   const currentPage = Math.min(page, pageCount);
   const hasFilters = !!(
@@ -159,8 +163,11 @@ export default function PeersListPage() {
     protocol
   );
   const pageData = useMemo(() => {
-    return filtered.slice((currentPage - 1) * size, currentPage * size);
-  }, [filtered, currentPage, size]);
+    return filtered.slice(
+      infinite ? 0 : (currentPage - 1) * size,
+      currentPage * size,
+    );
+  }, [filtered, infinite, currentPage, size]);
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
@@ -306,6 +313,25 @@ export default function PeersListPage() {
                 Clear filters
               </button>
             )}
+            <fieldset
+              aria-label="Loading mode"
+              className="ml-auto inline-flex rounded-xl bg-secondary p-1"
+            >
+              {(["pagination", "infinite"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={mode === value}
+                  onClick={() => {
+                    setMode(value);
+                    setPage(1);
+                  }}
+                  className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground aria-pressed:bg-card aria-pressed:text-accent focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  {value === "pagination" ? "Pages" : "Scroll"}
+                </button>
+              ))}
+            </fieldset>
           </div>
           {isError && (
             <p role="alert" className="mb-2 text-sm text-destructive">
@@ -353,24 +379,33 @@ export default function PeersListPage() {
                   : "No peers reported."
             }
           />
-          {total > 0 && (
-            <nav
-              aria-label="Peer list pagination"
-              className="mt-2 rounded-xl border border-border bg-card [&>div]:py-2"
-            >
-              <Pagination
-                align="end"
-                page={currentPage}
-                pageCount={pageCount}
-                pageSize={size}
-                onPageChange={setPage}
-                onPageSizeChange={(next) => {
-                  setPageSize(next);
-                  setPage(1);
-                }}
-              />
-            </nav>
-          )}
+          {total > 0 &&
+            (infinite ? (
+              currentPage < pageCount && (
+                <LoadMore
+                  loading={false}
+                  failed={false}
+                  onLoad={() => setPage(currentPage + 1)}
+                />
+              )
+            ) : (
+              <nav
+                aria-label="Peer list pagination"
+                className="mt-2 rounded-xl border border-border bg-card [&>div]:py-2"
+              >
+                <Pagination
+                  align="end"
+                  page={currentPage}
+                  pageCount={pageCount}
+                  pageSize={size}
+                  onPageChange={setPage}
+                  onPageSizeChange={(next) => {
+                    setPageSize(next);
+                    setPage(1);
+                  }}
+                />
+              </nav>
+            ))}
         </section>
         <p className="text-xs text-muted-foreground">
           IP geolocation:{" "}
