@@ -1,6 +1,6 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import type { Network } from "@/lib/store";
-import { getAddresses, getAddressesInfo } from "./addresses";
+import { getAddressesInfo, getRichList } from "./addresses";
 
 export interface AddressRankingEntry {
   address: string | null;
@@ -20,8 +20,26 @@ async function getRanking(
   page: number,
   signal: AbortSignal,
 ) {
-  const result = await getAddresses({ ...params, page }, signal);
-  const addresses = result.resultSet.flatMap((entry) =>
+  const batches = params.limit === 100 ? 2 : 1;
+  const batchSize = params.limit / batches;
+  const responses = await Promise.all(
+    Array.from({ length: batches }, (_, index) =>
+      getRichList(
+        {
+          ...params,
+          limit: batchSize + 1,
+          page: (page - 1) * batches + index + 1,
+        },
+        signal,
+      ),
+    ),
+  );
+  const entries = responses.flatMap((response) =>
+    response.resultSet.filter(
+      (entry) => entry.address && entry.address !== "others",
+    ),
+  );
+  const addresses = entries.flatMap((entry) =>
     entry.address ? [entry.address] : [],
   );
   const info = addresses.length
@@ -29,11 +47,10 @@ async function getRanking(
     : [];
   const byAddress = new Map(info.map((entry) => [entry.address, entry]));
   return {
-    ...result,
-    resultSet: result.resultSet.map(
+    pagination: { ...responses[0].pagination, page, limit: params.limit },
+    resultSet: entries.map(
       (entry): AddressRankingEntry => ({
-        address: entry.address,
-        balance: byAddress.get(entry.address)?.balance,
+        ...entry,
         txCount: byAddress.get(entry.address)?.txCount,
       }),
     ),
@@ -42,7 +59,7 @@ async function getRanking(
 
 export function addressRankingQueryOptions(params: RankingInput, page: number) {
   return queryOptions({
-    queryKey: ["address-list", params, page],
+    queryKey: ["address-balance-ranking", params, page],
     queryFn: ({ signal }) => getRanking(params, page, signal),
     staleTime: 60_000,
   });
@@ -50,7 +67,7 @@ export function addressRankingQueryOptions(params: RankingInput, page: number) {
 
 export function addressRankingInfiniteQueryOptions(params: RankingInput) {
   return infiniteQueryOptions({
-    queryKey: ["address-list-infinite", params],
+    queryKey: ["address-balance-ranking-infinite", params],
     queryFn: ({ pageParam, signal }) => getRanking(params, pageParam, signal),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
