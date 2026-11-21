@@ -1,16 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import { CircleCheck, Server, ServerCrash } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import {
-  DataTable,
-  type DataTableColumn,
-} from "@/components/explorer/data-table";
-import {
-  countryFlagEmoji,
-  countryName,
-  formatLocation,
-} from "@/components/explorer/geo/iso-codes";
+import { countryName } from "@/components/explorer/geo/iso-codes";
+import { PeersTable } from "@/themes/dash/components/peers-table";
+import { Pagination } from "@/themes/dash/components/pagination";
 import {
   EMPTY_PEER_FILTERS,
   type PeerFilters,
@@ -18,8 +11,6 @@ import {
 } from "@/components/explorer/peers-filter-bar";
 import { HomeNodeMap } from "@/themes/dash/components/home-masternode-map";
 import { peerCountries, peerLocation } from "@/themes/dash/lib/network-metrics";
-import { Badge } from "@/components/explorer/ui/badge";
-import { RelativeTime } from "@/components/relative-time";
 import {
   type ApiPeer,
   allPeersQueryOptions,
@@ -44,76 +35,6 @@ function searchHaystack(peer: ApiPeer): string {
     .join(" ")
     .toLowerCase();
 }
-
-const columns: DataTableColumn<ApiPeer>[] = [
-  {
-    id: "peer",
-    header: "Peer",
-    cell: (row) => (
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="text-base leading-none" aria-hidden="true">
-          {row.geo ? countryFlagEmoji(row.geo.countryCode) : "🌐"}
-        </span>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="inline-flex items-center gap-1.5 font-mono text-sm font-medium">
-            <Server className="size-3.5 text-muted-foreground" />
-            {row.address}
-          </span>
-          {row.geo && (
-            <span className="truncate text-[11px] text-muted-foreground">
-              {formatLocation(row.geo)}
-            </span>
-          )}
-        </div>
-      </div>
-    ),
-    width: 360,
-  },
-  {
-    id: "status",
-    header: "Status",
-    cell: (row) => (
-      <Badge variant={row.available ? "soft-success" : "soft-destructive"}>
-        {row.available ? (
-          <CircleCheck className="size-3" />
-        ) : (
-          <ServerCrash className="size-3" />
-        )}
-        {row.available ? "Available" : "Unavailable"}
-      </Badge>
-    ),
-  },
-  {
-    id: "agent",
-    header: "User Agent",
-    cell: (row) => (
-      <span className="truncate font-mono text-xs text-muted-foreground">
-        {row.userAgent || "—"}
-      </span>
-    ),
-    width: 220,
-  },
-  {
-    id: "version",
-    header: "Version",
-    align: "right",
-    cell: (row) => (
-      <span className="font-mono text-sm tabular-nums text-muted-foreground">
-        {row.protocolVersion ?? "—"}
-      </span>
-    ),
-  },
-  {
-    id: "lastseen",
-    header: "Last Seen",
-    align: "right",
-    cell: (row) => (
-      <span className="whitespace-nowrap text-sm text-muted-foreground">
-        {row.lastSeen ? <RelativeTime timestamp={row.lastSeen} /> : "—"}
-      </span>
-    ),
-  },
-];
 
 export default function PeersListPage() {
   const network = useStore(appStore, (state) => state.network);
@@ -275,24 +196,23 @@ export default function PeersListPage() {
           onClear={handleClearFilters}
         />
 
-        <DataTable
-          columns={columns}
-          data={pageData}
-          isLoading={isFetching && peers.length === 0}
-          rowKey={(row) => row.address}
-          emptyTitle="No peers"
-          emptyDescription="Try clearing one or more peer filters."
-          pagination={{
-            pageIndex: page,
-            pageSize,
-            total,
-            onPageChange: setPage,
-            onPageSizeChange: (size) => {
+        <PeersTable
+          rows={pageData}
+          busy={isFetching}
+          emptyMessage="No peers found."
+        />
+        {total > 0 && (
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            pageCount={Math.ceil(total / pageSize)}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
               setPageSize(size);
               setPage(1);
-            },
-          }}
-        />
+            }}
+          />
+        )}
         <p className="text-xs text-muted-foreground">
           IP geolocation:{" "}
           <a className="underline" href="https://db-ip.com/">

@@ -54,6 +54,11 @@ export function peerClient(userAgent: string | null) {
 }
 
 export type PeerFacet = "country" | "client" | "version";
+export function peerClientLabel(userAgent: string) {
+  const { name, version } = peerClient(userAgent);
+  return version === "Unknown" ? userAgent : `${name} ${version}`;
+}
+
 export type PeerSelection = { facet: PeerFacet; value: string | null };
 export type PeerEntry = { id: string; value: string; label: string };
 export type PeerGroup = { value: string; label: string; ids: string[] };
