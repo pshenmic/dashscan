@@ -5,20 +5,18 @@ import {
 } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import {
   addressRankingInfiniteQueryOptions,
   addressRankingQueryOptions,
 } from "@/lib/api/address-ranking";
-import { richListQueryOptions } from "@/lib/api/addresses";
 import { appStore } from "@/lib/store";
 import { useTableViewMode } from "@/lib/use-table-view-mode";
+import { useAddressUsdPrice } from "@/themes/dash/components/address-balance";
 import { AddressesOverview } from "@/themes/dash/components/addresses-overview";
 import { AddressesTable } from "@/themes/dash/components/addresses-table";
 import { LoadMore } from "@/themes/dash/components/load-more";
 import { Pagination } from "@/themes/dash/components/pagination";
-import { SkeletonBar } from "@/themes/dash/components/skeleton";
-import { metricNumber } from "@/themes/dash/lib/home-metrics";
 
 export default function AddressesPage() {
   const network = useStore(appStore, (state) => state.network);
@@ -26,8 +24,10 @@ export default function AddressesPage() {
 }
 
 function AddressList() {
+  const titleId = useId();
   const queryClient = useQueryClient();
   const network = useStore(appStore, (state) => state.network);
+  const usdPrice = useAddressUsdPrice(network);
   const search = useSearch({ from: "/addresses" });
   const navigate = useNavigate({ from: "/addresses" });
   const page = search.page ?? 1;
@@ -39,9 +39,6 @@ function AddressList() {
   );
   const mode = search.view ?? (page > 1 ? "pagination" : storedMode);
   const infinite = mode === "infinite";
-  const rich = useQuery(
-    richListQueryOptions({ network, page: 1, limit: 11, order: "desc" }),
-  );
   const params = {
     network,
     limit,
@@ -55,7 +52,11 @@ function AddressList() {
       const previousParams = previousQuery?.queryKey[1] as
         | typeof params
         | undefined;
-      return previousParams?.network === network ? previous : undefined;
+      return previousParams?.network === network &&
+        previousParams.order === order &&
+        previousParams.limit === limit
+        ? previous
+        : undefined;
     },
   });
   const scrolling = useInfiniteQuery({
@@ -110,26 +111,21 @@ function AddressList() {
     update({ view: next });
   };
   return (
-    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16">
-      <h1 className="text-3xl font-extrabold">Addresses</h1>
+    <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-12">
+      <h1 className="dash-heading-page sm:dash-heading-hero">
+        <span className="font-extrabold text-brand">Addresses</span> Stats
+      </h1>
       <AddressesOverview network={network} />
       <section
-        aria-label="Addresses"
+        aria-labelledby={titleId}
         className="min-w-0 rounded-3xl bg-card p-4 sm:p-6"
       >
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-          <h2 className="flex items-center gap-2 text-xl font-extrabold">
-            Addresses
-            {query.isPending && rows.length === 0 ? (
-              <SkeletonBar className="w-12" />
-            ) : (
-              <span
-                className="tabular-nums text-muted-foreground"
-                title="Loaded addresses"
-              >
-                {metricNumber(rows.length, 0)}
-              </span>
-            )}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+          <h2
+            id={titleId}
+            className="text-sm font-medium text-muted-foreground"
+          >
+            Addresses by balance
           </h2>
           <fieldset
             aria-label="Loading mode"
@@ -164,7 +160,9 @@ function AddressList() {
         )}
         <AddressesTable
           rows={rows}
-          totalAmountDuffs={rich.data?.utxoSummary?.totalAmountDuffs}
+          usdPrice={usdPrice}
+          order={order}
+          onOrderChange={(order) => update({ order })}
           busy={query.isFetching}
           emptyMessage={
             query.isError ? "Addresses unavailable" : "No addresses found."

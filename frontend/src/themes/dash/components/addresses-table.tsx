@@ -9,35 +9,31 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { AddressRankingEntry } from "@/lib/api/address-ranking";
-import { metricDuffs, metricNumber } from "@/themes/dash/lib/home-metrics";
+import { metricNumber } from "@/themes/dash/lib/home-metrics";
+import { AddressBalance } from "./address-balance";
 import { DataTable } from "./data-table";
 import { IdentifierLink } from "./identifier-link";
 
-function valueShare(
-  balance: string | null | undefined,
-  total: string | undefined,
-) {
-  if (!balance || !total || !/^\d+$/.test(balance) || !/^\d+$/.test(total))
-    return "—";
-  const amount = BigInt(balance);
-  const denominator = BigInt(total);
-  if (denominator <= 0n || amount > denominator) return "—";
-  if (amount === 0n) return "0%";
-  const scaled = (amount * 1_000_000n) / denominator;
-  return scaled === 0n
-    ? "<0.0001%"
-    : `${metricNumber(Number(scaled) / 10_000, 4)}%`;
+function valueShare(concentration: string | null | undefined) {
+  if (!concentration || !/^\d+(\.\d+)?$/.test(concentration)) return "—";
+  const value = Number(concentration);
+  if (!Number.isFinite(value) || value > 100) return "—";
+  return value > 0 && value < 0.01 ? "<0.01%" : `${metricNumber(value, 2)}%`;
 }
 
 export function AddressesTable({
   rows,
-  totalAmountDuffs,
+  usdPrice,
+  order,
+  onOrderChange,
   busy,
   emptyMessage,
   limit,
 }: {
   rows: AddressRankingEntry[];
-  totalAmountDuffs?: string;
+  usdPrice: number | null;
+  order: "asc" | "desc";
+  onOrderChange?: (next: "asc" | "desc") => void;
   busy: boolean;
   emptyMessage: string;
   limit: number;
@@ -55,20 +51,22 @@ export function AddressesTable({
     },
     {
       accessorKey: "balance",
-      header: "Balance (DASH)",
+      header: () =>
+        !onOrderChange ? (
+          "Balance (DASH)"
+        ) : (
+          <button
+            type="button"
+            className="rounded hover:text-accent focus-visible:outline-2 focus-visible:outline-ring"
+            aria-label={`Sort balance ${order === "desc" ? "lowest" : "highest"} first`}
+            onClick={() => onOrderChange(order === "desc" ? "asc" : "desc")}
+          >
+            Balance (DASH){" "}
+            <span aria-hidden="true">{order === "desc" ? "↓" : "↑"}</span>
+          </button>
+        ),
       cell: ({ row }) => (
-        <span className="font-medium tabular-nums text-accent">
-          {metricDuffs(row.original.balance, 8)}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "txCount",
-      header: "Transactions",
-      cell: ({ row }) => (
-        <span className="tabular-nums">
-          {metricNumber(row.original.txCount, 0)}
-        </span>
+        <AddressBalance balance={row.original.balance} usdPrice={usdPrice} />
       ),
     },
     {
@@ -80,26 +78,33 @@ export function AddressesTable({
               type="button"
               className="cursor-help rounded hover:underline focus-visible:outline-2 focus-visible:outline-ring"
             >
-              UTXO value share
+              UTXO share
             </button>
           </TooltipTrigger>
           <TooltipContent className="max-w-72 border bg-popover p-3 text-popover-foreground shadow-md">
-            Estimated address balance as a share of the network UTXO value.
-            Balances may include unconfirmed transactions; the network total is
-            a separate block snapshot.
+            Address balance as a percentage of the network’s total UTXO value.
           </TooltipContent>
         </Tooltip>
       ),
       cell: ({ row }) => (
-        <span className="tabular-nums">
-          {valueShare(row.original.balance, totalAmountDuffs)}
+        <span className="text-muted-foreground">
+          {valueShare(row.original.concentration)}
         </span>
       ),
+    },
+    {
+      accessorKey: "txCount",
+      header: "Transactions",
+      cell: ({ row }) => metricNumber(row.original.txCount, 0),
     },
   ];
   const table = useReactTable({
     data: rows,
     columns,
+    manualSorting: true,
+    state: {
+      sorting: onOrderChange ? [{ id: "balance", desc: order === "desc" }] : [],
+    },
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row, index) => row.address ?? String(index),
   });
@@ -107,10 +112,14 @@ export function AddressesTable({
     <div className="overflow-x-auto">
       <DataTable
         table={table}
-        variant="plain"
+        variant="lined"
         growColumn="address"
-        className="[&_th:not([data-column=address])]:text-right [&_td:not([data-column=address])]:text-right"
-        caption="Indexed addresses"
+        className="min-w-[640px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_a.dash-data-mono]:text-accent [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_[data-column]:not([data-column=address])]:text-right [&_td]:tabular-nums"
+        caption={
+          onOrderChange
+            ? "Addresses ranked by balance"
+            : "Address search result"
+        }
         isFetching={busy}
         isEmpty={rows.length === 0}
         emptyMessage={emptyMessage}
