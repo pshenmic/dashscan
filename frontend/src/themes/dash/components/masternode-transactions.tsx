@@ -27,6 +27,7 @@ import {
   metricNumber,
 } from "@/themes/dash/lib/home-metrics";
 import { BlockAge } from "./block-age";
+import { ColumnLabel } from "./column-label";
 import { DataTable } from "./data-table";
 import { IdentifierLink } from "./identifier-link";
 import { LoadMore } from "./load-more";
@@ -53,7 +54,12 @@ const columns: ColumnDef<ApiTransaction>[] = [
   },
   {
     accessorKey: "amount",
-    header: "Output total (DASH)",
+    header: () => (
+      <ColumnLabel
+        label="Output total (DASH)"
+        description="Sum of all transaction outputs, including change. This is not the masternode’s reward."
+      />
+    ),
     cell: ({ row }) => metricDuffs(row.original.amount),
   },
   {
@@ -63,8 +69,18 @@ const columns: ColumnDef<ApiTransaction>[] = [
   },
   {
     accessorKey: "timestamp",
-    header: "Timestamp",
-    cell: ({ row }) => <BlockAge timestamp={row.original.timestamp} />,
+    header: () => (
+      <ColumnLabel
+        label="Timestamp"
+        description="Time since the containing block was mined. Transactions in the same block share this time."
+      />
+    ),
+    cell: ({ row }) => (
+      <BlockAge
+        timestamp={row.original.timestamp}
+        blockHeight={row.original.blockHeight}
+      />
+    ),
   },
 ];
 
@@ -147,7 +163,10 @@ export function MasternodeTransactions({
           id={titleId}
           className="flex items-center gap-2 text-xl font-extrabold"
         >
-          Related transactions
+          <ColumnLabel
+            label="Related transactions"
+            description="Transactions involving the masternode’s current owner, voting, collateral or payout addresses."
+          />
           {total != null && total >= 0 && (
             <span className="tabular-nums text-muted-foreground">
               {metricNumber(total, 0)}
@@ -198,7 +217,7 @@ export function MasternodeTransactions({
               ? "Transactions unavailable"
               : "No related transactions on this page."
           }
-          className="min-w-[850px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_td]:tabular-nums"
+          className="min-w-[520px] text-sm font-medium leading-5 [&_.dash-data-mono]:text-[13px] [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_td]:tabular-nums [&_:is(th,td):nth-child(n+3)]:text-right max-lg:[&_:is(th,td):nth-child(3)]:hidden max-lg:[&_:is(th,td):nth-child(5)]:hidden lg:[&_td:not([data-grow])]:w-auto lg:[&_th:first-child]:w-[45%]"
         />
       </div>
       {isInfinite && infinite.hasNextPage && (
