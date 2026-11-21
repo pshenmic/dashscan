@@ -46,19 +46,19 @@ export default function AddressDetailPage({
   }
   return (
     <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16">
-      <div className="group flex min-w-0 items-center gap-3">
-        <h1 className="dash-heading-page min-w-0 break-words">
-          <span className="text-muted-foreground">Address </span>
-          <span className="break-all">{address}</span>
+      <header className="group flex min-w-0 items-center gap-2">
+        <h1 className="dash-heading-page flex min-w-0 flex-wrap items-baseline gap-x-[0.25em] xl:dash-heading-hero">
+          <span className="shrink-0 text-accent">Address</span>
+          <span className="min-w-0 break-all">{address}</span>
         </h1>
-        <CopyButton value={address} />
-      </div>
+        <CopyButton value={address} label="Copy address" />
+      </header>
       {query.isError && (
         <output className="block text-sm text-muted-foreground">
           Address updates are unavailable. Showing the last loaded data.
         </output>
       )}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,600fr)_minmax(0,760fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <AddressOverview detail={detail} />
         <AddressBalanceChart
           key={`${network}:${address}`}
@@ -87,24 +87,30 @@ function AddressSkeleton() {
     >
       <output className="sr-only">Loading address…</output>
       <SkeletonBar className="h-10 w-full max-w-3xl" />
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,600fr)_minmax(0,760fr)]">
-        <div className="space-y-6 rounded-3xl bg-card p-6">
-          <div className="grid grid-cols-2 gap-4">
-            {["balance", "received", "transactions", "sent"].map((field) => (
-              <SkeletonBar key={field} className="h-24 w-full rounded-3xl" />
-            ))}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <div className="isolate grid min-w-0 gap-4 sm:gap-0">
+          <div className="rounded-3xl border border-border bg-card p-4 sm:row-start-2 sm:mr-6 sm:-mt-4 sm:px-5 sm:py-8">
+            <SkeletonBar className="h-6 w-24" />
+            <SkeletonBar className="mt-1 h-9 w-64 max-w-full" />
+            <div className="mt-3 grid gap-2 border-t border-border pt-3">
+              <SkeletonBar className="h-5 w-full" />
+              <SkeletonBar className="h-5 w-full" />
+            </div>
           </div>
           {["first", "last"].map((field) => (
-            <div key={field} className="space-y-2">
+            <div
+              key={field}
+              className={`relative z-10 min-w-0 space-y-2 rounded-2xl border border-border bg-card p-4 sm:w-[85%] ${field === "first" ? "sm:row-start-1 sm:justify-self-end" : "sm:row-start-3 sm:-mt-4 sm:justify-self-center"}`}
+            >
               <SkeletonBar className="w-32" />
               <SkeletonBar className="w-full" />
-              <SkeletonBar className="w-56" />
+              <SkeletonBar className="w-56 max-w-full" />
             </div>
           ))}
         </div>
-        <div className="space-y-6 rounded-3xl bg-card p-6">
-          <SkeletonBar className="h-16 w-56" />
-          <SkeletonBar className="h-64 w-full" />
+        <div className="space-y-4 rounded-3xl border border-border bg-card p-4 sm:p-5 lg:self-center">
+          <SkeletonBar className="h-8 w-56 max-w-full" />
+          <SkeletonBar className="h-48 w-full" />
         </div>
       </div>
       <div className="space-y-4 rounded-3xl bg-card p-6">
