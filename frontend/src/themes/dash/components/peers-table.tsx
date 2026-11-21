@@ -31,12 +31,16 @@ import {
 } from "@/components/ui/tooltip";
 import { type ApiPeer, decodeServices } from "@/lib/api/peers";
 import { formatDateTime, formatNumber } from "@/lib/format";
-import { peerClientLabel } from "@/themes/dash/lib/network-metrics";
+import {
+  peerClientLabel,
+  peerLocation,
+} from "@/themes/dash/lib/network-metrics";
 import { BlockAge } from "./block-age";
 import { CopyButton } from "./copy-button";
 import { DataTable } from "./data-table";
 
 type FilterControls = {
+  onLocate: (peer: ApiPeer) => void;
   countryPicker: React.ComponentProps<typeof PeerColumnPicker>["options"];
   agentPicker: React.ComponentProps<typeof PeerColumnPicker>["options"];
   country: string | null;
@@ -205,6 +209,7 @@ const columns: ColumnDef<ApiPeer>[] = [
     accessorKey: "address",
     header: () => <SearchHeader />,
     cell: function AddressCell({ row: { original: peer } }) {
+      const control = useContext(FilterContext);
       const suffix = `:${peer.port}`;
       const hasPort =
         peer.address !== peer.host && peer.address.endsWith(suffix);
@@ -216,7 +221,19 @@ const columns: ColumnDef<ApiPeer>[] = [
       );
       return (
         <div className="inline-flex items-center gap-1.5">
-          {address}
+          {control && peerLocation(peer) ? (
+            <button
+              type="button"
+              aria-label={`Show ${peer.address} on map`}
+              title="Show on map"
+              onClick={() => control.onLocate(peer)}
+              className="rounded-sm text-accent hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              {address}
+            </button>
+          ) : (
+            address
+          )}
           <CopyButton value={peer.address} label="Copy peer address" />
         </div>
       );

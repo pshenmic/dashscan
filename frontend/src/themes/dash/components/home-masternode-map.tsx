@@ -61,6 +61,7 @@ export function HomeMasternodeMap({
 }
 
 export function HomeNodeMap<Node>({
+  focusLocation,
   nodes,
   onSelect,
   selectedHashes = null,
@@ -70,6 +71,7 @@ export function HomeNodeMap<Node>({
   getLocation,
   getCountries,
 }: {
+  focusLocation?: { lat: number; lng: number };
   nodes: Node[];
   onSelect?: (ids: string[]) => void;
   selectedHashes?: Set<string> | null;
@@ -88,6 +90,14 @@ export function HomeNodeMap<Node>({
     zoom: 1,
   });
   const [active, setActive] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focusLocation) return;
+    setActive(null);
+    setPosition({
+      coordinates: [focusLocation.lng, focusLocation.lat],
+      zoom: 6,
+    });
+  }, [focusLocation]);
   useEffect(() => {
     if (!container.current) return;
     const observer = new ResizeObserver(([entry]) =>

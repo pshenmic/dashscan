@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { countryName } from "@/components/explorer/geo/iso-codes";
 import {
   EMPTY_PEER_FILTERS,
@@ -50,6 +50,12 @@ export default function PeersListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
   const [filters, setFilters] = useState<PeerFilters>(EMPTY_PEER_FILTERS);
+  const mapRef = useRef<HTMLElement>(null);
+  const [located, setLocated] = useState<{
+    address: string;
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   const {
     data: allPeers,
@@ -125,6 +131,14 @@ export default function PeersListPage() {
     ? (countries.find(({ code }) => code === filters.country)?.nodes ??
       EMPTY_PEERS)
     : mapPeers;
+  const target =
+    located && filtered.some((peer) => peer.address === located.address)
+      ? located
+      : null;
+  const highlighted = useMemo(
+    () => (target ? new Set([target.address]) : null),
+    [target],
+  );
   const selectedIds = useMemo(
     () => (filters.country ? new Set(filtered.map(peerId)) : null),
     [filtered, filters.country],
@@ -133,18 +147,22 @@ export default function PeersListPage() {
   const total = filtered.length;
 
   const handleSearchChange = useCallback((value: string) => {
+    setLocated(null);
     setSearch(value);
     setPage(1);
   }, []);
   const handleFiltersChange = useCallback((next: PeerFilters) => {
+    setLocated(null);
     setFilters(next);
     setPage(1);
   }, []);
   const handleCountryChange = useCallback((code: string | null) => {
+    setLocated(null);
     setFilters((current) => ({ ...current, country: code }));
     setPage(1);
   }, []);
   const handleClearFilters = useCallback(() => {
+    setLocated(null);
     setFilters(EMPTY_PEER_FILTERS);
     setSearch("");
     setProtocol("");
@@ -204,6 +222,8 @@ export default function PeersListPage() {
 
         <section
           aria-label="Peer locations"
+          ref={mapRef}
+          tabIndex={-1}
           className="relative overflow-x-clip overflow-y-visible"
         >
           <div className="relative h-[207px]">
@@ -212,7 +232,8 @@ export default function PeersListPage() {
                 <HomeNodeMap
                   key={network}
                   nodes={mapPeers}
-                  selectedHashes={selectedIds}
+                  focusLocation={target ?? undefined}
+                  selectedHashes={highlighted ?? selectedIds}
                   label="peers"
                   getId={peerId}
                   getLocation={peerLocation}
@@ -249,6 +270,7 @@ export default function PeersListPage() {
                   protocol,
                   () => {
                     setProtocol("");
+                    setLocated(null);
                     setPage(1);
                   },
                 ],
@@ -346,10 +368,18 @@ export default function PeersListPage() {
             </p>
           )}
           <PeersTable
+            onLocate={(peer) => {
+              const point = peerLocation(peer);
+              if (!point) return;
+              setLocated({ address: peer.address, ...point });
+              mapRef.current?.focus({ preventScroll: true });
+              mapRef.current?.scrollIntoView({ block: "center" });
+            }}
             search={search}
             onSearchChange={handleSearchChange}
             protocol={protocol}
             onProtocolChange={(value) => {
+              setLocated(null);
               setProtocol(value);
               setPage(1);
             }}
