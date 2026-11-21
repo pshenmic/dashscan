@@ -125,8 +125,8 @@ export function BlockDetailOverview({
         aria-label="Block metadata"
         className="flex min-w-0 flex-col gap-3 pt-2"
       >
-        <h1 className="dash-heading-page xl:dash-heading-hero">
-          <span className="text-accent">
+        <h1 className="dash-heading-page sm:dash-heading-hero">
+          <span className="font-extrabold text-brand">
             {block.superblock === true ? "Superblock" : "Block"}
           </span>{" "}
           <span className="whitespace-nowrap">

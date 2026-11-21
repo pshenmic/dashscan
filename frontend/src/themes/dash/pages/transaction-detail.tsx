@@ -113,8 +113,10 @@ export default function TransactionDetailPage({ hash }: { hash: string }) {
     <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-12 pt-8 sm:px-8 sm:pt-16">
       <header className="min-w-0 space-y-2">
         <div className="group flex min-w-0 items-center gap-2">
-          <h1 className="dash-heading-page flex min-w-0 items-baseline gap-[0.25em] xl:dash-heading-hero">
-            <span className="shrink-0 text-accent">Transaction</span>{" "}
+          <h1 className="dash-heading-page flex min-w-0 items-baseline gap-[0.25em] sm:dash-heading-hero">
+            <span className="shrink-0 font-extrabold text-brand">
+              Transaction
+            </span>{" "}
             <span className="truncate" title={transaction.hash}>
               {transaction.hash}
             </span>
