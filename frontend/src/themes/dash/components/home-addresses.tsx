@@ -13,9 +13,8 @@ import {
   addressesQueryOptions,
   richListQueryOptions,
 } from "@/lib/api/addresses";
-import { priceQueryOptions } from "@/lib/api/price";
 import { addressHistoryQueryOptions } from "@/lib/api/stats";
-import { formatCompact, formatCompactUsd } from "@/lib/format";
+import { formatCompact } from "@/lib/format";
 import { appStore } from "@/lib/store";
 import { addressDistribution } from "@/themes/dash/lib/address-metrics";
 import {
@@ -25,9 +24,8 @@ import {
   useHomeChainHistory,
 } from "@/themes/dash/lib/home-history";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
-import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
+import { AddressBalance, useAddressUsdPrice } from "./address-balance";
 import { BalanceDistribution } from "./balance-distribution";
-import { FormattedAmount } from "./formatted-amount";
 import { HomeIcon } from "./home-icon";
 import { HomeTable } from "./home-table";
 import { IdentifierLink } from "./identifier-link";
@@ -166,36 +164,10 @@ function AddressTable({
                 />
               </td>
               <td className="whitespace-nowrap px-3 py-[18px] text-right font-medium tabular-nums text-foreground">
-                {ranked &&
-                usdPrice != null &&
-                row.balance != null &&
-                /^\d+$/.test(row.balance) ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="cursor-help rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                      >
-                        <FormattedAmount
-                          value={transactionAmount(row.balance).replace(
-                            / DASH$/,
-                            "",
-                          )}
-                        />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      ≈{" "}
-                      {formatCompactUsd(
-                        (Number(row.balance) / 100_000_000) * usdPrice,
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <FormattedAmount
-                    value={transactionAmount(row.balance).replace(/ DASH$/, "")}
-                  />
-                )}
+                <AddressBalance
+                  balance={row.balance}
+                  usdPrice={ranked ? usdPrice : null}
+                />
               </td>
               {ranked ? (
                 <td className="whitespace-nowrap px-3 py-[18px] text-right text-xs tabular-nums text-muted-foreground">
@@ -251,18 +223,7 @@ export function HomeAddresses() {
     ...addressesQueryOptions({ network, page: 1, limit: 1 }),
     refetchInterval: 60_000,
   });
-  const price = useQuery({
-    ...priceQueryOptions({ network, currency: "usd" }),
-    enabled: network === "mainnet",
-  });
-  const usdPrice =
-    network === "mainnet" &&
-    price.data?.usd != null &&
-    Number.isFinite(price.data.usd) &&
-    price.data.usd > 0 &&
-    !price.isError
-      ? price.data.usd
-      : null;
+  const usdPrice = useAddressUsdPrice(network, network === "mainnet");
   const activeAddresses = (active.data?.resultSet ?? []).flatMap((entry) =>
     entry.address ? [entry.address] : [],
   );
