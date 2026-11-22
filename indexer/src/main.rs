@@ -75,6 +75,7 @@ async fn main() {
                          DROP TABLE IF EXISTS blocks; \
                          DROP TABLE IF EXISTS miner_pools; \
                          DROP TABLE IF EXISTS miner_names; \
+                         DROP TABLE IF EXISTS network_snapshots; \
                          DROP TABLE IF EXISTS refinery_schema_history; \
                          COMMIT;",
                     )
