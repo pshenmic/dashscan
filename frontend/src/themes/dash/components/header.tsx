@@ -17,7 +17,6 @@ import NetworkSelector from "./network-selector";
 
 const NAV_ITEMS = [
   { to: "/", label: "Home" },
-  { to: "/dashboard", label: "Dashboard" },
   {
     label: "Blockchain",
     items: [
@@ -34,6 +33,7 @@ const NAV_ITEMS = [
     ],
   },
   { to: "/dao", label: "DAO" },
+  { to: "/dashboard", label: "Dashboard" },
 ] as const;
 
 function isActiveRoute(pathname: string, destination: string) {
