@@ -64,23 +64,6 @@ export function getNextSuperblockHeight(
   return Math.ceil(currentHeight / superblockInterval) * superblockInterval;
 }
 
-export function getBlocksUntilSuperblock(
-  currentHeight: number,
-  network: Network,
-): number {
-  return getNextSuperblockHeight(currentHeight, network) - currentHeight;
-}
-
-export function getMsUntilSuperblock(
-  currentHeight: number,
-  network: Network,
-  blockTimeMs?: number | null,
-): number {
-  const blocks = getBlocksUntilSuperblock(currentHeight, network);
-  const ms = blockTimeMs ?? defaultBlockTimeMs(network);
-  return blocks * ms;
-}
-
 function defaultBlockTimeMs(network: Network): number {
   return (24 * 60 * 60 * 1000) / GOVERNANCE_PARAMS[network].blocksPerDay;
 }
