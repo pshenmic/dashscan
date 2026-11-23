@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useId } from "react";
-import { deploymentsQueryOptions } from "@/lib/api/chain";
+import { type ApiDeployment, deploymentsQueryOptions } from "@/lib/api/chain";
 import type { Network } from "@/lib/store";
 import { metricNumber } from "@/themes/dash/lib/home-metrics";
 import { InfoPopover } from "./info-popover";
@@ -15,6 +15,28 @@ const statusLabels: Record<string, string> = {
   locked_in: "Locked in",
   failed: "Failed",
 };
+
+const statusOrder: Record<string, number> = {
+  defined: 0,
+  inactive: 1,
+  started: 2,
+  locked_in: 3,
+  failed: 5,
+};
+
+function compareDeployments(first: ApiDeployment, second: ApiDeployment) {
+  const firstOrder = first.active ? 4 : (statusOrder[first.status ?? ""] ?? 1);
+  const secondOrder = second.active
+    ? 4
+    : (statusOrder[second.status ?? ""] ?? 1);
+  const firstHeight = first.active ? first.height : first.since;
+  const secondHeight = second.active ? second.height : second.since;
+  return (
+    firstOrder - secondOrder ||
+    (secondHeight ?? -1) - (firstHeight ?? -1) ||
+    first.id.localeCompare(second.id, "en")
+  );
+}
 
 function UpgradeTimelineMarker({ active }: { active: boolean }) {
   return (
@@ -36,9 +58,7 @@ export function HomeNetworkUpgrades({ network }: { network: Network }) {
   const upgrades =
     chain.data == null
       ? undefined
-      : [...chain.data.deployments].sort(
-          (first, second) => (second.height ?? -1) - (first.height ?? -1),
-        );
+      : [...chain.data.deployments].sort(compareDeployments);
 
   return (
     <section
@@ -53,8 +73,10 @@ export function HomeNetworkUpgrades({ network }: { network: Network }) {
               trigger="Network upgrades"
             >
               Deployments reported by the connected Dash Core node, not a
-              complete release history. Heights refer to activation, not
-              signaling.
+              complete release history. Defined upgrades appear before
+              signaling, locked-in upgrades and activation history. This order
+              does not predict activation dates. Heights refer to activation,
+              not signaling.
             </InfoPopover>
           </h3>
         </div>
