@@ -7,7 +7,10 @@ import {
 import type { ApiBlock } from "@/lib/api/types";
 import { BlockAge } from "@/themes/dash/components/block-age";
 import { BlockColumnSearch } from "@/themes/dash/components/block-column-search";
-import { DataTable } from "@/themes/dash/components/data-table";
+import {
+  blockListTableClassName,
+  DataTable,
+} from "@/themes/dash/components/data-table";
 import { IdentifierLink } from "@/themes/dash/components/identifier-link";
 import {
   metricBytes,
@@ -152,7 +155,7 @@ export function BlocksTable({
             ? "Indexed blocks, highest first"
             : "Indexed blocks, lowest first"
         }
-        className="min-w-[960px] text-sm leading-5 font-medium [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_[data-column=height]]:min-w-36 [&_[data-column=difficulty]]:min-w-44 [&_[data-column]:not([data-column=height]):not([data-column=hash])]:text-right [&_td]:tabular-nums"
+        className={`${blockListTableClassName} min-w-[960px] [&_.dash-data-mono]:text-[13px] [&_.dash-data-mono]:leading-5 [&_[data-column=height]]:min-w-36 [&_[data-column=difficulty]]:min-w-44 [&_[data-column]:not([data-column=height]):not([data-column=hash])]:text-right`}
       />
     </div>
   );
