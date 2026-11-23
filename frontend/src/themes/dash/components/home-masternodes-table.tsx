@@ -13,6 +13,7 @@ import type { ApiMasternode } from "@/lib/api/types";
 import { formatDateTime, getIp } from "@/lib/format";
 import { DataTable } from "./data-table";
 import { IdentifierLink } from "./identifier-link";
+import { InfoPopover } from "./info-popover";
 import {
   MasternodeStatusBadge,
   MasternodeTypeBadge,
@@ -33,7 +34,18 @@ const columns: ColumnDef<ApiMasternode>[] = [
         />
         <div className="min-w-0 space-y-1">
           <span className="dash-data-mono block font-medium">
-            {getIp(row.original.address)}
+            {/^(?:\[::\]|::|0\.0\.0\.0)?$/.test(getIp(row.original.address)) ? (
+              <span className="font-sans font-normal text-muted-foreground">
+                <InfoPopover
+                  label="About missing service IP address"
+                  trigger="Not set"
+                >
+                  No service IP address is set.
+                </InfoPopover>
+              </span>
+            ) : (
+              getIp(row.original.address)
+            )}
           </span>
           <span className="block text-xs font-normal text-muted-foreground">
             {row.original.lastPaidBlock > 0 &&
