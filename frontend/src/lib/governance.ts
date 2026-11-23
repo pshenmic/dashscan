@@ -1,5 +1,7 @@
 import type { Network } from "@/lib/store";
 
+export const proposalsAnchor = "proposals";
+
 interface GovernanceParams {
   superblockInterval: number;
   votingDeadlineBlocksBeforeSb: number;
