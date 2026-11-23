@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
+import { X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { countryName } from "@/components/explorer/geo/iso-codes";
 import {
@@ -73,15 +74,6 @@ export default function PeersListPage() {
     apiUserAgents && apiUserAgents.length > 0
       ? apiUserAgents
       : derivedUserAgents;
-
-  const stats = useMemo(() => {
-    const available = peers.filter((p) => p.available).length;
-    return {
-      total: peers.length,
-      available,
-      unavailable: peers.length - available,
-    };
-  }, [peers]);
 
   const agentOptions = useMemo(() => {
     const options = userAgents.map(({ userAgent, count }) => ({
@@ -161,13 +153,6 @@ export default function PeersListPage() {
     setFilters((current) => ({ ...current, country: code }));
     setPage(1);
   }, []);
-  const handleClearFilters = useCallback(() => {
-    setLocated(null);
-    setFilters(EMPTY_PEER_FILTERS);
-    setSearch("");
-    setProtocol("");
-    setPage(1);
-  }, []);
 
   const infinite = mode === "infinite";
   const size = infinite ? 25 : pageSize;
@@ -190,41 +175,11 @@ export default function PeersListPage() {
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="isolate flex flex-col gap-6">
-        <header className="relative z-10 grid w-full max-w-56 grid-cols-1 gap-2">
-          <h1 className="dash-heading-page mb-1 flex items-baseline gap-[0.25em] sm:dash-heading-hero">
-            <span className="font-extrabold text-brand">Peers</span>{" "}
-            <span className="tabular-nums">
-              {allPeers ? formatNumber(stats.total) : "—"}
-            </span>
-          </h1>
-          {(["available", "unavailable"] as const).map((status) => (
-            <button
-              key={status}
-              type="button"
-              aria-pressed={filters.status === status}
-              onClick={() =>
-                handleFiltersChange({
-                  ...filters,
-                  status: filters.status === status ? "all" : status,
-                })
-              }
-              className="flex h-9 w-full items-center justify-between rounded-xl border border-border bg-card px-3 text-sm shadow-xs hover:border-accent focus-visible:outline-2 focus-visible:outline-ring aria-pressed:border-accent aria-pressed:ring-1 aria-pressed:ring-accent"
-            >
-              {status === "available" ? "Available" : "Unavailable"}{" "}
-              <span
-                className={`rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${!allPeers ? "bg-secondary text-muted-foreground" : status === "available" ? "bg-positive-brand/12 text-success" : "bg-destructive/12 text-destructive"}`}
-              >
-                {allPeers ? formatNumber(stats[status]) : "—"}
-              </span>
-            </button>
-          ))}
-        </header>
-
         <section
           aria-label="Peer locations"
           ref={mapRef}
           tabIndex={-1}
-          className="relative overflow-x-clip overflow-y-visible"
+          className="relative overflow-x-clip overflow-y-visible pt-[max(1rem,calc(23%_-_11rem))]"
         >
           <div className="relative h-[207px]">
             <div className="absolute inset-0 [&_fieldset>svg]:overflow-visible">
@@ -255,85 +210,121 @@ export default function PeersListPage() {
           </div>
         </section>
 
-        <section aria-label="Peer list" className="relative z-10 min-w-0">
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            {allPeers && hasFilters && (
-              <span className="text-sm text-muted-foreground">
-                {formatNumber(total)} {total === 1 ? "peer" : "peers"}
+        <section
+          aria-label="Peer list"
+          className="relative z-10 min-w-0 rounded-3xl bg-card p-4 sm:p-6"
+        >
+          <header className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="dash-heading-section flex flex-wrap items-baseline gap-x-1.5">
+              <span className="font-extrabold text-brand">Peers</span>{" "}
+              <span className="tabular-nums">
+                {allPeers && hasFilters ? `${formatNumber(total)} of ` : ""}
+                {allPeers ? formatNumber(allPeers.length) : "—"}
               </span>
-            )}
-            {(
-              [
-                ["Peer address", search, () => handleSearchChange("")],
-                [
-                  "Protocol version",
-                  protocol,
-                  () => {
-                    setProtocol("");
-                    setLocated(null);
-                    setPage(1);
-                  },
-                ],
-                [
-                  "Status",
-                  filters.status === "all"
-                    ? ""
-                    : filters.status === "available"
-                      ? "Available"
-                      : "Unavailable",
-                  () => handleFiltersChange({ ...filters, status: "all" }),
-                ],
-                [
-                  "User agent",
-                  agentOptions.find(
-                    (option) => option.value === filters.userAgent,
-                  )?.label ?? filters.userAgent,
-                  () => handleFiltersChange({ ...filters, userAgent: null }),
-                ],
-                [
-                  "Country",
-                  filters.country === "unknown"
-                    ? "Unknown"
-                    : filters.country
-                      ? countryName(filters.country)
-                      : "",
-                  () => handleCountryChange(null),
-                ],
-              ] as const
-            ).map(([label, value, clear]) =>
-              value ? (
-                <Badge
-                  key={label}
-                  asChild
-                  variant={
-                    label === "Status"
-                      ? filters.status === "available"
-                        ? "soft-success"
-                        : "soft-destructive"
-                      : "soft-accent"
-                  }
-                >
-                  <button
-                    type="button"
-                    aria-label={`Remove filter: ${label}, ${value}`}
-                    onClick={clear}
-                  >
-                    <span className="max-w-48 truncate">
-                      {label}: {value}
-                    </span>
-                    <span aria-hidden="true">×</span>
-                  </button>
-                </Badge>
-              ) : null,
-            )}
+            </h1>
             {hasFilters && (
-              <button
-                type="button"
-                onClick={handleClearFilters}
-                className="text-xs text-accent hover:underline"
+              <fieldset
+                aria-label="Active filters"
+                className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5"
               >
-                Clear filters
-              </button>
+                {(
+                  [
+                    [
+                      "address",
+                      "Peer address",
+                      search,
+                      () => handleSearchChange(""),
+                    ],
+                    [
+                      "protocolVersion",
+                      "Protocol version",
+                      protocol,
+                      () => {
+                        setProtocol("");
+                        setLocated(null);
+                        setPage(1);
+                      },
+                    ],
+                    [
+                      "available",
+                      "Status",
+                      filters.status === "all"
+                        ? ""
+                        : filters.status === "available"
+                          ? "Available"
+                          : "Unavailable",
+                      () => handleFiltersChange({ ...filters, status: "all" }),
+                    ],
+                    [
+                      "userAgent",
+                      "User agent",
+                      agentOptions.find(
+                        (option) => option.value === filters.userAgent,
+                      )?.label ?? filters.userAgent,
+                      () =>
+                        handleFiltersChange({ ...filters, userAgent: null }),
+                    ],
+                    [
+                      "country",
+                      "Country",
+                      filters.country === "unknown"
+                        ? "Unknown"
+                        : filters.country
+                          ? countryName(filters.country)
+                          : "",
+                      () => handleCountryChange(null),
+                    ],
+                  ] as const
+                ).map(([column, label, value, clear]) =>
+                  value ? (
+                    <Badge
+                      key={label}
+                      className="max-w-full gap-1 overflow-visible py-0 pl-3 pr-0.5"
+                      variant={
+                        label === "Status"
+                          ? filters.status === "available"
+                            ? "soft-success"
+                            : "soft-destructive"
+                          : "soft-accent"
+                      }
+                    >
+                      <span
+                        className="max-w-48 truncate"
+                        title={`${label}: ${value}`}
+                      >
+                        {label}: {value}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Remove filter: ${label}, ${value}`}
+                        title={`Remove ${label.toLowerCase()} filter`}
+                        className="inline-grid size-8 shrink-0 place-items-center rounded-full hover:bg-foreground/10 focus-visible:outline-2 focus-visible:outline-ring pointer-coarse:size-11"
+                        onClick={(event) => {
+                          const button = event.currentTarget;
+                          const chips = Array.from(
+                            button
+                              .closest("fieldset")
+                              ?.querySelectorAll("button") ?? [],
+                          );
+                          const index = chips.indexOf(button);
+                          const next =
+                            chips[index + 1] ??
+                            chips[index - 1] ??
+                            button
+                              .closest("section")
+                              ?.querySelector<HTMLButtonElement>(
+                                `th[data-column="${column}"] button`,
+                              );
+                          next?.focus();
+                          clear();
+                        }}
+                      >
+                        <X aria-hidden="true" className="size-4" />
+                      </button>
+                    </Badge>
+                  ) : null,
+                )}
+              </fieldset>
             )}
             <fieldset
               aria-label="Loading mode"
@@ -354,7 +345,7 @@ export default function PeersListPage() {
                 </button>
               ))}
             </fieldset>
-          </div>
+          </header>
           {isError && (
             <p role="alert" className="mb-2 text-sm text-destructive">
               {allPeers ? "Could not refresh peers." : "Could not load peers."}{" "}
@@ -421,7 +412,7 @@ export default function PeersListPage() {
             ) : (
               <nav
                 aria-label="Peer list pagination"
-                className="mt-2 rounded-xl border border-border bg-card [&>div]:py-2"
+                className="mt-4 overflow-x-auto"
               >
                 <Pagination
                   align="end"
