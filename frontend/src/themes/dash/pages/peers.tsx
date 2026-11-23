@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import { X } from "lucide-react";
+import { LoaderCircle, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { countryName } from "@/components/explorer/geo/iso-codes";
 import {
@@ -72,6 +72,7 @@ export default function PeersListPage() {
   );
 
   const peers = allPeers ?? EMPTY_PEERS;
+  const loadingPeerLocations = !allPeers && !isError;
   const derivedUserAgents = useMemo(() => derivePeerUserAgents(peers), [peers]);
   const userAgents =
     apiUserAgents && apiUserAgents.length > 0
@@ -215,8 +216,11 @@ export default function PeersListPage() {
           className="relative overflow-x-clip overflow-y-visible pt-[max(1rem,calc(23%_-_11rem))]"
         >
           <div className="relative h-[207px]">
-            <div className="absolute inset-0 [&_fieldset>svg]:overflow-visible">
-              {mapPeers.some(peerLocation) ? (
+            <div
+              aria-busy={loadingPeerLocations}
+              className="absolute inset-0 [&_fieldset>svg]:overflow-visible"
+            >
+              {loadingPeerLocations || mapPeers.some(peerLocation) ? (
                 <HomeNodeMap
                   key={network}
                   nodes={mapPeers}
@@ -244,14 +248,21 @@ export default function PeersListPage() {
                 />
               ) : (
                 <p className="grid h-full place-items-center text-sm text-muted-foreground">
-                  {allPeers
-                    ? "No peer locations"
-                    : isFetching
-                      ? "Loading peers…"
-                      : "Map unavailable"}
+                  {allPeers ? "No peer locations" : "Map unavailable"}
                 </p>
               )}
             </div>
+            <output className="pointer-events-none absolute bottom-2 left-4 flex sm:left-6">
+              {loadingPeerLocations && (
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="size-4 text-accent motion-safe:animate-spin"
+                  />
+                  Loading peer locations…
+                </span>
+              )}
+            </output>
           </div>
         </section>
 
