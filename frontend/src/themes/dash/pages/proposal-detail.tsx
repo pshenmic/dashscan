@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   BarChart3,
   CalendarClock,
@@ -31,10 +32,6 @@ import {
 } from "recharts";
 import { DashIcon } from "@/components/dash-icon";
 import { CopyButton } from "@/components/explorer/copy-button";
-import {
-  DataTable,
-  type DataTableColumn,
-} from "@/components/explorer/data-table";
 import { DetailRow } from "@/components/explorer/detail-row";
 import { EmptyState } from "@/components/explorer/empty-state";
 import { HashDisplay } from "@/components/explorer/hash-display";
@@ -97,13 +94,15 @@ import {
   getMsUntilVotingDeadline,
   getRequiredVotes,
   getVotingDeadline,
+  proposalsAnchor,
   resolveNetworkFromChain,
 } from "@/lib/governance";
 import { appStore } from "@/lib/store";
-import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { cn } from "@/lib/utils";
+import { GovernanceTable } from "@/themes/dash/components/governance-table";
 
-const VOTES_PAGE_SIZE = 25;
+const voteSearchText = (row: ApiProposalVote) =>
+  [row.outpoint, row.proTxHash].join(" ");
 
 type ChartRange = "24h" | "7d" | "30d" | "all";
 type ChartMode = "interval" | "cumulative";
@@ -254,11 +253,7 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
   const [range, setRange] = useState<ChartRange>("all");
   const [mode, setMode] = useState<ChartMode>("cumulative");
   const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>("all");
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [viewMode, setViewMode] = useTableViewMode("proposal-votes");
-  const [visibleCount, setVisibleCount] = useState(VOTES_PAGE_SIZE);
-  const isInfinite = viewMode === "infinite";
+
   const gradientIds = {
     yes: useId(),
     no: useId(),
@@ -377,29 +372,17 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
     [votes],
   );
 
-  const filteredVotes = useMemo(() => {
-    const sorted = [...votes].sort(
-      (a, b) => Date.parse(b.time) - Date.parse(a.time),
-    );
-    const q = search.trim().toLowerCase();
-    return sorted.filter((v) => {
-      if (outcomeFilter !== "all" && v.outcome !== outcomeFilter) return false;
-      if (!q) return true;
-      return (
-        v.outpoint.toLowerCase().includes(q) ||
-        (v.proTxHash?.toLowerCase().includes(q) ?? false)
-      );
-    });
-  }, [votes, outcomeFilter, search]);
-
-  const pagedVotes = useMemo(() => {
-    if (isInfinite) return filteredVotes.slice(0, visibleCount);
-    return filteredVotes.slice(
-      (page - 1) * VOTES_PAGE_SIZE,
-      page * VOTES_PAGE_SIZE,
-    );
-  }, [filteredVotes, page, isInfinite, visibleCount]);
-  const hasMoreVotes = visibleCount < filteredVotes.length;
+  const filteredVotes = useMemo(
+    () =>
+      votes
+        .filter(
+          (vote) => outcomeFilter === "all" || vote.outcome === outcomeFilter,
+        )
+        .sort(
+          (first, second) => Date.parse(second.time) - Date.parse(first.time),
+        ),
+    [votes, outcomeFilter],
+  );
 
   if (isFetching && !proposal) {
     return (
@@ -425,7 +408,9 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
           icon={<Vote className="size-6" />}
           action={
             <Button asChild variant="outline" size="sm">
-              <Link to="/dao">Back to Governance</Link>
+              <Link to="/dao" hash={proposalsAnchor}>
+                Back to proposals
+              </Link>
             </Button>
           }
         />
@@ -440,11 +425,11 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
     : null;
   const endDate = proposal.endEpoch ? new Date(proposal.endEpoch * 1000) : null;
 
-  const voteColumns: DataTableColumn<ApiProposalVote>[] = [
+  const voteColumns: ColumnDef<ApiProposalVote>[] = [
     {
       id: "masternode",
       header: "Masternode",
-      cell: (row) =>
+      cell: ({ row: { original: row } }) =>
         row.proTxHash ? (
           <HashDisplay
             value={row.proTxHash}
@@ -459,8 +444,7 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
               </span>
             </TooltipTrigger>
             <TooltipContent className="max-w-72">
-              Collateral outpoint {row.outpoint}. This masternode is no longer
-              in the registered set, so its ProTx hash can't be resolved.
+              Collateral outpoint {row.outpoint}. ProTx hash unavailable.
             </TooltipContent>
           </Tooltip>
         ),
@@ -468,18 +452,19 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
     {
       id: "signal",
       header: "Signal",
-      cell: (row) => <SignalBadge signal={row.signal} />,
+      cell: ({ row: { original: row } }) => <SignalBadge signal={row.signal} />,
     },
     {
       id: "outcome",
       header: "Vote",
-      cell: (row) => <OutcomeBadge outcome={row.outcome} />,
+      cell: ({ row: { original: row } }) => (
+        <OutcomeBadge outcome={row.outcome} />
+      ),
     },
     {
       id: "time",
-      align: "right",
       header: "Cast",
-      cell: (row) => (
+      cell: ({ row: { original: row } }) => (
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="whitespace-nowrap text-sm text-muted-foreground">
@@ -506,7 +491,9 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link to="/dao">Governance</Link>
+                  <Link to="/dao" hash={proposalsAnchor}>
+                    Proposals
+                  </Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
@@ -560,7 +547,9 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
             </div>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex min-w-0 flex-col gap-2">
-                <h1 className="font-display text-2xl sm:text-3xl">{name}</h1>
+                <h1 className="dash-heading-page break-words font-extrabold text-brand">
+                  {name}
+                </h1>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   {proposal.creationTime && (
                     <span>
@@ -1041,25 +1030,27 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
               </h2>
               <p className="text-sm text-muted-foreground">
                 {formatNumber(votes.length)} votes from{" "}
-                {formatNumber(uniqueMasternodes)} masternodes this cycle
+                {formatNumber(uniqueMasternodes)} masternodes
               </p>
             </div>
           </div>
-          <DataTable
+
+          <GovernanceTable
+            key={`${storeNetwork}:${hash}`}
+            filterKey={outcomeFilter}
+            storageKey="proposal-votes"
+            caption="Masternode votes"
+            growColumn="masternode"
+            rows={filteredVotes}
             columns={voteColumns}
-            data={pagedVotes}
-            isLoading={false}
-            rowKey={(row) => `${row.outpoint}-${row.signal}-${row.time}`}
-            search={{
-              value: search,
-              onChange: (v) => {
-                setSearch(v);
-                setPage(1);
-                setVisibleCount(VOTES_PAGE_SIZE);
-              },
-              placeholder: "Filter by ProTx hash or outpoint…",
-            }}
-            toolbar={
+            searchLabel="Filter by ProTx hash or outpoint"
+            searchText={voteSearchText}
+            emptyMessage={
+              votes.length
+                ? "No votes match this outcome."
+                : "No votes recorded."
+            }
+            controls={
               <ToggleGroup
                 type="single"
                 size="sm"
@@ -1067,8 +1058,6 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
                 onValueChange={(v) => {
                   if (v) {
                     setOutcomeFilter(v as OutcomeFilter);
-                    setPage(1);
-                    setVisibleCount(VOTES_PAGE_SIZE);
                   }
                 }}
                 aria-label="Filter by outcome"
@@ -1091,28 +1080,6 @@ export default function ProposalDetailPage({ hash }: ProposalDetailPageProps) {
                 </ToggleGroupItem>
               </ToggleGroup>
             }
-            emptyTitle="No votes recorded"
-            emptyDescription={
-              votes.length > 0
-                ? "No votes match the current filters."
-                : "No masternode has voted on this proposal in the current cycle yet."
-            }
-            viewMode={{ value: viewMode, onChange: setViewMode }}
-            infiniteScroll={{
-              hasNextPage: hasMoreVotes,
-              isFetchingNextPage: false,
-              onLoadMore: () =>
-                setVisibleCount((count) => count + VOTES_PAGE_SIZE),
-              total: filteredVotes.length,
-              loaded: pagedVotes.length,
-              skeletonRows: 5,
-            }}
-            pagination={{
-              pageIndex: page,
-              pageSize: VOTES_PAGE_SIZE,
-              total: filteredVotes.length,
-              onPageChange: setPage,
-            }}
           />
         </section>
       </div>
