@@ -183,23 +183,32 @@ export default class AddressesDAO {
     // is read live along with the rest of the window.
     const startDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
 
-    const [heights] = await this.knex('blocks')
-      .whereBetween('timestamp', [startDay.toISOString(), end.toISOString()])
-      .select(
-        this.knex.raw('MIN(height) as height_from'),
-        this.knex.raw('MAX(height) as height_to'),
-      ) as any[];
+    const [heights] = await this.knex.select(
+      this.knex('blocks')
+        .where('timestamp', '>=', startDay.toISOString())
+        .orderBy('timestamp', 'asc')
+        .limit(1)
+        .select('height')
+        .as('height_from'),
+      this.knex('blocks')
+        .where('timestamp', '<=', end.toISOString())
+        .orderBy('timestamp', 'desc')
+        .limit(1)
+        .select('height')
+        .as('height_to'),
+    ) as any[];
 
     const windowTxsCTE = this.knex('address_transactions')
-      .where('address_id', addressIdSubquery)
+      .join('blocks', 'blocks.height', 'address_transactions.block_height')
+      .where('address_transactions.address_id', addressIdSubquery)
       .modify((builder) => {
-        if (heights?.height_from == null) {
+        if (heights?.height_from == null || heights?.height_to == null) {
           builder.whereRaw('false');
         } else {
-          builder.whereBetween('block_height', [heights.height_from, heights.height_to]);
+          builder.whereBetween('address_transactions.block_height', [heights.height_from, heights.height_to]);
         }
       })
-      .select('tx_id', 'block_height');
+      .select('address_transactions.tx_id', 'blocks.timestamp');
 
     const openingCTE = this.knex('address_balance_deltas')
       .where('address_id', addressIdSubquery)
@@ -218,34 +227,39 @@ export default class AddressesDAO {
 
     const allTxsCTE = this.knex('window_txs')
       .join('tx_outputs', 'tx_outputs.tx_id', 'window_txs.tx_id')
-      .join('blocks', 'blocks.height', 'window_txs.block_height')
       .where('tx_outputs.address_id', addressIdSubquery)
-      .select('blocks.timestamp', this.knex.raw('tx_outputs.value::bigint as value'), this.knex.raw("'received' as direction"))
+      .select('window_txs.timestamp', this.knex.raw('tx_outputs.value::bigint as value'), this.knex.raw("'received' as direction"))
       .unionAll(
         this.knex('window_txs')
           .join('tx_inputs', 'tx_inputs.tx_id', 'window_txs.tx_id')
-          .join('blocks', 'blocks.height', 'window_txs.block_height')
           .where('tx_inputs.address_id', addressIdSubquery)
-          .select('blocks.timestamp', this.knex.raw('COALESCE(tx_inputs.amount, 0)::bigint as value'), this.knex.raw("'spent' as direction"))
+          .select('window_txs.timestamp', this.knex.raw('COALESCE(tx_inputs.amount, 0)::bigint as value'), this.knex.raw("'spent' as direction"))
       );
 
-    // Rollup days before the window, plus the first partial day before `start`.
-    const initialBalanceCTE = this.knex('all_txs')
-      .where('timestamp', '<', start.toISOString())
-      .select(
-        this.knex.raw("(SELECT opening FROM opening) + COALESCE(SUM(value) FILTER (WHERE direction = 'received'), 0)::bigint - COALESCE(SUM(value) FILTER (WHERE direction = 'spent'), 0)::bigint AS initial_balance")
-      );
-
-    const bucketsCTE = this.knex('ranges')
-      .select('date_from')
+    const flowsCTE = this.knex('all_txs')
+      .select('timestamp')
       .select(
         this.knex.raw(
           "COALESCE(SUM(value) FILTER (WHERE direction = 'received'), 0)::bigint - COALESCE(SUM(value) FILTER (WHERE direction = 'spent'), 0)::bigint AS net_change"
         )
       )
-      .leftJoin('all_txs', function () {
-        this.on('all_txs.timestamp', '>', 'ranges.date_from')
-          .andOn('all_txs.timestamp', '<=', 'ranges.date_to');
+      .groupBy('timestamp');
+
+    // Rollup days before the window, plus the first partial day before `start`.
+    const initialBalanceCTE = this.knex('flows')
+      .where('timestamp', '<', start.toISOString())
+      .select(
+        this.knex.raw('(SELECT opening FROM opening) + COALESCE(SUM(net_change), 0)::bigint AS initial_balance')
+      );
+
+    const bucketsCTE = this.knex('ranges')
+      .select('date_from')
+      .select(
+        this.knex.raw('COALESCE(SUM(flows.net_change), 0)::bigint AS net_change')
+      )
+      .leftJoin('flows', function () {
+        this.on('flows.timestamp', '>', 'ranges.date_from')
+          .andOn('flows.timestamp', '<=', 'ranges.date_to');
       })
       .groupBy('date_from');
 
@@ -253,6 +267,7 @@ export default class AddressesDAO {
       .with('opening', openingCTE)
       .with('window_txs', windowTxsCTE)
       .with('all_txs', allTxsCTE)
+      .with('flows', flowsCTE)
       .with('ranges', ranges)
       .with('initial_balance', initialBalanceCTE)
       .with('buckets', bucketsCTE)
