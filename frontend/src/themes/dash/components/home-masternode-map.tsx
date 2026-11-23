@@ -333,6 +333,7 @@ export function HomeNodeMap<Node>({
                           data-located={
                             focusLocation && matching > 0 ? true : undefined
                           }
+                          data-peer-pulse={available ? true : undefined}
                           data-peer-marker={getAvailability ? true : undefined}
                           className={`flex size-11 items-center justify-center rounded-full text-xs font-extrabold tabular-nums focus-visible:outline-2 focus-visible:outline-ring data-[filter-match=false]:opacity-40 ${available === null ? "border-[5px] border-brand/20 bg-action-solid bg-clip-padding text-primary-foreground hover:bg-action-solid" : "text-foreground"} ${active === key || matching > 0 ? "ring-2 ring-brand shadow-md shadow-brand/25" : available !== null && count === 1 ? "" : "shadow-sm"}`}
                         >
