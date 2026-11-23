@@ -21,6 +21,7 @@ import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { HomeNodeMap } from "@/themes/dash/components/home-masternode-map";
 import { LoadMore } from "@/themes/dash/components/load-more";
 import { Pagination } from "@/themes/dash/components/pagination";
+import { PeerMapDetails } from "@/themes/dash/components/peer-map-details";
 import { PeersTable } from "@/themes/dash/components/peers-table";
 import {
   peerClientLabel,
@@ -52,6 +53,7 @@ export default function PeersListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
   const [filters, setFilters] = useState<PeerFilters>(EMPTY_PEER_FILTERS);
+  const [countryHighlightVisible, setCountryHighlightVisible] = useState(true);
   const mapRef = useRef<HTMLElement>(null);
   const [located, setLocated] = useState<{
     address: string;
@@ -133,8 +135,11 @@ export default function PeersListPage() {
     [target],
   );
   const selectedIds = useMemo(
-    () => (filters.country ? new Set(filtered.map(peerId)) : null),
-    [filtered, filters.country],
+    () =>
+      countryHighlightVisible && filters.country
+        ? new Set(filtered.map(peerId))
+        : null,
+    [countryHighlightVisible, filtered, filters.country],
   );
 
   const total = filtered.length;
@@ -150,6 +155,7 @@ export default function PeersListPage() {
     setPage(1);
   }, []);
   const handleCountryChange = useCallback((code: string | null) => {
+    setCountryHighlightVisible(true);
     setLocated(null);
     setFilters((current) => ({ ...current, country: code }));
     setPage(1);
@@ -173,6 +179,32 @@ export default function PeersListPage() {
     );
   }, [filtered, infinite, currentPage, size]);
 
+  function showPeerInTable(
+    peer: ApiPeer,
+    close: (afterClose: () => void) => void,
+  ) {
+    let index = filtered.findIndex((item) => item.address === peer.address);
+    const outsideCountry = index < 0;
+    if (outsideCountry) {
+      index = mapPeers.findIndex((item) => item.address === peer.address);
+      if (index < 0) return;
+      handleCountryChange(null);
+    }
+    if (!infinite) {
+      setPage(Math.floor(index / size) + 1);
+    } else if (index >= pageData.length || outsideCountry) {
+      handleSearchChange(peer.address);
+    }
+    close(() => {
+      const address = document.getElementById(`peer-address-${peer.address}`);
+      address?.focus({ preventScroll: true });
+      address?.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+      });
+    });
+  }
+
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="isolate flex flex-col gap-6">
@@ -191,13 +223,24 @@ export default function PeersListPage() {
                   getAvailability={peerAvailable}
                   focusLocation={target ?? undefined}
                   selectedHashes={highlighted ?? selectedIds}
+                  onClearHighlight={() => {
+                    setLocated(null);
+                    setCountryHighlightVisible(false);
+                  }}
                   label="peers"
                   getId={peerId}
                   getLocation={peerLocation}
-                  getCountries={peerCountries}
-                  onSelectCountry={(code) =>
-                    handleCountryChange(code === filters.country ? null : code)
-                  }
+                  renderDetails={(members, close) => (
+                    <PeerMapDetails
+                      peers={members}
+                      selectedCountry={filters.country}
+                      onShowInTable={(peer) => showPeerInTable(peer, close)}
+                      onCountryChange={(code) => {
+                        handleCountryChange(code);
+                        close();
+                      }}
+                    />
+                  )}
                 />
               ) : (
                 <p className="grid h-full place-items-center text-sm text-muted-foreground">

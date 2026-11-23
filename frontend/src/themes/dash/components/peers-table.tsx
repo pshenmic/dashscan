@@ -232,6 +232,7 @@ const columns: ColumnDef<ApiPeer>[] = [
             <button
               type="button"
               aria-label={`Show ${peer.address} on map`}
+              id={`peer-address-${peer.address}`}
               title="Show on map"
               onClick={() => control.onLocate(peer)}
               className="min-w-0 rounded-sm text-accent hover:underline focus-visible:outline-2 focus-visible:outline-ring"
