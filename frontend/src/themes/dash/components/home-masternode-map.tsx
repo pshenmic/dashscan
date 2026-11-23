@@ -1,4 +1,11 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ComposableMap,
   Geographies,
@@ -61,7 +68,10 @@ export function HomeMasternodeMap({
 }
 
 export function HomeNodeMap<Node>({
+  renderDetails,
+  getAvailability,
   focusLocation,
+  onClearHighlight,
   nodes,
   onSelect,
   selectedHashes = null,
@@ -71,7 +81,13 @@ export function HomeNodeMap<Node>({
   getLocation,
   getCountries,
 }: {
+  renderDetails?: (
+    nodes: Node[],
+    close: (afterClose?: () => void) => void,
+  ) => ReactNode;
   focusLocation?: { lat: number; lng: number };
+  onClearHighlight?: () => void;
+  getAvailability?: (node: Node) => boolean;
   nodes: Node[];
   onSelect?: (ids: string[]) => void;
   selectedHashes?: Set<string> | null;
@@ -79,11 +95,12 @@ export function HomeNodeMap<Node>({
   label: string;
   getId: (node: Node) => string;
   getLocation: (node: Node) => { lat: number; lng: number } | undefined;
-  getCountries: (
+  getCountries?: (
     nodes: Node[],
   ) => { code: string; name: string; nodes: Node[] }[];
 }) {
   const container = useRef<HTMLFieldSetElement>(null);
+  const afterDetailsClose = useRef<(() => void) | undefined>(undefined);
   const [width, setWidth] = useState(742);
   const [position, setPosition] = useState({
     coordinates: initialCenter,
@@ -107,9 +124,17 @@ export function HomeNodeMap<Node>({
     return () => observer.disconnect();
   }, []);
   const index = useMemo(() => {
-    const cluster = new Supercluster<{ node: Node }>({
+    const cluster = new Supercluster<{ node: Node }, { available: number }>({
       radius: 48,
       maxZoom: 16,
+      ...(getAvailability && {
+        map: ({ node }: { node: Node }) => ({
+          available: Number(getAvailability(node)),
+        }),
+        reduce: (sum: { available: number }, next: { available: number }) => {
+          sum.available += next.available;
+        },
+      }),
     });
     cluster.load(
       nodes.flatMap((node) => {
@@ -129,12 +154,15 @@ export function HomeNodeMap<Node>({
       }),
     );
     return cluster;
-  }, [nodes, getLocation]);
+  }, [nodes, getLocation, getAvailability]);
   const zoomLevel = Math.max(
     0,
     Math.min(16, Math.floor(Math.log2((width * position.zoom) / 512))),
   );
-  const markers = index.getClusters([-180, -90, 180, 90], zoomLevel);
+  const markers = useMemo(
+    () => index.getClusters([-180, -90, 180, 90], zoomLevel),
+    [index, zoomLevel],
+  );
   const changeZoom = (factor: number) => {
     setActive(null);
     setPosition((current) => ({
@@ -158,7 +186,26 @@ export function HomeNodeMap<Node>({
         role="group"
         aria-label="Interactive map: arrow keys to pan; + and − to zoom; 0 to reset"
         tabIndex={0}
+        onClick={(event) => {
+          if (
+            !onClearHighlight ||
+            !(event.target instanceof Element) ||
+            !event.currentTarget.contains(event.target) ||
+            event.target.closest("button")
+          )
+            return;
+          setActive(null);
+          onClearHighlight();
+        }}
         onKeyDown={(event) => {
+          if (
+            event.key === "Escape" &&
+            onClearHighlight &&
+            event.target === event.currentTarget
+          ) {
+            setActive(null);
+            onClearHighlight();
+          }
           if (event.target !== event.currentTarget) return;
           if (
             ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
@@ -241,20 +288,41 @@ export function HomeNodeMap<Node>({
                 ? feature.properties.cluster_id
                 : null;
             const key =
-              clusterId !== null
+              "cluster_id" in feature.properties
                 ? `cluster-${clusterId}`
                 : getId(feature.properties.node);
             const members =
-              clusterId !== null
+              clusterId !== null && (active === key || selectedHashes)
                 ? index
                     .getLeaves(clusterId, Infinity)
                     .map((point) => point.properties.node)
-                : [feature.properties.node];
-            const count = members.length;
+                : "node" in feature.properties
+                  ? [feature.properties.node]
+                  : [];
+            const count =
+              "point_count" in feature.properties
+                ? feature.properties.point_count
+                : 1;
+            const available = getAvailability
+              ? "cluster_id" in feature.properties
+                ? feature.properties.available
+                : Number(getAvailability(feature.properties.node))
+              : null;
+            const statusLabel =
+              available === null
+                ? ""
+                : count === 1
+                  ? available
+                    ? "Available"
+                    : "Unconfirmed"
+                  : `${metricNumber(available, 0)} available · ${metricNumber(count - available, 0)} unconfirmed`;
             const matching = selectedHashes
               ? members.filter((node) => selectedHashes.has(getId(node))).length
               : 0;
-            const groups = active === key ? getCountries(members) : [];
+            const groups =
+              active === key && !renderDetails
+                ? (getCountries?.(members) ?? [])
+                : [];
             return (
               <Marker
                 key={key}
@@ -273,89 +341,146 @@ export function HomeNodeMap<Node>({
                   >
                     <Popover
                       open={active === key}
-                      onOpenChange={(open) => setActive(open ? key : null)}
+                      onOpenChange={(open) => {
+                        if (open) onClearHighlight?.();
+                        setActive(open ? key : null);
+                      }}
                     >
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          aria-label={`Inspect group of ${metricNumber(count, 0)} ${label}${selectedHashes ? `; ${metricNumber(matching, 0)} match the filter` : ""}`}
+                          aria-label={`${renderDetails && count === 1 ? "Inspect peer" : `Inspect group of ${metricNumber(count, 0)} ${label}`}${statusLabel ? `; ${statusLabel}` : ""}${selectedHashes ? `; ${metricNumber(matching, 0)} match the filter` : ""}`}
+                          title={statusLabel || undefined}
+                          style={
+                            available === null || count === 1
+                              ? undefined
+                              : ({
+                                  "--peer-share": `${(100 * available) / count}%`,
+                                  background:
+                                    "conic-gradient(var(--success) var(--peer-share), var(--peer-map-track) 0)",
+                                } as CSSProperties)
+                          }
                           data-filter-match={
                             selectedHashes ? matching > 0 : undefined
                           }
-                          className={`flex size-11 items-center justify-center rounded-full border-[5px] border-brand/20 bg-action-solid bg-clip-padding text-xs font-extrabold tabular-nums text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-ring data-[filter-match=false]:opacity-40 ${active === key || matching > 0 ? "ring-2 ring-brand shadow-md shadow-brand/25" : "shadow-sm"}`}
+                          data-located={
+                            focusLocation && matching > 0 ? true : undefined
+                          }
+                          data-peer-marker={getAvailability ? true : undefined}
+                          data-peer-pulse={available ? true : undefined}
+                          className={`flex size-11 items-center justify-center rounded-full text-xs font-extrabold tabular-nums focus-visible:outline-2 focus-visible:outline-ring data-[filter-match=false]:opacity-40 ${available === null ? "border-[5px] border-brand/20 bg-action-solid bg-clip-padding text-primary-foreground hover:bg-action-solid" : "text-foreground"} ${active === key || matching > 0 ? "ring-2 ring-brand shadow-md shadow-brand/25" : available !== null && count === 1 ? "" : "shadow-sm"}`}
                         >
-                          {count > 999
-                            ? `${Math.floor(count / 1000)}k+`
-                            : metricNumber(count, 0)}
+                          {available !== null && count === 1 ? (
+                            <span
+                              aria-hidden="true"
+                              className={`grid size-full place-items-center rounded-full shadow-sm ${available ? "border-2 border-card bg-success text-success-foreground" : "border-[3px] border-muted-foreground bg-card"}`}
+                            >
+                              {count}
+                            </span>
+                          ) : (
+                            <span
+                              className={
+                                available !== null
+                                  ? "grid size-8 place-items-center rounded-full bg-card"
+                                  : undefined
+                              }
+                            >
+                              {count > 999
+                                ? `${Math.floor(count / 1000)}k+`
+                                : metricNumber(count, 0)}
+                            </span>
+                          )}
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent
-                        className="w-64 max-w-[calc(100vw-2rem)] rounded-2xl p-4"
-                        side="top"
-                      >
-                        <p className="font-extrabold">
-                          {metricNumber(count, 0)} {label}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Geographic group · approximate IP locations
-                        </p>
-                        {selectedHashes && (
-                          <p className="mt-2 text-xs text-accent">
-                            {metricNumber(matching, 0)} of{" "}
-                            {metricNumber(count, 0)} nodes match the current
-                            filter.
+                      {renderDetails ? (
+                        <PopoverContent
+                          side="top"
+                          aria-label="Peer details"
+                          onCloseAutoFocus={(event) => {
+                            const restoreFocus = afterDetailsClose.current;
+                            afterDetailsClose.current = undefined;
+                            if (restoreFocus) {
+                              event.preventDefault();
+                              restoreFocus();
+                            }
+                          }}
+                          className="w-fit max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl p-3"
+                        >
+                          {active === key &&
+                            renderDetails(members, (afterClose) => {
+                              afterDetailsClose.current = afterClose;
+                              setActive(null);
+                            })}
+                        </PopoverContent>
+                      ) : (
+                        <PopoverContent
+                          className="w-64 max-w-[calc(100vw-2rem)] rounded-2xl p-4"
+                          side="top"
+                        >
+                          <p className="font-extrabold">
+                            {metricNumber(count, 0)} {label}
                           </p>
-                        )}
-                        <ul className="my-3 max-h-32 space-y-1 overflow-y-auto text-sm">
-                          {groups.map((group) => (
-                            <li key={group.code} className="min-w-0">
-                              {onSelectCountry ? (
-                                <button
-                                  type="button"
-                                  aria-label={`Filter by ${group.name}`}
-                                  className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2 text-left hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-ring"
-                                  onClick={() => {
-                                    onSelectCountry(group.code);
-                                    setActive(null);
-                                  }}
-                                >
-                                  <span className="min-w-0 break-words text-accent">
-                                    {group.name}
-                                  </span>
-                                  <span className="shrink-0 tabular-nums">
-                                    {metricNumber(group.nodes.length, 0)}
-                                  </span>
-                                </button>
-                              ) : (
-                                <div className="flex items-center justify-between gap-3 py-2">
-                                  <span>{group.name}</span>
-                                  <span className="tabular-nums">
-                                    {metricNumber(group.nodes.length, 0)}
-                                  </span>
-                                </div>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                        {onSelect && (
-                          <>
-                            <p className="mb-3 text-xs text-muted-foreground">
-                              Choose a country to show all its nodes, or show
-                              only this geographic group.
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Geographic group · approximate IP locations
+                          </p>
+                          {selectedHashes && (
+                            <p className="mt-2 text-xs text-accent">
+                              {metricNumber(matching, 0)} of{" "}
+                              {metricNumber(count, 0)} nodes match the current
+                              filter.
                             </p>
-                            <button
-                              type="button"
-                              className="min-h-10 w-full rounded-xl bg-action-subtle px-3 text-sm text-accent focus-visible:outline-2 focus-visible:outline-ring"
-                              onClick={() => {
-                                onSelect(members.map(getId));
-                                setActive(null);
-                              }}
-                            >
-                              Show in list
-                            </button>
-                          </>
-                        )}
-                      </PopoverContent>
+                          )}
+                          <ul className="my-3 max-h-32 space-y-1 overflow-y-auto text-sm">
+                            {groups.map((group) => (
+                              <li key={group.code} className="min-w-0">
+                                {onSelectCountry ? (
+                                  <button
+                                    type="button"
+                                    aria-label={`Filter by ${group.name}`}
+                                    className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2 text-left hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-ring"
+                                    onClick={() => {
+                                      onSelectCountry(group.code);
+                                      setActive(null);
+                                    }}
+                                  >
+                                    <span className="min-w-0 break-words text-accent">
+                                      {group.name}
+                                    </span>
+                                    <span className="shrink-0 tabular-nums">
+                                      {metricNumber(group.nodes.length, 0)}
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center justify-between gap-3 py-2">
+                                    <span>{group.name}</span>
+                                    <span className="tabular-nums">
+                                      {metricNumber(group.nodes.length, 0)}
+                                    </span>
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                          {onSelect && (
+                            <>
+                              <p className="mb-3 text-xs text-muted-foreground">
+                                Choose a country to show all its nodes, or show
+                                only this geographic group.
+                              </p>
+                              <button
+                                type="button"
+                                className="min-h-10 w-full rounded-xl bg-action-subtle px-3 text-sm text-accent focus-visible:outline-2 focus-visible:outline-ring"
+                                onClick={() => {
+                                  onSelect(members.map(getId));
+                                  setActive(null);
+                                }}
+                              >
+                                Show in list
+                              </button>
+                            </>
+                          )}
+                        </PopoverContent>
+                      )}
                     </Popover>
                   </foreignObject>
                 </FixedSizeMarker>

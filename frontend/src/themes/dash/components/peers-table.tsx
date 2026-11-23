@@ -144,7 +144,7 @@ function StatusHeader() {
             <Badge variant="soft-success">Available</Badge>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="unavailable">
-            <Badge variant="soft-destructive">Unavailable</Badge>
+            <Badge variant="soft">Unconfirmed</Badge>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
@@ -170,11 +170,13 @@ function PeerCountry({ geo }: { geo: ApiPeer["geo"] }) {
     );
   const city = geo?.city?.trim();
   const country = (
-    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+    <span className="inline-flex min-w-0 max-w-full items-center gap-2 whitespace-nowrap">
       <span aria-hidden="true" className="text-lg leading-none">
         {countryFlagEmoji(code)}
       </span>
-      {name}
+      <span className="truncate" title={name}>
+        {name}
+      </span>
     </span>
   );
   if (!city) return country;
@@ -183,7 +185,7 @@ function PeerCountry({ geo }: { geo: ApiPeer["geo"] }) {
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="inline-flex min-h-7 items-center gap-1.5 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
         >
           {country}
           <span aria-hidden="true" className="text-muted-foreground">
@@ -194,7 +196,9 @@ function PeerCountry({ geo }: { geo: ApiPeer["geo"] }) {
           </span>
         </button>
       </TooltipTrigger>
-      <TooltipContent className="max-w-64 break-words">{city}</TooltipContent>
+      <TooltipContent className="max-w-64 break-words">
+        {name} · {city}
+      </TooltipContent>
     </Tooltip>
   );
 }
@@ -214,20 +218,24 @@ const columns: ColumnDef<ApiPeer>[] = [
       const hasPort =
         peer.address !== peer.host && peer.address.endsWith(suffix);
       const address = (
-        <span className="whitespace-nowrap font-mono text-sm">
+        <span
+          className="block min-w-0 truncate font-mono text-sm"
+          title={peer.address}
+        >
           {hasPort ? peer.address.slice(0, -suffix.length) : peer.address}
           {hasPort && <span className="text-muted-foreground">{suffix}</span>}
         </span>
       );
       return (
-        <div className="inline-flex items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-1.5 [&>button:last-child]:shrink-0">
           {control && peerLocation(peer) ? (
             <button
               type="button"
               aria-label={`Show ${peer.address} on map`}
+              id={`peer-address-${peer.address}`}
               title="Show on map"
               onClick={() => control.onLocate(peer)}
-              className="rounded-sm text-accent hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+              className="min-w-0 rounded-sm text-accent hover:underline focus-visible:outline-2 focus-visible:outline-ring"
             >
               {address}
             </button>
@@ -243,8 +251,8 @@ const columns: ColumnDef<ApiPeer>[] = [
     accessorKey: "available",
     header: StatusHeader,
     cell: ({ row: { original: peer } }) => (
-      <Badge variant={peer.available ? "soft-success" : "soft-destructive"}>
-        {peer.available ? "Available" : "Unavailable"}
+      <Badge variant={peer.available ? "soft-success" : "soft"}>
+        {peer.available ? "Available" : "Unconfirmed"}
       </Badge>
     ),
   },
@@ -257,7 +265,7 @@ const columns: ColumnDef<ApiPeer>[] = [
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="block max-w-64 truncate rounded-sm text-left text-sm focus-visible:outline-2 focus-visible:outline-ring"
+              className="block max-w-full truncate rounded-sm text-left text-sm focus-visible:outline-2 focus-visible:outline-ring"
             >
               {peerClientLabel(peer.userAgent)}
             </button>
@@ -348,7 +356,7 @@ export function PeersTable({
           isEmpty={!rows.length}
           skeletonWidths={["w-24", "w-40", "w-20", "w-32", "w-16", "w-16"]}
           emptyMessage={emptyMessage}
-          className="min-w-[680px] text-sm font-medium leading-5 [&_tr>*]:border-y [&_tr>*]:border-border [&_tr>*]:bg-card [&_tr>:first-child]:rounded-l-xl [&_tr>:first-child]:border-l [&_tr>:last-child]:rounded-r-xl [&_tr>:last-child]:border-r [&_th]:py-3 [&_th]:font-semibold [&_[data-column=protocolVersion]]:text-right [&_[data-column=lastSeen]]:text-right [&_td]:tabular-nums [&_tr:focus-within_td]:bg-surface-subtle hover:[&_tbody_tr:hover_td]:bg-surface-subtle"
+          className="min-w-[62rem] table-fixed text-sm font-medium leading-5 [&_th]:bg-secondary [&_th]:py-3 [&_th:first-child]:rounded-l-xl [&_th:last-child]:rounded-r-xl [&_th[data-column=country]]:w-[22%] [&_th[data-column=available]]:w-32 [&_th[data-column=userAgent]]:w-[18%] [&_th[data-column=protocolVersion]]:w-40 [&_th[data-column=lastSeen]]:w-28 [&_[data-column=protocolVersion]]:text-right [&_[data-column=lastSeen]]:text-right [&_td]:tabular-nums"
         />
       </div>
     </FilterContext.Provider>

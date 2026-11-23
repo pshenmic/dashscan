@@ -23,6 +23,7 @@
   --destructive-foreground: #ffffff;
   --positive-brand: #95bf40;
   --success: #4f6e19;
+  --peer-map-track: #ccd1d7;
   --success-foreground: #ffffff;
   --border: rgb(12 28 51 / 12%);
   --input: rgb(12 28 51 / 48%);
@@ -56,6 +57,7 @@
   --destructive: #ff7272;
   --destructive-foreground: #0c1c33;
   --success: var(--positive-brand);
+  --peer-map-track: #454b55;
   --success-foreground: #0c1c33;
   --border: rgb(255 255 255 / 12%);
   --input: rgb(255 255 255 / 48%);
@@ -164,6 +166,50 @@
   stroke: var(--card);
   stroke-width: 0.75;
   outline: none;
+}
+
+tr:has([id^="peer-address-"]:focus) {
+  background-color: var(--action-subtle);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-peer-marker]:hover {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-peer-marker][data-located]::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border: 2px solid var(--ring);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: dash-peer-located 480ms ease-out both;
+  }
+  [data-peer-marker] {
+    position: relative;
+  }
+  [data-peer-pulse]::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border: 2px solid var(--success);
+    border-radius: 50%;
+    mask-image: conic-gradient(black var(--peer-share, 100%), transparent 0);
+    pointer-events: none;
+    animation: dash-peer-pulse 2.8s ease-out infinite;
+  }
+  @keyframes dash-peer-pulse {
+    from { opacity: 0.6; transform: scale(1); }
+    75%, to { opacity: 0; transform: scale(1.16); }
+  }
+  @keyframes dash-peer-located {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
 }
 
 @media (forced-colors: active) {

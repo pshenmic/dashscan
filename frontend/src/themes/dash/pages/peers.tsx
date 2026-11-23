@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
+import { LoaderCircle, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { countryName } from "@/components/explorer/geo/iso-codes";
 import {
@@ -20,6 +21,7 @@ import { useTableViewMode } from "@/lib/use-table-view-mode";
 import { HomeNodeMap } from "@/themes/dash/components/home-masternode-map";
 import { LoadMore } from "@/themes/dash/components/load-more";
 import { Pagination } from "@/themes/dash/components/pagination";
+import { PeerMapDetails } from "@/themes/dash/components/peer-map-details";
 import { PeersTable } from "@/themes/dash/components/peers-table";
 import {
   peerClientLabel,
@@ -31,6 +33,7 @@ const PAGINATION_PAGE_SIZE = 10;
 
 const EMPTY_PEERS: ApiPeer[] = [];
 const peerId = (peer: ApiPeer) => peer.address;
+const peerAvailable = (peer: ApiPeer) => peer.available;
 
 function searchHaystack(peer: ApiPeer): string {
   return [
@@ -50,6 +53,7 @@ export default function PeersListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGINATION_PAGE_SIZE);
   const [filters, setFilters] = useState<PeerFilters>(EMPTY_PEER_FILTERS);
+  const [countryHighlightVisible, setCountryHighlightVisible] = useState(true);
   const mapRef = useRef<HTMLElement>(null);
   const [located, setLocated] = useState<{
     address: string;
@@ -68,20 +72,12 @@ export default function PeersListPage() {
   );
 
   const peers = allPeers ?? EMPTY_PEERS;
+  const loadingPeerLocations = !allPeers && !isError;
   const derivedUserAgents = useMemo(() => derivePeerUserAgents(peers), [peers]);
   const userAgents =
     apiUserAgents && apiUserAgents.length > 0
       ? apiUserAgents
       : derivedUserAgents;
-
-  const stats = useMemo(() => {
-    const available = peers.filter((p) => p.available).length;
-    return {
-      total: peers.length,
-      available,
-      unavailable: peers.length - available,
-    };
-  }, [peers]);
 
   const agentOptions = useMemo(() => {
     const options = userAgents.map(({ userAgent, count }) => ({
@@ -140,8 +136,11 @@ export default function PeersListPage() {
     [target],
   );
   const selectedIds = useMemo(
-    () => (filters.country ? new Set(filtered.map(peerId)) : null),
-    [filtered, filters.country],
+    () =>
+      countryHighlightVisible && filters.country
+        ? new Set(filtered.map(peerId))
+        : null,
+    [countryHighlightVisible, filtered, filters.country],
   );
 
   const total = filtered.length;
@@ -157,15 +156,9 @@ export default function PeersListPage() {
     setPage(1);
   }, []);
   const handleCountryChange = useCallback((code: string | null) => {
+    setCountryHighlightVisible(true);
     setLocated(null);
     setFilters((current) => ({ ...current, country: code }));
-    setPage(1);
-  }, []);
-  const handleClearFilters = useCallback(() => {
-    setLocated(null);
-    setFilters(EMPTY_PEER_FILTERS);
-    setSearch("");
-    setProtocol("");
     setPage(1);
   }, []);
 
@@ -187,153 +180,207 @@ export default function PeersListPage() {
     );
   }, [filtered, infinite, currentPage, size]);
 
+  function showPeerInTable(
+    peer: ApiPeer,
+    close: (afterClose: () => void) => void,
+  ) {
+    let index = filtered.findIndex((item) => item.address === peer.address);
+    const outsideCountry = index < 0;
+    if (outsideCountry) {
+      index = mapPeers.findIndex((item) => item.address === peer.address);
+      if (index < 0) return;
+      handleCountryChange(null);
+    }
+    if (!infinite) {
+      setPage(Math.floor(index / size) + 1);
+    } else if (index >= pageData.length || outsideCountry) {
+      handleSearchChange(peer.address);
+    }
+    close(() => {
+      const address = document.getElementById(`peer-address-${peer.address}`);
+      address?.focus({ preventScroll: true });
+      address?.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+      });
+    });
+  }
+
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="isolate flex flex-col gap-6">
-        <header className="relative z-10 grid w-full max-w-56 grid-cols-1 gap-2">
-          <h1 className="dash-heading-page mb-1 flex items-baseline gap-[0.25em] sm:dash-heading-hero">
-            <span className="font-extrabold text-brand">Peers</span>{" "}
-            <span className="tabular-nums">
-              {allPeers ? formatNumber(stats.total) : "—"}
-            </span>
-          </h1>
-          {(["available", "unavailable"] as const).map((status) => (
-            <button
-              key={status}
-              type="button"
-              aria-pressed={filters.status === status}
-              onClick={() =>
-                handleFiltersChange({
-                  ...filters,
-                  status: filters.status === status ? "all" : status,
-                })
-              }
-              className="flex h-9 w-full items-center justify-between rounded-xl border border-border bg-card px-3 text-sm shadow-xs hover:border-accent focus-visible:outline-2 focus-visible:outline-ring aria-pressed:border-accent aria-pressed:ring-1 aria-pressed:ring-accent"
-            >
-              {status === "available" ? "Available" : "Unavailable"}{" "}
-              <span
-                className={`rounded-full px-2 py-1 text-xs font-extrabold tabular-nums ${!allPeers ? "bg-secondary text-muted-foreground" : status === "available" ? "bg-positive-brand/12 text-success" : "bg-destructive/12 text-destructive"}`}
-              >
-                {allPeers ? formatNumber(stats[status]) : "—"}
-              </span>
-            </button>
-          ))}
-        </header>
-
         <section
           aria-label="Peer locations"
           ref={mapRef}
           tabIndex={-1}
-          className="relative overflow-x-clip overflow-y-visible"
+          className="relative overflow-x-clip overflow-y-visible pt-[max(1rem,calc(23%_-_11rem))]"
         >
           <div className="relative h-[207px]">
-            <div className="absolute inset-0 [&_fieldset>svg]:overflow-visible">
-              {mapPeers.some(peerLocation) ? (
+            <div
+              aria-busy={loadingPeerLocations}
+              className="absolute inset-0 [&_fieldset>svg]:overflow-visible"
+            >
+              {loadingPeerLocations || mapPeers.some(peerLocation) ? (
                 <HomeNodeMap
                   key={network}
                   nodes={mapPeers}
+                  getAvailability={peerAvailable}
                   focusLocation={target ?? undefined}
                   selectedHashes={highlighted ?? selectedIds}
+                  onClearHighlight={() => {
+                    setLocated(null);
+                    setCountryHighlightVisible(false);
+                  }}
                   label="peers"
                   getId={peerId}
                   getLocation={peerLocation}
-                  getCountries={peerCountries}
-                  onSelectCountry={(code) =>
-                    handleCountryChange(code === filters.country ? null : code)
-                  }
+                  renderDetails={(members, close) => (
+                    <PeerMapDetails
+                      peers={members}
+                      selectedCountry={filters.country}
+                      onShowInTable={(peer) => showPeerInTable(peer, close)}
+                      onCountryChange={(code) => {
+                        handleCountryChange(code);
+                        close();
+                      }}
+                    />
+                  )}
                 />
               ) : (
                 <p className="grid h-full place-items-center text-sm text-muted-foreground">
-                  {allPeers
-                    ? "No peer locations"
-                    : isFetching
-                      ? "Loading peers…"
-                      : "Map unavailable"}
+                  {allPeers ? "No peer locations" : "Map unavailable"}
                 </p>
               )}
             </div>
+            <output className="pointer-events-none absolute bottom-2 left-4 flex sm:left-6">
+              {loadingPeerLocations && (
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="size-4 text-accent motion-safe:animate-spin"
+                  />
+                  Loading peer locations…
+                </span>
+              )}
+            </output>
           </div>
         </section>
 
-        <section aria-label="Peer list" className="relative z-10 min-w-0">
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            {allPeers && hasFilters && (
-              <span className="text-sm text-muted-foreground">
-                {formatNumber(total)} {total === 1 ? "peer" : "peers"}
+        <section
+          aria-label="Peer list"
+          className="relative z-10 min-w-0 rounded-3xl bg-card p-4 sm:p-6"
+        >
+          <header className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="dash-heading-section flex flex-wrap items-baseline gap-x-1.5">
+              <span className="font-extrabold text-brand">Peers</span>{" "}
+              <span className="tabular-nums">
+                {allPeers && hasFilters ? `${formatNumber(total)} of ` : ""}
+                {allPeers ? formatNumber(allPeers.length) : "—"}
               </span>
-            )}
-            {(
-              [
-                ["Peer address", search, () => handleSearchChange("")],
-                [
-                  "Protocol version",
-                  protocol,
-                  () => {
-                    setProtocol("");
-                    setLocated(null);
-                    setPage(1);
-                  },
-                ],
-                [
-                  "Status",
-                  filters.status === "all"
-                    ? ""
-                    : filters.status === "available"
-                      ? "Available"
-                      : "Unavailable",
-                  () => handleFiltersChange({ ...filters, status: "all" }),
-                ],
-                [
-                  "User agent",
-                  agentOptions.find(
-                    (option) => option.value === filters.userAgent,
-                  )?.label ?? filters.userAgent,
-                  () => handleFiltersChange({ ...filters, userAgent: null }),
-                ],
-                [
-                  "Country",
-                  filters.country === "unknown"
-                    ? "Unknown"
-                    : filters.country
-                      ? countryName(filters.country)
-                      : "",
-                  () => handleCountryChange(null),
-                ],
-              ] as const
-            ).map(([label, value, clear]) =>
-              value ? (
-                <Badge
-                  key={label}
-                  asChild
-                  variant={
-                    label === "Status"
-                      ? filters.status === "available"
-                        ? "soft-success"
-                        : "soft-destructive"
-                      : "soft-accent"
-                  }
-                >
-                  <button
-                    type="button"
-                    aria-label={`Remove filter: ${label}, ${value}`}
-                    onClick={clear}
-                  >
-                    <span className="max-w-48 truncate">
-                      {label}: {value}
-                    </span>
-                    <span aria-hidden="true">×</span>
-                  </button>
-                </Badge>
-              ) : null,
-            )}
+            </h1>
             {hasFilters && (
-              <button
-                type="button"
-                onClick={handleClearFilters}
-                className="text-xs text-accent hover:underline"
+              <fieldset
+                aria-label="Active filters"
+                className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5"
               >
-                Clear filters
-              </button>
+                {(
+                  [
+                    [
+                      "address",
+                      "Peer address",
+                      search,
+                      () => handleSearchChange(""),
+                    ],
+                    [
+                      "protocolVersion",
+                      "Protocol version",
+                      protocol,
+                      () => {
+                        setProtocol("");
+                        setLocated(null);
+                        setPage(1);
+                      },
+                    ],
+                    [
+                      "available",
+                      "Status",
+                      filters.status === "all"
+                        ? ""
+                        : filters.status === "available"
+                          ? "Available"
+                          : "Unconfirmed",
+                      () => handleFiltersChange({ ...filters, status: "all" }),
+                    ],
+                    [
+                      "userAgent",
+                      "User agent",
+                      agentOptions.find(
+                        (option) => option.value === filters.userAgent,
+                      )?.label ?? filters.userAgent,
+                      () =>
+                        handleFiltersChange({ ...filters, userAgent: null }),
+                    ],
+                    [
+                      "country",
+                      "Country",
+                      filters.country === "unknown"
+                        ? "Unknown"
+                        : filters.country
+                          ? countryName(filters.country)
+                          : "",
+                      () => handleCountryChange(null),
+                    ],
+                  ] as const
+                ).map(([column, label, value, clear]) =>
+                  value ? (
+                    <Badge
+                      key={label}
+                      className="max-w-full gap-1 overflow-visible py-0 pl-3 pr-0.5"
+                      variant={
+                        label === "Status"
+                          ? filters.status === "available"
+                            ? "soft-success"
+                            : "soft"
+                          : "soft-accent"
+                      }
+                    >
+                      <span
+                        className="max-w-48 truncate"
+                        title={`${label}: ${value}`}
+                      >
+                        {label}: {value}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Remove filter: ${label}, ${value}`}
+                        title={`Remove ${label.toLowerCase()} filter`}
+                        className="inline-grid size-8 shrink-0 place-items-center rounded-full hover:bg-foreground/10 focus-visible:outline-2 focus-visible:outline-ring pointer-coarse:size-11"
+                        onClick={(event) => {
+                          const button = event.currentTarget;
+                          const chips = Array.from(
+                            button
+                              .closest("fieldset")
+                              ?.querySelectorAll("button") ?? [],
+                          );
+                          const index = chips.indexOf(button);
+                          const next =
+                            chips[index + 1] ??
+                            chips[index - 1] ??
+                            button
+                              .closest("section")
+                              ?.querySelector<HTMLButtonElement>(
+                                `th[data-column="${column}"] button`,
+                              );
+                          next?.focus();
+                          clear();
+                        }}
+                      >
+                        <X aria-hidden="true" className="size-4" />
+                      </button>
+                    </Badge>
+                  ) : null,
+                )}
+              </fieldset>
             )}
             <fieldset
               aria-label="Loading mode"
@@ -354,7 +401,7 @@ export default function PeersListPage() {
                 </button>
               ))}
             </fieldset>
-          </div>
+          </header>
           {isError && (
             <p role="alert" className="mb-2 text-sm text-destructive">
               {allPeers ? "Could not refresh peers." : "Could not load peers."}{" "}
@@ -421,7 +468,7 @@ export default function PeersListPage() {
             ) : (
               <nav
                 aria-label="Peer list pagination"
-                className="mt-2 rounded-xl border border-border bg-card [&>div]:py-2"
+                className="mt-4 overflow-x-auto"
               >
                 <Pagination
                   align="end"
