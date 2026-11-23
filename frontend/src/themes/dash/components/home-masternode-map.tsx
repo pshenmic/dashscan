@@ -1,4 +1,11 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ComposableMap,
   Geographies,
@@ -61,6 +68,7 @@ export function HomeMasternodeMap({
 }
 
 export function HomeNodeMap<Node>({
+  getAvailability,
   focusLocation,
   nodes,
   onSelect,
@@ -72,6 +80,7 @@ export function HomeNodeMap<Node>({
   getCountries,
 }: {
   focusLocation?: { lat: number; lng: number };
+  getAvailability?: (node: Node) => boolean;
   nodes: Node[];
   onSelect?: (ids: string[]) => void;
   selectedHashes?: Set<string> | null;
@@ -107,9 +116,17 @@ export function HomeNodeMap<Node>({
     return () => observer.disconnect();
   }, []);
   const index = useMemo(() => {
-    const cluster = new Supercluster<{ node: Node }>({
+    const cluster = new Supercluster<{ node: Node }, { available: number }>({
       radius: 48,
       maxZoom: 16,
+      ...(getAvailability && {
+        map: ({ node }: { node: Node }) => ({
+          available: Number(getAvailability(node)),
+        }),
+        reduce: (sum: { available: number }, next: { available: number }) => {
+          sum.available += next.available;
+        },
+      }),
     });
     cluster.load(
       nodes.flatMap((node) => {
@@ -129,12 +146,15 @@ export function HomeNodeMap<Node>({
       }),
     );
     return cluster;
-  }, [nodes, getLocation]);
+  }, [nodes, getLocation, getAvailability]);
   const zoomLevel = Math.max(
     0,
     Math.min(16, Math.floor(Math.log2((width * position.zoom) / 512))),
   );
-  const markers = index.getClusters([-180, -90, 180, 90], zoomLevel);
+  const markers = useMemo(
+    () => index.getClusters([-180, -90, 180, 90], zoomLevel),
+    [index, zoomLevel],
+  );
   const changeZoom = (factor: number) => {
     setActive(null);
     setPosition((current) => ({
@@ -241,16 +261,34 @@ export function HomeNodeMap<Node>({
                 ? feature.properties.cluster_id
                 : null;
             const key =
-              clusterId !== null
+              "cluster_id" in feature.properties
                 ? `cluster-${clusterId}`
                 : getId(feature.properties.node);
             const members =
-              clusterId !== null
+              clusterId !== null && (active === key || selectedHashes)
                 ? index
                     .getLeaves(clusterId, Infinity)
                     .map((point) => point.properties.node)
-                : [feature.properties.node];
-            const count = members.length;
+                : "node" in feature.properties
+                  ? [feature.properties.node]
+                  : [];
+            const count =
+              "point_count" in feature.properties
+                ? feature.properties.point_count
+                : 1;
+            const available = getAvailability
+              ? "cluster_id" in feature.properties
+                ? feature.properties.available
+                : Number(getAvailability(feature.properties.node))
+              : null;
+            const statusLabel =
+              available === null
+                ? ""
+                : count === 1
+                  ? available
+                    ? "Available"
+                    : "Unconfirmed"
+                  : `${metricNumber(available, 0)} available · ${metricNumber(count - available, 0)} unconfirmed`;
             const matching = selectedHashes
               ? members.filter((node) => selectedHashes.has(getId(node))).length
               : 0;
@@ -278,15 +316,46 @@ export function HomeNodeMap<Node>({
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          aria-label={`Inspect group of ${metricNumber(count, 0)} ${label}${selectedHashes ? `; ${metricNumber(matching, 0)} match the filter` : ""}`}
+                          aria-label={`${getAvailability && count === 1 ? "Inspect peer" : `Inspect group of ${metricNumber(count, 0)} ${label}`}${statusLabel ? `; ${statusLabel}` : ""}${selectedHashes ? `; ${metricNumber(matching, 0)} match the filter` : ""}`}
+                          title={statusLabel || undefined}
+                          style={
+                            available === null || count === 1
+                              ? undefined
+                              : ({
+                                  "--peer-share": `${(100 * available) / count}%`,
+                                  background:
+                                    "conic-gradient(var(--success) var(--peer-share), var(--peer-map-track) 0)",
+                                } as CSSProperties)
+                          }
                           data-filter-match={
                             selectedHashes ? matching > 0 : undefined
                           }
-                          className={`flex size-11 items-center justify-center rounded-full border-[5px] border-brand/20 bg-action-solid bg-clip-padding text-xs font-extrabold tabular-nums text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-ring data-[filter-match=false]:opacity-40 ${active === key || matching > 0 ? "ring-2 ring-brand shadow-md shadow-brand/25" : "shadow-sm"}`}
+                          data-located={
+                            focusLocation && matching > 0 ? true : undefined
+                          }
+                          data-peer-marker={getAvailability ? true : undefined}
+                          className={`flex size-11 items-center justify-center rounded-full text-xs font-extrabold tabular-nums focus-visible:outline-2 focus-visible:outline-ring data-[filter-match=false]:opacity-40 ${available === null ? "border-[5px] border-brand/20 bg-action-solid bg-clip-padding text-primary-foreground hover:bg-action-solid" : "text-foreground"} ${active === key || matching > 0 ? "ring-2 ring-brand shadow-md shadow-brand/25" : available !== null && count === 1 ? "" : "shadow-sm"}`}
                         >
-                          {count > 999
-                            ? `${Math.floor(count / 1000)}k+`
-                            : metricNumber(count, 0)}
+                          {available !== null && count === 1 ? (
+                            <span
+                              aria-hidden="true"
+                              className={`grid size-full place-items-center rounded-full shadow-sm ${available ? "border-2 border-card bg-success text-success-foreground" : "border-[3px] border-muted-foreground bg-card"}`}
+                            >
+                              {count}
+                            </span>
+                          ) : (
+                            <span
+                              className={
+                                available !== null
+                                  ? "grid size-8 place-items-center rounded-full bg-card"
+                                  : undefined
+                              }
+                            >
+                              {count > 999
+                                ? `${Math.floor(count / 1000)}k+`
+                                : metricNumber(count, 0)}
+                            </span>
+                          )}
                         </button>
                       </PopoverTrigger>
                       <PopoverContent

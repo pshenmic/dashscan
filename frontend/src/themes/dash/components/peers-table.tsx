@@ -144,7 +144,7 @@ function StatusHeader() {
             <Badge variant="soft-success">Available</Badge>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="unavailable">
-            <Badge variant="soft-destructive">Unavailable</Badge>
+            <Badge variant="soft">Unconfirmed</Badge>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
@@ -250,8 +250,8 @@ const columns: ColumnDef<ApiPeer>[] = [
     accessorKey: "available",
     header: StatusHeader,
     cell: ({ row: { original: peer } }) => (
-      <Badge variant={peer.available ? "soft-success" : "soft-destructive"}>
-        {peer.available ? "Available" : "Unavailable"}
+      <Badge variant={peer.available ? "soft-success" : "soft"}>
+        {peer.available ? "Available" : "Unconfirmed"}
       </Badge>
     ),
   },

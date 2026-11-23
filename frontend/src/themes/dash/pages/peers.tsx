@@ -32,6 +32,7 @@ const PAGINATION_PAGE_SIZE = 10;
 
 const EMPTY_PEERS: ApiPeer[] = [];
 const peerId = (peer: ApiPeer) => peer.address;
+const peerAvailable = (peer: ApiPeer) => peer.available;
 
 function searchHaystack(peer: ApiPeer): string {
   return [
@@ -187,6 +188,7 @@ export default function PeersListPage() {
                 <HomeNodeMap
                   key={network}
                   nodes={mapPeers}
+                  getAvailability={peerAvailable}
                   focusLocation={target ?? undefined}
                   selectedHashes={highlighted ?? selectedIds}
                   label="peers"
@@ -252,7 +254,7 @@ export default function PeersListPage() {
                         ? ""
                         : filters.status === "available"
                           ? "Available"
-                          : "Unavailable",
+                          : "Unconfirmed",
                       () => handleFiltersChange({ ...filters, status: "all" }),
                     ],
                     [
@@ -284,7 +286,7 @@ export default function PeersListPage() {
                         label === "Status"
                           ? filters.status === "available"
                             ? "soft-success"
-                            : "soft-destructive"
+                            : "soft"
                           : "soft-accent"
                       }
                     >

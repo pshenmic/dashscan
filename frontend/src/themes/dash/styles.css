@@ -23,6 +23,7 @@
   --destructive-foreground: #ffffff;
   --positive-brand: #95bf40;
   --success: #4f6e19;
+  --peer-map-track: #ccd1d7;
   --success-foreground: #ffffff;
   --border: rgb(12 28 51 / 12%);
   --input: rgb(12 28 51 / 48%);
@@ -56,6 +57,7 @@
   --destructive: #ff7272;
   --destructive-foreground: #0c1c33;
   --success: var(--positive-brand);
+  --peer-map-track: #454b55;
   --success-foreground: #0c1c33;
   --border: rgb(255 255 255 / 12%);
   --input: rgb(255 255 255 / 48%);
