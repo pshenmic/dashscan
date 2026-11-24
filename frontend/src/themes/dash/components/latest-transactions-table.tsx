@@ -8,32 +8,11 @@ import {
 import type { ApiTransaction } from "@/lib/api/types";
 import { transactionAmount } from "@/themes/dash/lib/transaction-metrics";
 import { BlockAge } from "./block-age";
+import { ColumnLabel } from "./column-label";
 import { FormattedAmount } from "./formatted-amount";
 import { IdentifierLink } from "./identifier-link";
 import { LatestRecordsTable } from "./latest-records-table";
 import { TransactionTypeBadge } from "./transaction-type-badge";
-
-function ColumnLabel({
-  label,
-  description,
-}: {
-  label: string;
-  description: string;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          {label}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-64">{description}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 const columns: ColumnDef<ApiTransaction>[] = [
   {
