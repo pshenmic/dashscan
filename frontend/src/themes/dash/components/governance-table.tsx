@@ -25,6 +25,7 @@ export function GovernanceTable<Row>({
   controls,
   externalSearch,
   filterKey,
+  initialSorting = [],
 }: {
   rows: Row[];
   columns: ColumnDef<Row>[];
@@ -38,12 +39,13 @@ export function GovernanceTable<Row>({
   controls?: ReactNode;
   externalSearch?: string;
   filterKey?: string | null;
+  initialSorting?: SortingState;
 }) {
   const [mode, setMode] = useTableViewMode(storageKey, "pagination");
   const [localSearch, setSearch] = useState("");
   const search = externalSearch ?? localSearch;
   const [page, setPage] = useState(1);
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [previousFilters, setPreviousFilters] = useState({ search, filterKey });
   if (
     previousFilters.search !== search ||
@@ -55,10 +57,10 @@ export function GovernanceTable<Row>({
   const [size, setSize] = useState(10);
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return query
+    return externalSearch == null && query
       ? rows.filter((row) => searchText(row).toLowerCase().includes(query))
       : rows;
-  }, [rows, search, searchText]);
+  }, [rows, search, searchText, externalSearch]);
   const pages = Math.max(1, Math.ceil(filtered.length / size));
   const current = Math.min(page, pages);
   const table = useReactTable({
@@ -117,7 +119,7 @@ export function GovernanceTable<Row>({
           ))}
         </fieldset>
       </div>
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <DataTable
           table={table}
           variant="plain"
