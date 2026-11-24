@@ -57,16 +57,16 @@ export function HomeHero() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               to="/dashboard"
-              className="dash-home-action flex min-h-12 items-center gap-4 rounded-full bg-action-solid py-2 pl-6 pr-2 text-base font-medium text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+              className="dash-home-action dash-home-action-subtle flex min-h-12 items-center gap-3 rounded-full px-5 text-base font-medium text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
               View Dashboard
-              <span className="flex size-8 items-center justify-center rounded-full bg-primary-foreground text-accent">
+              <span className="flex size-5 items-center justify-center">
                 <HomeIcon name="explore" />
               </span>
             </Link>
             <Link
               to="/dao"
-              className="dash-home-action dash-home-action-subtle flex min-h-12 items-center rounded-full px-6 text-base font-medium text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+              className="inline-flex min-h-12 items-center rounded-lg px-3 text-base font-medium text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
               Governance
             </Link>
@@ -107,9 +107,7 @@ export function HomeHero() {
             </span>
           </div>
           <div>
-            <h2 className="dash-heading-page">
-              Explore <span className="text-muted-foreground">the network</span>
-            </h2>
+            <h2 className="dash-heading-page">Explore the network</h2>
             <p
               id={searchDescriptionId}
               className="dash-body mt-3 text-muted-foreground"
@@ -117,7 +115,9 @@ export function HomeHero() {
               Blocks, transactions, addresses and masternodes.
             </p>
           </div>
-          <SearchBar descriptionId={searchDescriptionId} />
+          <div className="rounded-3xl shadow-card [&_form]:border-accent/60 [&_form]:bg-card">
+            <SearchBar descriptionId={searchDescriptionId} />
+          </div>
         </div>
       </div>
     </section>
