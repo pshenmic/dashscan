@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Search } from "lucide-react";
 import { useState } from "react";
@@ -8,18 +9,18 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { blockRewardQueryOptions, blocksQueryOptions } from "@/lib/api/blocks";
 import { budgetQueryOptions } from "@/lib/api/governance";
-import { formatDateTime, formatNumber } from "@/lib/format";
-import { homeBlocksQueryOptions, homeChainQueryOptions } from "@/lib/home";
-import { appStore } from "@/lib/store";
-import { InfoPopover } from "@/themes/dash/components/info-popover";
-import { budgetAllocation, daoTiming } from "@/themes/dash/lib/dao-metrics";
 import {
-  type PaymentPeriod,
-  ProposalBadges,
-  ProposalsSection,
-  useListedProposals,
-} from "./proposals";
+  DUFFS_PER_DASH,
+  formatDateTime,
+  formatDuration,
+  formatNumber,
+} from "@/lib/format";
+import { homeChainQueryOptions } from "@/lib/home";
+import { appStore } from "@/lib/store";
+import { BlockAge } from "@/themes/dash/components/block-age";
+import { type PaymentPeriod, ProposalBadges, ProposalsSection, useListedProposals } from "./proposals";
 
 function funds(value: number | null | undefined, maximumFractionDigits = 2) {
   return value == null
@@ -27,128 +28,186 @@ function funds(value: number | null | undefined, maximumFractionDigits = 2) {
     : `${formatNumber(value, { maximumFractionDigits })} DASH`;
 }
 
+function NextPayoutTime({ timestamp }: { timestamp: number }) {
+  const minute = useClockValue((now) => Math.floor((timestamp - now) / 60_000));
+  if (!Number.isFinite(timestamp)) return "—";
+  const remaining =
+    minute < 0
+      ? "Awaiting block"
+      : minute === 0
+        ? "<1m"
+        : `~${formatDuration(minute * 60_000)}`;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Estimated next superblock: ${remaining}`}
+          className="rounded-sm font-medium tabular-nums focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          {remaining}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <time dateTime={new Date(timestamp).toISOString()}>
+          Estimated ·{" "}
+          {formatDateTime(timestamp, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hourCycle: "h23",
+            timeZoneName: "short",
+          })}
+        </time>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export default function BudgetPage() {
   const network = useStore(appStore, (state) => state.network);
   const proposals = useListedProposals();
   const [period, setPeriod] = useState<PaymentPeriod | null>(null);
   const [search, setSearch] = useState("");
-  const budget = useQuery(budgetQueryOptions({ network }));
+  const budget = useQuery({
+    ...budgetQueryOptions({ network }),
+    refetchInterval: 30_000,
+  });
   const chain = useQuery(homeChainQueryOptions(network));
-  const blocks = useQuery(homeBlocksQueryOptions(network));
-  const now = useClockValue((time) => Math.floor(time / 60_000) * 60_000);
-  const nextAt = daoTiming(
-    chain.data,
-    blocks.data?.resultSet[0],
-    budget.data?.votingDeadline,
-    now,
-  ).nextAt;
   const data = budget.data;
-  const allocation = budgetAllocation(data);
-  const deadline = Date.parse(data?.votingDeadline ?? "");
-  const height = chain.data?.nextSuperblockHeight;
+  const projectedCount = data?.enoughVotesAndFundsCount;
+  const start = chain.data?.latestSuperblockHeight;
+  const historyOptions = blocksQueryOptions({
+    network,
+    superblock: true,
+    limit: 2,
+    order: "desc",
+  });
+  const history = useQuery({
+    ...historyOptions,
+    queryKey: [...historyOptions.queryKey, start],
+    enabled: start != null,
+    staleTime: Infinity,
+    refetchInterval: (query) =>
+      query.state.data?.resultSet[0]?.height === start ? false : 30_000,
+  });
+  const previousBlock = history.data?.resultSet.find(
+    (block) => start != null && block.height < start,
+  );
+  const previous = previousBlock?.height;
+  const lastBlock = history.data?.resultSet.find(
+    (block) => block.height === start,
+  );
+  const previousReward = useQuery({
+    ...blockRewardQueryOptions({ network, height: previous }),
+    refetchInterval: false,
+  });
+  const lastReward = useQuery({
+    ...blockRewardQueryOptions({ network, height: start }),
+    refetchInterval: false,
+  });
+  const end = chain.data?.nextSuperblockHeight;
+  const lastTime = Date.parse(lastBlock?.timestamp ?? "");
+  const previousTime = Date.parse(previousBlock?.timestamp ?? "");
+  const nextTime =
+    end != null &&
+    start != null &&
+    previous != null &&
+    end > start &&
+    lastTime > previousTime
+      ? lastTime +
+        ((lastTime - previousTime) * (end - start)) / (start - previous)
+      : Number.NaN;
   return (
     <main className="mx-auto max-w-[1440px] space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-      <header className="relative flex flex-col gap-2 lg:pr-[calc(30%+1.5rem)]">
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <h1 className="dash-heading-page font-extrabold text-brand sm:dash-heading-hero">
-            Budget Proposals
-          </h1>
-          <span className="text-2xl font-semibold tabular-nums sm:text-3xl">
-            {data?.totalBudget == null ? (
-              "—"
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={`Total cycle budget: ${funds(data.totalBudget, 8)}`}
-                    className="inline-flex items-baseline gap-1.5 rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
-                  >
-                    {formatNumber(data.totalBudget, {
-                      maximumFractionDigits: 2,
-                    })}
-                    <span className="text-sm font-medium text-muted-foreground">
-                      DASH
+      <header className="grid items-center gap-4 sm:px-3 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)] lg:grid-rows-[auto_auto] lg:gap-y-0 lg:px-5 lg:py-2">
+        <ol
+          className="relative flex min-w-0 gap-6 overflow-x-auto px-1 py-2 lg:row-span-2 lg:grid lg:grid-cols-3 lg:grid-rows-subgrid lg:gap-y-0 lg:py-0"
+          aria-label="Budget cycle"
+        >
+          {[
+            {
+              label: "Previous payout",
+              height: previous,
+              treasury: previousReward.data?.treasury,
+              timestamp: previousBlock?.timestamp,
+            },
+            {
+              label: "Last payout",
+              height: start,
+              treasury: lastReward.data?.treasury,
+              timestamp: lastBlock?.timestamp,
+            },
+            { label: "Next payout", height: end, upcoming: true },
+          ].map(({ label, height, treasury, timestamp, upcoming }) => (
+            <li
+              key={label}
+              className="min-w-max flex-1 lg:row-span-2 lg:grid lg:grid-rows-subgrid"
+            >
+              <div className="flex min-h-[74px] flex-col justify-between gap-2 rounded-xl bg-card p-3 tabular-nums text-foreground shadow-card">
+                <span className="flex items-center gap-2 whitespace-nowrap text-xs font-medium">
+                  <span
+                    aria-hidden="true"
+                    className="h-[11px] w-[10px] bg-current [mask:url('/icons/home/timeline-block.svg')_center/contain_no-repeat]"
+                  />
+                  {label}
+                  {!upcoming && height != null ? (
+                    <Link
+                      to="/blocks/$hashOrHeight"
+                      params={{ hashOrHeight: String(height) }}
+                      aria-label={`View block #${formatNumber(height)}`}
+                      className="ms-auto rounded-sm text-accent no-underline focus-visible:outline-2 focus-visible:outline-current"
+                    >
+                      #{formatNumber(height)}
+                    </Link>
+                  ) : (
+                    <span className="ms-auto text-muted-foreground">
+                      {height == null ? "—" : `#${formatNumber(height)}`}
                     </span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Total cycle budget: {funds(data.totalBudget, 8)}
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <ProposalBadges
-            rows={proposals.rows}
-            selected={period}
-            onChange={setPeriod}
-          />
-          <dl
-            aria-label="Governance cycle"
-            className="flex flex-wrap items-center gap-2 text-sm [&>div]:inline-flex [&>div]:flex-wrap [&>div]:items-baseline [&>div]:gap-x-1.5 [&>div]:rounded-full [&>div]:bg-secondary [&>div]:px-3 [&>div]:py-1"
-          >
-            <div>
-              <dt className="text-sm text-muted-foreground">Requested</dt>
-              <dd className="font-semibold tabular-nums">
-                {funds(data?.totalRequested)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">
-                <InfoPopover
-                  trigger="Projected payout"
-                  label="Projected payout details"
-                >
-                  Unallocated: {funds(allocation?.remaining)}. This is a
-                  projection, not a confirmed payment.
-                </InfoPopover>
-              </dt>
-              <dd className="font-semibold tabular-nums">
-                {funds(allocation?.allocated)}
-                {allocation && data?.enoughVotesAndFundsCount != null && (
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    · {formatNumber(data.enoughVotesAndFundsCount)}{" "}
-                    {data.enoughVotesAndFundsCount === 1
-                      ? "proposal"
-                      : "proposals"}
-                  </span>
+                  )}
+                </span>
+                {!upcoming ? (
+                  <p className="flex items-baseline justify-between gap-2 text-xs">
+                    <strong className="text-sm font-semibold">
+                      {funds(
+                        treasury == null ? null : treasury / DUFFS_PER_DASH,
+                        8,
+                      )}
+                    </strong>
+                  </p>
+                ) : (
+                  <p className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+                    <strong className="text-sm font-semibold text-foreground">
+                      <span className="sr-only">Projected payout: </span>
+                      {funds(data?.enoughVotesAndFundsTotal)}
+                    </strong>
+                    {projectedCount != null && (
+                      <span>
+                        {formatNumber(projectedCount)}{" "}
+                        {projectedCount === 1 ? "proposal" : "proposals"}
+                      </span>
+                    )}
+                  </p>
                 )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">
-                <InfoPopover
-                  trigger="Est. voting deadline"
-                  label="Voting deadline and next superblock"
-                >
-                  Next superblock:{" "}
-                  {height == null ? "—" : `#${formatNumber(height)}`}.{" "}
-                  {nextAt == null
-                    ? "Time unavailable."
-                    : nextAt <= now
-                      ? "Awaiting block."
-                      : `Estimated: ${formatDateTime(nextAt, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}.`}
-                </InfoPopover>
-              </dt>
-              <dd className="font-semibold">
-                {Number.isFinite(deadline) ? (
-                  <time dateTime={new Date(deadline).toISOString()}>
-                    {formatDateTime(deadline, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </time>
+              </div>
+              <div
+                data-upcoming={upcoming || undefined}
+                className="dash-timeline-track relative mt-2 pt-3 text-center text-[10px] text-muted-foreground after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand/70 [&_button]:text-center"
+              >
+                {upcoming ? (
+                  <NextPayoutTime timestamp={nextTime} />
+                ) : timestamp ? (
+                  <BlockAge timestamp={timestamp} />
                 ) : (
                   "—"
                 )}
-              </dd>
-            </div>
-          </dl>
-        </div>
-        <label className="mt-2 grid gap-2 font-semibold lg:absolute lg:inset-e-0 lg:top-0 lg:mt-0 lg:w-[30%]">
+              </div>
+            </li>
+          ))}
+        </ol>
+        <label className="mx-1 min-w-0 font-semibold lg:col-start-2 lg:row-start-1">
           <span className="sr-only">
             Find a proposal by name, hash or payment address
           </span>
@@ -179,12 +238,36 @@ export default function BudgetPage() {
           </button>
         </p>
       )}
-      <ProposalsSection
-        {...proposals}
-        search={search}
-        period={period}
-        threshold={data?.requiredVotes}
-      />
+          <h1 className="dash-heading-section flex flex-wrap items-baseline gap-x-1.5">
+            <span className="font-extrabold text-brand">Budget</span>
+            <span className="tabular-nums">
+              {data?.totalBudget == null ? (
+                "—"
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`Total cycle budget: ${funds(data.totalBudget, 8)}`}
+                      className="inline-flex items-baseline gap-1.5 rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      {formatNumber(data.totalBudget, {
+                        maximumFractionDigits: 2,
+                      })}
+                      <span className="text-sm font-medium text-muted-foreground">
+                        DASH
+                      </span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Total cycle budget: {funds(data.totalBudget, 8)}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </span>
+          </h1>
+      <ProposalBadges rows={proposals.rows} selected={period} onChange={setPeriod} />
+      <ProposalsSection {...proposals} search={search} period={period} threshold={data?.requiredVotes} />
     </main>
   );
 }
