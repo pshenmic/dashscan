@@ -40,7 +40,7 @@ function StatCard({
     >
       <div className="min-w-0 space-y-2">
         <h3 className="dash-body-compact text-muted-foreground">{label}</h3>
-        <p className="dash-metric break-words text-accent">{value}</p>
+        <p className="dash-metric break-words text-foreground">{value}</p>
         <div className="dash-label-small text-muted-foreground">{detail}</div>
       </div>
       {children}
@@ -211,7 +211,7 @@ export function HomeGeneralStats() {
               className="pointer-events-none absolute left-0 top-[7.1%] h-[90.5%] w-[31%]"
             />
             <p
-              className="absolute inset-x-2 top-[39%] whitespace-nowrap text-center text-lg font-extrabold leading-6 text-accent @[24rem]:text-xl"
+              className="absolute inset-x-2 top-[39%] whitespace-nowrap text-center text-lg font-extrabold leading-6 text-foreground @[24rem]:text-xl"
               title={
                 stats?.peakHashRateTimestamp
                   ? `Highest daily average · ${formatDateTime(stats.peakHashRateTimestamp)}`

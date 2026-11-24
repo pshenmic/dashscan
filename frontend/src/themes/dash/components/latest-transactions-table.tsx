@@ -30,7 +30,7 @@ const columns: ColumnDef<ApiTransaction>[] = [
                 alt=""
                 width={24}
                 height={24}
-                className="size-6 shrink-0"
+                className="size-6 shrink-0 rounded-full bg-white dark:bg-secondary"
               />
             }
           />

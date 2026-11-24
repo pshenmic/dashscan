@@ -16,6 +16,7 @@ export function BlocksTimeline({
   blocks,
   blockTime,
   newHashes = [],
+  highlightLatest = false,
   loading,
   error,
   onRetry,
@@ -23,6 +24,7 @@ export function BlocksTimeline({
   blocks: ApiBlock[];
   blockTime?: number | null;
   newHashes?: string[];
+  highlightLatest?: boolean;
   loading: boolean;
   error: boolean;
   onRetry: () => void;
@@ -104,7 +106,7 @@ export function BlocksTimeline({
                 to="/blocks/$hashOrHeight"
                 params={{ hashOrHeight: block.hash }}
                 data-new-block={newHashes.includes(block.hash) || undefined}
-                className="dash-timeline-block relative flex h-[74px] min-w-40 flex-col justify-between gap-3 rounded-xl bg-action-solid p-3 tabular-nums text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className={`dash-timeline-block relative flex h-[74px] min-w-40 flex-col justify-between gap-3 rounded-xl p-3 tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${!highlightLatest || block.hash === latest.hash ? "bg-action-solid text-primary-foreground" : "bg-card text-foreground inset-ring inset-ring-border hover:inset-ring-accent"}`}
               >
                 <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
                   <span
@@ -119,12 +121,11 @@ export function BlocksTimeline({
                   <span className="shrink-0 text-sm">
                     <strong>{metricNumber(block.txCount, 0)}</strong> Txs
                   </span>
-                  <span className="shrink-0 text-primary-foreground">
-                    {metricBytes(block.size)}
-                  </span>
+                  <span className="shrink-0">{metricBytes(block.size)}</span>
                 </span>
               </Link>
               <div className="dash-timeline-track relative mt-2 pt-3 text-center text-[10px] text-muted-foreground after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand/70">
+                {highlightLatest && block.hash === latest.hash && "Latest · "}
                 <BlockAge timestamp={block.timestamp} />
               </div>
             </li>
