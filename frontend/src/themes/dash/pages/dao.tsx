@@ -20,7 +20,7 @@ import {
 import { homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
 import { BlockAge } from "@/themes/dash/components/block-age";
-import { type PaymentPeriod, ProposalBadges, ProposalsSection, useListedProposals } from "./proposals";
+import { ProposalsSection, useListedProposals } from "./proposals";
 
 function funds(value: number | null | undefined, maximumFractionDigits = 2) {
   return value == null
@@ -69,7 +69,6 @@ function NextPayoutTime({ timestamp }: { timestamp: number }) {
 export default function BudgetPage() {
   const network = useStore(appStore, (state) => state.network);
   const proposals = useListedProposals();
-  const [period, setPeriod] = useState<PaymentPeriod | null>(null);
   const [search, setSearch] = useState("");
   const budget = useQuery({
     ...budgetQueryOptions({ network }),
@@ -238,6 +237,9 @@ export default function BudgetPage() {
           </button>
         </p>
       )}
+      <ProposalsSection
+        {...proposals}
+        heading={
           <h1 className="dash-heading-section flex flex-wrap items-baseline gap-x-1.5">
             <span className="font-extrabold text-brand">Budget</span>
             <span className="tabular-nums">
@@ -266,8 +268,11 @@ export default function BudgetPage() {
               )}
             </span>
           </h1>
-      <ProposalBadges rows={proposals.rows} selected={period} onChange={setPeriod} />
-      <ProposalsSection {...proposals} search={search} period={period} threshold={data?.requiredVotes} />
+        }
+        search={search}
+        threshold={data?.requiredVotes}
+        totalRequested={data?.totalRequested}
+      />
     </main>
   );
 }
