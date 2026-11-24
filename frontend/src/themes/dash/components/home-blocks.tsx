@@ -137,7 +137,7 @@ export function HomeBlocks() {
             className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             Explore Blocks
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
+            <span className="flex size-8 shrink-0 items-center justify-center">
               <HomeIcon name="explore" />
             </span>
           </Link>
@@ -204,6 +204,7 @@ export function HomeBlocks() {
             </span>
           </div>
           <BlocksTimeline
+            highlightLatest
             blocks={blocks}
             blockTime={chain.data?.blockTime}
             newHashes={newHashes}
@@ -247,7 +248,7 @@ export function HomeBlocks() {
                     </TooltipContent>
                   </Tooltip>
                 </h3>
-                <p className="break-words text-2xl font-extrabold leading-[1.2] text-accent">
+                <p className="break-words text-2xl font-extrabold leading-[1.2] text-foreground">
                   {item.valueTitle ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -277,7 +278,7 @@ export function HomeBlocks() {
                       <span className="rounded-lg bg-secondary px-2 py-1 font-medium text-muted-foreground">
                         {item.detailLabel}
                       </span>
-                      <span className="font-extrabold text-accent">
+                      <span className="font-semibold text-foreground">
                         {item.detail}
                       </span>
                     </button>
