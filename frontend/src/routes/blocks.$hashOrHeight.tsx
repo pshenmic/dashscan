@@ -3,9 +3,7 @@ import { lazy, Suspense } from "react";
 import { blockQueryOptions } from "@/lib/api/blocks";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
 import { defaultNetwork } from "@/lib/store";
-import { useActiveTheme } from "@/themes/active";
 import { LazyThemePageFallback } from "@/themes/LazyThemeFallback";
-import RedesignBlockDetailPage from "@/themes/neo/pages/block-detail";
 
 const ClassicBlockDetailPage = lazy(
   () => import("@/themes/dash/pages/block-detail"),
@@ -38,10 +36,7 @@ export const Route = createFileRoute("/blocks/$hashOrHeight")({
 });
 
 function BlockDetailRoute() {
-  const theme = useActiveTheme();
   const { hashOrHeight } = Route.useParams();
-  if (theme === "neo")
-    return <RedesignBlockDetailPage hashOrHeight={hashOrHeight} />;
   return (
     <Suspense fallback={<LazyThemePageFallback />}>
       <ClassicBlockDetailPage hashOrHeight={hashOrHeight} />

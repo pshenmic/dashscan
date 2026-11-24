@@ -11,12 +11,11 @@ import { RenderClock } from "@/components/render-clock";
 import { Toaster } from "@/components/ui/sonner";
 import { getBaseUrl } from "@/lib/api/client";
 import { defaultNetwork } from "@/lib/store";
+import { AppShell } from "../components/app-shell";
 import { ErrorFallback } from "../components/error-fallback";
 import AppDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
-import { ThemeHydrator } from "../themes/Hydrator";
-import { THEME_INIT_SCRIPT } from "../themes/init";
-import { ThemeShell } from "../themes/ShellDispatcher";
+import { COLOR_MODE_INIT_SCRIPT } from "../themes/color-mode";
 
 interface MyRouterContext {
   queryClient: QueryClient;
@@ -61,16 +60,15 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 function RootDocument({ children }: { children: ReactNode }) {
   const data = Route.useLoaderData();
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme="dash" suppressHydrationWarning>
       <head>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: theme init script */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: COLOR_MODE_INIT_SCRIPT }} />
         <HeadContent />
       </head>
       <body className="font-sans antialiased">
-        <ThemeHydrator />
         <RenderClock initialNow={data?.now ?? 0}>
-          <ThemeShell>{children}</ThemeShell>
+          <AppShell>{children}</AppShell>
         </RenderClock>
         <Toaster />
         <AppDevtools />
