@@ -111,7 +111,7 @@ interface FetchBlockInput {
   hash: string;
 }
 
-class BlockNotFoundError extends Error {
+export class BlockNotFoundError extends Error {
   constructor() {
     super("Block not found");
   }

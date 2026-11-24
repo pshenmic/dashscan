@@ -30,6 +30,7 @@ import { BlocksTimeline } from "./blocks-timeline";
 import { CardDecoration } from "./card-decoration";
 import { ChartDateRange, type ChartPeriod } from "./chart-date-range";
 import { InfoPopover } from "./info-popover";
+import { SkeletonBar } from "./skeleton";
 
 function MetricValue({ value, unit }: { value: string; unit?: string }) {
   return (
@@ -284,8 +285,8 @@ export function BlocksOverview({ network }: { network: Network }) {
                 )
               }
             >
-              {reward.isPending ? (
-                "…"
+              {chain.isPending || reward.isLoading ? (
+                <SkeletonBar className="h-7 w-28" />
               ) : reward.isError ? (
                 <button
                   type="button"
@@ -351,9 +352,11 @@ export function BlocksOverview({ network }: { network: Network }) {
                 </h2>
                 <p className="flex min-w-0 max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-2xl font-semibold leading-tight tabular-nums text-foreground">
                   <span className="whitespace-nowrap">
-                    {history.isPending
-                      ? "…"
-                      : metricNumber(summary.currentTotal, 0)}{" "}
+                    {history.isPending ? (
+                      <SkeletonBar className="inline-block h-7 w-32" />
+                    ) : (
+                      metricNumber(summary.currentTotal, 0)
+                    )}{" "}
                     <span className="text-base font-medium text-muted-foreground">
                       Txs
                     </span>
@@ -374,9 +377,18 @@ export function BlocksOverview({ network }: { network: Network }) {
           </div>
           <div className="grid h-[156px] min-w-0 place-items-center">
             {history.isPending ? (
-              <p className="text-center text-sm text-muted-foreground">
-                Loading history…
-              </p>
+              <section
+                aria-busy="true"
+                aria-label="Loading transaction history"
+                className="w-full space-y-3"
+              >
+                <SkeletonBar className="h-28 w-full" />
+                <div className="flex justify-between gap-6">
+                  <SkeletonBar className="w-16" />
+                  <SkeletonBar className="w-16" />
+                  <SkeletonBar className="w-16" />
+                </div>
+              </section>
             ) : history.isError ? (
               <button
                 type="button"
