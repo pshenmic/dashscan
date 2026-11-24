@@ -100,6 +100,16 @@ function proposalColumns(
   totalRequested: number | null | undefined,
   periodHeader: ReactNode,
 ): ColumnDef<ListedProposal>[] {
+  const sumVotes = (key: "yesCount" | "noCount" | "abstainCount") =>
+    rows?.reduce<number | null>((sum, row) => {
+      const votes = row[key];
+      return sum == null || votes == null ? null : sum + votes;
+    }, 0) ?? null;
+  const totals = {
+    yesCount: sumVotes("yesCount"),
+    noCount: sumVotes("noCount"),
+    abstainCount: sumVotes("abstainCount"),
+  };
   const voteColumns: ColumnDef<ListedProposal>[] = (
     [
       ["absoluteYesCount", "Net yes", "font-semibold text-foreground"],
@@ -138,7 +148,7 @@ function proposalColumns(
         <SortHeader
           column={column}
           label={label}
-          summary={null}
+          summary={number(totals[key])}
         />
       ),
     cell: ({ row }) => {
