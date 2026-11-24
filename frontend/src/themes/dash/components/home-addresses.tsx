@@ -303,7 +303,7 @@ export function HomeAddresses() {
             className="dash-home-action dash-home-action-subtle mt-6 flex min-h-12 items-center justify-between gap-4 rounded-full py-2 pl-6 pr-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             Explore Addresses
-            <span className="flex size-8 items-center justify-center rounded-full bg-action-primary text-primary-foreground">
+            <span className="flex size-8 shrink-0 items-center justify-center">
               <HomeIcon name="explore" />
             </span>
           </Link>

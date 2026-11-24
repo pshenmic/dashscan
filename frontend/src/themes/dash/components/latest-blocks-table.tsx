@@ -21,7 +21,7 @@ const columns: ColumnDef<ApiBlock>[] = [
           alt=""
           width={24}
           height={24}
-          className="size-6 shrink-0"
+          className="size-6 shrink-0 rounded-full bg-white dark:bg-secondary"
         />
         {metricNumber(row.original.height, 0)}
       </Link>
