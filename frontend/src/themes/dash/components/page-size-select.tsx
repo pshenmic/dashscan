@@ -26,12 +26,27 @@ export function PageSizeSelect({ value, onChange }: PageSizeSelectProps) {
           onChange(paginationSearchSchema.parse({ limit: Number(value) }).limit)
         }
       >
-        <SelectTrigger size="sm">
+        <SelectTrigger
+          size="sm"
+          aria-label="Records per page"
+          className="w-18 text-xs tabular-nums"
+        >
           <SelectValue />
         </SelectTrigger>
-        <SelectContent align="start">
+        <SelectContent
+          position="popper"
+          side="top"
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          className="min-w-[var(--radix-select-trigger-width)] rounded-lg data-[side=top]:translate-y-0 data-[side=bottom]:translate-y-0"
+        >
           {PAGE_SIZE_OPTIONS.map((opt) => (
-            <SelectItem key={opt} value={String(opt)}>
+            <SelectItem
+              key={opt}
+              value={String(opt)}
+              className="text-xs tabular-nums focus:bg-action-subtle focus:text-accent"
+            >
               {opt}
             </SelectItem>
           ))}

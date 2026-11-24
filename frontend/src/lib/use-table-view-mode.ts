@@ -22,8 +22,8 @@ export function useTableViewMode(
 
   useEffect(() => {
     const stored = readStored(key);
-    if (stored && stored !== mode) setMode(stored);
-  }, [key, mode]);
+    setMode(stored ?? defaultMode);
+  }, [key, defaultMode]);
 
   const update = useCallback(
     (next: TableViewMode) => {
