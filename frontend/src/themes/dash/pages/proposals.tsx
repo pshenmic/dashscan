@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import type { Column, ColumnDef } from "@tanstack/react-table";
-import { ChevronDown, Filter } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Filter } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { useClockValue } from "@/components/render-clock";
 import {
@@ -55,42 +55,25 @@ function SortHeader({
   summary: ReactNode;
 }) {
   const order = column.getIsSorted();
+  const Icon =
+    order === "asc" ? ArrowUp : order === "desc" ? ArrowDown : ArrowUpDown;
   return (
-    <span className={headerLayout}><DropdownMenu>
-      <span className="inline-flex items-center gap-1 whitespace-nowrap align-middle">
-        {label}
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={`Sort by ${label}`}
-            className={`inline-flex size-6 shrink-0 items-center justify-center rounded-md hover:bg-action-subtle hover:text-accent data-[state=open]:bg-action-subtle focus-visible:outline-2 focus-visible:outline-ring ${order ? "bg-action-subtle text-accent" : "text-muted-foreground"}`}
-          >
-            <ChevronDown className="size-3" aria-hidden="true" />
-          </button>
-        </DropdownMenuTrigger>
-      </span>
-      <span className={headerSummary}>{summary ?? "—"}</span>
-      <DropdownMenuContent
-        align={column.id === "name" ? "start" : "end"}
-        className="w-52"
+    <span className={`${headerLayout} grid-cols-[auto_auto]`}>
+      <button
+        type="button"
+        aria-label={`Sort by ${label}`}
+        onClick={() => column.toggleSorting(order !== "desc")}
+        className="group col-span-2 grid min-h-6 grid-cols-subgrid items-center justify-items-center rounded-md focus-visible:outline-2 focus-visible:outline-ring"
       >
-        <DropdownMenuRadioGroup
-          value={order || "default"}
-          onValueChange={(value) =>
-            value === "default"
-              ? column.clearSorting()
-              : column.toggleSorting(value === "desc")
-          }
+        <span>{label}</span>
+        <span
+          className={`inline-flex size-6 items-center justify-center rounded-md group-hover:bg-action-subtle group-hover:text-accent ${order ? "text-accent" : "text-muted-foreground"}`}
         >
-          <DropdownMenuRadioItem value="asc">Ascending</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="desc">Descending</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="default">
-            Newest first (default)
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-
-      </DropdownMenuContent>
-    </DropdownMenu></span>
+          <Icon className="size-3" aria-hidden="true" />
+        </span>
+      </button>
+      <span className={headerSummary}>{summary ?? "—"}</span>
+    </span>
   );
 }
 function proposalColumns(
