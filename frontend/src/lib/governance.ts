@@ -1,5 +1,7 @@
 import type { Network } from "@/lib/store";
 
+export const proposalsAnchor = "proposals";
+
 interface GovernanceParams {
   superblockInterval: number;
   votingDeadlineBlocksBeforeSb: number;
@@ -60,23 +62,6 @@ export function getNextSuperblockHeight(
 ): number {
   const { superblockInterval } = GOVERNANCE_PARAMS[network];
   return Math.ceil(currentHeight / superblockInterval) * superblockInterval;
-}
-
-export function getBlocksUntilSuperblock(
-  currentHeight: number,
-  network: Network,
-): number {
-  return getNextSuperblockHeight(currentHeight, network) - currentHeight;
-}
-
-export function getMsUntilSuperblock(
-  currentHeight: number,
-  network: Network,
-  blockTimeMs?: number | null,
-): number {
-  const blocks = getBlocksUntilSuperblock(currentHeight, network);
-  const ms = blockTimeMs ?? defaultBlockTimeMs(network);
-  return blocks * ms;
 }
 
 function defaultBlockTimeMs(network: Network): number {

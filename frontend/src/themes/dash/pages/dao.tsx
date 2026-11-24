@@ -1,421 +1,278 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import { Search } from "lucide-react";
+import { useState } from "react";
+import { useClockValue } from "@/components/render-clock";
 import {
-  type ColumnDef,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { Calendar, ChevronDown, ChevronUp, Minus } from "lucide-react";
-import { useMemo, useState } from "react";
-import { RelativeTime } from "@/components/relative-time";
-import { useNow } from "@/components/render-clock";
-import { Badge } from "@/components/ui/badge";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { blockRewardQueryOptions, blocksQueryOptions } from "@/lib/api/blocks";
+import { budgetQueryOptions } from "@/lib/api/governance";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { blocksQueryOptions } from "@/lib/api/blocks";
-import { chainStatsQueryOptions } from "@/lib/api/chain";
-import {
-  budgetQueryOptions,
-  proposalsQueryOptions,
-} from "@/lib/api/governance";
-import { masternodesQueryOptions } from "@/lib/api/masternodes";
-import type { ApiGovernanceObject } from "@/lib/api/types";
-import { formatDateTime, formatDuration, formatNumber } from "@/lib/format";
-import {
-  getMsUntilSuperblock,
-  getRequiredVotes,
-  getVotingDeadline,
-  resolveNetworkFromChain,
-} from "@/lib/governance";
+  DUFFS_PER_DASH,
+  formatDateTime,
+  formatDuration,
+  formatNumber,
+} from "@/lib/format";
+import { homeChainQueryOptions } from "@/lib/home";
 import { appStore } from "@/lib/store";
-import { CopyButton } from "@/themes/dash/components/copy-button";
-import { DataTable } from "@/themes/dash/components/data-table";
-import { HashCell } from "@/themes/dash/components/hash-cell";
-import { Pagination } from "@/themes/dash/components/pagination";
-import { SearchInput } from "@/themes/dash/components/search-input";
-import { StatCard } from "@/themes/dash/components/stat-card";
-import { SuperblockFundingChart } from "@/themes/dash/components/superblock-funding-chart";
+import { BlockAge } from "@/themes/dash/components/block-age";
+import { ProposalsSection, useListedProposals } from "./proposals";
 
-const columns: ColumnDef<ApiGovernanceObject>[] = [
-  {
-    accessorKey: "creationTime",
-    header: "Creation Time",
-    cell: ({ getValue }) => (
-      <span className="text-muted-foreground">
-        {getValue<string | null>() ? (
-          <RelativeTime timestamp={getValue<string>()} />
-        ) : (
-          "—"
-        )}
-      </span>
-    ),
-  },
-  {
-    id: "name",
-    header: "Proposal Name",
-    accessorFn: (row) => row.name ?? "",
-    cell: ({ row }) => {
-      const name = row.original.name;
-      const url = row.original.url;
-      if (!name) return <span className="text-muted-foreground">—</span>;
-      if (url) {
-        return (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-accent hover:underline"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {name}
-          </a>
-        );
-      }
-      return <span className="font-medium">{name}</span>;
-    },
-  },
-  {
-    id: "paymentAddress",
-    header: "Payment Address",
-    accessorFn: (row) => row.paymentAddress ?? "",
-    cell: ({ row }) => {
-      const addr = row.original.paymentAddress;
-      if (!addr) return <span className="text-muted-foreground">—</span>;
-      return (
-        <div className="flex items-center gap-1.5">
-          <HashCell hash={addr} />
-          <CopyButton value={addr} />
-        </div>
-      );
-    },
-  },
-  {
-    id: "votes",
-    header: "Votes",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-1.5">
-        <Badge className="h-6 gap-1 border-[#3EBF5A]/24 bg-[#3EBF5A]/12 text-[#3EBF5A]">
-          <ChevronUp className="size-3 opacity-64" />
-          {row.original.yesCount ?? 0}
-        </Badge>
-        <Badge className="h-6 gap-1 border-[#FF4C4C]/24 bg-[#FF4C4C]/12 text-[#FF4C4C]">
-          <ChevronDown className="size-3 opacity-64" />
-          {row.original.noCount ?? 0}
-        </Badge>
-        <Badge className="h-6 gap-1 border-[#FFA04C]/24 bg-[#FFA04C]/12 text-[#FFA04C]">
-          <Minus className="size-3 opacity-64" />
-          {row.original.abstainCount ?? 0}
-        </Badge>
-      </div>
-    ),
-  },
-  {
-    id: "funding",
-    header: "Funding",
-    accessorFn: (row) => row.paymentAmount ?? 0,
-    cell: ({ row }) => {
-      const amount = row.original.paymentAmount;
-      if (amount == null)
-        return <span className="text-muted-foreground">—</span>;
-      return (
-        <Badge className="h-6 gap-1 border-0 bg-accent/12 font-medium text-accent">
-          {formatNumber(amount)}
-          <img src="/icons/dash.svg" alt="" className="size-3.5" />
-        </Badge>
-      );
-    },
-  },
-];
+function funds(value: number | null | undefined, maximumFractionDigits = 2) {
+  return value == null
+    ? "—"
+    : `${formatNumber(value, { maximumFractionDigits })} DASH`;
+}
 
-const skeletonWidths = ["w-20", "w-40", "w-36", "w-36", "w-20"];
-
-export default function ClassicDaoPage() {
-  const now = useNow();
-  const storeNetwork = useStore(appStore, (state) => state.network);
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-
-  const { data: allProposals, isFetching } = useQuery(
-    proposalsQueryOptions({ network: storeNetwork, proposalType: "all" }),
-  );
-
-  const { data: budget } = useQuery(
-    budgetQueryOptions({ network: storeNetwork }),
-  );
-
-  const { data: blockData } = useQuery(
-    blocksQueryOptions({
-      network: storeNetwork,
-      page: 1,
-      limit: 1,
-      order: "desc",
-    }),
-  );
-
-  const { data: mnData } = useQuery(
-    masternodesQueryOptions({ network: storeNetwork, page: 1, limit: 1 }),
-  );
-
-  const { data: chainStats } = useQuery(
-    chainStatsQueryOptions({ network: storeNetwork }),
-  );
-  const network = resolveNetworkFromChain(chainStats?.chain, storeNetwork);
-
-  const proposals = useMemo(
-    () =>
-      (allProposals ?? []).filter(
-        (p) => p.objectType === "Proposal" && p.name !== null,
-      ),
-    [allProposals],
-  );
-
-  const currentHeight = blockData?.resultSet?.[0]?.height ?? 0;
-  const masternodeCount = mnData?.pagination?.total ?? 0;
-
-  const availableBudget = budget?.totalBudget ?? 0;
-  const proposalCount = budget?.totalProposals ?? proposals.length;
-  const fundedAmount = budget?.enoughFundsTotal ?? 0;
-  const fundedProposalCount = budget?.enoughFundsCount ?? 0;
-  const remainingBudget = Math.max(0, availableBudget - fundedAmount);
-  const totalRequested = budget?.totalRequested ?? 0;
-  const unfundedAmount = Math.max(0, totalRequested - fundedAmount);
-  const unfundedProposalCount = Math.max(
-    0,
-    proposalCount - fundedProposalCount,
-  );
-  const requiredVotes = getRequiredVotes(masternodeCount);
-  const blockTimeMs = chainStats?.blockTime ?? null;
-  const msUntilSuperblock = getMsUntilSuperblock(
-    currentHeight,
-    network,
-    blockTimeMs,
-  );
-  const votingDeadline = getVotingDeadline(
-    currentHeight,
-    network,
-    blockTimeMs,
-    now,
-  );
-
-  const chartData = useMemo(() => {
-    const triggers = (allProposals ?? []).filter(
-      (p) => p.objectType === "Trigger",
-    );
-    if (triggers.length === 0) return [];
-
-    const months = new Map<string, number>();
-    for (const t of triggers) {
-      if (!t.creationTime) continue;
-      const d = new Date(t.creationTime);
-      const key = formatDateTime(d, { month: "short", year: "numeric" });
-      months.set(key, (months.get(key) ?? 0) + 1);
-    }
-
-    return [...months.entries()]
-      .map(([label, value]) => ({ label, value }))
-      .slice(-12);
-  }, [allProposals]);
-
-  const table = useReactTable({
-    data: proposals,
-    columns,
-    state: { globalFilter, pagination },
-    onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination,
-    globalFilterFn: "includesString",
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-  });
-
-  const pageCount = table.getPageCount();
-
+function NextPayoutTime({ timestamp }: { timestamp: number }) {
+  const minute = useClockValue((now) => Math.floor((timestamp - now) / 60_000));
+  if (!Number.isFinite(timestamp)) return "—";
+  const remaining =
+    minute < 0
+      ? "Awaiting block"
+      : minute === 0
+        ? "<1m"
+        : `~${formatDuration(minute * 60_000)}`;
   return (
-    <main className="mx-auto max-w-[1440px] px-6 py-10">
-      <h1 className="mb-6 text-[28px] font-bold tracking-tight text-[#10213f] sm:text-[34px]">
-        Decentralized Autonomous Organization
-      </h1>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Estimated next superblock: ${remaining}`}
+          className="rounded-sm font-medium tabular-nums focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          {remaining}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <time dateTime={new Date(timestamp).toISOString()}>
+          Estimated ·{" "}
+          {formatDateTime(timestamp, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hourCycle: "h23",
+            timeZoneName: "short",
+          })}
+        </time>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
-      <div className="mb-6 grid gap-6 lg:grid-cols-2 rounded-[24px] shadow-card [&>*]:min-w-0 animate-fade-in-up">
-        <div>
-          <div className="grid gap-4 grid-cols-2 auto-rows-fr [&>*]:min-w-0">
-            <StatCard
-              icon={
-                <img src="/icons/chart-pie.svg" alt="" className="size-5" />
-              }
-              label="Available Budget"
-              bgImage="/images/dao/available-budget.png"
-              value={
-                <span className="inline-flex items-center gap-2">
-                  {formatNumber(availableBudget)}
-                  <img src="/icons/dash.svg" alt="" className="size-5" />
+export default function BudgetPage() {
+  const network = useStore(appStore, (state) => state.network);
+  const proposals = useListedProposals();
+  const [search, setSearch] = useState("");
+  const budget = useQuery({
+    ...budgetQueryOptions({ network }),
+    refetchInterval: 30_000,
+  });
+  const chain = useQuery(homeChainQueryOptions(network));
+  const data = budget.data;
+  const projectedCount = data?.enoughVotesAndFundsCount;
+  const start = chain.data?.latestSuperblockHeight;
+  const historyOptions = blocksQueryOptions({
+    network,
+    superblock: true,
+    limit: 2,
+    order: "desc",
+  });
+  const history = useQuery({
+    ...historyOptions,
+    queryKey: [...historyOptions.queryKey, start],
+    enabled: start != null,
+    staleTime: Infinity,
+    refetchInterval: (query) =>
+      query.state.data?.resultSet[0]?.height === start ? false : 30_000,
+  });
+  const previousBlock = history.data?.resultSet.find(
+    (block) => start != null && block.height < start,
+  );
+  const previous = previousBlock?.height;
+  const lastBlock = history.data?.resultSet.find(
+    (block) => block.height === start,
+  );
+  const previousReward = useQuery({
+    ...blockRewardQueryOptions({ network, height: previous }),
+    refetchInterval: false,
+  });
+  const lastReward = useQuery({
+    ...blockRewardQueryOptions({ network, height: start }),
+    refetchInterval: false,
+  });
+  const end = chain.data?.nextSuperblockHeight;
+  const lastTime = Date.parse(lastBlock?.timestamp ?? "");
+  const previousTime = Date.parse(previousBlock?.timestamp ?? "");
+  const nextTime =
+    end != null &&
+    start != null &&
+    previous != null &&
+    end > start &&
+    lastTime > previousTime
+      ? lastTime +
+        ((lastTime - previousTime) * (end - start)) / (start - previous)
+      : Number.NaN;
+  return (
+    <main className="mx-auto max-w-[1440px] space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <header className="grid items-center gap-4 sm:px-3 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)] lg:grid-rows-[auto_auto] lg:gap-y-0 lg:px-5 lg:py-2">
+        <ol
+          className="relative flex min-w-0 gap-6 overflow-x-auto px-1 py-2 lg:row-span-2 lg:grid lg:grid-cols-3 lg:grid-rows-subgrid lg:gap-y-0 lg:py-0"
+          aria-label="Budget cycle"
+        >
+          {[
+            {
+              label: "Previous payout",
+              height: previous,
+              treasury: previousReward.data?.treasury,
+              timestamp: previousBlock?.timestamp,
+            },
+            {
+              label: "Last payout",
+              height: start,
+              treasury: lastReward.data?.treasury,
+              timestamp: lastBlock?.timestamp,
+            },
+            { label: "Next payout", height: end, upcoming: true },
+          ].map(({ label, height, treasury, timestamp, upcoming }) => (
+            <li
+              key={label}
+              className="min-w-max flex-1 lg:row-span-2 lg:grid lg:grid-rows-subgrid"
+            >
+              <div className="flex min-h-[74px] flex-col justify-between gap-2 rounded-xl bg-card p-3 tabular-nums text-foreground shadow-card">
+                <span className="flex items-center gap-2 whitespace-nowrap text-xs font-medium">
+                  <span
+                    aria-hidden="true"
+                    className="h-[11px] w-[10px] bg-current [mask:url('/icons/home/timeline-block.svg')_center/contain_no-repeat]"
+                  />
+                  {label}
+                  {!upcoming && height != null ? (
+                    <Link
+                      to="/blocks/$hashOrHeight"
+                      params={{ hashOrHeight: String(height) }}
+                      aria-label={`View block #${formatNumber(height)}`}
+                      className="ms-auto rounded-sm text-accent no-underline focus-visible:outline-2 focus-visible:outline-current"
+                    >
+                      #{formatNumber(height)}
+                    </Link>
+                  ) : (
+                    <span className="ms-auto text-muted-foreground">
+                      {height == null ? "—" : `#${formatNumber(height)}`}
+                    </span>
+                  )}
                 </span>
-              }
-            />
-            <StatCard
-              icon={
-                <img src="/icons/superblock.svg" alt="" className="size-5" />
-              }
-              label="Proposals Count"
-              bgImage="/images/dao/proposal-count.png"
-              value={String(proposalCount)}
-            />
-            <StatCard
-              icon={<img src="/icons/dash.svg" alt="" className="size-5" />}
-              label="Remaining Budget"
-              bgImage="/images/dao/remaining-budget.png"
-              value={
-                <span className="inline-flex items-center gap-2">
-                  {formatNumber(Math.round(remainingBudget))}
-                  <img src="/icons/dash.svg" alt="" className="size-5" />
-                </span>
-              }
-            />
-            <StatCard
-              icon={
-                <img src="/icons/sandglass.svg" alt="" className="size-5" />
-              }
-              label="Next Payment"
-              bgImage="/images/dao/next-payment.png"
-              value={
-                currentHeight > 0 ? formatDuration(msUntilSuperblock) : "—"
-              }
-            />
-          </div>
-
-          <div className="mt-5 space-y-2 px-5 pb-5 text-[13px] text-muted-foreground">
-            <div className="flex items-center gap-6">
-              <span className="w-[200px] shrink-0 text-muted-foreground/60">
-                Required votes:
-              </span>
-              <span className="font-medium text-[#10213f]">
-                {requiredVotes} <em>Yes</em>
-              </span>
-            </div>
-            <div className="flex items-center gap-6">
-              <span className="w-[200px] shrink-0 text-muted-foreground/60">
-                Voting Deadline:
-              </span>
-              <span className="flex items-center gap-2 font-medium text-[#10213f]">
-                {formatDateTime(votingDeadline, {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}
-                <Badge className="h-5 border-0 bg-muted px-2 text-[11px] font-medium text-foreground">
-                  in {formatDuration(msUntilSuperblock)}
-                </Badge>
-              </span>
-            </div>
-            <div className="flex items-center gap-6">
-              <span className="w-[200px] shrink-0 text-muted-foreground/60">
-                {fundedProposalCount} proposals with enough votes:
-              </span>
-              <span className="font-medium text-[#10213f]">
-                {Math.round(fundedAmount)} Dash
-              </span>
-            </div>
-            <div className="flex items-center gap-6">
-              <span className="w-[200px] shrink-0 text-muted-foreground/60">
-                {unfundedProposalCount} proposals without enough funds:
-              </span>
-              <span className="font-medium text-[#10213f]">
-                {Math.round(unfundedAmount)} Dash
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <Card className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[24px] border-0 bg-white shadow-none">
-          <CardHeader className="relative px-5 pb-2 sm:px-6">
-            <div className="flex items-start gap-4">
-              <div className="flex size-16 shrink-0 items-center justify-center rounded-full border border-accent/20 text-accent">
-                <img src="/icons/dash.svg" alt="" className="size-7" />
+                {!upcoming ? (
+                  <p className="flex items-baseline justify-between gap-2 text-xs">
+                    <strong className="text-sm font-semibold">
+                      {funds(
+                        treasury == null ? null : treasury / DUFFS_PER_DASH,
+                        8,
+                      )}
+                    </strong>
+                  </p>
+                ) : (
+                  <p className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+                    <strong className="text-sm font-semibold text-foreground">
+                      <span className="sr-only">Projected payout: </span>
+                      {funds(data?.enoughVotesAndFundsTotal)}
+                    </strong>
+                    {projectedCount != null && (
+                      <span>
+                        {formatNumber(projectedCount)}{" "}
+                        {projectedCount === 1 ? "proposal" : "proposals"}
+                      </span>
+                    )}
+                  </p>
+                )}
               </div>
-              <div>
-                <p className="text-[15px] font-medium text-muted-foreground">
-                  Superblock Funding Chart
-                </p>
-                <CardTitle className="mt-1 flex flex-wrap items-baseline gap-2 tracking-[-0.03em]">
-                  <span className="text-[32px] font-extrabold text-[#21314d]">
-                    {formatNumber(Math.round(fundedAmount))}
-                  </span>
-                  <span className="text-[24px] font-medium text-muted-foreground">
-                    / {formatNumber(availableBudget)} DASH
-                  </span>
-                </CardTitle>
+              <div
+                data-upcoming={upcoming || undefined}
+                className="dash-timeline-track relative mt-2 pt-3 text-center text-[10px] text-muted-foreground after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand/70 [&_button]:text-center"
+              >
+                {upcoming ? (
+                  <NextPayoutTime timestamp={nextTime} />
+                ) : timestamp ? (
+                  <BlockAge timestamp={timestamp} />
+                ) : (
+                  "—"
+                )}
               </div>
-            </div>
-            <CardAction>
-              <Badge className="h-7 gap-1.5 whitespace-nowrap rounded-full border-0 bg-[#EAF0FF] px-2.5 text-[11px] font-medium text-accent">
-                <Calendar className="size-3 shrink-0" />1 Month
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="relative flex flex-1 items-end px-3 pb-3 sm:px-4 sm:pb-4">
-            {chartData.length > 0 ? (
-              <SuperblockFundingChart
-                className="rounded-[20px]"
-                data={chartData}
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-                No historical data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card
-        className="border-0 shadow-none animate-fade-in-up"
-        style={{ animationDelay: "150ms" }}
-      >
-        <CardHeader className="px-0">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Proposals ({proposals.length})
-          </CardTitle>
-          <CardAction>
-            <SearchInput
-              value={globalFilter}
-              onChange={setGlobalFilter}
-              placeholder="Search..."
+            </li>
+          ))}
+        </ol>
+        <label className="mx-1 min-w-0 font-semibold lg:col-start-2 lg:row-start-1">
+          <span className="sr-only">
+            Find a proposal by name, hash or payment address
+          </span>
+          <span className="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-card px-4 focus-within:outline-2 focus-within:outline-ring">
+            <Search
+              aria-hidden="true"
+              className="size-4 shrink-0 text-muted-foreground"
             />
-          </CardAction>
-        </CardHeader>
-        <CardContent className="overflow-x-auto px-3">
-          <DataTable
-            table={table}
-            isFetching={isFetching}
-            isEmpty={proposals.length === 0}
-            skeletonWidths={skeletonWidths}
-            skeletonRows={pagination.pageSize}
-            emptyMessage="No proposals found."
-            borderless
-          />
-        </CardContent>
-        <Pagination
-          page={pagination.pageIndex + 1}
-          pageCount={pageCount}
-          onPageChange={(p) =>
-            setPagination((prev) => ({ ...prev, pageIndex: p - 1 }))
-          }
-          pageSize={pagination.pageSize}
-          onPageSizeChange={(size) =>
-            setPagination({ pageIndex: 0, pageSize: size })
-          }
-        />
-      </Card>
+            <input
+              type="search"
+              placeholder="Find a proposal"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full min-w-0 bg-transparent text-sm font-normal text-foreground outline-none placeholder:text-muted-foreground"
+            />
+          </span>
+        </label>
+      </header>
+      {budget.isError && (
+        <p role="alert">
+          Budget unavailable.{" "}
+          <button
+            type="button"
+            className="text-accent underline"
+            onClick={() => void budget.refetch()}
+          >
+            Try again
+          </button>
+        </p>
+      )}
+      <ProposalsSection
+        {...proposals}
+        heading={
+          <h1 className="dash-heading-section flex flex-wrap items-baseline gap-x-1.5">
+            <span className="font-extrabold text-brand">Budget</span>
+            <span className="tabular-nums">
+              {data?.totalBudget == null ? (
+                "—"
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`Total cycle budget: ${funds(data.totalBudget, 8)}`}
+                      className="inline-flex items-baseline gap-1.5 rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      {formatNumber(data.totalBudget, {
+                        maximumFractionDigits: 2,
+                      })}
+                      <span className="text-sm font-medium text-muted-foreground">
+                        DASH
+                      </span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Total cycle budget: {funds(data.totalBudget, 8)}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </span>
+          </h1>
+        }
+        search={search}
+        threshold={data?.requiredVotes}
+        totalRequested={data?.totalRequested}
+      />
     </main>
   );
 }
