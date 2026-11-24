@@ -66,7 +66,7 @@ export function HomeTransactions() {
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <p
-                className="whitespace-nowrap text-xl font-extrabold leading-6 text-accent"
+                className="whitespace-nowrap text-xl font-extrabold leading-6 text-foreground"
                 title={`Estimated indexed transactions: ${metricNumber(total, 0)}`}
               >
                 {total != null && "≈ "}
@@ -80,7 +80,7 @@ export function HomeTransactions() {
                 24H
               </span>
               <span
-                className="dash-label-small font-extrabold text-success"
+                className="dash-label-small font-medium text-muted-foreground"
                 title="Confirmed transactions in the last 24 hours"
               >
                 {breakdown.isPending
@@ -121,7 +121,7 @@ export function HomeTransactions() {
                   <dt className="text-xs leading-4 text-muted-foreground">
                     {item.label}
                   </dt>
-                  <dd className="text-base font-semibold leading-5 tabular-nums text-accent">
+                  <dd className="text-base font-semibold leading-5 tabular-nums text-foreground">
                     {breakdown.isPending
                       ? "…"
                       : breakdown.isError
@@ -139,7 +139,7 @@ export function HomeTransactions() {
               <h3 className="text-sm font-medium leading-4 tracking-[-0.009em] text-muted-foreground">
                 Latest block fees
               </h3>
-              <p className="mt-2 text-2xl font-extrabold leading-[1.2] text-accent">
+              <p className="mt-2 text-2xl font-extrabold leading-[1.2] text-foreground">
                 {metricDuffs(latest?.fees)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
@@ -182,7 +182,7 @@ export function HomeTransactions() {
               Fees average
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <p className="text-xl font-extrabold leading-6 text-accent">
+              <p className="text-xl font-extrabold leading-6 text-foreground">
                 {metricDuffs(breakdown.data?.averageFee)}{" "}
                 <span className="font-medium">DASH</span>
               </p>
@@ -244,7 +244,7 @@ export function HomeTransactions() {
                 Transaction Fees
               </h3>
               <p
-                className="flex flex-wrap items-baseline gap-x-1 text-xl font-extrabold leading-[1.2] text-accent"
+                className="flex flex-wrap items-baseline gap-x-1 text-xl font-extrabold leading-[1.2] text-foreground"
                 title={`${metricDuffs(breakdown.data?.fees)} DASH`}
               >
                 <span>{metricDuffs(breakdown.data?.fees, 4)}</span>
@@ -267,7 +267,7 @@ export function HomeTransactions() {
               <h3 className="min-h-[2.2em] text-sm font-medium leading-[1.1] text-muted-foreground">
                 InstantSend lock time
               </h3>
-              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-accent">
+              <p className="whitespace-nowrap text-2xl font-extrabold leading-[1.2] text-foreground">
                 1 <span className="font-normal">s</span>
               </p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">

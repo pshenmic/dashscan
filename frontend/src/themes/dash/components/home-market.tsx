@@ -74,7 +74,7 @@ export function HomeMarket() {
               >
                 {label}
               </dt>
-              <dd className="shrink-0 text-base font-semibold tabular-nums text-accent">
+              <dd className="shrink-0 text-base font-semibold tabular-nums text-foreground">
                 {query.isError ? (
                   <button
                     type="button"
@@ -97,7 +97,7 @@ export function HomeMarket() {
           <h3 className="dash-body-compact text-muted-foreground">
             Dash Price (USD)
           </h3>
-          <p className="dash-metric text-accent">
+          <p className="dash-metric text-foreground">
             {price.data?.usd != null &&
             Number.isFinite(price.data.usd) &&
             price.data.usd >= 0

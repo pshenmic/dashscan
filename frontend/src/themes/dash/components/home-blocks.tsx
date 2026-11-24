@@ -386,7 +386,7 @@ export function HomeBlocks() {
                     </TooltipContent>
                   </Tooltip>
                 </h3>
-                <p className="break-words text-2xl font-extrabold leading-[1.2] text-accent">
+                <p className="break-words text-2xl font-extrabold leading-[1.2] text-foreground">
                   {item.valueTitle ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -416,7 +416,7 @@ export function HomeBlocks() {
                       <span className="rounded-lg bg-secondary px-2 py-1 font-medium text-muted-foreground">
                         {item.detailLabel}
                       </span>
-                      <span className="font-extrabold text-accent">
+                      <span className="font-semibold text-foreground">
                         {item.detail}
                       </span>
                     </button>
