@@ -283,7 +283,7 @@ export function HomeBlocks() {
                     to="/blocks/$hashOrHeight"
                     params={{ hashOrHeight: block.hash }}
                     data-new-block={newHashes.includes(block.hash) || undefined}
-                    className="dash-timeline-block relative flex h-[74px] flex-col justify-between gap-3 rounded-xl bg-action-solid p-3 text-primary-foreground hover:bg-action-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    className={`dash-timeline-block relative flex h-[74px] flex-col justify-between gap-3 rounded-xl p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${block.hash === latest.hash ? "bg-action-solid text-primary-foreground" : "bg-card text-foreground inset-ring inset-ring-border hover:inset-ring-accent"}`}
                   >
                     <span className="flex items-center justify-between gap-2 whitespace-nowrap text-xs font-medium">
                       <span
@@ -296,12 +296,11 @@ export function HomeBlocks() {
                       <span className="text-sm">
                         <strong>{metricNumber(block.txCount, 0)}</strong> Txs
                       </span>
-                      <span className="text-primary-foreground">
-                        {metricBytes(block.size)}
-                      </span>
+                      <span>{metricBytes(block.size)}</span>
                     </span>
                   </Link>
                   <div className="relative mt-2 pt-3 text-center text-[10px] text-muted-foreground before:absolute before:-right-6 before:left-0 before:top-[3px] before:border-t-2 before:border-brand after:absolute after:left-1/2 after:top-0 after:size-2 after:-translate-x-1/2 after:rounded-full after:bg-brand after:shadow-[0_0_12px_var(--brand)]">
+                    {block.hash === latest.hash && "Latest · "}
                     <BlockAge timestamp={block.timestamp} />
                   </div>
                 </li>
