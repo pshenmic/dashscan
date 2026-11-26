@@ -17,6 +17,20 @@ export interface ChartPeriod {
   end?: number;
 }
 
+function formatChartPeriod({ days, end }: ChartPeriod) {
+  if (end == null) return `${days}D`;
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "2-digit",
+    timeZone: "UTC",
+  });
+  const last = formatter.format(end - DAY_MS);
+  return days === 1
+    ? last
+    : `${formatter.format(end - days * DAY_MS)} – ${last}`;
+}
+
 export function ChartDateRange({
   value,
   today,
@@ -29,19 +43,7 @@ export function ChartDateRange({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange>();
   const end = value.end ?? today;
-  const format = (timestamp: number) =>
-    new Intl.DateTimeFormat("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "2-digit",
-      timeZone: "UTC",
-    }).format(timestamp);
-  const label =
-    value.end == null
-      ? `${value.days}D`
-      : value.days === 1
-        ? format(end - DAY_MS)
-        : `${format(end - value.days * DAY_MS)} – ${format(end - DAY_MS)}`;
+  const label = formatChartPeriod(value);
   const days =
     draft?.from && draft.to
       ? Math.round((draft.to.getTime() - draft.from.getTime()) / DAY_MS) + 1
