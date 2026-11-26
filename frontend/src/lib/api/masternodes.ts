@@ -27,6 +27,20 @@ interface FetchMasternodesInput extends PaginationParams {
   network: Network;
 }
 
+export function masternodeStatsQueryOptions(network: Network) {
+  return queryOptions({
+    queryKey: ["masternode-stats", network],
+    queryFn: async () => {
+      const response = await apiFetch(
+        new URL("/masternodes/stats", getBaseUrl(network)),
+      );
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      return response.json() as Promise<{ total: number | null }>;
+    },
+    staleTime: 60_000,
+  });
+}
+
 async function getMasternodes(params: FetchMasternodesInput) {
   const url = new URL("/masternodes", getBaseUrl(params.network));
   if (params.page !== undefined)
