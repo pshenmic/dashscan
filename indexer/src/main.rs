@@ -64,7 +64,7 @@ async fn main() {
                          DROP TABLE IF EXISTS chain_stats_hourly; \
                          DROP TABLE IF EXISTS transaction_type_counts; \
                          DROP TABLE IF EXISTS proposals; \
-                         DROP TABLE IF EXISTS masternodes; \
+                         DROP TABLE IF EXISTS masternode_shares; \
                          DROP TABLE IF EXISTS masternodes; \
                          DROP TABLE IF EXISTS utxo; \
                          DROP TABLE IF EXISTS special_transactions; \

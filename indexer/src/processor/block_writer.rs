@@ -1,6 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Timelike, Utc};
+use dashcore::address::{Address, Payload};
+use dashcore::blockdata::transaction::special_transaction::provider_registration::ProviderRegistrationPayload;
 use dashcore::consensus::encode::deserialize_partial;
+use dashcore::consensus::Decodable;
+use dashcore::Network;
 use deadpool_postgres::Client;
 use futures::stream::{self, StreamExt};
 use serde_json::Value;
@@ -13,7 +17,7 @@ use tracing::{error, info};
 const RPC_FALLBACK_CONCURRENCY: usize = 32;
 
 use crate::config::Config;
-use crate::db::{BATCH_SIZE, ChainStatsHour};
+use crate::db::{BATCH_SIZE, ChainStatsHour, MasternodeShare};
 use crate::errors::block_index_error::BlockIndexError;
 use crate::p2p_converter;
 use crate::rpc::{Block, Transaction};
@@ -693,9 +697,14 @@ impl BlockProcessor {
 
         // ── 8. Special transactions
         let mut special_records: Vec<(i32, i16, Value)> = Vec::new();
+        let mut shares = Vec::new();
         for p in pending {
             for tx in &p.block.tx {
                 if tx.tx_type.unwrap_or(0) > 0 {
+                    if tx.tx_type == Some(1) {
+                        shares.extend(parse_masternode_shares(tx, self.network));
+                    }
+
                     special_records.push((
                         tx_map[&tx.txid],
                         tx.tx_type.unwrap(),
@@ -707,6 +716,11 @@ impl BlockProcessor {
         if !special_records.is_empty() {
             self.db
                 .insert_special_transactions_batch(client, &special_records)
+                .await?;
+        }
+        if !shares.is_empty() {
+            self.db
+                .upsert_masternode_shares_batch(client, &shares)
                 .await?;
         }
 
@@ -928,4 +942,27 @@ impl BlockProcessor {
         db_tx.commit().await?;
         Ok(true)
     }
+}
+
+fn parse_masternode_shares(tx: &Transaction, network: Network) -> Vec<MasternodeShare> {
+    let Some(bytes) = tx.extra_payload.as_deref().and_then(|p| hex::decode(p).ok()) else {
+        return Vec::new();
+    };
+    let Ok(payload) = ProviderRegistrationPayload::consensus_decode(&mut bytes.as_slice()) else {
+        return Vec::new();
+    };
+    let Some(shared) = payload.shared_collateral else {
+        return Vec::new();
+    };
+
+    shared
+        .shares
+        .into_iter()
+        .map(|share| MasternodeShare {
+            pro_tx_hash: tx.txid.clone(),
+            owner_address: Address::new(network, Payload::PubkeyHash(share.owner_key_hash))
+                .to_string(),
+            amount_duffs: share.amount,
+        })
+        .collect()
 }

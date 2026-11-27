@@ -7,6 +7,12 @@ use super::{Database, BATCH_SIZE, build_placeholders};
 use crate::miner_pool::MinerPool;
 use crate::rpc::MasternodeEntry;
 
+pub struct MasternodeShare {
+    pub pro_tx_hash: String,
+    pub owner_address: String,
+    pub amount_duffs: i64,
+}
+
 impl Database {
     pub async fn ensure_miner_pools(
         &self,
@@ -130,6 +136,37 @@ impl Database {
                 params.push(&m.platform_node_id);
                 params.push(&m.platform_p2p_port);
                 params.push(&m.platform_http_port);
+            }
+
+            client.execute(query.as_str(), &params).await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn upsert_masternode_shares_batch(
+        &self,
+        client: &impl GenericClient,
+        shares: &[MasternodeShare],
+    ) -> Result<(), PoolError> {
+        if shares.is_empty() {
+            return Ok(());
+        }
+
+        for chunk in shares.chunks(BATCH_SIZE) {
+            let query = format!(
+                "INSERT INTO masternode_shares (pro_tx_hash, owner_address, amount_duffs) \
+                 VALUES {} \
+                 ON CONFLICT (pro_tx_hash, owner_address) \
+                 DO UPDATE SET amount_duffs = EXCLUDED.amount_duffs",
+                build_placeholders(chunk.len(), 3)
+            );
+
+            let mut params: Vec<&(dyn ToSql + Sync)> = Vec::with_capacity(chunk.len() * 3);
+            for share in chunk {
+                params.push(&share.pro_tx_hash);
+                params.push(&share.owner_address);
+                params.push(&share.amount_duffs);
             }
 
             client.execute(query.as_str(), &params).await?;
