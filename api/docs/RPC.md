@@ -1634,7 +1634,7 @@ Additional optional filters:
 | `last_paid_before`   | string  | ISO 8601 date-time                                 | Only masternodes whose `lastPaidTime` is strictly before this point |
 | `has_penalty`        | boolean |                                                    | `true` → `posPenaltyScore > 0`; `false` → `posPenaltyScore = 0`     |
 | `country`            | string  | ISO 3166-1 alpha-2 (e.g. `US`)                     | Filter by GeoIP country code resolved from the masternode address   |
-| `owner_address`      | string  | Comma-separated, up to 100 addresses               | Masternodes with one of these owner addresses                       |
+| `owner_address`      | string  | Comma-separated, up to 100 addresses               | Masternodes whose owner address, or any shared-masternode share owner, is in the list |
 | `voting_address`     | string  | Comma-separated, up to 100 addresses               | Masternodes with one of these voting addresses                      |
 | `collateral_address` | string  | Comma-separated, up to 100 addresses               | Masternodes with one of these collateral addresses                  |
 | `pub_key_operator`   | string  | Comma-separated, up to 100 BLS keys (96 hex chars) | Masternodes with one of these operator public keys                  |
@@ -1657,6 +1657,10 @@ The four key filters are combined with OR: a masternode matches if any of its ke
       "lastPaidTime": "2026-05-20T01:59:22.000Z",
       "lastPaidBlock": 1999000,
       "ownerAddress": "XoBC...",
+      "shares": [
+        { "ownerAddress": "XoBC...", "amountDuffs": 50000000000 },
+        { "ownerAddress": "XsBC...", "amountDuffs": 50000000000 }
+      ],
       "votingAddress": "XvBC...",
       "collateralAddress": "XcBC...",
       "pubKeyOperator": "abc123...",
@@ -1696,7 +1700,8 @@ The four key filters are combined with OR: a masternode matches if any of its ke
 | `consecutivePayments` | number            | Number of consecutive payments received                           |
 | `lastPaidTime`        | number            | Unix timestamp of last payment                                    |
 | `lastPaidBlock`       | number            | Block height of last payment                                      |
-| `ownerAddress`        | string            | Owner address                                                     |
+| `ownerAddress`        | string            | Owner address; comma-joined share owners for a shared masternode   |
+| `shares`               | MasternodeShare[] | Collateral shares; empty for a regular masternode                 |
 | `votingAddress`       | string            | Voting address                                                    |
 | `collateralAddress`   | string            | Collateral address                                                |
 | `pubKeyOperator`      | string            | Operator public key                                               |
@@ -1707,6 +1712,18 @@ The four key filters are combined with OR: a masternode matches if any of its ke
 | `platformNodeId`      | string \| null    | Platform node ID. Evo nodes only                                  |
 | `platformP2PPort`     | number \| null    | Platform P2P port. Evo nodes only                                 |
 | `platformHTTPPort`    | number \| null    | Platform HTTP port. Evo nodes only                                |
+
+
+### MasternodeShare Object
+
+One participant's collateral contribution to a shared masternode, in the
+consensus-significant order of the ProRegTx share table. A shared masternode's
+`shares` amounts sum to its collateral.
+
+| Field          | Type   | Description                      |
+|----------------|--------|----------------------------------|
+| `ownerAddress` | string | Share owner address              |
+| `amountDuffs`  | number | Contribution in duffs (not DASH) |
 
 
 ### GeoIpInfo Object

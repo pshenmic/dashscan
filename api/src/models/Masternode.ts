@@ -1,5 +1,10 @@
 import {GeoIpInfo} from "../services/GeoIPService";
 
+export interface MasternodeShare {
+  ownerAddress: string;
+  amountDuffs: number;
+}
+
 interface MasternodeRPCEntry {
   proTxHash: string;
   address: string;
@@ -36,6 +41,7 @@ interface MasternodeRow {
   platform_http_port: number | null;
   created_at: Date;
   updated_at: Date;
+  shares?: MasternodeShare[];
 }
 
 interface MasternodeObject {
@@ -59,6 +65,7 @@ interface MasternodeObject {
   platformNodeId?: string | null;
   platformP2PPort?: number | null;
   platformHTTPPort?: number | null;
+  shares?: MasternodeShare[] | null;
 }
 
 export default class Masternode {
@@ -82,6 +89,7 @@ export default class Masternode {
   platformNodeId: string | null;
   platformP2PPort: number | null;
   platformHTTPPort: number | null;
+  shares: MasternodeShare[];
 
   constructor(
     proTxHash?: string,
@@ -104,6 +112,7 @@ export default class Masternode {
     platformNodeId?: string,
     platformP2PPort?: number,
     platformHTTPPort?: number,
+    shares?: MasternodeShare[] | null,
   ) {
     this.proTxHash = proTxHash ?? null;
     this.payee = payee ?? null;
@@ -118,6 +127,7 @@ export default class Masternode {
     this.platformNodeId = platformNodeId ?? null;
     this.platformP2PPort = platformP2PPort ?? null;
     this.platformHTTPPort = platformHTTPPort ?? null;
+    this.shares = shares ?? [];
     // without default for short form (masternodes map)
     this.address = address;
     this.posPenaltyScore = posPenaltyScore;
@@ -172,6 +182,7 @@ export default class Masternode {
       row.platform_node_id ?? undefined,
       row.platform_p2p_port ?? undefined,
       row.platform_http_port ?? undefined,
+      row.shares,
     );
   }
 
@@ -196,7 +207,8 @@ export default class Masternode {
                       platformNodeId,
                       platformP2PPort,
                       platformHTTPPort,
+                      shares,
                     }: MasternodeObject): Masternode {
-    return new Masternode(proTxHash, address, payee, status, type, posPenaltyScore, consecutivePayments, lastPaidTime, lastPaidBlock, ownerAddress, votingAddress, collateralAddress, pubKeyOperator, createdAt, updatedAt, geoIpInfo, outpoint, platformNodeId, platformP2PPort, platformHTTPPort)
+    return new Masternode(proTxHash, address, payee, status, type, posPenaltyScore, consecutivePayments, lastPaidTime, lastPaidBlock, ownerAddress, votingAddress, collateralAddress, pubKeyOperator, createdAt, updatedAt, geoIpInfo, outpoint, platformNodeId, platformP2PPort, platformHTTPPort, shares)
   }
 }

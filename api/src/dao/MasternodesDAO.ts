@@ -78,6 +78,21 @@ export default class MasternodesDAO {
         'updated_at',
       )
       .select(this.knex.raw('count(*) over() as total_count'))
+      .leftJoin(
+        this.knex('masternode_shares')
+          .select('pro_tx_hash')
+          .select(this.knex.raw(
+            `json_agg(json_build_object(
+               'ownerAddress', owner_address,
+               'amountDuffs', amount_duffs
+             )) as shares`
+          ))
+          .groupBy('pro_tx_hash')
+          .as('ms'),
+        'ms.pro_tx_hash',
+        'masternodes.pro_tx_hash',
+      )
+      .select(this.knex.raw("COALESCE(ms.shares, '[]'::json) as shares"))
       .modify((builder) => {
         if (status != null) builder.where('status', status);
         if (type != null) builder.whereRaw('LOWER(type) = ?', [type.toLowerCase()]);
@@ -86,14 +101,26 @@ export default class MasternodesDAO {
         if (proTxHashFilter != null) builder.whereIn('pro_tx_hash', proTxHashFilter);
 
         const keyFilters = [
-          ['owner_address', keys.ownerAddresses],
           ['voting_address', keys.votingAddresses],
           ['collateral_address', keys.collateralAddresses],
           ['pub_key_operator', keys.pubKeyOperators],
         ].filter((filter): filter is [string, string[]] => filter[1] != null);
 
-        if (keyFilters.length > 0) {
+        const ownerAddresses = keys.ownerAddresses;
+
+        if (ownerAddresses != null || keyFilters.length > 0) {
           builder.where((inner) => {
+            if (ownerAddresses != null) {
+              inner.orWhereIn('owner_address', ownerAddresses);
+              inner.orWhereExists((existsBuilder) => {
+                existsBuilder
+                  .select(this.knex.raw('1'))
+                  .from('masternode_shares as ms')
+                  .whereRaw('ms.pro_tx_hash = masternodes.pro_tx_hash')
+                  .whereIn('ms.owner_address', ownerAddresses);
+              });
+            }
+
             keyFilters.forEach(([column, values]) => inner.orWhereIn(column, values));
           });
         }
