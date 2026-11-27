@@ -958,11 +958,25 @@ fn parse_masternode_shares(tx: &Transaction, network: Network) -> Vec<Masternode
     shared
         .shares
         .into_iter()
-        .map(|share| MasternodeShare {
-            pro_tx_hash: tx.txid.clone(),
-            owner_address: Address::new(network, Payload::PubkeyHash(share.owner_key_hash))
-                .to_string(),
-            amount_duffs: share.amount,
+        .map(|share| {
+            let reward_script = if share.script_reward.is_empty() {
+                &share.script_refund
+            } else {
+                &share.script_reward
+            };
+
+            MasternodeShare {
+                pro_tx_hash: tx.txid.clone(),
+                owner_address: Address::new(network, Payload::PubkeyHash(share.owner_key_hash))
+                    .to_string(),
+                amount_duffs: share.amount,
+                refund_address: Address::from_script(&share.script_refund, network)
+                    .ok()
+                    .map(|address| address.to_string()),
+                reward_address: Address::from_script(reward_script, network)
+                    .ok()
+                    .map(|address| address.to_string()),
+            }
         })
         .collect()
 }

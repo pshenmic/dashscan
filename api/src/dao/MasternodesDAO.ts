@@ -84,7 +84,9 @@ export default class MasternodesDAO {
           .select(this.knex.raw(
             `json_agg(json_build_object(
                'ownerAddress', owner_address,
-               'amountDuffs', amount_duffs
+               'amountDuffs', amount_duffs,
+               'refundAddress', refund_address,
+               'rewardAddress', reward_address
              )) as shares`
           ))
           .groupBy('pro_tx_hash')

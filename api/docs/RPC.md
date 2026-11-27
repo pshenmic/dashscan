@@ -1658,8 +1658,18 @@ The four key filters are combined with OR: a masternode matches if any of its ke
       "lastPaidBlock": 1999000,
       "ownerAddress": ["XoBC...", "XsBC..."],
       "shares": [
-        { "ownerAddress": "XoBC...", "amountDuffs": 50000000000 },
-        { "ownerAddress": "XsBC...", "amountDuffs": 50000000000 }
+        {
+          "ownerAddress": "XoBC...",
+          "amountDuffs": 50000000000,
+          "refundAddress": "XrBC...",
+          "rewardAddress": "XwBC..."
+        },
+        {
+          "ownerAddress": "XsBC...",
+          "amountDuffs": 50000000000,
+          "refundAddress": "XrBD...",
+          "rewardAddress": "XwBD..."
+        }
       ],
       "votingAddress": "XvBC...",
       "collateralAddress": "XcBC...",
@@ -1720,10 +1730,12 @@ One participant's collateral contribution to a shared masternode, in the
 consensus-significant order of the ProRegTx share table. A shared masternode's
 `shares` amounts sum to its collateral.
 
-| Field          | Type   | Description                      |
-|----------------|--------|----------------------------------|
-| `ownerAddress` | string | Share owner address              |
-| `amountDuffs`  | number | Contribution in duffs (not DASH) |
+| Field           | Type           | Description                                      |
+|-----------------|----------------|--------------------------------------------------|
+| `ownerAddress`  | string         | Share owner address                              |
+| `amountDuffs`   | number         | Contribution in duffs (not DASH)                 |
+| `refundAddress` | string \| null | Immutable principal refund address               |
+| `rewardAddress` | string \| null | Reward address; refund address when not overridden |
 
 
 ### GeoIpInfo Object

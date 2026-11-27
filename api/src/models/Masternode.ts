@@ -3,6 +3,8 @@ import {GeoIpInfo} from "../services/GeoIPService";
 export interface MasternodeShare {
   ownerAddress: string;
   amountDuffs: number;
+  refundAddress: string | null;
+  rewardAddress: string | null;
 }
 
 interface MasternodeRPCEntry {
