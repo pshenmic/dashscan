@@ -54,7 +54,7 @@ interface MasternodeObject {
   consecutivePayments?: number | null;
   lastPaidTime?: Date | null;
   lastPaidBlock?: number | null;
-  ownerAddress?: string | null;
+  ownerAddress?: string | string[] | null;
   votingAddress?: string | null;
   collateralAddress?: string | null;
   pubKeyOperator?: string | null;
@@ -78,7 +78,7 @@ export default class Masternode {
   consecutivePayments: number | null;
   lastPaidTime: Date | null;
   lastPaidBlock: number | null;
-  ownerAddress: string | null;
+  ownerAddress: string | string[] | null;
   votingAddress: string | null;
   collateralAddress: string | null;
   pubKeyOperator: string | null;
@@ -101,7 +101,7 @@ export default class Masternode {
     consecutivePayments?: number,
     lastPaidTime?: Date,
     lastPaidBlock?: number,
-    ownerAddress?: string,
+    ownerAddress?: string | string[],
     votingAddress?: string,
     collateralAddress?: string,
     pubKeyOperator?: string,
@@ -118,7 +118,7 @@ export default class Masternode {
     this.payee = payee ?? null;
     this.status = status ?? null;
     this.type = type ?? null;
-    this.ownerAddress = ownerAddress ?? null;
+    this.ownerAddress = Masternode.normalizeOwnerAddress(ownerAddress);
     this.votingAddress = votingAddress ?? null;
     this.collateralAddress = collateralAddress ?? null;
     this.createdAt = createdAt ?? null;
@@ -136,6 +136,22 @@ export default class Masternode {
     this.lastPaidBlock = lastPaidBlock;
     this.pubKeyOperator = pubKeyOperator;
     this.updatedAt = updatedAt;
+  }
+
+  static normalizeOwnerAddress(ownerAddress?: string | string[] | null): string | string[] | null {
+    if (ownerAddress == null) {
+      return null;
+    }
+
+    const addresses = (Array.isArray(ownerAddress) ? ownerAddress : ownerAddress.split(','))
+      .map(address => address.trim())
+      .filter(address => address.length > 0);
+
+    if (addresses.length === 0) {
+      return null;
+    }
+
+    return addresses.length === 1 ? addresses[0] : addresses;
   }
 
   static fromRPC(entry: MasternodeRPCEntry): Masternode {

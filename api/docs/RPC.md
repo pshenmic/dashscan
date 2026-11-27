@@ -1656,7 +1656,7 @@ The four key filters are combined with OR: a masternode matches if any of its ke
       "consecutivePayments": 0,
       "lastPaidTime": "2026-05-20T01:59:22.000Z",
       "lastPaidBlock": 1999000,
-      "ownerAddress": "XoBC...",
+      "ownerAddress": ["XoBC...", "XsBC..."],
       "shares": [
         { "ownerAddress": "XoBC...", "amountDuffs": 50000000000 },
         { "ownerAddress": "XsBC...", "amountDuffs": 50000000000 }
@@ -1700,7 +1700,7 @@ The four key filters are combined with OR: a masternode matches if any of its ke
 | `consecutivePayments` | number            | Number of consecutive payments received                           |
 | `lastPaidTime`        | number            | Unix timestamp of last payment                                    |
 | `lastPaidBlock`       | number            | Block height of last payment                                      |
-| `ownerAddress`        | string            | Owner address; comma-joined share owners for a shared masternode   |
+| `ownerAddress`        | string \| string[] | Owner address; an array when a shared masternode has several owners |
 | `shares`               | MasternodeShare[] | Collateral shares; empty for a regular masternode                 |
 | `votingAddress`       | string            | Voting address                                                    |
 | `collateralAddress`   | string            | Collateral address                                                |
