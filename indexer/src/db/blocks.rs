@@ -201,6 +201,14 @@ impl Database {
             )
             .await?;
 
+        client
+            .execute(
+                "DELETE FROM masternode_shares WHERE pro_tx_hash IN \
+                 (SELECT txid FROM transactions WHERE block_height = $1)",
+                &[&h],
+            )
+            .await?;
+
         // Delete in correct order due to foreign keys
         client
             .execute(

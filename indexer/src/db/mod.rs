@@ -12,6 +12,7 @@ mod transactions;
 mod utxo;
 
 pub use chain_stats::ChainStatsHour;
+pub use masternodes::MasternodeShare;
 pub use network_snapshots::NetworkSnapshot;
 
 use deadpool_postgres::{Client, Pool, PoolError};
