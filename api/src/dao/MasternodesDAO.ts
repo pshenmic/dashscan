@@ -57,7 +57,7 @@ export default class MasternodesDAO {
 
     const rows = await this.knex('masternodes')
       .select(
-        'pro_tx_hash',
+        'masternodes.pro_tx_hash',
         'address',
         'payee',
         'status',
@@ -100,7 +100,7 @@ export default class MasternodesDAO {
         if (type != null) builder.whereRaw('LOWER(type) = ?', [type.toLowerCase()]);
         if (lastPaidBefore != null) builder.where('last_paid_time', '>', lastPaidBefore);
         if (hasPenalty != null) builder.where('pos_penalty_score', hasPenalty ? '>' : '=', 0);
-        if (proTxHashFilter != null) builder.whereIn('pro_tx_hash', proTxHashFilter);
+        if (proTxHashFilter != null) builder.whereIn('masternodes.pro_tx_hash', proTxHashFilter);
 
         const keyFilters = [
           ['voting_address', keys.votingAddresses],
