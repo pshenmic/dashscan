@@ -40,12 +40,14 @@ export function ChartDateRange({
   onChange,
   allSelected = false,
   onSelectAll,
+  segmented = false,
 }: {
   value: ChartPeriod;
   today: number;
   onChange: (value: ChartPeriod) => void;
   allSelected?: boolean;
   onSelectAll?: () => void;
+  segmented?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange>();
@@ -62,7 +64,13 @@ export function ChartDateRange({
   }
 
   return (
-    <fieldset className="flex min-w-0 max-w-full flex-wrap items-center gap-0.5">
+    <fieldset
+      className={cn(
+        "flex min-w-0 max-w-full flex-wrap items-center gap-0.5",
+        segmented &&
+          "flex-nowrap rounded-xl bg-secondary p-1 [&_button[aria-pressed=true]]:bg-card [&_button[aria-pressed=true]]:font-semibold [&_button[aria-pressed=true]]:text-accent",
+      )}
+    >
       <legend className="sr-only">Chart date range</legend>
       {PRESETS.map((preset) => (
         <button
@@ -88,6 +96,9 @@ export function ChartDateRange({
         >
           All
         </button>
+      )}
+      {segmented && (
+        <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
       )}
       <Popover
         open={open}
@@ -119,7 +130,7 @@ export function ChartDateRange({
             )}
           >
             <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
-            {value.end != null && <span>{label}</span>}
+            {value.end != null && !segmented && <span>{label}</span>}
           </button>
         </PopoverTrigger>
         <PopoverContent
