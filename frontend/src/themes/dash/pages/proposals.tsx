@@ -18,6 +18,8 @@ import { formatDateTime, formatNumber } from "@/lib/format";
 import { proposalsAnchor } from "@/lib/governance";
 import { appStore } from "@/lib/store";
 import { GovernanceTable } from "@/themes/dash/components/governance-table";
+import { NetYesBadge } from "@/themes/dash/components/net-yes-badge";
+import { VoteCountBadge } from "@/themes/dash/components/vote-count-badge";
 
 const number = (value: number | null) =>
   value == null ? "—" : formatNumber(value, { maximumFractionDigits: 8 });
@@ -95,24 +97,12 @@ function proposalColumns(
   };
   const voteColumns: ColumnDef<ListedProposal>[] = (
     [
-      ["absoluteYesCount", "Net yes", "font-semibold text-foreground"],
-      [
-        "yesCount",
-        "Yes",
-        "inline-flex rounded-full border border-action-subtle bg-action-subtle px-2 py-1 text-xs font-semibold",
-      ],
-      [
-        "noCount",
-        "No",
-        "inline-flex rounded-full border border-border bg-foreground/12 px-2 py-1 text-xs font-semibold",
-      ],
-      [
-        "abstainCount",
-        "Abstain",
-        "inline-flex rounded-full border border-border bg-secondary px-2 py-1 text-xs font-semibold text-muted-foreground",
-      ],
+      ["absoluteYesCount", "Net yes"],
+      ["yesCount", "Yes"],
+      ["noCount", "No"],
+      ["abstainCount", "Abstain"],
     ] as const
-  ).map(([key, label, color]) => ({
+  ).map(([key, label]) => ({
     id: key,
     accessorFn: (row) => row[key] ?? undefined,
     sortingFn: "basic",
@@ -136,31 +126,16 @@ function proposalColumns(
       ),
     cell: ({ row }) => {
       const value = row.original[key];
-      if (key === "absoluteYesCount" && value != null) {
-        const meetsThreshold =
-          row.original.enoughVotes ??
-          (threshold == null ? null : value >= threshold);
-        const status =
-          meetsThreshold == null
-            ? "Vote threshold unknown"
-            : meetsThreshold
-              ? "Vote threshold met"
-              : "Below vote threshold";
+      if (key === "absoluteYesCount") {
         return (
-          <span
-            className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold tabular-nums ${meetsThreshold ? "bg-positive-brand/12 text-success" : "bg-secondary text-muted-foreground"}`}
-            title={status}
-          >
-            {number(value)}
-            <span className="sr-only"> · {status}</span>
-          </span>
+          <NetYesBadge
+            value={value}
+            enoughVotes={row.original.enoughVotes}
+            threshold={threshold}
+          />
         );
       }
-      return value == null ? (
-        "—"
-      ) : (
-        <span className={color}>{number(value)}</span>
-      );
+      return <VoteCountBadge outcome={label} value={value} />;
     },
   }));
   return [
