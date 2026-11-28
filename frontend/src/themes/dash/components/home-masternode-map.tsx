@@ -1,0 +1,511 @@
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+  useZoomPanContext,
+  ZoomableGroup,
+} from "react-simple-maps";
+import Supercluster from "supercluster";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import type { ApiMasternode } from "@/lib/api/types";
+import { metricNumber } from "@/themes/dash/lib/home-metrics";
+import {
+  masternodeCountries,
+  masternodeDistribution,
+} from "@/themes/dash/lib/masternode-metrics";
+
+const initialCenter: [number, number] = [0, 25];
+const worldCenter: [number, number] = [0, 0];
+
+function getMasternodeId(node: ApiMasternode) {
+  return node.proTxHash;
+}
+
+function getMasternodeLocation(node: ApiMasternode) {
+  return masternodeDistribution([node])?.locations[0];
+}
+
+function FixedSizeMarker({ children }: { children: ReactNode }) {
+  const { k: zoom } = useZoomPanContext();
+  return <g transform={`scale(${1 / zoom})`}>{children}</g>;
+}
+
+export function HomeMasternodeMap({
+  fitHeight,
+  nodes,
+  onSelect,
+  selectedHashes,
+  onSelectCountry,
+}: {
+  fitHeight?: boolean;
+  nodes: ApiMasternode[];
+  onSelect: (hashes: string[]) => void;
+  selectedHashes: Set<string> | null;
+  onSelectCountry: (code: string) => void;
+}) {
+  return (
+    <HomeNodeMap
+      fitHeight={fitHeight}
+      nodes={nodes}
+      onSelect={onSelect}
+      selectedHashes={selectedHashes}
+      onSelectCountry={onSelectCountry}
+      label="masternodes"
+      getId={getMasternodeId}
+      getLocation={getMasternodeLocation}
+      getCountries={masternodeCountries}
+    />
+  );
+}
+
+export function HomeNodeMap<Node>({
+  fitHeight = false,
+  renderDetails,
+  getAvailability,
+  focusLocation,
+  onClearHighlight,
+  nodes,
+  onSelect,
+  selectedHashes = null,
+  onSelectCountry,
+  label,
+  getId,
+  getLocation,
+  getCountries,
+}: {
+  fitHeight?: boolean;
+  renderDetails?: (
+    nodes: Node[],
+    close: (afterClose?: () => void) => void,
+  ) => ReactNode;
+  focusLocation?: { lat: number; lng: number };
+  onClearHighlight?: () => void;
+  getAvailability?: (node: Node) => boolean;
+  nodes: Node[];
+  onSelect?: (ids: string[]) => void;
+  selectedHashes?: Set<string> | null;
+  onSelectCountry?: (code: string) => void;
+  label: string;
+  getId: (node: Node) => string;
+  getLocation: (node: Node) => { lat: number; lng: number } | undefined;
+  getCountries?: (
+    nodes: Node[],
+  ) => { code: string; name: string; nodes: Node[] }[];
+}) {
+  const container = useRef<HTMLFieldSetElement>(null);
+  const [{ width, height }, setSize] = useState({ width: 742, height: 207 });
+  const defaultCenter = fitHeight ? worldCenter : initialCenter;
+  const afterDetailsClose = useRef<(() => void) | undefined>(undefined);
+  const [position, setPosition] = useState({
+    coordinates: defaultCenter,
+    zoom: 1,
+  });
+  const [active, setActive] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focusLocation) return;
+    setActive(null);
+    setPosition({
+      coordinates: [focusLocation.lng, focusLocation.lat],
+      zoom: 6,
+    });
+  }, [focusLocation]);
+  useEffect(() => {
+    if (!container.current) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const width = Math.max(1, entry.contentRect.width);
+      const height = fitHeight ? Math.max(1, entry.contentRect.height) : 207;
+      setSize((size) =>
+        size.width === width && size.height === height
+          ? size
+          : { width, height },
+      );
+    });
+    observer.observe(container.current);
+    return () => observer.disconnect();
+  }, [fitHeight]);
+  const index = useMemo(() => {
+    const cluster = new Supercluster<{ node: Node }, { available: number }>({
+      radius: 48,
+      maxZoom: 16,
+      ...(getAvailability && {
+        map: ({ node }: { node: Node }) => ({
+          available: Number(getAvailability(node)),
+        }),
+        reduce: (sum: { available: number }, next: { available: number }) => {
+          sum.available += next.available;
+        },
+      }),
+    });
+    cluster.load(
+      nodes.flatMap((node) => {
+        const location = getLocation(node);
+        return location
+          ? [
+              {
+                type: "Feature" as const,
+                properties: { node },
+                geometry: {
+                  type: "Point" as const,
+                  coordinates: [location.lng, location.lat],
+                },
+              },
+            ]
+          : [];
+      }),
+    );
+    return cluster;
+  }, [nodes, getLocation, getAvailability]);
+  const zoomLevel = Math.max(
+    0,
+    Math.min(16, Math.floor(Math.log2((width * position.zoom) / 512))),
+  );
+  const markers = useMemo(
+    () => index.getClusters([-180, -90, 180, 90], zoomLevel),
+    [index, zoomLevel],
+  );
+  const changeZoom = (factor: number) => {
+    setActive(null);
+    setPosition((current) => ({
+      ...current,
+      zoom: Math.max(0.6, Math.min(8, current.zoom * factor)),
+    }));
+  };
+
+  return (
+    <fieldset
+      ref={container}
+      className="dash-home-node-map relative h-full min-w-0 rounded-[inherit]"
+      aria-label={`${label} locations`}
+    >
+      <ComposableMap
+        width={width}
+        height={fitHeight ? Math.min(height, width / 2) : height}
+        preserveAspectRatio={fitHeight ? "xMidYMin meet" : "xMidYMid meet"}
+        projection="geoEqualEarth"
+        projectionConfig={{
+          scale: fitHeight ? Math.min(width / 5.5, height / 2.7) : width / 5.8,
+        }}
+        className="h-full w-full"
+        role="group"
+        aria-label="Interactive map: arrow keys to pan; + and − to zoom; 0 to reset"
+        tabIndex={0}
+        onClick={(event) => {
+          if (
+            !onClearHighlight ||
+            !(event.target instanceof Element) ||
+            !event.currentTarget.contains(event.target) ||
+            event.target.closest("button")
+          )
+            return;
+          setActive(null);
+          onClearHighlight();
+        }}
+        onKeyDown={(event) => {
+          if (
+            event.key === "Escape" &&
+            onClearHighlight &&
+            event.target === event.currentTarget
+          ) {
+            setActive(null);
+            onClearHighlight();
+          }
+          if (event.target !== event.currentTarget) return;
+          if (
+            ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+              event.key,
+            )
+          ) {
+            event.preventDefault();
+            setActive(null);
+            setPosition((current) => {
+              const step = 15 / current.zoom;
+              const [longitude, latitude] = current.coordinates;
+              const horizontal =
+                event.key === "ArrowLeft"
+                  ? -step
+                  : event.key === "ArrowRight"
+                    ? step
+                    : 0;
+              const vertical =
+                event.key === "ArrowUp"
+                  ? step
+                  : event.key === "ArrowDown"
+                    ? -step
+                    : 0;
+              return {
+                ...current,
+                coordinates: [
+                  ((longitude + horizontal + 540) % 360) - 180,
+                  Math.max(-80, Math.min(80, latitude + vertical)),
+                ],
+              };
+            });
+          }
+          if (["+", "=", "-", "0"].includes(event.key)) {
+            event.preventDefault();
+            if (event.key === "0") {
+              setPosition({ coordinates: defaultCenter, zoom: 1 });
+              setActive(null);
+            } else changeZoom(event.key === "-" ? 0.5 : 2);
+          }
+        }}
+      >
+        <ZoomableGroup
+          key={`${width}:${height}`}
+          center={position.coordinates}
+          zoom={position.zoom}
+          minZoom={0.6}
+          maxZoom={8}
+          filterZoomEvent={(event) =>
+            event.type !== "dblclick" &&
+            (event.type === "wheel" ||
+              !(
+                event.target instanceof Element &&
+                event.target.closest("button")
+              ))
+          }
+          onMoveStart={() => setActive(null)}
+          onMoveEnd={({ coordinates, zoom }) =>
+            setPosition((current) => ({
+              coordinates: coordinates ?? current.coordinates,
+              zoom: zoom ?? current.zoom,
+            }))
+          }
+        >
+          <Geographies geography="/world-110m.json">
+            {({ geographies }) =>
+              geographies.map((geography) => (
+                <Geography
+                  key={geography.rsmKey}
+                  geography={geography}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  vectorEffect="non-scaling-stroke"
+                  className="dash-node-map-geography"
+                />
+              ))
+            }
+          </Geographies>
+          {markers.map((feature) => {
+            const clusterId =
+              "cluster_id" in feature.properties
+                ? feature.properties.cluster_id
+                : null;
+            const key =
+              "cluster_id" in feature.properties
+                ? `cluster-${clusterId}`
+                : getId(feature.properties.node);
+            const members =
+              clusterId !== null && (active === key || selectedHashes)
+                ? index
+                    .getLeaves(clusterId, Infinity)
+                    .map((point) => point.properties.node)
+                : "node" in feature.properties
+                  ? [feature.properties.node]
+                  : [];
+            const count =
+              "point_count" in feature.properties
+                ? feature.properties.point_count
+                : 1;
+            const available = getAvailability
+              ? "cluster_id" in feature.properties
+                ? feature.properties.available
+                : Number(getAvailability(feature.properties.node))
+              : null;
+            const statusLabel =
+              available === null
+                ? ""
+                : count === 1
+                  ? available
+                    ? "Available"
+                    : "Unconfirmed"
+                  : `${metricNumber(available, 0)} available · ${metricNumber(count - available, 0)} unconfirmed`;
+            const matching = selectedHashes
+              ? members.filter((node) => selectedHashes.has(getId(node))).length
+              : 0;
+            const groups =
+              active === key && !renderDetails
+                ? (getCountries?.(members) ?? [])
+                : [];
+            return (
+              <Marker
+                key={key}
+                coordinates={[
+                  feature.geometry.coordinates[0],
+                  feature.geometry.coordinates[1],
+                ]}
+              >
+                <FixedSizeMarker>
+                  <foreignObject
+                    x={-22}
+                    y={-22}
+                    width={44}
+                    height={44}
+                    style={{ overflow: "visible" }}
+                  >
+                    <Popover
+                      open={active === key}
+                      onOpenChange={(open) => {
+                        if (open) onClearHighlight?.();
+                        setActive(open ? key : null);
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={`${renderDetails && count === 1 ? "Inspect peer" : `Inspect group of ${metricNumber(count, 0)} ${label}`}${statusLabel ? `; ${statusLabel}` : ""}${selectedHashes ? `; ${metricNumber(matching, 0)} match the filter` : ""}`}
+                          title={statusLabel || undefined}
+                          style={
+                            available === null || count === 1
+                              ? undefined
+                              : ({
+                                  "--peer-share": `${(100 * available) / count}%`,
+                                  background:
+                                    "conic-gradient(var(--success) var(--peer-share), var(--peer-map-track) 0)",
+                                } as CSSProperties)
+                          }
+                          data-filter-match={
+                            selectedHashes ? matching > 0 : undefined
+                          }
+                          data-located={
+                            focusLocation && matching > 0 ? true : undefined
+                          }
+                          data-peer-marker={getAvailability ? true : undefined}
+                          data-peer-pulse={available ? true : undefined}
+                          className={`flex size-11 items-center justify-center rounded-full text-xs font-extrabold tabular-nums focus-visible:outline-2 focus-visible:outline-ring data-[filter-match=false]:opacity-40 ${available === null ? "border-[5px] border-brand/20 bg-action-solid bg-clip-padding text-primary-foreground hover:bg-action-solid" : "text-foreground"} ${active === key || matching > 0 ? "ring-2 ring-brand shadow-md shadow-brand/25" : available !== null && count === 1 ? "" : "shadow-sm"}`}
+                        >
+                          {available !== null && count === 1 ? (
+                            <span
+                              aria-hidden="true"
+                              className={`grid size-full place-items-center rounded-full shadow-sm ${available ? "border-2 border-card bg-success text-success-foreground" : "border-[3px] border-muted-foreground bg-card"}`}
+                            >
+                              {count}
+                            </span>
+                          ) : (
+                            <span
+                              className={
+                                available !== null
+                                  ? "grid size-8 place-items-center rounded-full bg-card"
+                                  : undefined
+                              }
+                            >
+                              {count > 999
+                                ? `${Math.floor(count / 1000)}k+`
+                                : metricNumber(count, 0)}
+                            </span>
+                          )}
+                        </button>
+                      </PopoverTrigger>
+                      {renderDetails ? (
+                        <PopoverContent
+                          side="top"
+                          aria-label="Peer details"
+                          onCloseAutoFocus={(event) => {
+                            const restoreFocus = afterDetailsClose.current;
+                            afterDetailsClose.current = undefined;
+                            if (restoreFocus) {
+                              event.preventDefault();
+                              restoreFocus();
+                            }
+                          }}
+                          className="w-fit max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl p-3"
+                        >
+                          {active === key &&
+                            renderDetails(members, (afterClose) => {
+                              afterDetailsClose.current = afterClose;
+                              setActive(null);
+                            })}
+                        </PopoverContent>
+                      ) : (
+                        <PopoverContent
+                          className="w-64 max-w-[calc(100vw-2rem)] rounded-2xl p-4"
+                          side="top"
+                        >
+                          <p className="font-extrabold">
+                            {metricNumber(count, 0)} {label}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Geographic group · approximate IP locations
+                          </p>
+                          {selectedHashes && (
+                            <p className="mt-2 text-xs text-accent">
+                              {metricNumber(matching, 0)} of{" "}
+                              {metricNumber(count, 0)} nodes match the current
+                              filter.
+                            </p>
+                          )}
+                          <ul className="my-3 max-h-32 space-y-1 overflow-y-auto text-sm">
+                            {groups.map((group) => (
+                              <li key={group.code} className="min-w-0">
+                                {onSelectCountry ? (
+                                  <button
+                                    type="button"
+                                    aria-label={`Filter by ${group.name}`}
+                                    className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2 text-left hover:bg-action-subtle focus-visible:outline-2 focus-visible:outline-ring"
+                                    onClick={() => {
+                                      onSelectCountry(group.code);
+                                      setActive(null);
+                                    }}
+                                  >
+                                    <span className="min-w-0 break-words text-accent">
+                                      {group.name}
+                                    </span>
+                                    <span className="shrink-0 tabular-nums">
+                                      {metricNumber(group.nodes.length, 0)}
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center justify-between gap-3 py-2">
+                                    <span>{group.name}</span>
+                                    <span className="tabular-nums">
+                                      {metricNumber(group.nodes.length, 0)}
+                                    </span>
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                          {onSelect && (
+                            <>
+                              <p className="mb-3 text-xs text-muted-foreground">
+                                Choose a country to show all its nodes, or show
+                                only this geographic group.
+                              </p>
+                              <button
+                                type="button"
+                                className="min-h-10 w-full rounded-xl bg-action-subtle px-3 text-sm text-accent focus-visible:outline-2 focus-visible:outline-ring"
+                                onClick={() => {
+                                  onSelect(members.map(getId));
+                                  setActive(null);
+                                }}
+                              >
+                                Show in list
+                              </button>
+                            </>
+                          )}
+                        </PopoverContent>
+                      )}
+                    </Popover>
+                  </foreignObject>
+                </FixedSizeMarker>
+              </Marker>
+            );
+          })}
+        </ZoomableGroup>
+      </ComposableMap>
+    </fieldset>
+  );
+}

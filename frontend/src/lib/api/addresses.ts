@@ -1,13 +1,14 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import type { Network } from "@/lib/store";
+import type { TransactionTypeFilter } from "@/lib/transaction-types";
 import { apiFetch, getBaseUrl } from "./client";
 import type {
   ApiAddress,
   ApiAddressActivityEntry,
-  ApiAddressBalanceEntry,
   ApiAddressBalancePoint,
   ApiAddressDetail,
+  ApiRichListResponse,
   ApiTransaction,
   ApiUtxoEntry,
   PaginatedResponse,
@@ -18,7 +19,10 @@ interface FetchAddressesInput extends PaginationParams {
   network: Network;
 }
 
-async function getAddresses(params: FetchAddressesInput) {
+export async function getAddresses(
+  params: FetchAddressesInput,
+  signal?: AbortSignal,
+) {
   const url = new URL("/addresses", getBaseUrl(params.network));
   if (params.page !== undefined)
     url.searchParams.set("page", String(params.page));
@@ -26,7 +30,7 @@ async function getAddresses(params: FetchAddressesInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -55,13 +59,62 @@ interface FetchAddressInput {
   address: string;
 }
 
-async function getAddress(params: FetchAddressInput) {
+export function addressesInfoQueryOptions(params: {
+  network: Network;
+  addresses: string[];
+}) {
+  return queryOptions({
+    queryKey: ["addresses-info", params.network, params.addresses],
+    enabled: params.addresses.length > 0,
+    queryFn: ({ signal }) => getAddressesInfo(params, signal),
+  });
+}
+
+export class AddressNotFoundError extends Error {
+  constructor() {
+    super("Address not found");
+  }
+}
+
+export async function getAddressesInfo(
+  params: {
+    network: Network;
+    addresses: string[];
+  },
+  signal?: AbortSignal,
+) {
+  const url = new URL("/addresses/info", getBaseUrl(params.network));
+  url.searchParams.set("addresses", params.addresses.join(","));
+  const response = await apiFetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<
+    {
+      address: string | null;
+      balance: string | null;
+      txCount: number | null;
+    }[]
+  >;
+}
+
+export async function lookupAddress(
+  params: FetchAddressInput,
+  signal?: AbortSignal,
+) {
   const url = new URL(`/address/${params.address}`, getBaseUrl(params.network));
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
+  if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
   return response.json() as Promise<ApiAddressDetail>;
+}
+
+async function getAddress(params: FetchAddressInput, signal?: AbortSignal) {
+  const result = await lookupAddress(params, signal);
+  if (!result) throw new AddressNotFoundError();
+  return result;
 }
 
 export const fetchAddress = createServerFn({ method: "POST" })
@@ -71,15 +124,20 @@ export const fetchAddress = createServerFn({ method: "POST" })
 export function addressQueryOptions(params: FetchAddressInput) {
   return queryOptions({
     queryKey: ["address", params.network, params.address],
-    queryFn: () => getAddress(params),
+    queryFn: ({ signal }) => getAddress(params, signal),
   });
 }
 
 interface FetchAddressTransactionsInput
   extends PaginationParams,
-    FetchAddressInput {}
+    FetchAddressInput {
+  transactionType?: TransactionTypeFilter;
+}
 
-async function getAddressTransactions(params: FetchAddressTransactionsInput) {
+async function getAddressTransactions(
+  params: FetchAddressTransactionsInput,
+  signal?: AbortSignal,
+) {
   const url = new URL(
     `/address/${params.address}/transactions`,
     getBaseUrl(params.network),
@@ -89,8 +147,10 @@ async function getAddressTransactions(params: FetchAddressTransactionsInput) {
   if (params.limit !== undefined)
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
+  if (params.transactionType)
+    url.searchParams.set("transaction_type", params.transactionType);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -112,14 +172,16 @@ export function addressTransactionsQueryOptions(
       params.page,
       params.limit,
       params.order,
+      params.transactionType,
     ],
-    queryFn: () => getAddressTransactions(params),
+    queryFn: ({ signal }) => getAddressTransactions(params, signal),
   });
 }
 
 interface InfiniteAddressTransactionsInput extends FetchAddressInput {
   limit?: number;
   order?: "asc" | "desc";
+  transactionType?: TransactionTypeFilter;
 }
 
 export function addressTransactionsInfiniteQueryOptions(
@@ -134,18 +196,44 @@ export function addressTransactionsInfiniteQueryOptions(
       params.address,
       limit,
       order,
+      params.transactionType,
     ],
-    queryFn: ({ pageParam }) =>
-      getAddressTransactions({
-        network: params.network,
-        address: params.address,
-        page: pageParam,
-        limit,
-        order,
-      }),
+    queryFn: ({ pageParam, signal }) =>
+      getAddressTransactions(
+        {
+          network: params.network,
+          address: params.address,
+          page: pageParam,
+          limit,
+          order,
+          transactionType: params.transactionType,
+        },
+        signal,
+      ),
     initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
+    getNextPageParam: (lastPage, pages, lastPageParam) => {
       const { page, limit: pageLimit, total } = lastPage.pagination;
+      if (
+        page !== lastPageParam ||
+        pageLimit !== limit ||
+        !Number.isSafeInteger(total) ||
+        total < 0 ||
+        lastPage.resultSet.length !== limit
+      )
+        return undefined;
+      const previousHashes = new Set(
+        pages
+          .slice(0, -1)
+          .flatMap((batch) =>
+            batch.resultSet.map((transaction) => transaction.hash),
+          ),
+      );
+      if (
+        lastPage.resultSet.every((transaction) =>
+          previousHashes.has(transaction.hash),
+        )
+      )
+        return undefined;
       return page * pageLimit < total ? page + 1 : undefined;
     },
   });
@@ -157,7 +245,10 @@ interface FetchAddressBalanceChartInput extends FetchAddressInput {
   intervalsCount?: number;
 }
 
-async function getAddressBalanceChart(params: FetchAddressBalanceChartInput) {
+async function getAddressBalanceChart(
+  params: FetchAddressBalanceChartInput,
+  signal?: AbortSignal,
+) {
   const base = getBaseUrl(params.network);
   const buildUrl = (path: string) => {
     const url = new URL(path, base);
@@ -171,10 +262,12 @@ async function getAddressBalanceChart(params: FetchAddressBalanceChartInput) {
 
   let response = await apiFetch(
     buildUrl(`/address/${params.address}/balance/chart`),
+    { signal },
   );
   if (response.status === 404) {
     response = await apiFetch(
       buildUrl(`/address/${params.address}/balance/history`),
+      { signal },
     );
   }
   if (!response.ok) {
@@ -199,7 +292,7 @@ export function addressBalanceChartQueryOptions(
       params.timestampEnd,
       params.intervalsCount,
     ],
-    queryFn: () => getAddressBalanceChart(params),
+    queryFn: ({ signal }) => getAddressBalanceChart(params, signal),
   });
 }
 
@@ -248,7 +341,10 @@ interface FetchRichListInput extends PaginationParams {
   network: Network;
 }
 
-async function getRichList(params: FetchRichListInput) {
+export async function getRichList(
+  params: FetchRichListInput,
+  signal?: AbortSignal,
+) {
   const url = new URL("/addresses/rich-list", getBaseUrl(params.network));
   if (params.page !== undefined)
     url.searchParams.set("page", String(params.page));
@@ -256,11 +352,11 @@ async function getRichList(params: FetchRichListInput) {
     url.searchParams.set("limit", String(params.limit));
   if (params.order !== undefined) url.searchParams.set("order", params.order);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
-  return response.json() as Promise<PaginatedResponse<ApiAddressBalanceEntry>>;
+  return response.json() as Promise<ApiRichListResponse>;
 }
 
 export const fetchRichList = createServerFn({ method: "POST" })
@@ -273,7 +369,10 @@ interface FetchAddressesActivityInput extends PaginationParams {
   timestampEnd?: string;
 }
 
-async function getAddressesActivity(params: FetchAddressesActivityInput) {
+export async function getAddressesActivity(
+  params: FetchAddressesActivityInput,
+  signal?: AbortSignal,
+) {
   const url = new URL("/addresses/activity", getBaseUrl(params.network));
   if (params.page !== undefined)
     url.searchParams.set("page", String(params.page));
@@ -285,7 +384,7 @@ async function getAddressesActivity(params: FetchAddressesActivityInput) {
   if (params.timestampEnd !== undefined)
     url.searchParams.set("timestamp_end", params.timestampEnd);
 
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal });
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);

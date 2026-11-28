@@ -29,6 +29,17 @@ export interface ApiBlock {
   confirmations: number;
   nonce: number;
   superblock?: boolean | null;
+  fees?: number | null;
+}
+
+export interface ApiBlockReward {
+  height: number | null;
+  subsidy: number | null;
+  fees: number | null;
+  miner: number | null;
+  masternode: number | null;
+  platform: number | null;
+  treasury: number | null;
 }
 
 export interface ApiVIn {
@@ -41,6 +52,7 @@ export interface ApiVIn {
 }
 
 export interface ApiVOut {
+  spentTxId?: string | null;
   value: number;
   number: number;
   scriptPubKeyASM: string;
@@ -129,6 +141,7 @@ export interface ApiProUpRevTxPayload {
 }
 
 export interface ApiCbTxPayload {
+  merkleRootAssetUnlocks?: string | null;
   version: number;
   height: number;
   merkleRootMNList: string;
@@ -164,7 +177,15 @@ export interface ApiAssetUnlockTxPayload {
   quorumSig: string;
 }
 
+export interface ApiProDisTxPayload {
+  version: number;
+  actorIndex: number;
+  proTxHash: string;
+  sigs: string[];
+}
+
 export type ApiExtraPayload =
+  | ApiProDisTxPayload
   | ApiProRegTxPayload
   | ApiProUpServTxPayload
   | ApiProUpRegTxPayload
@@ -240,6 +261,11 @@ export interface GeoIpInfo {
 
 export interface ApiMasternode {
   proTxHash: string;
+  outpoint?: string | null;
+  platformNodeId?: string | null;
+  platformP2PPort?: number | null;
+  platformHTTPPort?: number | null;
+  registrationTimestamp?: string | null;
   address: string;
   payee: string;
   status: string;
@@ -289,9 +315,19 @@ export interface ApiGovernanceBudget {
   enoughFundsCount: number;
   remainingAllPass: number;
   remainingEnoughVotes: number;
+  enoughVotesAndFundsTotal?: number | null;
+  enoughVotesAndFundsCount?: number | null;
+  remainingEnoughVotesAndFunds?: number | null;
+  requiredVotes?: number | null;
+  votingDeadline?: string | null;
 }
 
 export interface ApiChainStats {
+  blockSubsidy?: number | null;
+  blockFees?: number | null;
+  peakHashRate?: string | null;
+  peakHashRateTimestamp?: string | null;
+  networkUpgrades?: ApiNetworkUpgrade[] | null;
   chain: string | null;
   sizeOnDisk: number | null;
   difficulty: number | null;
@@ -311,17 +347,67 @@ export interface ApiAddressBalanceEntry {
   concentration: string | null;
 }
 
+export interface ApiNetworkUpgrade {
+  id: string;
+  type: string;
+  status: string;
+  activationHeight: number | null;
+}
+
+export interface ApiRichListResponse
+  extends PaginatedResponse<ApiAddressBalanceEntry> {
+  utxoSummary?: {
+    height: number;
+    blockHash: string;
+    outputCount: number;
+    totalAmountDuffs: string;
+  } | null;
+}
+
 export interface ApiAddressActivityEntry {
   address: string | null;
   txCount: number | null;
 }
 
 export interface ApiTransactionsBreakdown {
+  fees?: number | null;
+  averageFee?: number | null;
+  coinjoinAmount?: number | null;
   total: number | null;
   special: number | null;
   coinjoin: number | null;
   multisig: number | null;
   normal: number | null;
+}
+
+export interface ApiChainHistoryEntry {
+  timestamp: string;
+  data: {
+    hashRate: string | null;
+    difficulty: number | null;
+    transactionsPerSecond: number | null;
+    creditPoolBalance: number | null;
+    fees: number | null;
+    feesPerBlock: number | null;
+    coinjoinAmount: number | null;
+    masternodes: number | null;
+    masternodesEnabled: number | null;
+    evonodes: number | null;
+    evonodesEnabled: number | null;
+    peers: number | null;
+    utxoCount: number | null;
+    utxoAmount: number | null;
+  };
+}
+
+export interface ApiAddressHistoryEntry {
+  timestamp: string;
+  data: { newAddresses: number | null; totalAddresses: number | null };
+}
+
+export interface ApiAssetStats {
+  assetLock: { count: number | null; amount: string | null };
+  assetUnlock: { count: number | null; amount: string | null };
 }
 
 export interface ApiGovernanceObject {

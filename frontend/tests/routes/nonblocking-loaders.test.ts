@@ -5,7 +5,7 @@ import { Route as blockDetailRoute } from "@/routes/blocks.$hashOrHeight";
 import { Route as blocksRoute } from "@/routes/blocks.index";
 import { Route as proposalDetailRoute } from "@/routes/dao.$hash";
 import { Route as daoRoute } from "@/routes/dao.index";
-import { Route as dashboardRoute } from "@/routes/index";
+import { Route as dashboardRoute } from "@/routes/dashboard";
 import { Route as masternodeDetailRoute } from "@/routes/masternodes.$hash";
 import { Route as masternodesRoute } from "@/routes/masternodes.index";
 import { Route as ogRoute } from "@/routes/og.$kind.$id";
@@ -40,8 +40,11 @@ describe("route data loading", () => {
       prefetchQuery: vi.fn().mockResolvedValue(undefined),
     };
 
+    const loader = blockDetailRoute.options.loader;
+    if (typeof loader !== "function") throw new Error("Expected a route loader");
+
     await expect(
-      blockDetailRoute.options.loader?.({
+      loader({
         context: { queryClient },
         params: { hashOrHeight: "slow-block" },
       } as never),
@@ -54,15 +57,28 @@ describe("route data loading", () => {
     expect(ogRoute.options.loader).toBeTypeOf("function");
   });
 
-  it("prefetches only the nine critical dashboard queries", async () => {
+  it("prefetches only chain history for network statistics", async () => {
     const queryClient = {
       prefetchQuery: vi.fn().mockResolvedValue(undefined),
     };
 
-    await dashboardRoute.options.loader?.({
-      context: { queryClient },
-    } as never);
+    const loader = dashboardRoute.options.loader;
+    if (typeof loader !== "function") throw new Error("Expected a route loader");
 
-    expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(9);
+    const end = Date.UTC(2025, 0, 2);
+    await loader({ context: { queryClient }, deps: { days: 1, end } } as never);
+
+    expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(1);
+    expect(queryClient.prefetchQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: [
+          "chainHistory",
+          expect.any(String),
+          "2025-01-01T00:00:00.000Z",
+          "2025-01-02T00:00:00.000Z",
+          24,
+        ],
+      }),
+    );
   });
 });

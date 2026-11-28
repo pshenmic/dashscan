@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface ErrorFallbackProps {
-  error: Error;
+  error: unknown;
 }
 
 export function ErrorFallback({ error }: ErrorFallbackProps) {
@@ -18,7 +18,11 @@ export function ErrorFallback({ error }: ErrorFallbackProps) {
             <AlertTriangle className="size-7" />
           </div>
           <h2 className="text-xl font-bold">Something went wrong</h2>
-          <p className="text-sm text-muted-foreground">{error.message}</p>
+          <p className="text-sm text-muted-foreground">
+            {error instanceof Error
+              ? error.message
+              : "An unexpected error occurred"}
+          </p>
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => router.invalidate()}>
               <RotateCcw className="size-4" />

@@ -3,7 +3,7 @@ import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 const publicHtmlCacheHeaders = {
@@ -30,22 +30,25 @@ const publicHtmlRouteRules = Object.fromEntries(
   ].map((route) => [route, { headers: publicHtmlCacheHeaders }]),
 );
 
-export default defineConfig(({ command }) => ({
-  define: {
-    "process.env.DASHSCAN_API_URL": JSON.stringify(
-      process.env.DASHSCAN_API_URL,
-    ),
-    "process.env.NETWORK": JSON.stringify(process.env.NETWORK),
-  },
-  plugins: [
-    ...(command === "serve" ? [devtools()] : []),
-    nitro({
-      rollupConfig: { external: [/^@sentry\//] },
-      routeRules: publicHtmlRouteRules,
-    }),
-    tsconfigPaths({ projects: ["./tsconfig.json"] }),
-    tailwindcss(),
-    tanstackStart(),
-    viteReact(),
-  ],
-}));
+export default defineConfig(({ command, mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  return {
+    define: {
+      "process.env.DASHSCAN_API_URL": JSON.stringify(
+        process.env.DASHSCAN_API_URL ?? env.DASHSCAN_API_URL,
+      ),
+      "process.env.NETWORK": JSON.stringify(process.env.NETWORK ?? env.NETWORK),
+    },
+    plugins: [
+      ...(command === "serve" ? [devtools()] : []),
+      nitro({
+        rollupConfig: { external: [/^@sentry\//] },
+        routeRules: publicHtmlRouteRules,
+      }),
+      tsconfigPaths({ projects: ["./tsconfig.json"] }),
+      tailwindcss(),
+      tanstackStart(),
+      viteReact(),
+    ],
+  };
+});
