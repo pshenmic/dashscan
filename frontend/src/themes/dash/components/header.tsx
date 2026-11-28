@@ -20,8 +20,8 @@ const NAV_ITEMS = [
   {
     label: "Blockchain",
     items: [
-      { to: "/blocks", label: "Blocks" },
       { to: "/transactions", label: "Transactions" },
+      { to: "/blocks", label: "Blocks" },
       { to: "/addresses", label: "Addresses" },
     ],
   },
@@ -30,10 +30,10 @@ const NAV_ITEMS = [
     items: [
       { to: "/masternodes", label: "Masternodes" },
       { to: "/peers", label: "Peers" },
+      { to: "/dashboard", label: "Statistics" },
     ],
   },
   { to: "/dao", label: "DAO" },
-  { to: "/dashboard", label: "Dashboard" },
 ] as const;
 
 function isActiveRoute(pathname: string, destination: string) {

@@ -59,7 +59,7 @@ export function HomeHero() {
               to="/dashboard"
               className="dash-home-action dash-home-action-subtle flex min-h-12 items-center gap-3 rounded-full px-5 text-base font-medium text-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
-              View Dashboard
+              Explore statistics
               <span className="flex size-5 items-center justify-center">
                 <HomeIcon name="explore" />
               </span>
