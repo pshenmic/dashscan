@@ -11,6 +11,8 @@ import {
 const DAY_MS = 86_400_000;
 const PRESETS = [7, 30, 90];
 const MAX_DAYS = 90;
+const presetClass =
+  "min-h-7 rounded-md px-2 text-xs font-medium tabular-nums text-muted-foreground hover:bg-action-subtle hover:text-accent aria-pressed:bg-action-subtle aria-pressed:text-accent focus-visible:outline-2 focus-visible:outline-ring [@media(pointer:coarse)]:min-h-9";
 
 export interface ChartPeriod {
   days: number;
@@ -35,10 +37,14 @@ export function ChartDateRange({
   value,
   today,
   onChange,
+  allSelected = false,
+  onSelectAll,
 }: {
   value: ChartPeriod;
   today: number;
   onChange: (value: ChartPeriod) => void;
+  allSelected?: boolean;
+  onSelectAll?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange>();
@@ -62,21 +68,38 @@ export function ChartDateRange({
           key={preset}
           type="button"
           aria-label={`Last ${preset} complete UTC ${preset === 1 ? "day" : "days"}`}
-          aria-pressed={value.end == null && value.days === preset}
-          className="min-h-7 rounded-md px-2 text-xs font-medium tabular-nums text-muted-foreground hover:bg-action-subtle hover:text-accent aria-pressed:bg-action-subtle aria-pressed:text-accent focus-visible:outline-2 focus-visible:outline-ring [@media(pointer:coarse)]:min-h-9"
+          aria-pressed={
+            !allSelected && value.end == null && value.days === preset
+          }
+          className={presetClass}
           onClick={() => apply({ days: preset })}
         >
           {preset}D
         </button>
       ))}
+      {onSelectAll && (
+        <button
+          type="button"
+          aria-label="All available dates"
+          aria-pressed={allSelected}
+          className={presetClass}
+          onClick={onSelectAll}
+        >
+          All
+        </button>
+      )}
       <Popover
         open={open}
         onOpenChange={(next) => {
           if (next)
-            setDraft({
-              from: new Date(end - value.days * DAY_MS),
-              to: new Date(end - DAY_MS),
-            });
+            setDraft(
+              allSelected
+                ? undefined
+                : {
+                    from: new Date(end - value.days * DAY_MS),
+                    to: new Date(end - DAY_MS),
+                  },
+            );
           setOpen(next);
         }}
       >
