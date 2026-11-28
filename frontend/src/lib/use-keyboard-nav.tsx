@@ -14,7 +14,7 @@ type NavShortcut = {
 };
 
 export const NAV_SHORTCUTS: NavShortcut[] = [
-  { keys: ["g", "d"], label: "Dashboard", to: "/" },
+  { keys: ["g", "d"], label: "Network statistics", to: "/dashboard" },
   { keys: ["g", "b"], label: "Blocks", to: "/blocks" },
   { keys: ["g", "t"], label: "Transactions", to: "/transactions" },
   { keys: ["g", "m"], label: "Masternodes", to: "/masternodes" },

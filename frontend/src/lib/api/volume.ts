@@ -44,10 +44,3 @@ async function getVolumeHistorical(params: FetchVolumeInput) {
 export const fetchVolumeHistorical = createServerFn({ method: "POST" })
   .inputValidator((input: FetchVolumeInput) => input)
   .handler(({ data }) => getVolumeHistorical(data));
-
-export function volumeHistoricalQueryOptions(params: FetchVolumeInput) {
-  return queryOptions({
-    queryKey: ["volumeHistorical", params.network, params.currency],
-    queryFn: () => getVolumeHistorical(params),
-  });
-}

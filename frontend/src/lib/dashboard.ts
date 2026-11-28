@@ -1,64 +1,59 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { blocksQueryOptions } from "@/lib/api/blocks";
-import { chainStatsQueryOptions } from "@/lib/api/chain";
-import {
-  marketCapHistoricalQueryOptions,
-  marketCapQueryOptions,
-} from "@/lib/api/marketcap";
-import {
-  priceHistoricalQueryOptions,
-  priceQueryOptions,
-} from "@/lib/api/price";
-import {
-  blockTransactionsStatsQueryOptions,
-  dayStatsRange,
-} from "@/lib/api/stats";
-import {
-  volumeHistoricalQueryOptions,
-  volumeQueryOptions,
-} from "@/lib/api/volume";
+import { chainHistoryQueryOptions } from "@/lib/api/stats";
 import { prefetchSsrData } from "@/lib/ssr-prefetch";
-import { defaultNetwork } from "@/lib/store";
+import { defaultNetwork, type Network } from "@/lib/store";
 
-export function prefetchDashboard(queryClient: QueryClient) {
-  const network = defaultNetwork;
+export const DAY = 86_400_000;
+export const DASH_LAUNCH_DAY = Date.UTC(2014, 0, 18);
+export const utcDayStart = (now: number) => Math.floor(now / DAY) * DAY;
+
+export function statisticsSearch(raw: Record<string, unknown>): {
+  days?: number;
+  end?: number;
+  range?: "all";
+} {
+  if (raw.range === "all") return { range: "all" };
+  const days = Number(raw.days ?? 30);
+  const end = Number(raw.end);
+  if (!Number.isInteger(days) || days < 1 || days > 90) return {};
+  if (
+    Number.isSafeInteger(end) &&
+    end >= days * DAY &&
+    end <= utcDayStart(Date.now()) &&
+    end % DAY === 0
+  )
+    return { days, end };
+  return days === 7 || days === 90 ? { days } : {};
+}
+
+export function networkStatisticsQuery(
+  network: Network,
+  end: number,
+  days = 30,
+  all = false,
+) {
+  return chainHistoryQueryOptions({
+    network,
+    timestampStart: new Date(
+      all ? DASH_LAUNCH_DAY : end - days * DAY,
+    ).toISOString(),
+    timestampEnd: new Date(end).toISOString(),
+    intervalsCount: all ? 90 : days === 1 ? 24 : Math.min(days, 90),
+  });
+}
+
+export function prefetchDashboard(
+  queryClient: QueryClient,
+  {
+    days = 30,
+    end = utcDayStart(Date.now()),
+    range,
+  }: ReturnType<typeof statisticsSearch> = {},
+) {
   return prefetchSsrData(queryClient, [
     () =>
       queryClient.prefetchQuery(
-        blocksQueryOptions({ network, page: 1, limit: 10, order: "desc" }),
-      ),
-    () => queryClient.prefetchQuery(chainStatsQueryOptions({ network })),
-    () =>
-      queryClient.prefetchQuery(
-        priceQueryOptions({ network, currency: "usd" }),
-      ),
-    () =>
-      queryClient.prefetchQuery(
-        priceHistoricalQueryOptions({ network, currency: "usd" }),
-      ),
-    () =>
-      queryClient.prefetchQuery(
-        marketCapQueryOptions({ network, currency: "usd" }),
-      ),
-    () =>
-      queryClient.prefetchQuery(
-        marketCapHistoricalQueryOptions({ network, currency: "usd" }),
-      ),
-    () =>
-      queryClient.prefetchQuery(
-        volumeQueryOptions({ network, currency: "usd" }),
-      ),
-    () =>
-      queryClient.prefetchQuery(
-        volumeHistoricalQueryOptions({ network, currency: "usd" }),
-      ),
-    () =>
-      queryClient.prefetchQuery(
-        blockTransactionsStatsQueryOptions({
-          network,
-          ...dayStatsRange(),
-          intervalsCount: 24,
-        }),
+        networkStatisticsQuery(defaultNetwork, end, days, range === "all"),
       ),
   ]);
 }
