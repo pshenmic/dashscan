@@ -341,7 +341,12 @@ export default function ProposalDetailPage({ hash }: { hash: string }) {
             </dl>
           </section>
         </section>
-        <ProposalVoteHistory key={hash} network={network} hash={hash} />
+        <ProposalVoteHistory
+          key={hash}
+          network={network}
+          hash={hash}
+          createdAt={proposal.creationTime}
+        />
         <dl
           aria-label="Proposal identifiers"
           className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 rounded-3xl border border-border bg-card px-5 py-2 sm:px-7 lg:col-span-2 xl:grid-cols-[max-content_minmax(0,1fr)_max-content_minmax(0,1fr)] [&>div]:col-span-2 [&>div]:grid [&>div]:grid-cols-subgrid [&>div]:items-center [&>div]:space-y-0 [&>div]:py-1 xl:[&>div:nth-child(2)]:border-l xl:[&>div:nth-child(2)]:border-border xl:[&>div:nth-child(2)>dt]:pl-3 [&_a]:text-accent [&_a:hover]:underline"
