@@ -57,7 +57,7 @@ describe("route data loading", () => {
     expect(ogRoute.options.loader).toBeTypeOf("function");
   });
 
-  it("prefetches only the nine critical dashboard queries", async () => {
+  it("prefetches only chain history for network statistics", async () => {
     const queryClient = {
       prefetchQuery: vi.fn().mockResolvedValue(undefined),
     };
@@ -65,11 +65,20 @@ describe("route data loading", () => {
     const loader = dashboardRoute.options.loader;
     if (typeof loader !== "function") throw new Error("Expected a route loader");
 
-    await loader({
-      context: { queryClient },
-    } as never);
+    const end = Date.UTC(2025, 0, 2);
+    await loader({ context: { queryClient }, deps: { days: 1, end } } as never);
 
-    expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(9);
+    expect(queryClient.prefetchQuery).toHaveBeenCalledTimes(1);
+    expect(queryClient.prefetchQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: [
+          "chainHistory",
+          expect.any(String),
+          "2025-01-01T00:00:00.000Z",
+          "2025-01-02T00:00:00.000Z",
+          24,
+        ],
+      }),
+    );
   });
-
 });
